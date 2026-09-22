@@ -1,0 +1,25 @@
+# secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# runtime artifacts
+backend/var/
+*.log
+
+# editor / os
+.DS_Store
+.idea/
+.vscode/
