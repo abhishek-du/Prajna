@@ -51,3 +51,40 @@ cp .env.example .env            # fill in Upstox credentials + DSNs
 | M5 | Corporate actions | |
 | M6 | Macro / indices / flows | |
 | M7 | Fundamentals + news | |
+
+## Inspecting the database
+
+There is no `psql` on this host, so the CLI is the query surface.
+
+```bash
+cd /home/cis/windows/prajna/backend
+
+.venv/bin/python -m app.cli.main db status            # rows + provenance coverage
+.venv/bin/python -m app.cli.main db tables            # tables, row estimates, size
+.venv/bin/python -m app.cli.main db describe preopen_tick
+.venv/bin/python -m app.cli.main db sql "select * from ingest_run order by started_at desc"
+.venv/bin/python -m app.cli.main db current           # alembic revision
+.venv/bin/python -m app.cli.main db check-isolation   # prove we are not on V1
+```
+
+`db sql` opens a **READ ONLY** transaction — Postgres rejects any write, so a
+typo cannot damage data. Pass `--allow-write` only when you mean it.
+
+### External GUI (DBeaver, pgAdmin, TablePlus)
+
+```
+host     localhost      port 5432
+database prajna         user prajna_rw
+password see PRAJNA_DATABASE_URL in backend/.env
+```
+
+`prajna_rw` has **no privileges on `autotrade_pro`** — connecting with it cannot
+read or write V1. To inspect V1, use the `autotrade` credentials from
+`auto-trade-pro/autotrade-backend/.env` and keep it read-only.
+
+### Installing a psql client (optional)
+
+```bash
+sudo apt install postgresql-client     # needs your sudo password
+psql "$(grep ^PRAJNA_DATABASE_URL backend/.env | cut -d= -f2- | sed 's/+asyncpg//')"
+```

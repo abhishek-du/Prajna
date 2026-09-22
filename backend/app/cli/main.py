@@ -65,6 +65,49 @@ def db_status():
     asyncio.run(print_status())
 
 
+@db_app.command("sql")
+def db_sql(
+    statement: str = typer.Argument(..., help="SQL to run"),
+    limit: int = typer.Option(100, help="max rows to print"),
+    allow_write: bool = typer.Option(
+        False, "--allow-write",
+        help="open a writable transaction (default is READ ONLY, enforced by Postgres)",
+    ),
+):
+    """Run ad-hoc SQL. Read-only unless --allow-write."""
+    from app.cli.sql import main as run
+    run(statement, allow_write, limit)
+
+
+@db_app.command("tables")
+def db_tables():
+    """List tables with row counts and size."""
+    from app.cli.sql import main as run
+    run(
+        """
+        select c.relname as table,
+               c.reltuples::bigint as est_rows,
+               pg_size_pretty(pg_total_relation_size(c.oid)) as size
+        from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        where c.relkind = 'r' and n.nspname = 'public'
+        order by c.relname
+        """,
+        False, 200,
+    )
+
+
+@db_app.command("describe")
+def db_describe(table: str = typer.Argument(...)):
+    """Show columns, types and constraints for one table."""
+    from app.cli.sql import main as run
+    run(f"""
+        select column_name, data_type, is_nullable, coalesce(column_default,'') as default
+        from information_schema.columns
+        where table_schema='public' and table_name='{table}'
+        order by ordinal_position
+    """, False, 200)
+
+
 @db_app.command("check-isolation")
 def db_check_isolation():
     """Prove the configured DSN is not a V1 database."""
