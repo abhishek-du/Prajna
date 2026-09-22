@@ -70,6 +70,20 @@ cd /home/cis/windows/prajna/backend
 `db sql` opens a **READ ONLY** transaction — Postgres rejects any write, so a
 typo cannot damage data. Pass `--allow-write` only when you mean it.
 
+### Web viewer
+
+```bash
+.venv/bin/python -m app.cli.main db web          # http://127.0.0.1:8081
+```
+
+Grouped table list with live row counts, row browser, column and constraint
+inspector, and an ad-hoc SQL box. Every query runs inside
+`SET TRANSACTION READ ONLY` and it binds to loopback only, because it holds
+database credentials.
+
+Port 8081, not 8080 — 8080 is already served by another (PHP) application on
+this host. Override with `--port`.
+
 ### External GUI (DBeaver, pgAdmin, TablePlus)
 
 ```

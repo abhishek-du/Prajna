@@ -108,6 +108,16 @@ def db_describe(table: str = typer.Argument(...)):
     """, False, 200)
 
 
+@db_app.command("web")
+def db_web(
+    port: int = typer.Option(8081, help="port (8080 is taken by another app on this host)"),
+    host: str = typer.Option("127.0.0.1", help="bind address; loopback only by default"),
+):
+    """Read-only web browser for the database."""
+    from app.web.viewer import serve
+    serve(host=host, port=port)
+
+
 @db_app.command("check-isolation")
 def db_check_isolation():
     """Prove the configured DSN is not a V1 database."""
