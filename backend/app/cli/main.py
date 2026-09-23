@@ -266,6 +266,92 @@ def ingest_instruments(
     raise typer.Exit(0 if report.status == "COMPLETE" else 1)
 
 
+@ingest_app.command("candles")
+def ingest_candles(
+    timeframe: list[str] = typer.Option(..., "--timeframe", help="repeatable: 1m 5m 15m 1h 1d"),
+    date_from: str = typer.Option(None, "--from", help="YYYY-MM-DD (historical)"),
+    date_to: str = typer.Option(None, "--to", help="YYYY-MM-DD (historical, inclusive)"),
+    intraday: bool = typer.Option(False, "--intraday", help="today's bars (intraday endpoint)"),
+    key: list[str] = typer.Option(None, "--key", help="repeatable instrument_key"),
+    keys_file: str = typer.Option(None, "--keys-file", help="instrument_keys, one per line"),
+    all_instruments: bool = typer.Option(
+        False, "--all-instruments", help="every current row of the instrument table"),
+    commit: bool = typer.Option(False, "--commit", help="write to the database"),
+    token: str = typer.Option(None, "--token", help="write authorization token"),
+    no_resume: bool = typer.Option(False, "--no-resume", help="ignore watermarks"),
+):
+    """Ingest Upstox candles into ohlcv_bar (dry-run by default). M4.3.
+
+    Only COMPLETE bars are persisted. Every response is archived first.
+    Timeframes and ranges are yours to choose (D1/D2 are not decided here).
+    A rate limit stops the batch with every checkpoint intact.
+    """
+    import datetime as _dt
+    import json as _json
+    import pathlib
+
+    from sqlalchemy import literal_column, select
+
+    from app.db.engine import get_sessionmaker
+    from app.db.models import Instrument
+    from app.ingest.candles import CandleIngestor, CandleJob, plan_jobs
+    from app.storage.payload_store import PayloadStore
+    from app.vendor.upstox.auth import load_cached
+    from app.vendor.upstox.rest import UpstoxRestClient
+
+    log = get_logger("cli")
+    if sum(bool(x) for x in (key, keys_file, all_instruments)) != 1:
+        log.error("choose_one_key_source", options="--key | --keys-file | --all-instruments")
+        raise typer.Exit(2)
+    if intraday == bool(date_from or date_to) or (not intraday and not (date_from and date_to)):
+        log.error("choose_range", options="--from/--to (historical) | --intraday")
+        raise typer.Exit(2)
+    rec = load_cached()
+    if rec is None:
+        log.error("upstox_token_missing", blocker="B0", action="run `prajna upstox login`")
+        raise typer.Exit(3)
+
+    keys: list[str] = list(key or [])
+    if keys_file:
+        keys = [ln.split("#", 1)[0].strip()
+                for ln in pathlib.Path(keys_file).read_text().splitlines()]
+        keys = [k for k in keys if k]
+
+    async def _go():
+        rest = UpstoxRestClient(rec.access_token)
+        try:
+            async with get_sessionmaker()() as s:
+                ks = keys
+                if all_instruments:
+                    ks = list((await s.execute(select(Instrument.instrument_key).where(
+                        Instrument.valid_to == literal_column("'infinity'::date"))
+                        .order_by(Instrument.instrument_key))).scalars())
+                if intraday:
+                    jobs, unavailable = [CandleJob(k, tf, None) for k in sorted(set(ks))
+                                         for tf in timeframe], []
+                else:
+                    jobs, unavailable = plan_jobs(ks, timeframe,
+                                                  _dt.date.fromisoformat(date_from),
+                                                  _dt.date.fromisoformat(date_to))
+                ing = CandleIngestor(s, rest, PayloadStore(get_settings().archive_dir),
+                                     commit=commit, token=token)
+                return await ing.run(jobs, resume=not no_resume), unavailable
+        finally:
+            await rest.aclose()
+
+    rep, unavailable = asyncio.run(_go())
+    out = rep.summary()
+    out["before_availability"] = len(unavailable)
+    out["failed"] = [{"key": r.job.instrument_key, "tf": r.job.timeframe,
+                      "window": r.coverage and r.coverage["window"], "error": r.error}
+                     for r in rep.results if r.status in ("FAILED", "ABORTED")][:50]
+    out["coverage"] = {o: sum(1 for r in rep.results if r.coverage and
+                              r.coverage["outcome"] == o)
+                       for o in ("DATA", "EMPTY", "VENDOR_ERROR")}
+    typer.echo(_json.dumps(out, indent=2, default=str))
+    raise typer.Exit(0 if not rep.stopped and not rep.count("FAILED") else 1)
+
+
 @ingest_app.command("universe")
 def ingest_universe(
     from_file: str = typer.Option(None, "--from-file", help="a local copy of NSE.json.gz"),

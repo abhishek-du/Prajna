@@ -25,7 +25,8 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from sqlalchemy import insert, update
+from sqlalchemy import insert, type_coerce, update
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.contracts.provenance import RunMode, RunStatus, config_sha256
@@ -173,7 +174,16 @@ class IngestRunner:
             ],
         )
 
-    async def finalize(self, *, rows_written: int) -> None:
+    def _with_outcome(self, values: dict, outcome: dict | None) -> dict:
+        """`outcome` is merged into request_params under "outcome" (JSONB ||),
+        so what a run FOUND sits next to what it ASKED FOR; e.g. a candle
+        window's coverage record, which is the only trace of an EMPTY window."""
+        if outcome is not None:
+            values["request_params"] = IngestRun.request_params.op("||")(
+                type_coerce({"outcome": outcome}, JSONB))
+        return values
+
+    async def finalize(self, *, rows_written: int, outcome: dict | None = None) -> None:
         """Step 6. Ledger + watermark + anomalies, in the caller's transaction.
 
         The caller has already staged its data rows on this same session and has
@@ -186,9 +196,8 @@ class IngestRunner:
         await self._flush_anomalies()
         await self.session.execute(
             update(IngestRun).where(IngestRun.run_id == ctx.run_id).values(
-                status=RunStatus.COMPLETE.value, finished_at=now(),
-                rows_written=ctx.rows_written,
-            )
+                **self._with_outcome({"status": RunStatus.COMPLETE.value, "finished_at": now(),
+                                      "rows_written": ctx.rows_written}, outcome))
         )
         if ctx.is_commit:
             await self.session.merge(
@@ -204,15 +213,16 @@ class IngestRunner:
                  anomalies=len(ctx.checks.anomalies))
         clear_run()
 
-    async def fail(self, error: str, *, status: RunStatus = RunStatus.FAILED) -> None:
+    async def fail(self, error: str, *, status: RunStatus = RunStatus.FAILED,
+                   outcome: dict | None = None) -> None:
         """Abort. Data is rolled back; the run row and anomalies are kept."""
         assert self.ctx
         await self.session.rollback()
         await self._flush_anomalies()
         await self.session.execute(
             update(IngestRun).where(IngestRun.run_id == self.ctx.run_id).values(
-                status=status.value, finished_at=now(), rows_written=0, error=error[:8000],
-            )
+                **self._with_outcome({"status": status.value, "finished_at": now(),
+                                      "rows_written": 0, "error": error[:8000]}, outcome))
         )
         await self.session.commit()
         log.error("run.failed", error=error[:400])
