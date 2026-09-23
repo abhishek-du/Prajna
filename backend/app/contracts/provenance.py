@@ -42,6 +42,10 @@ class AnomalyKind(str, enum.Enum):
     GAP = "GAP"
     DUPLICATE_KEY = "DUPLICATE_KEY"
     VENDOR_ERROR = "VENDOR_ERROR"
+    # Vendor clock ahead of ours: knowable_at is bounded by fetched_at instead.
+    CLOCK_SKEW = "CLOCK_SKEW"
+    # A frame's vendor time falls on a different IST date than the session.
+    SESSION_MISMATCH = "SESSION_MISMATCH"
 
 
 # Source identifiers. Upstox-only by constraint #1; there is deliberately no

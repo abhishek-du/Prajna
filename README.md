@@ -55,13 +55,23 @@ cp .env.example .env            # fill in Upstox credentials + DSNs
 | M | Scope | State |
 |---|---|---|
 | M0 | Foundation: isolation, migrations, contracts, provenance, archive, tests | **done** |
-| M1 | Upstox pre-open capture (WebSocket v3) | next — blocked on B0 (token) |
+| M1 | Upstox pre-open capture (WebSocket v3) | **in progress** — offline half done: pinned proto, frame archive, parser, replay. Live recorder blocked on B0 (token) |
 | M2 | Session calendar | |
 | M3 | Instrument master (SCD2) | |
 | M4 | Market data + `knowable_at` measurement (B1/B2) | |
 | M5 | Corporate actions | |
 | M6 | Macro / indices / flows | |
 | M7 | Fundamentals + news | |
+
+## Replaying a pre-open archive
+
+```bash
+.venv/bin/python -m app.cli.main ingest preopen --replay-from-archive var/archive/.../x.frames.gz
+# add --commit --token "$PRAJNA_WRITE_TOKEN" to write
+```
+
+Needs a `trading_session` row for the session date (M2 asserts those; replay
+refuses to fabricate one). Replaying the same archive twice writes its rows once.
 
 ## Inspecting the database
 

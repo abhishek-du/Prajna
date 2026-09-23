@@ -128,22 +128,30 @@ class IngestRunner:
                  logical_date=str(self.logical_date), authorized=bool(authz))
         return ctx
 
-    async def record_payload(self, stored, *, http_status: int | None = None) -> None:
-        """Step 3 bookkeeping. Idempotent on the content address."""
+    async def record_payload(
+        self, stored, *, http_status: int | None = None, storage_uri: str | None = None
+    ) -> bool:
+        """Step 3 bookkeeping. Idempotent on the content address.
+
+        `storage_uri` overrides the file path for payloads that live inside a
+        larger archive (a WebSocket frame is `<archive>#seq=<n>`). Returns
+        True if this call recorded the payload, False if it was already known.
+        """
         assert self.ctx
         exists = await self.session.get(RawPayload, stored.sha256)
         if exists:
-            return
+            return False
         await self.session.execute(
             insert(RawPayload).values(
                 payload_sha256=stored.sha256, source=self.source,
                 vendor_endpoint=self.vendor_endpoint, request_params=self.request_params,
                 http_status=http_status, byte_size=stored.byte_size,
-                content_type=stored.content_type, storage_uri=str(stored.path),
+                content_type=stored.content_type, storage_uri=storage_uri or str(stored.path),
                 first_seen_run=self.ctx.run_id, fetched_at=stored.fetched_at,
                 vendor_reported_at=stored.vendor_reported_at,
             )
         )
+        return True
 
     async def _flush_anomalies(self) -> None:
         assert self.ctx

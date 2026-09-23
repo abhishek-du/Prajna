@@ -136,12 +136,40 @@ def ingest_preopen(
     commit: bool = typer.Option(False, "--commit", help="write to the database"),
     token: str = typer.Option(None, "--token", help="write authorization token"),
     replay_from: str = typer.Option(None, "--replay-from-archive", help="re-parse an archive"),
+    session_date: str = typer.Option(
+        None, "--session-date", help="YYYY-MM-DD; defaults to the archive header's"),
 ):
-    """Capture the Upstox pre-open feed (M1). Not implemented until M1."""
+    """Replay a pre-open frame archive into the database (dry-run by default).
+
+    Live capture (the WebSocket recorder) is not built yet; it needs a valid
+    Upstox token (blocker B0).
+    """
+    import datetime as _dt
+    import json as _json
+    import pathlib
+
     log = get_logger("cli")
-    log.error("not_implemented", milestone="M1",
-              blocker="B0: Upstox access token expired; M1 requires a valid token")
-    raise typer.Exit(2)
+    if not replay_from:
+        log.error("not_implemented", milestone="M1",
+                  what="live WebSocket capture; only --replay-from-archive exists",
+                  blocker="B0: live capture requires a valid Upstox token")
+        raise typer.Exit(2)
+
+    from app.db.engine import get_sessionmaker
+    from app.ingest.preopen import replay_archive
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await replay_archive(
+                s, pathlib.Path(replay_from), commit=commit, token=token,
+                session_date=_dt.date.fromisoformat(session_date) if session_date else None,
+            )
+
+    report = asyncio.run(_go())
+    out = {k: getattr(report, k) for k in report.__slots__}
+    out["rows_written"] = report.rows_written
+    typer.echo(_json.dumps(out, indent=2, default=str))
+    raise typer.Exit(0 if report.status == "COMPLETE" else 1)
 
 
 upstox_app = typer.Typer(help="Upstox vendor operations")
