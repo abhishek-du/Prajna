@@ -143,16 +143,17 @@ All four exist on Upstox:
 | **Corporate actions** | `GET /v2/fundamentals/{ISIN}/corporate-actions` ([docs](https://upstox.com/developer/api-documentation/get-corporate-actions/)) | **live 2026-09-23: HTTP 200**, sha `65f91512…` | `event_details` → "Announcement date" (**date only, no time**), ex-date, record date | RELIANCE returned **1 event** (June 2026 dividend). It looks like recent events only; history depth **UNKNOWN** |
 | **Fundamentals** (8 endpoints: profile, balance sheet, cash flow, income statement, shareholding, key ratios, corporate actions, competitors) | `/v2/fundamentals/{ISIN}/…` ([announcement](https://upstox.com/developer/api-documentation/announcements/company-fundamentals-api/)) | docs only (except corporate actions) | statements are historical by period; **no report/announcement timestamp is documented**, so knowable_at would be fetched_at | UNKNOWN |
 | **News** | `GET /v2/news?category=instrument_keys&instrument_keys=…` (≤30 keys, page ≤100) ([announcement](https://upstox.com/developer/api-documentation/announcements/news-api/)) | **live 2026-09-23: HTTP 200**, sha `c9e138d5…` | `published_time` (epoch ms) | page_size=5 returned 1 article; history depth **UNKNOWN** |
-| **FII / DII activity** | under `/v2/market` ([announcement](https://upstox.com/developer/api-documentation/announcements/analytics-apis/)), launched 2026-05-11; data "from 1st April 2026" | **path UNVERIFIED**: the doc pages return 404 | UNKNOWN | from 2026-04-01 |
+| **FII / DII activity** | `GET /v2/market/fii?data_type=NSE_EQ|CASH,NSE_FO|INDEX_FUTURES,…&interval=1D|1M[&from=]` and `GET /v2/market/dii?data_type=NSE_EQ|CASH&interval=…` ([FII](https://upstox.com/developer/api-documentation/get-fii-data/), [DII](https://upstox.com/developer/api-documentation/get-dii-data/)) | **live 2026-09-23 19:15 IST: HTTP 200** (FII cash `e0260ff8…`, FII F&O `3b2190ee…`, DII cash `5267617e…`) | `time_stamp` is the session DATE at 00:00 IST (a label, like daily candles), **not** a publication time. 09-23 was not yet published at 19:15 IST, so knowable_at = fetched_at, and the publication lag is UNMEASURED | 1D: 30 trading days per request (08-11 → 09-22 returned); 1M `from=2026-04-01` returned only 1 record (April), semantics UNKNOWN; before 2026-04-01: empty 200 |
 
-**Consequence:** B4 ("does Upstox expose FII/DII?") is now **yes, per Upstox's
-docs**, with history only from 2026-04-01. No substitute source is needed or
-used.
+**Consequence:** B4 ("does Upstox expose FII/DII?") is **resolved: yes**. It was probed
+live on 2026-09-23, with history only from 2026-04-01. No substitute source is
+needed or used. (The earlier doc URLs `get-fii/` and `get-dii/` return 404; the
+real pages are `get-fii-data/` and `get-dii-data/`.)
 
 **Decision required:**
 - which of the four are in Stage 1 scope;
-- approval to probe the FII/DII endpoint and to measure the history depth of
-  corporate actions and news, before designing their ingestion.
+- approval to measure the history depth of corporate actions and news, and
+  the FII/DII publication lag, before designing their ingestion.
 
 ---
 
