@@ -30,6 +30,17 @@ V2 starts at Stage 1 (Data Ingestion) because that is where all of it originates
 
 ## Quick start
 
+PostgreSQL runs in Docker (`backend/ops/docker/compose.yml`, `postgres:18`,
+loopback-only on 127.0.0.1:5432, data in the `prajna_pgdata` volume). Its
+secrets live in `backend/ops/docker/.env` (gitignored): `POSTGRES_PASSWORD` and
+`PRAJNA_RW_PASSWORD`, which must match the password in `PRAJNA_DATABASE_URL`.
+The init script creates `prajna_rw`, `prajna`, `prajna_test` and btree_gist on
+first boot of an empty volume.
+
+```bash
+cd backend/ops/docker && docker compose up -d --wait && cd ../..
+```
+
 ```bash
 cd backend
 cp .env.example .env            # fill in Upstox credentials + DSNs

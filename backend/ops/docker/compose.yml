@@ -1,0 +1,36 @@
+# Prajna's PostgreSQL, isolated from V1.
+#
+#   cd backend/ops/docker && docker compose up -d
+#
+# Secrets come from ops/docker/.env (gitignored): POSTGRES_PASSWORD for the
+# container superuser, PRAJNA_RW_PASSWORD for the application role. The latter
+# must match the password inside PRAJNA_DATABASE_URL in backend/.env.
+#
+# Bound to loopback only: this container holds market data and credentials and
+# has no reason to be reachable from the network.
+name: prajna
+
+services:
+  postgres:
+    image: postgres:18
+    container_name: prajna-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in ops/docker/.env}
+      PRAJNA_RW_PASSWORD: ${PRAJNA_RW_PASSWORD:?set in ops/docker/.env}
+      TZ: UTC
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - prajna_pgdata:/var/lib/postgresql
+      # Runs once, on an empty data volume only.
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d prajna"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  prajna_pgdata:
