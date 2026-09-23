@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import subprocess
+import sys
 
 import typer
 
@@ -33,7 +34,7 @@ def _root(
 
 # ── db ──────────────────────────────────────────────────────────────────────
 def _alembic(*args: str, dsn: str | None = None) -> int:
-    cmd = ["python", "-m", "alembic", "-c", "alembic.ini"]
+    cmd = [sys.executable, "-m", "alembic", "-c", "alembic.ini"]
     if dsn:
         cmd += ["-x", f"dsn={dsn}"]
     return subprocess.call([*cmd, *args])
@@ -141,6 +142,40 @@ def ingest_preopen(
     log.error("not_implemented", milestone="M1",
               blocker="B0: Upstox access token expired; M1 requires a valid token")
     raise typer.Exit(2)
+
+
+upstox_app = typer.Typer(help="Upstox vendor operations")
+app.add_typer(upstox_app, name="upstox")
+
+
+@upstox_app.command("token-status")
+def upstox_token_status():
+    """Probe the cached token against /v2/user/profile. Never prints the token."""
+    import json as _json
+    from app.vendor.upstox.auth import token_status
+    typer.echo(_json.dumps(token_status(), indent=2, default=str))
+
+
+@upstox_app.command("login")
+def upstox_login(
+    force: bool = typer.Option(False, "--force", help="mint even if the cached token works"),
+    insecure_tls: bool = typer.Option(
+        False, "--insecure-tls",
+        help="disable TLS verification (V1 did this unconditionally; V2 does not)",
+    ),
+):
+    """Mint an Upstox access token via the TOTP flow. Performs a REAL login."""
+    import json as _json
+    from app.vendor.upstox.auth import ensure_access_token
+    rec = ensure_access_token(force=force, verify_tls=not insecure_tls)
+    typer.echo(_json.dumps({
+        "ok": True,
+        "user_id": rec.user_id,
+        "email": rec.email,
+        "token_length": len(rec.access_token),
+        "minted_at": rec.minted_at.isoformat(),
+        "cached_at": "backend/var/upstox_token.json (0600, gitignored)",
+    }, indent=2))
 
 
 if __name__ == "__main__":
