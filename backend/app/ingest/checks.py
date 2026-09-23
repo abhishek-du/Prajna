@@ -13,6 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from app.contracts.provenance import AnomalyKind, AnomalySeverity
+from app.contracts.universe import plan_subscription
 from app.core.errors import IngestCheckFailed
 
 
@@ -70,23 +71,24 @@ def check_coverage(
 
 
 def check_universe_cap(
-    result: CheckResult, *, requested: list[str], cap: int, stream: str
+    result: CheckResult, *, requested: list[str], cap: int | None, stream: str
 ) -> list[str]:
-    """Apply a vendor subscription cap, naming every symbol it excludes.
+    """Apply a subscription cap, naming every key it excludes.
 
-    Upstox's `full` mode admits 2,000 instrument keys per subscription. When the
-    eligible universe exceeds that, the excluded keys are ENUMERATED in the
-    anomaly detail — never summarised as a count, never silent.
+    Delegates to contracts.universe.plan_subscription, so the cut is always
+    "sort by instrument_key, then cap" and the same universe always excludes
+    the same keys. The cap itself is NOT a verified vendor limit (blocker B5);
+    exclusions are WARN because the kept keys are still valid, and the dropped
+    keys are ENUMERATED in the anomaly, never summarised as a count.
     """
-    if len(requested) <= cap:
-        return requested
-    kept, dropped = requested[:cap], requested[cap:]
-    result.add(
-        AnomalySeverity.WARN, AnomalyKind.COVERAGE_CAP, stream,
-        requested=len(requested), cap=cap, dropped_count=len(dropped),
-        dropped_keys=dropped,
-    )
-    return kept
+    plan = plan_subscription(requested, cap)
+    if plan.excluded:
+        result.add(
+            AnomalySeverity.WARN, AnomalyKind.COVERAGE_CAP, stream,
+            requested=len(plan.requested), cap=cap, dropped_count=len(plan.excluded),
+            dropped_keys=list(plan.excluded), basis="cap is UNVERIFIED (B5)",
+        )
+    return list(plan.subscribed)
 
 
 def check_schema_drift(

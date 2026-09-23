@@ -86,7 +86,13 @@ class PayloadStore:
 
     def get(self, source: str, sha: str, fetched_at: _dt.datetime, ext: str = "json") -> bytes:
         """Read archived bytes back and verify they still hash correctly."""
-        p = self._path_for(source, sha, fetched_at, ext)
+        return self.read(self._path_for(source, sha, fetched_at, ext), sha)
+
+    @staticmethod
+    def read(path: pathlib.Path | str, sha: str) -> bytes:
+        """Read an archived payload by its stored path (raw_payload.storage_uri)
+        and refuse it unless it still hashes to `sha`."""
+        p = pathlib.Path(path)
         data = gzip.decompress(p.read_bytes())
         actual = payload_sha256(data)
         if actual != sha:

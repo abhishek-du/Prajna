@@ -172,6 +172,79 @@ def ingest_preopen(
     raise typer.Exit(0 if report.status == "COMPLETE" else 1)
 
 
+@ingest_app.command("universe")
+def ingest_universe(
+    from_file: str = typer.Option(None, "--from-file", help="a local copy of NSE.json.gz"),
+    payload_sha256: str = typer.Option(
+        None, "--payload-sha256", help="re-select from a master already in raw_payload"),
+    download: bool = typer.Option(
+        False, "--download", help="fetch the public master from assets.upstox.com (no token)"),
+    session_date: str = typer.Option(None, "--session-date", help="YYYY-MM-DD; default today IST"),
+    cap: int = typer.Option(2000, "--cap", help="subscription cap, UNVERIFIED (B5); 0 = none"),
+    keys_out: str = typer.Option(None, "--keys-out", help="write the subscribed keys here"),
+    commit: bool = typer.Option(False, "--commit", help="write to the database"),
+    token: str = typer.Option(None, "--token", help="write authorization token"),
+):
+    """Select the pre-open universe from the Upstox instrument master.
+
+    Exactly one source: --from-file, --payload-sha256, or --download. The
+    master is archived before it is parsed. --keys-out feeds
+    `ingest preopen-capture --keys-file`.
+    """
+    import datetime as _dt
+    import json as _json
+    import pathlib
+
+    from app.core.clock import now, now_ist
+    from app.db.engine import get_sessionmaker
+    from app.ingest.universe import load_archived_master, select_universe
+    from app.sources.upstox_instruments import MASTER_URL, download_master
+    from app.storage.payload_store import PayloadStore
+
+    log = get_logger("cli")
+    if sum(bool(x) for x in (from_file, payload_sha256, download)) != 1:
+        log.error("choose_one_source", options="--from-file | --payload-sha256 | --download")
+        raise typer.Exit(2)
+    day = _dt.date.fromisoformat(session_date) if session_date else now_ist().date()
+    store = PayloadStore(get_settings().archive_dir)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            status, uri = None, MASTER_URL
+            if download:
+                d = await download_master()
+                data, fetched, status, uri = d.data, d.fetched_at, d.http_status, d.url
+            elif payload_sha256:
+                data, fetched, status = await load_archived_master(s, payload_sha256)
+            else:
+                p = pathlib.Path(from_file)
+                # We cannot know when a local copy was downloaded; now() is the
+                # bound that can never be too early.
+                data, fetched, uri = p.read_bytes(), now(), f"file://{p.resolve()}"
+            return await select_universe(
+                s, data, fetched_at=fetched, session_date=day, cap=cap or None,
+                commit=commit, token=token, store=store, source_uri=uri, http_status=status,
+            )
+
+    report = asyncio.run(_go())
+    if keys_out and report.status == "COMPLETE":
+        lines = [
+            f"# prajna pre-open universe {report.universe} for {report.session_date}",
+            f"# run_id {report.run_id}  master_sha256 {report.master_sha256}",
+            f"# rules {report.rules_version} {report.rules_sha256}",
+            f"# cap {report.cap} (UNVERIFIED, B5)  subscribed {report.subscribed}"
+            f"  sha256 {report.subscribed_sha256}",
+            *report.subscribed_keys,
+        ]
+        pathlib.Path(keys_out).write_text("\n".join(lines) + "\n")
+    out = report.public()
+    out["cap_excluded"] = f"{len(report.cap_excluded)} keys (named in ingest_anomaly)"
+    out["anomalies"] = [{k: a[k] for k in ("severity", "kind", "subject")}
+                        for a in report.anomalies]
+    typer.echo(_json.dumps(out, indent=2, default=str))
+    raise typer.Exit(0 if report.status == "COMPLETE" else 1)
+
+
 @ingest_app.command("preopen-capture")
 def ingest_preopen_capture(
     keys_file: str = typer.Option(..., "--keys-file",

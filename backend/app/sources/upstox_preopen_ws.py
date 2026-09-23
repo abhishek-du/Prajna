@@ -38,15 +38,15 @@ import hashlib
 import json
 import pathlib
 import uuid
-from collections.abc import Awaitable, Callable, Iterable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import ConnectionClosed, InvalidHandshake, InvalidURI
 
-from app.contracts.identity import parse_instrument_key
 from app.contracts.provenance import Source
+from app.contracts.universe import SubscriptionPlan, plan_subscription
 from app.core.clock import IST, now, to_utc
 from app.core.errors import PrajnaError, VendorAuthError, VendorError
 from app.core.logging import get_logger
@@ -56,6 +56,13 @@ from app.vendor.upstox.proto import PROTO_SHA256
 from app.vendor.upstox.proto import MarketDataFeed_pb2 as pb
 
 log = get_logger("upstox.preopen_ws")
+
+# Re-exported: the plan is a contract (app/contracts/universe.py), not a
+# recorder detail. One implementation of "sort, then cap" for the project.
+__all__ = [
+    "PreopenRecorder", "RecorderConfig", "RecorderGaveUp", "RecorderSummary",
+    "SubscriptionPlan", "open_capture_archive", "plan_subscription",
+]
 
 Authorizer = Callable[[], Awaitable[str]]
 EventHook = Callable[[str, dict[str, Any]], None]
@@ -86,35 +93,6 @@ class RecorderConfig:
 
     def public(self) -> dict[str, Any]:
         return {k: getattr(self, k) for k in self.__slots__}
-
-
-@dataclass(frozen=True, slots=True)
-class SubscriptionPlan:
-    requested: tuple[str, ...]
-    subscribed: tuple[str, ...]
-    excluded: tuple[str, ...]
-    duplicates: int
-
-    @property
-    def keys_sha256(self) -> str:
-        return hashlib.sha256("\n".join(self.subscribed).encode()).hexdigest()
-
-
-def plan_subscription(keys: Iterable[str], cap: int | None) -> SubscriptionPlan:
-    """Deterministic: validate, de-duplicate, SORT, then cap.
-
-    Sorting before capping means the same universe always excludes the same
-    keys. Excluded keys are returned by name, never summarised as a count.
-    """
-    raw = [k.strip() for k in keys if k and k.strip()]
-    for k in raw:
-        parse_instrument_key(k)  # raises on malformed
-    uniq = sorted(set(raw))
-    if cap is not None and len(uniq) > cap:
-        kept, dropped = uniq[:cap], uniq[cap:]
-    else:
-        kept, dropped = uniq, []
-    return SubscriptionPlan(tuple(uniq), tuple(kept), tuple(dropped), len(raw) - len(uniq))
 
 
 def archive_path_for(

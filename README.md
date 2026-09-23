@@ -55,13 +55,31 @@ cp .env.example .env            # fill in Upstox credentials + DSNs
 | M | Scope | State |
 |---|---|---|
 | M0 | Foundation: isolation, migrations, contracts, provenance, archive, tests | **done** |
-| M1 | Upstox pre-open capture (WebSocket v3) | **in progress** — recorder, archive, parser, replay built and tested against a local fake feed. First live session blocked on B0 (token); universe selection pending |
+| M1 | Upstox pre-open capture (WebSocket v3) | **in progress** — recorder, archive, parser, replay built and tested against a local fake feed. Universe selection from the instrument master built. First live session blocked on B0 (token) |
 | M2 | Session calendar | |
 | M3 | Instrument master (SCD2) | |
 | M4 | Market data + `knowable_at` measurement (B1/B2) | |
 | M5 | Corporate actions | |
 | M6 | Macro / indices / flows | |
 | M7 | Fundamentals + news | |
+
+## Selecting the pre-open universe
+
+```bash
+.venv/bin/python -m app.cli.main ingest universe --from-file NSE.json.gz --keys-out keys.txt
+#   or --download  (public assets.upstox.com file, no token)
+#   or --payload-sha256 <sha>  (re-select from a master already archived)
+# add --commit --token "$PRAJNA_WRITE_TOKEN" to write
+```
+
+Eligible = `segment == NSE_EQ` and series in `EQ BE SM BZ ST IV`
+(`identity.is_tradeable_equity`). Never the ISIN prefix. Every other row is
+counted under a named rule (`excluded:segment=…`, `excluded:series=…`,
+`excluded:malformed_row`, `excluded:key_segment_mismatch`). The eligible set is
+sorted by `instrument_key` and then capped (`--cap`, default 2000, **UNVERIFIED —
+B5**); cap-excluded keys are written as universe `preopen.cap_excluded` and named
+in a `COVERAGE_CAP` anomaly. Every row carries the master's `payload_sha256`,
+and the run records `rules_sha256`, so a selection can be reproduced exactly.
 
 ## Recording the pre-open feed
 
