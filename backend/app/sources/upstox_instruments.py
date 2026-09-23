@@ -6,6 +6,10 @@ vendor's file, not our decompression of it.
 
 The master carries no generated-at or valid-from, so the honest knowable_at is
 our fetch time (contracts.knowable.for_snapshot_download).
+
+Not routed through vendor/upstox/rest.UpstoxRestClient (yet): a public,
+unauthenticated file fetched once per run. New authenticated REST calls
+belong on the shared client.
 """
 
 from __future__ import annotations

@@ -58,3 +58,12 @@ class KnowableAtUnverified(ContractViolation):
 
 class IngestCheckFailed(PrajnaError):
     """A pre-write gate (coverage / freshness / row-delta) rejected the run."""
+
+
+class RateLimited(VendorError):
+    """The vendor signalled a rate limit (HTTP 429 or a rate-limit error body).
+
+    Never retried. Upstox documents "temporary suspension of access" for
+    breaches, so the only safe response is to stop the job with its checkpoint
+    intact and resume later.
+    """

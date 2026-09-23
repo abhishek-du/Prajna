@@ -1,7 +1,8 @@
 """Upstox market-information endpoints for the session calendar. Network only.
 
-Authenticated (the cached access token). Bytes are returned exactly as served
-so the archive and its sha256 describe the vendor's response.
+Authenticated (the cached access token), through the shared UpstoxRestClient.
+Bytes are returned exactly as served so the archive and its sha256 describe
+the vendor's response.
 """
 
 from __future__ import annotations
@@ -11,13 +12,14 @@ from dataclasses import dataclass
 
 import httpx
 
-from app.core.clock import now
 from app.core.errors import VendorAuthError, VendorError
+from app.vendor.upstox.rest import API, UpstoxRestClient
 
-API = "https://api.upstox.com"
+# API is re-exported: ingest/calendar.py builds URLs from it.
+__all__ = ["API", "HOLIDAYS_PATH", "TIMINGS_PATH", "Fetched", "UpstoxCalendarClient"]
+
 HOLIDAYS_PATH = "/v2/market/holidays"
 TIMINGS_PATH = "/v2/market/timings/{date}"
-TIMEOUT = 30.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,26 +31,21 @@ class Fetched:
 
 
 class UpstoxCalendarClient:
-    def __init__(self, access_token: str, *, client: httpx.AsyncClient | None = None):
+    """Calendar endpoints over the shared UpstoxRestClient (rate limited,
+    retried on transient errors, stopped on a rate limit)."""
+
+    def __init__(self, access_token: str, *, client: httpx.AsyncClient | None = None,
+                 rest: UpstoxRestClient | None = None):
         if not access_token:
             raise VendorAuthError("no Upstox access token (blocker B0)")
-        self._token = access_token
-        self._own = client is None
-        self._client = client or httpx.AsyncClient(timeout=TIMEOUT)
+        self._rest = rest or UpstoxRestClient(access_token, client=client)
 
     async def _get(self, path: str) -> Fetched:
-        url = API + path
-        try:
-            r = await self._client.get(url, headers={"Authorization": f"Bearer {self._token}",
-                                                     "Accept": "application/json"})
-        except httpx.HTTPError as e:
-            raise VendorError(f"{path}: {type(e).__name__}: {e}") from None
-        fetched = now()
-        if r.status_code in (401, 403):
-            raise VendorAuthError(f"{path}: HTTP {r.status_code} (token rejected)")
-        if r.status_code != 200:
-            raise VendorError(f"{path}: HTTP {r.status_code} {r.text[:200]}")
-        return Fetched(url, r.content, fetched, r.status_code)
+        r = await self._rest.get(path)          # 401/403, 429 and exhaustion raise
+        if not r.ok:
+            raise VendorError(f"{path}: HTTP {r.status} {list(r.error_codes)} "
+                              f"{r.data[:200]!r}")
+        return Fetched(r.url, r.data, r.fetched_at, r.status)
 
     async def holidays(self) -> Fetched:
         return await self._get(HOLIDAYS_PATH)
@@ -57,5 +54,4 @@ class UpstoxCalendarClient:
         return await self._get(TIMINGS_PATH.format(date=day.isoformat()))
 
     async def aclose(self) -> None:
-        if self._own:
-            await self._client.aclose()
+        await self._rest.aclose()

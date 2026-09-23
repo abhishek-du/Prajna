@@ -12,6 +12,10 @@ An auth rejection (401/403) is VendorAuthError and is NOT retried: a dead token
 does not heal by reconnecting, and hammering the endpoint with it is how an
 account gets rate-limited. Token renewal is a separate, deliberate act
 (`prajna upstox login`).
+
+Not routed through vendor/upstox/rest.UpstoxRestClient (yet): one call per WebSocket
+connection, and its 401 handling is specific to the feed. New authenticated REST calls
+belong on the shared client.
 """
 
 from __future__ import annotations
