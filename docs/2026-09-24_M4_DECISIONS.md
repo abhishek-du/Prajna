@@ -1,7 +1,12 @@
 # M4 decisions required before M4.5 (historical backfill)
 
 **Prepared:** 2026-09-23 evening, from commit `d72df15` + live validation.
-**Status:** NONE of the decisions below has been taken. Each needs explicit
+**Status (updated 2026-09-23 21:10 IST):** D1, D2 and survivorship were approved with the M4.5 plan:
+- D1: 1D from 2020; 1h/15m from 2022; 1m for the last 6 months.
+- D2: vendor 5m/15m/1h.
+- Survivorship: accepted and documented.
+
+Phase 1 (1D) is done; see the live validation doc §14. The rest below remains as analysed. **Originally:** NONE of the decisions below had been taken. Each needs explicit
 approval. Evidence comes from real Upstox responses archived under
 `backend/var/archive/` and the live DB validation in
 [`2026-09-24_M4_LIVE_VALIDATION.md`](2026-09-24_M4_LIVE_VALIDATION.md).

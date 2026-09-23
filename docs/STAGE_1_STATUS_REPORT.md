@@ -53,7 +53,7 @@ Legend:
 | **Market data, daily (1D)** | 🟢 | ingestion built (M4.3); live dry-run returned 10 bars for each of 3 instruments; history from 2000 is available; **0 rows in the DB** |
 | **Market data, intraday 1m / 5m / 15m / 1h** | 🟢 | ingestion built; live dry-run returned 375 complete 1m bars for each of 3 instruments; history from 2022-01; **0 rows in the DB** |
 | **Live quotes (LTP, depth)** | 🟡 | WebSocket recorder built and live-tested (2 × 2,000 keys, 5-level depth). All-day tick storage (`tick_archive`) is **Stage 7 per the M0 decision** (D5) |
-| **Historical data** | 🟢 | windows planned by measured limits (1m: month, 1h: quarter, 1D: decade); no backfill yet (D1) |
+| **Historical data** | 🟢 | **1D from 2020 done:** 3,640,084 bars, 3,520 instruments, replay 0 mismatches. 2 instruments are blocked by negative vendor volume (a decision is pending). Intraday backfill (1h/1m 6M/15m) starts 2026-09-24 after 17:30 |
 | **NSE pre-open: IEP / IIQ / buy-sell qty / imbalance** | 🟢 | recorder, archive, parser, replay and acceptance harness all built; **no real pre-open day yet** (B7/B8) |
 | **Corporate actions** | ⚪ | schema only; **UNKNOWN whether Upstox provides an API** |
 | **News & media** | ⚪ | schema only; no approved source (ET/BS are not approved vendors) |

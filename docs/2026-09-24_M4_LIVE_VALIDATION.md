@@ -212,3 +212,53 @@ Full suite: **480 passed**.
 - **Amount unit:** documented as INR, but the magnitude suggests INR crore;
   stored as `INR_vendor`.
 - **Daily schedule:** the incremental needs a scheduler, the same open item as M4.4.
+
+## 14. M4.5 phase 1: 1D backfill from 2020 (2026-09-23, 19:46–21:05 IST)
+
+**Decisions:** approved by the user with the M4.5 plan on 2026-09-23:
+- **D1:** 1D from 2020-01-01; 1h/15m from 2022; 1m for the last 6 months.
+- **D2:** vendor-fetched 5m/15m/1h.
+- **Survivorship:** accepted and documented.
+
+This section covers phase 1 only.
+
+```bash
+prajna ingest candles --timeframe 1d --from 2020-01-01 --to 2026-09-22 --all-instruments \
+  --no-resume --commit --token ***                     # first pass
+prajna ingest candles --timeframe 1d --from 2020-01-01 --to 2026-09-22 --all-instruments \
+  --commit --token ***                                 # rerun, with the checkpoint fix (7cd51f8)
+```
+
+The first pass used `--no-resume` because the 4 instruments committed earlier
+had checkpoints at 09-22 covering only 09-08 onwards. Resuming would have
+skipped their older history. That is the bug fixed in `7cd51f8`.
+
+| Check | Result |
+|---|---|
+| Requests | 3,528 (one decade window per instrument), no 429, no auth error |
+| Inserted | **3,640,084** 1D bars (total 1D rows 3,640,124) |
+| Coverage | DATA 3,522 · EMPTY 6 · VENDOR_ERROR 0 · FAILED 2 |
+| Instruments with bars | 3,520; bars per instrument: min 1, median 1,184, max 1,672 |
+| Indices | NIFTY 50, Nifty Bank, India VIX: 1,671 sessions each, 2020-01-01 → 2026-09-22 |
+| Provenance (all 3.64 M rows) | 0 bad run · 0 missing payload · 0 wrong source · 0 knowable_at > fetched_at · 0 fetched_at ≠ payload · 0 key ≠ instrument · 0 verified · 0 on/after the fetch day |
+| Sanity | 0 negative volume · 0 low > high · 0 open/close outside [low, high] · 0 non-positive price |
+| Replay (150 random runs) | 165,775 rows, **0 mismatches** |
+| Rerun | 0 inserted. All 3,526 checkpoints = [2020-01-01, 2026-09-22], with covered_from recorded |
+| Size | ohlcv_bar 1.95 GB; disk free 311 GB |
+
+**The 2 FAILED windows are a vendor data defect: negative daily volume.**
+- **IDEA (`NSE_EQ|INE669E01016`), 2024-08-30:** volume −81,259,413.
+  - That day's 1m bars sum to 4,190,718,048 shares, above 2³¹, which is
+    consistent with a 32-bit overflow at the vendor.
+  - The value + 2³² would be 4,213,707,883, which differs from the 1m sum by
+    22,989,835. So the true value cannot be reconstructed.
+- **PARAMPARA (`NSE_EQ|INE749Y01014`, SME), 2022-09-05:** volume −1,798,967,296.
+  That day has a single 1m bar with volume 0.
+
+The parser rejects the candle (PARSE_REJECT), so each window fails and **both
+instruments have no 1D history**.
+- **Decision required:** quarantine the single bad bar and store the rest, or
+  keep the whole-window FAIL.
+- Correcting the value is not an option.
+- Evidence: payloads `f60a63108a9d…` and `f44bc80ec818…`, plus the 1m probes
+  `062088f68818…` and `911c7583e005…`.
