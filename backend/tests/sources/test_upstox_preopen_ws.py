@@ -103,6 +103,16 @@ class TestHappyPath:
             summary = await _run(rec)
         assert summary.stop_reason == "window_end" and summary.frames > 3
 
+    async def test_heartbeat_evidence_is_archived(self, tmp_path):
+        cfg = RecorderConfig(**{**FAST.public(), "heartbeat_every": 0.05,
+                                "ping_interval": 0.05})
+        async with FakeUpstoxFeed([("stream", 10**6)], interval=0.02) as feed:
+            rec, _ = _recorder(tmp_path, feed, cfg=cfg, max_frames=25)
+            summary = await _run(rec)
+        beats = [e for e in _read(summary.archive)[2] if e["event"] == "heartbeat"]
+        assert beats and all(isinstance(b["ping_rtt_ms"], float) for b in beats)
+        assert any(b["ping_rtt_ms"] > 0 for b in beats)
+
     async def test_subscribe_is_chunked(self, tmp_path):
         keys = [f"NSE_EQ|INE00000{i:04d}" for i in range(5)]
         cfg = RecorderConfig(**{**FAST.public(), "subscribe_chunk": 2})

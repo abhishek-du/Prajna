@@ -436,6 +436,38 @@ def ingest_preopen_capture(
     raise typer.Exit(0 if doc["status"] == "complete" else 1)
 
 
+acceptance_app = typer.Typer(help="acceptance evidence (read-only)")
+app.add_typer(acceptance_app, name="acceptance")
+
+
+@acceptance_app.command("preopen")
+def acceptance_preopen(
+    session_manifest: str = typer.Option(..., "--session", help="<stem>.session.json"),
+    out: str = typer.Option(None, "--out", help="also write the JSON report here"),
+):
+    """Grade one real trading day's pre-open capture, end to end. Read-only.
+
+    Replay the session with --commit first. B7/B8 are only graded from
+    production-feed data whose ticks fall inside the pre-open window.
+    """
+    import json as _json
+    import pathlib
+
+    from app.acceptance.preopen_day import evaluate
+    from app.db.engine import get_sessionmaker
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await evaluate(s, pathlib.Path(session_manifest))
+
+    doc = asyncio.run(_go()).as_dict()
+    body = _json.dumps(doc, indent=2, default=str)
+    if out:
+        pathlib.Path(out).write_text(body + "\n")
+    typer.echo(body)
+    raise typer.Exit(0 if doc["verdict"] in ("PASS", "WARN") else 1)
+
+
 upstox_app = typer.Typer(help="Upstox vendor operations")
 app.add_typer(upstox_app, name="upstox")
 
