@@ -345,3 +345,55 @@ def _chain(head: list, tail):
 def _anomaly(a) -> dict[str, Any]:
     return {"severity": a.severity.value, "kind": a.kind.value, "subject": a.subject,
             "detail": a.detail}
+
+
+@dataclass(slots=True)
+class SessionReplayReport:
+    session_id: str = ""
+    session_date: str = ""
+    manifest: str = ""
+    shards: list[ReplayReport] = field(default_factory=list)
+    error: str | None = None
+
+    @property
+    def status(self) -> str:
+        if self.error:
+            return RunStatus.FAILED.value
+        ok = self.shards and all(r.status == RunStatus.COMPLETE.value for r in self.shards)
+        return RunStatus.COMPLETE.value if ok else RunStatus.FAILED.value
+
+    @property
+    def rows_written(self) -> int:
+        return sum(r.rows_written for r in self.shards)
+
+
+async def replay_session(
+    session: AsyncSession, manifest: pathlib.Path, *, commit: bool, token: str | None,
+    operator: str = "cli",
+) -> SessionReplayReport:
+    """Replay every connection archive of a capture session, each as its own
+    run (a row's provenance is its own archive and frame). Refuses an archive
+    whose header does not belong to this session."""
+    import json
+
+    # Batch job, like replay_archive: synchronous reads are deliberate.
+    manifest = pathlib.Path(manifest).resolve()  # noqa: ASYNC240
+    doc = json.loads(manifest.read_text())
+    rep = SessionReplayReport(session_id=doc["session_id"], session_date=doc["session_date"],
+                              manifest=str(manifest))
+    for shard in doc["shards"]:
+        arc = pathlib.Path(shard["archive"])
+        header_reader = FrameArchiveReader(arc)
+        next(iter(header_reader), None)
+        h = header_reader.header
+        if h.get("session_id") != rep.session_id or h.get("shard_index") != shard["index"]:
+            rep.error = (f"{arc.name}: header session {h.get('session_id')}/"
+                         f"{h.get('shard_index')} does not match manifest "
+                         f"{rep.session_id}/{shard['index']}")
+            return rep
+    for shard in doc["shards"]:
+        rep.shards.append(await replay_archive(
+            session, pathlib.Path(shard["archive"]), commit=commit, token=token,
+            session_date=_dt.date.fromisoformat(rep.session_date), operator=operator,
+        ))
+    return rep

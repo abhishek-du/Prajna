@@ -8,6 +8,10 @@ Each connection follows one step of a script:
     ("silent",)       market_info + initial_feed, then nothing (a dead feed)
     ("reject", code)  refuse the WebSocket handshake with this HTTP status
 
+`per_key_script` overrides the script for connections whose FIRST subscribed
+key is the given key, indexed by how often that key's connection has
+connected, so concurrent connections (one per shard) can behave differently.
+
 The server records exactly what it sent, so tests can assert the archive holds
 those bytes verbatim, and what it received, so tests can check subscriptions.
 """
@@ -28,8 +32,11 @@ from tests.support.upstox_frames import frame, market_ff, status_frame
 
 
 class FakeUpstoxFeed:
-    def __init__(self, script, *, only_keys: set[str] | None = None, interval: float = 0.01):
+    def __init__(self, script, *, only_keys: set[str] | None = None, interval: float = 0.01,
+                 per_key_script: dict[str, list] | None = None):
         self.script = list(script)
+        self.per_key_script = per_key_script or {}
+        self._per_key_n: dict[str, int] = {}
         self.only_keys = only_keys
         self.interval = interval
         self.connections = 0
@@ -81,6 +88,15 @@ class FakeUpstoxFeed:
             subs.append(json.loads(more))
             keys += subs[-1]["data"]["instrumentKeys"]
 
+        if keys and keys[0] in self.per_key_script:
+            n = self._per_key_n.get(keys[0], 0)
+            self._per_key_n[keys[0]] = n + 1
+            ks = self.per_key_script[keys[0]]
+            step = ks[min(n, len(ks) - 1)]
+        if step[0] == "ignore":
+            # Seen live with full_d30: market_info, then silence for our keys.
+            await ws.wait_closed()
+            return
         await send(self._feed(keys, pb.initial_feed, 2458.0))
         if step[0] == "silent":
             await ws.wait_closed()

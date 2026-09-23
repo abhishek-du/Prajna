@@ -61,3 +61,55 @@ async def test_capture_then_replay(db_session, tmp_path):
     stored = (await db_session.execute(text(
         "select kind from ingest_anomaly where run_id=:r"), {"r": rep.run_id})).scalars().all()
     assert "COVERAGE_CAP" in stored and "GAP" in stored
+
+
+async def test_multi_connection_session_replays_with_per_archive_provenance(db_session, tmp_path):
+    import json
+    import pathlib
+
+    from app.contracts.universe import plan_shards
+    from app.ingest.preopen import replay_session
+    from app.sources.upstox_preopen_session import PreopenCaptureSession
+
+    today = now_ist().date()
+    await _seed_session(db_session, today)
+    keys = [f"NSE_EQ|INE{i:09d}" for i in range(5)]
+    plan = plan_shards(keys, per_connection=3, max_connections=2)
+    cfg = RecorderConfig(cap=3, stale_after=2.0, backoff_initial=0.01, backoff_max=0.05,
+                         max_reconnects=2, open_timeout=2.0, proxy=None)
+    async with FakeUpstoxFeed([("stream", 10**6)]) as feed:
+        n = {"i": 0}
+
+        async def auth():
+            n["i"] += 1
+            return feed.url(n["i"])
+
+        s = PreopenCaptureSession(tmp_path, session_date=today, plan=plan, authorize=auth,
+                                  config=cfg, max_frames_per_connection=4)
+        doc = await s.run()
+    assert doc["coverage"]["seen"] == 5
+
+    rep = await replay_session(db_session, s.manifest_path, commit=True,
+                               token=os.environ["PRAJNA_WRITE_TOKEN"])
+    assert rep.status == "COMPLETE", [r.anomalies for r in rep.shards]
+    rows = (await db_session.execute(text("""
+        select distinct t.instrument_key, split_part(p.storage_uri, '#', 1) as archive
+        from preopen_tick t join raw_payload p using (payload_sha256)
+    """))).all()
+    by_key = {r.instrument_key: pathlib.Path(r.archive).name for r in rows}
+    assert set(by_key) == set(keys)
+    assert {by_key[k] for k in keys[:3]} == {pathlib.Path(doc["shards"][0]["archive"]).name}
+    assert {by_key[k] for k in keys[3:]} == {pathlib.Path(doc["shards"][1]["archive"]).name}
+
+    again = await replay_session(db_session, s.manifest_path, commit=True,
+                                 token=os.environ["PRAJNA_WRITE_TOKEN"])
+    assert again.status == "COMPLETE" and again.rows_written == 0
+
+    # A manifest pointing at an archive from a different session is refused.
+    bad = json.loads(s.manifest_path.read_text())
+    bad["session_id"] = "0" * 32
+    forged = tmp_path / "forged.session.json"
+    forged.write_text(json.dumps(bad))
+    refused = await replay_session(db_session, forged, commit=True,
+                                   token=os.environ["PRAJNA_WRITE_TOKEN"])
+    assert refused.status == "FAILED" and "does not match manifest" in refused.error

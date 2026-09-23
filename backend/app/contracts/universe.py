@@ -148,3 +148,46 @@ def plan_subscription(keys: Iterable[str], cap: int | None) -> SubscriptionPlan:
     else:
         kept, dropped = uniq, []
     return SubscriptionPlan(tuple(uniq), tuple(kept), tuple(dropped), len(raw) - len(uniq), cap)
+
+
+# ── sharding across connections ─────────────────────────────────────────────
+# Measured live 2026-09-23 (docs/2026-09-23_M1_LIVE_SMOKE.md): Upstox serves at
+# most 2,000 keys per connection in `full` mode and ignores the rest silently;
+# two concurrent connections were both fully served. Beyond two is UNVERIFIED.
+MEASURED_KEYS_PER_CONNECTION = 2000
+MEASURED_CONCURRENT_CONNECTIONS = 2
+
+
+@dataclass(frozen=True, slots=True)
+class ShardPlan:
+    """Keys assigned to connections: disjoint, contiguous in sorted order, and
+    identical on every run for the same universe."""
+
+    requested: tuple[str, ...]
+    shards: tuple[tuple[str, ...], ...]
+    excluded: tuple[str, ...]          # beyond total capacity, by name
+    duplicates: int
+    per_connection: int
+    max_connections: int
+
+    @property
+    def subscribed(self) -> tuple[str, ...]:
+        return tuple(k for s in self.shards for k in s)
+
+    @property
+    def universe_sha256(self) -> str:
+        return keys_sha256(self.requested)
+
+    def shard_plan(self, i: int) -> SubscriptionPlan:
+        """Shard i as a single-connection plan (no further cap)."""
+        return SubscriptionPlan(self.shards[i], self.shards[i], (), 0, self.per_connection)
+
+
+def plan_shards(keys: Iterable[str], *, per_connection: int, max_connections: int) -> ShardPlan:
+    if per_connection < 1 or max_connections < 1:
+        raise ValueError("per_connection and max_connections must be >= 1")
+    base = plan_subscription(keys, per_connection * max_connections)
+    kept = base.subscribed
+    shards = tuple(kept[i : i + per_connection] for i in range(0, len(kept), per_connection))
+    return ShardPlan(base.requested, shards, base.excluded, base.duplicates,
+                     per_connection, max_connections)

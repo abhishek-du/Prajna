@@ -91,6 +91,7 @@ class RecorderConfig:
     backoff_initial: float = 1.0
     backoff_max: float = 30.0
     max_frame_bytes: int = 64 * 1024 * 1024
+    heartbeat_every: float = 60.0      # seconds between `heartbeat` evidence events
     proxy: str | bool | None = True    # websockets default: honour env proxies
 
     def public(self) -> dict[str, Any]:
@@ -108,6 +109,7 @@ def archive_path_for(
 def open_capture_archive(
     root: pathlib.Path, *, session_date: _dt.date, plan: SubscriptionPlan,
     config: RecorderConfig, started: _dt.datetime | None = None, extra: dict | None = None,
+    path: pathlib.Path | None = None,
 ) -> FrameArchiveWriter:
     """The header records the whole plan, so the archive is self-describing."""
     started = started or now()
@@ -126,7 +128,7 @@ def open_capture_archive(
         "duplicate_keys_removed": plan.duplicates,
         **(extra or {}),
     }
-    return FrameArchiveWriter(archive_path_for(root, session_date, started), header)
+    return FrameArchiveWriter(path or archive_path_for(root, session_date, started), header)
 
 
 @dataclass(slots=True)
@@ -294,7 +296,7 @@ class PreopenRecorder:
         healthier than no feed at all."""
         loop = asyncio.get_running_loop()
         confirmed = market_info = False
-        last_useful = loop.time()
+        last_useful = last_beat = loop.time()
         while self._should_stop() is None:
             left = self._seconds_left()
             quiet = loop.time() - last_useful
@@ -315,6 +317,11 @@ class PreopenRecorder:
             recv_at = now()
             self.w.append_frame(msg, recv_at)          # ARCHIVE FIRST, always
             self.summary.frames += 1
+            if loop.time() - last_beat >= self.cfg.heartbeat_every:
+                # Transport liveness as evidence: the last ping round-trip.
+                last_beat = loop.time()
+                self._event("heartbeat", ping_rtt_ms=round(ws.latency * 1000, 3),
+                            frames=self.summary.frames, keys_seen=len(self._seen))
             if isinstance(msg, str):
                 self.summary.text_frames += 1
                 continue
