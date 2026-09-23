@@ -66,7 +66,13 @@ def rules_sha256() -> str:
 # ── eligibility ─────────────────────────────────────────────────────────────
 @dataclass(frozen=True, slots=True)
 class MasterInstrument:
-    """The fields of one Upstox master row that selection and audit need."""
+    """One Upstox master row: the fields selection needs, plus the vendor
+    attributes the `instrument` table records (M3.0). Values are kept as the
+    vendor sent them; conversion to column types happens at load time.
+
+    Equality covers EVERY field, so two master rows for one key are
+    "identical" only if the vendor sent the same record twice.
+    """
 
     instrument_key: str
     segment: str
@@ -74,6 +80,15 @@ class MasterInstrument:
     isin: str | None = None
     trading_symbol: str | None = None
     security_type: str | None = None
+    exchange: str | None = None
+    name: str | None = None
+    short_name: str | None = None
+    exchange_token: str | None = None
+    lot_size: int | None = None
+    tick_size: float | None = None
+    freeze_quantity: float | None = None
+    qty_multiplier: float | None = None
+    cas_eligible: bool | None = None
 
 
 def classify(inst: MasterInstrument) -> str:

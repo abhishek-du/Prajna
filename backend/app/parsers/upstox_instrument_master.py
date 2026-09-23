@@ -11,6 +11,7 @@ Issue under an explicit rule, with its position in the file:
   excluded:key_segment_mismatch   instrument_key prefix disagrees with `segment`
   duplicate (identical)           WARN; one copy kept
   duplicate (conflicting)         FAIL; identity is ambiguous, nothing is guessed
+  field of the wrong type         FAIL (SCHEMA_DRIFT), named; never coerced
 """
 
 from __future__ import annotations
@@ -59,6 +60,66 @@ def _str(v: Any) -> str | None:
     return v.strip() if isinstance(v, str) and v.strip() else None
 
 
+class _Fields:
+    """Typed reads of one row. A field that is PRESENT with the wrong type is
+    schema drift, reported by name, never coerced or silently dropped."""
+
+    def __init__(self, row: dict, index: int, out: ParsedMaster):
+        self.row, self.index, self.out = row, index, out
+
+    def _drift(self, name: str) -> None:
+        self.out.issues.append(Issue(
+            AnomalySeverity.FAIL, AnomalyKind.SCHEMA_DRIFT, f"field:{name}",
+            {"row_index": self.index, "instrument_key": self.row.get("instrument_key"),
+             "value": repr(self.row.get(name))[:80],
+             "type": type(self.row.get(name)).__name__}))
+
+    def text(self, name: str) -> str | None:
+        v = self.row.get(name)
+        if v is None:
+            return None
+        if not isinstance(v, str):
+            self._drift(name)
+            return None
+        return _str(v)
+
+    def token(self, name: str) -> str | None:
+        v = self.row.get(name)
+        if v is None:
+            return None
+        if isinstance(v, bool) or not isinstance(v, int | str):
+            self._drift(name)
+            return None
+        return _str(str(v))
+
+    def integer(self, name: str) -> int | None:
+        v = self.row.get(name)
+        if v is None:
+            return None
+        if isinstance(v, bool) or not isinstance(v, int):
+            self._drift(name)
+            return None
+        return v
+
+    def number(self, name: str) -> float | None:
+        v = self.row.get(name)
+        if v is None:
+            return None
+        if isinstance(v, bool) or not isinstance(v, int | float):
+            self._drift(name)
+            return None
+        return float(v)
+
+    def flag(self, name: str) -> bool | None:
+        v = self.row.get(name)
+        if v is None:
+            return None
+        if not isinstance(v, bool):
+            self._drift(name)
+            return None
+        return v
+
+
 def decode(data: bytes) -> list:
     raw = gzip.decompress(data) if data[:2] == GZIP_MAGIC else data
     try:
@@ -93,12 +154,22 @@ def parse_master(data: bytes) -> ParsedMaster:
             out.reject(RULE_KEY_SEGMENT, i, instrument_key=key, segment=seg)
             continue
 
+        f = _Fields(row, i, out)
         inst = MasterInstrument(
             instrument_key=key, segment=seg,
-            instrument_type=_str(row.get("instrument_type")),
-            isin=_str(row.get("isin")),
-            trading_symbol=_str(row.get("trading_symbol")),
-            security_type=_str(row.get("security_type")),
+            instrument_type=f.text("instrument_type"),
+            isin=f.text("isin"),
+            trading_symbol=f.text("trading_symbol"),
+            security_type=f.text("security_type"),
+            exchange=f.text("exchange"),
+            name=f.text("name"),
+            short_name=f.text("short_name"),
+            exchange_token=f.token("exchange_token"),
+            lot_size=f.integer("lot_size"),
+            tick_size=f.number("tick_size"),
+            freeze_quantity=f.number("freeze_quantity"),
+            qty_multiplier=f.number("qty_multiplier"),
+            cas_eligible=f.flag("cas_eligible"),
         )
         if key in by_key:
             first_i, first = by_key[key]

@@ -235,6 +235,37 @@ def ingest_calendar_cmd(
     raise typer.Exit(0 if report.status == "COMPLETE" else 1)
 
 
+@ingest_app.command("instruments")
+def ingest_instruments(
+    payload_sha256: str = typer.Option(
+        ..., "--payload-sha256", help="sha256 of an ALREADY ARCHIVED instrument master"),
+    commit: bool = typer.Option(False, "--commit", help="write to the database"),
+    token: str = typer.Option(None, "--token", help="write authorization token"),
+):
+    """M3.0: load CURRENT instrument rows from an archived Upstox master.
+
+    Never downloads. Verifies the archived bytes against --payload-sha256
+    before parsing. Identical rows are a no-op; a changed attribute fails.
+    """
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.ingest.instruments import load_current_instruments
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await load_current_instruments(
+                s, master_sha256=payload_sha256, archive_root=get_settings().archive_dir,
+                commit=commit, token=token)
+
+    report = asyncio.run(_go())
+    out = report.public()
+    out["anomalies"] = [{k: a[k] for k in ("severity", "kind", "subject")}
+                        for a in report.anomalies]
+    typer.echo(_json.dumps(out, indent=2, default=str))
+    raise typer.Exit(0 if report.status == "COMPLETE" else 1)
+
+
 @ingest_app.command("universe")
 def ingest_universe(
     from_file: str = typer.Option(None, "--from-file", help="a local copy of NSE.json.gz"),
@@ -466,6 +497,32 @@ def acceptance_preopen(
         pathlib.Path(out).write_text(body + "\n")
     typer.echo(body)
     raise typer.Exit(0 if doc["verdict"] in ("PASS", "WARN") else 1)
+
+
+@acceptance_app.command("instruments")
+def acceptance_instruments(
+    payload_sha256: str = typer.Option(..., "--payload-sha256", help="the loaded master"),
+    out: str = typer.Option(None, "--out", help="also write the JSON report here"),
+):
+    """M3.0: archived master -> sha -> parse -> selection -> provenance ->
+    instrument table -> replay (DRY_RUN) -> no changes."""
+    import json as _json
+    import pathlib
+
+    from app.acceptance.instruments import evaluate
+    from app.db.engine import get_sessionmaker
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await evaluate(s, master_sha256=payload_sha256,
+                                  archive_root=get_settings().archive_dir)
+
+    doc = asyncio.run(_go())
+    body = _json.dumps(doc, indent=2, default=str)
+    if out:
+        pathlib.Path(out).write_text(body + "\n")
+    typer.echo(body)
+    raise typer.Exit(0 if doc["verdict"] == "PASS" else 1)
 
 
 upstox_app = typer.Typer(help="Upstox vendor operations")
