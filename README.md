@@ -55,13 +55,24 @@ cp .env.example .env            # fill in Upstox credentials + DSNs
 | M | Scope | State |
 |---|---|---|
 | M0 | Foundation: isolation, migrations, contracts, provenance, archive, tests | **done** |
-| M1 | Upstox pre-open capture (WebSocket v3) | **in progress** — recorder, archive, parser, replay built and tested against a local fake feed. Universe selection from the instrument master built. First live session blocked on B0 (token) |
-| M2 | Session calendar | |
+| M1 | Upstox pre-open capture (WebSocket v3) | **built** — universe, 2-connection recorder, archive, parser, replay, acceptance harness. Awaiting the first real pre-open day (`ops/runbooks/preopen_day.sh`) |
+| M2 | Session calendar | **done** — Upstox holidays + timings, 2026-09-23..12-31 committed |
 | M3 | Instrument master (SCD2) | |
 | M4 | Market data + `knowable_at` measurement (B1/B2) | |
 | M5 | Corporate actions | |
 | M6 | Macro / indices / flows | |
 | M7 | Fundamentals + news | |
+
+## Stage 1 status
+
+Not complete. See `docs/STAGE_1_COMPLETION_MATRIX.md` (per-source audit) and
+`docs/STAGE_1_FINAL_ACCEPTANCE.md` (criteria A–N, decision, open items).
+
+The real-trading-day acceptance run, from before 08:50 IST:
+
+```bash
+backend/ops/runbooks/preopen_day.sh [--login] 2026-09-24
+```
 
 ## Selecting the pre-open universe
 
