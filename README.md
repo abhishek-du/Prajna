@@ -55,13 +55,26 @@ cp .env.example .env            # fill in Upstox credentials + DSNs
 | M | Scope | State |
 |---|---|---|
 | M0 | Foundation: isolation, migrations, contracts, provenance, archive, tests | **done** |
-| M1 | Upstox pre-open capture (WebSocket v3) | **in progress** — offline half done: pinned proto, frame archive, parser, replay. Live recorder blocked on B0 (token) |
+| M1 | Upstox pre-open capture (WebSocket v3) | **in progress** — recorder, archive, parser, replay built and tested against a local fake feed. First live session blocked on B0 (token); universe selection pending |
 | M2 | Session calendar | |
 | M3 | Instrument master (SCD2) | |
 | M4 | Market data + `knowable_at` measurement (B1/B2) | |
 | M5 | Corporate actions | |
 | M6 | Macro / indices / flows | |
 | M7 | Fundamentals + news | |
+
+## Recording the pre-open feed
+
+```bash
+# keys.txt: one instrument_key per line, e.g. NSE_EQ|INE002A01018
+.venv/bin/python -m app.cli.main ingest preopen-capture --keys-file keys.txt --until 09:20
+```
+
+Writes an archive under `var/archive/UPSTOX_WS_V3/...` and **no database rows**.
+Uses the cached Upstox token only; if it is expired it stops and asks for
+`prajna upstox login` (it never logs in by itself). Every connect, subscribe,
+disconnect, stale period, reconnect, cap exclusion and never-seen key is
+recorded inside the archive, and replay turns those into `ingest_anomaly` rows.
 
 ## Replaying a pre-open archive
 

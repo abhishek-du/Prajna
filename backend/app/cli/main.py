@@ -141,8 +141,8 @@ def ingest_preopen(
 ):
     """Replay a pre-open frame archive into the database (dry-run by default).
 
-    Live capture (the WebSocket recorder) is not built yet; it needs a valid
-    Upstox token (blocker B0).
+    Recording is `ingest preopen-capture`; this command turns an archive into
+    rows.
     """
     import datetime as _dt
     import json as _json
@@ -151,8 +151,8 @@ def ingest_preopen(
     log = get_logger("cli")
     if not replay_from:
         log.error("not_implemented", milestone="M1",
-                  what="live WebSocket capture; only --replay-from-archive exists",
-                  blocker="B0: live capture requires a valid Upstox token")
+                  what="this command replays; record with `ingest preopen-capture`",
+                  hint="pass --replay-from-archive <archive>")
         raise typer.Exit(2)
 
     from app.db.engine import get_sessionmaker
@@ -170,6 +170,89 @@ def ingest_preopen(
     out["rows_written"] = report.rows_written
     typer.echo(_json.dumps(out, indent=2, default=str))
     raise typer.Exit(0 if report.status == "COMPLETE" else 1)
+
+
+@ingest_app.command("preopen-capture")
+def ingest_preopen_capture(
+    keys_file: str = typer.Option(..., "--keys-file",
+                                  help="instrument_keys to subscribe, one per line (# comments ok)"),
+    session_date: str = typer.Option(None, "--session-date", help="YYYY-MM-DD; default today IST"),
+    until: str = typer.Option("09:20", "--until", help="stop at this IST wall time (HH:MM)"),
+    mode: str = typer.Option("full", "--mode", help="wire subscribe mode (B6: full | full_d30)"),
+    cap: int = typer.Option(2000, "--cap", help="keys per connection, UNVERIFIED (B5); 0 = none"),
+    max_frames: int = typer.Option(None, "--max-frames", help="stop after N frames (smoke test)"),
+    stale_after: float = typer.Option(30.0, "--stale-after", help="seconds without a frame"),
+):
+    """Record the Upstox pre-open WebSocket feed to an archive. Writes NO rows.
+
+    Uses the cached Upstox token only and never logs in by itself: if the
+    token is invalid this stops and says so (blocker B0). Replay the archive
+    afterwards with `ingest preopen --replay-from-archive`.
+    """
+    import datetime as _dt
+    import hashlib
+    import json as _json
+    import pathlib
+    import signal
+
+    from app.contracts.identity import parse_instrument_key
+    from app.core.clock import IST, ist_at, now, now_ist
+    from app.sources.upstox_preopen_ws import (
+        PreopenRecorder, RecorderConfig, open_capture_archive, plan_subscription,
+    )
+    from app.vendor.upstox.auth import load_cached, probe
+    from app.vendor.upstox.feed_auth import authorize_feed_v3
+
+    log = get_logger("cli")
+    raw = pathlib.Path(keys_file).read_bytes()
+    keys = [ln.split("#", 1)[0].strip() for ln in raw.decode().splitlines()]
+    keys = [k for k in keys if k]
+    for k in keys:
+        parse_instrument_key(k)
+    if not keys:
+        log.error("no_keys", keys_file=keys_file)
+        raise typer.Exit(2)
+
+    day = _dt.date.fromisoformat(session_date) if session_date else now_ist().date()
+    hh, mm = (int(x) for x in until.split(":"))
+    stop_at = ist_at(day, _dt.time(hh, mm))
+    if stop_at <= now():
+        log.error("window_already_over", until_ist=stop_at.astimezone(IST).isoformat())
+        raise typer.Exit(2)
+
+    rec = load_cached()
+    ok, detail = probe(rec.access_token) if rec else (False, {"reason": "no cached token"})
+    if not ok:
+        log.error("upstox_token_invalid", blocker="B0",
+                  action="refresh it with `prajna upstox login`; capture never logs in itself",
+                  detail=str(detail)[:200])
+        raise typer.Exit(3)
+
+    cfg = RecorderConfig(mode=mode, cap=cap or None, stale_after=stale_after)
+    plan = plan_subscription(keys, cfg.cap)
+    writer = open_capture_archive(
+        get_settings().archive_dir, session_date=day, plan=plan, config=cfg,
+        extra={"keys_file": str(pathlib.Path(keys_file).resolve()),
+               "keys_file_sha256": hashlib.sha256(raw).hexdigest(),
+               "upstox_user_id": rec.user_id},
+    )
+
+    async def _go():
+        stop = asyncio.Event()
+        loop = asyncio.get_running_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(sig, stop.set)
+        recorder = PreopenRecorder(
+            writer, lambda: authorize_feed_v3(rec.access_token), plan, cfg,
+            stop_at=stop_at, max_frames=max_frames, stop=stop,
+        )
+        return await recorder.run()
+
+    summary = asyncio.run(_go())
+    out = {k: getattr(summary, k) for k in summary.__slots__ if k != "never_seen"}
+    out["never_seen_count"] = len(summary.never_seen)
+    out["next"] = f"ingest preopen --replay-from-archive {summary.archive}"
+    typer.echo(_json.dumps(out, indent=2, default=str))
 
 
 upstox_app = typer.Typer(help="Upstox vendor operations")

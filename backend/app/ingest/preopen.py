@@ -241,6 +241,7 @@ async def replay_archive(
             report.records += 1
             if rec.kind is RecordKind.EVENT:
                 report.events += 1
+                _event_anomaly(checks, rec)
                 continue
             if rec.kind is RecordKind.TEXT:
                 report.text_frames += 1
@@ -304,6 +305,36 @@ async def replay_archive(
     await runner.finalize(rows_written=report.rows_written)
     report.status = RunStatus.COMPLETE.value
     return report
+
+
+# Recorder lifecycle events that a reader of the DATABASE must also see. They
+# are WARN, not FAIL: the frames that were captured are still true.
+_EVENT_ANOMALY = {
+    "coverage_cap": AnomalyKind.COVERAGE_CAP,
+    "disconnected": AnomalyKind.GAP,
+    "stale": AnomalyKind.GAP,
+    "gave_up": AnomalyKind.GAP,
+    "auth_failed": AnomalyKind.VENDOR_ERROR,
+}
+
+
+def _event_anomaly(checks, rec) -> None:
+    try:
+        ev = rec.event()
+    except ValueError:
+        checks.add(AnomalySeverity.WARN, AnomalyKind.PARSE_REJECT, "event_record",
+                   frame_seq=rec.seq, reason="event record is not JSON")
+        return
+    name = ev.get("event")
+    detail = {k: v for k, v in ev.items() if k != "event"}
+    if name in _EVENT_ANOMALY:
+        checks.add(AnomalySeverity.WARN, _EVENT_ANOMALY[name], f"recorder.{name}",
+                   frame_seq=rec.seq, recorded_at=rec.recv_at.isoformat(), **detail)
+    elif name == "capture_end" and ev.get("never_seen_count"):
+        # Subscribed, but not one frame arrived for these keys (B5/B8 evidence).
+        checks.add(AnomalySeverity.WARN, AnomalyKind.COVERAGE_DROP, "recorder.never_seen",
+                   frame_seq=rec.seq, count=ev["never_seen_count"],
+                   keys=ev.get("never_seen_keys", []))
 
 
 def _chain(head: list, tail):
