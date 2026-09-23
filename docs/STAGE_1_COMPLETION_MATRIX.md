@@ -28,7 +28,7 @@ Nothing here is inferred from V1 or from vendor marketing.
 | 4 | News / media | SCHEMA | Upstox source UNKNOWN; no approved vendor |
 | 5 | Fundamentals | SCHEMA | Upstox source UNKNOWN; no approved vendor |
 | 6a | NIFTY / BANKNIFTY / India VIX | NOT STARTED (keys exist in master: 139 NSE_INDEX rows) | M4/M6 |
-| 6b | FII/DII flows | NOT STARTED | B4 (Upstox capability UNKNOWN) |
+| 6b | FII/DII flows | **DONE for the available history** (in scope by user decision 2026-09-23; 4,760 rows 2026-04-01 → 09-22; replay 0 mismatches) | daily incremental schedule (M4.4 scheduler); publication lag unmeasured |
 | 6c | Global markets, currency, yields | OUT? | no approved source |
 | 7 | Instrument master | DONE for universe selection; SCD2 `instrument` table not populated (M3) | M3 |
 | 8 | Live WebSocket feeds | BUILT (pre-open recorder, 2 connections); validated live in normal session | real pre-open day |
@@ -140,7 +140,30 @@ above. proto3 cannot distinguish `iep = 0` from "not sent" (B8).
   - Possible paths: the WS `indexFF` (the parser already maps its LTPC into a tick row), or historical candles (M4).
   - Destination: `macro_observation`, or `ohlcv_bar` for index bars; to be decided.
   - knowable_at: as for bars (B1/B2).
-- **FII/DII flows: NOT STARTED, B4.** Upstox capability is UNKNOWN. The constraint is explicit: if Upstox lacks it, STOP; no NSE crawler.
+- **FII/DII flows: DONE for the available history.** B4 resolved: Upstox serves them.
+  - **Source:** `GET /v2/market/fii` (5 data types) and `/v2/market/dii` (cash), interval 1D. It was put in Stage 1 scope by the user on 2026-09-23.
+  - **Code:**
+    - `parsers/upstox_institutional.py` (pure);
+    - `ingest/institutional.py`;
+    - CLI `prajna ingest institutional`.
+  - **Destination:** `macro_observation`. There is no migration. Series codes look like `FII|NSE_EQ|CASH|1D|buy_amt`. Only the fields that apply to each data type are stored; the vendor's zeros for non-applicable fields are not.
+  - **knowable_at:**
+    - it is fetched_at, unverified, because there is no vendor publication time;
+    - the fetch day is never persisted;
+    - a revision → DUPLICATE_KEY FAIL (D3's current policy).
+  - **Windows:**
+    - `from` is the END of 30 trading days (measured);
+    - windows step by 28 calendar days, and every overlap is checked (a gap FAILS);
+    - known calendar trading days are checked too.
+  - **Live (2026-09-23):** see [`2026-09-24_M4_LIVE_VALIDATION.md`](2026-09-24_M4_LIVE_VALIDATION.md) §13.
+    - 42 requests;
+    - 4,760 rows = 119 days × 40 series;
+    - rerun: 0 inserted;
+    - replay: 0 mismatches.
+  - **Open:**
+    - the publication lag, and whether same-day figures are provisional, are UNMEASURED;
+    - amount units are documented as INR, but their magnitude suggests crore (stored as `INR_vendor`);
+    - history starts 2026-04-01 (vendor depth).
 - **Global markets (S&P, DOW), currency, yields: OUT?** No approved source.
   - Upstox's master has `NSE_COM`, `NCD_FO` and `MCX`-type segments (currency and commodity *derivatives*). These are not the spot series the diagram implies.
   - **Scope decision required.**

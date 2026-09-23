@@ -1,0 +1,108 @@
+[
+ {
+  "file": "fii_cash_latest.json",
+  "sha256": "e0260ff8e4780852d53211e1367c1fdf11344a6e588b12ac3fec04987d26e864",
+  "side": "FII",
+  "data_types": [
+   "NSE_EQ|CASH"
+  ],
+  "interval": "1D",
+  "end": null,
+  "http_status": 200,
+  "fetched_at": "2026-09-23T13:45:35.648981+00:00",
+  "fetched_at_basis": "archive mtime (first archival; late bound)"
+ },
+ {
+  "file": "fii_fo_latest.json",
+  "sha256": "3b2190ee1816668cd6a6489e90f0e4a1e2f3ec0a6963a63605a83adb916ece4f",
+  "side": "FII",
+  "data_types": [
+   "NSE_FO|INDEX_FUTURES",
+   "NSE_FO|INDEX_OPTIONS"
+  ],
+  "interval": "1D",
+  "end": null,
+  "http_status": 200,
+  "fetched_at": "2026-09-23T13:45:35.724495+00:00",
+  "fetched_at_basis": "archive mtime (first archival; late bound)"
+ },
+ {
+  "file": "dii_cash_latest.json",
+  "sha256": "5267617ec10d5f686fef483e8cfc11d2ace5420f02aee8bdcb8c1b64b33e9b3d",
+  "side": "DII",
+  "data_types": [
+   "NSE_EQ|CASH"
+  ],
+  "interval": "1D",
+  "end": null,
+  "http_status": 200,
+  "fetched_at": "2026-09-23T13:45:35.789982+00:00",
+  "fetched_at_basis": "archive mtime (first archival; late bound)"
+ },
+ {
+  "file": "fii_cash_to_2026-06-15.json",
+  "sha256": "51ca0d151ddfde80aadd2dbb89150fa778e169240c6ee4bbcc6c80286f8386a9",
+  "side": "FII",
+  "data_types": [
+   "NSE_EQ|CASH"
+  ],
+  "interval": "1D",
+  "end": "2026-06-15",
+  "http_status": 200,
+  "fetched_at": "2026-09-23T13:48:09.662175+00:00",
+  "fetched_at_basis": "archive mtime (first archival; late bound)"
+ },
+ {
+  "file": "dii_cash_to_2026-06-15.json",
+  "sha256": "bfc11aea261155f8817c4598c713538af16c6cebb91360e353d02db4bfcda6f4",
+  "side": "DII",
+  "data_types": [
+   "NSE_EQ|CASH"
+  ],
+  "interval": "1D",
+  "end": "2026-06-15",
+  "http_status": 200,
+  "fetched_at": "2026-09-23T13:48:09.738171+00:00",
+  "fetched_at_basis": "archive mtime (first archival; late bound)"
+ },
+ {
+  "file": "fii_cash_to_2026-04-01.json",
+  "sha256": "3c55cb40872cbd126e57a5eb3a25198cdaedcae99949c36cbd6a9c4c1a7ce8db",
+  "side": "FII",
+  "data_types": [
+   "NSE_EQ|CASH"
+  ],
+  "interval": "1D",
+  "end": "2026-04-01",
+  "http_status": 200,
+  "fetched_at": "2026-09-23T13:48:09.526170+00:00",
+  "fetched_at_basis": "archive mtime (first archival; late bound)"
+ },
+ {
+  "file": "fii_cash_to_2026-03-02_empty.json",
+  "sha256": "a20c0bdad836408e24acac3b0ddd31e9b740e8a4d0b38d72b545d07be7c4162b",
+  "side": "FII",
+  "data_types": [
+   "NSE_EQ|CASH"
+  ],
+  "interval": "1D",
+  "end": "2026-03-02",
+  "http_status": 200,
+  "fetched_at": "2026-09-23T13:45:35.930373+00:00",
+  "fetched_at_basis": "archive mtime (first archival; late bound)"
+ },
+ {
+  "file": "fii_stock_fo_latest.json",
+  "sha256": "a433b0dba8d3ff1e093d1fa4bd5d8ec00bfb15d5ff69f3ce688a55a73b63c4fc",
+  "side": "FII",
+  "data_types": [
+   "NSE_FO|STOCK_FUTURES",
+   "NSE_FO|STOCK_OPTIONS"
+  ],
+  "interval": "1D",
+  "end": null,
+  "http_status": 200,
+  "fetched_at": "2026-09-23T13:51:51.617039+00:00",
+  "fetched_at_basis": "RestResponse.fetched_at"
+ }
+]

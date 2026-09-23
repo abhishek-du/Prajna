@@ -352,6 +352,65 @@ def ingest_candles(
     raise typer.Exit(0 if not rep.stopped and not rep.count("FAILED") else 1)
 
 
+@ingest_app.command("institutional")
+def ingest_institutional(
+    side: list[str] = typer.Option(["FII", "DII"], "--side", help="repeatable: FII DII"),
+    data_type: list[str] = typer.Option(
+        None, "--data-type", help="repeatable, e.g. NSE_EQ|CASH; default: every type of the side"),
+    start: str = typer.Option("2026-04-01", "--start",
+                              help="YYYY-MM-DD; the vendor has nothing before 2026-04-01"),
+    max_requests: int = typer.Option(20, "--max-requests", help="per series"),
+    commit: bool = typer.Option(False, "--commit", help="write to the database"),
+    token: str = typer.Option(None, "--token", help="write authorization token"),
+    no_resume: bool = typer.Option(False, "--no-resume", help="ignore watermarks"),
+):
+    """Ingest Upstox FII/DII activity (1D) into macro_observation (dry-run by default).
+
+    Every response is archived first. Only dates before today (IST) are
+    persisted; knowable_at = fetched_at (unverified). A changed value for a
+    stored date FAILS (D3's current policy); nothing is overwritten.
+    """
+    import datetime as _dt
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.ingest.institutional import InstitutionalIngestor
+    from app.parsers.upstox_institutional import DATA_TYPES
+    from app.storage.payload_store import PayloadStore
+    from app.vendor.upstox.auth import load_cached
+    from app.vendor.upstox.rest import UpstoxRestClient
+
+    log = get_logger("cli")
+    series = [(sd.upper(), t) for sd in side for t in (data_type or DATA_TYPES.get(sd.upper(), ()))]
+    bad = [p for p in series if p[1] not in DATA_TYPES.get(p[0], ())]
+    if not series or bad:
+        log.error("unsupported_series", series=bad or series, supported=DATA_TYPES)
+        raise typer.Exit(2)
+    rec = load_cached()
+    if rec is None:
+        log.error("upstox_token_missing", blocker="B0", action="run `prajna upstox login`")
+        raise typer.Exit(3)
+
+    async def _go():
+        rest = UpstoxRestClient(rec.access_token)
+        try:
+            async with get_sessionmaker()() as s:
+                ing = InstitutionalIngestor(s, rest, PayloadStore(get_settings().archive_dir),
+                                            commit=commit, token=token)
+                return await ing.run(series, start=_dt.date.fromisoformat(start),
+                                     resume=not no_resume, max_requests=max_requests)
+        finally:
+            await rest.aclose()
+
+    rep = asyncio.run(_go())
+    out = rep.summary()
+    out["problems"] = [{"series": f"{r.side} {r.data_type}", "from": str(r.end),
+                        "status": r.status, "error": r.error}
+                       for r in rep.results if r.status != "COMPLETE"][:50]
+    typer.echo(_json.dumps(out, indent=2, default=str))
+    raise typer.Exit(0 if not out["problems"] else 1)
+
+
 @ingest_app.command("universe")
 def ingest_universe(
     from_file: str = typer.Option(None, "--from-file", help="a local copy of NSE.json.gz"),

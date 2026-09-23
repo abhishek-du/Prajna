@@ -60,7 +60,7 @@ Legend:
 | **Fundamentals** | ⚪ | schema only; UNKNOWN whether Upstox provides it |
 | **Market & macro: NIFTY 50, BANKNIFTY, India VIX** | 🟡 | all three are in the `instrument` table; candle ingestion works for them (Nifty 50 dry-run OK); **0 rows** |
 | **Global markets (S&P, DOW), currency, yields** | ⚪ | Upstox has no approved source; scope decision needed |
-| **FII/DII flows** | ⚪ | blocker B4: Upstox capability UNKNOWN; substituting NSE is not allowed |
+| **FII/DII flows** | ✅ | in scope (user, 2026-09-23). Upstox `/v2/market/fii` + `/dii` → `macro_observation`: 4,760 rows (2026-04-01 → 09-22, the vendor's whole depth), replay 0 mismatches. Publication lag UNMEASURED; knowable_at = fetched_at |
 | **Instrument master** (symbol, ISIN, key) | ✅ | 3,528 current instruments in the DB. **Sector and listing status are not in the Upstox master** |
 | **Live feeds (WebSocket)** | 🟢 | tested live; per-connection cap measured; all 3,525 instruments covered by 2 connections |
 
@@ -92,7 +92,8 @@ Legend:
 | `ohlcv_bar` | **0** | candle ingestion built, but only dry-runs so far |
 | `preopen_tick` / `preopen_book` / `preopen_session_status` | **0** | the pre-open day has not happened yet |
 | `tick_archive` | 0 | Stage 7 (M0 decision) |
-| `corporate_action`, `fundamental_snapshot`, `news_article`, `macro_observation` | 0 | not started |
+| `macro_observation` | 4,760 | FII/DII 1D (40 series × 119 days) |
+| `corporate_action`, `fundamental_snapshot`, `news_article` | 0 | not started (S2 open) |
 
 ### Raw archive (`backend/var/archive/`, gitignored)
 
@@ -207,8 +208,8 @@ Checks beyond the tests:
 - **D3:** candle revisions: FAIL (today's rule), or store each version (needs a migration).
 - **D5:** all-day LTP/depth in Stage 1, or in Stage 7.
 - **S1:** include REITs (series RR) and D1/E1/IT/SZ/W1, or not.
-- **S2:** corporate actions, fundamentals, news, FII/DII: check Upstox first
-  (and stop if it doesn't provide them), or remove them from Stage 1.
+- **S2:** corporate actions, fundamentals, news: all three exist on Upstox (verified
+  live 2026-09-23); in Stage 1 or not? (**FII/DII: decided in scope and ingested.**)
 - **P1:** WebSocket knowable_at is 11–148 ms before our receipt. Change it to
   `fetched_at`? That changes an M0 contract.
 - **Survivorship:** the historical universe contains only instruments listed
@@ -229,8 +230,8 @@ Checks beyond the tests:
 4. **M4.5:** historical backfill, at the depth D1 sets.
 5. **M4.6:** B1/B2 measured over ≥ 3 sessions, then knowable_at `verified`.
 6. **M4.7:** a market-data acceptance harness.
-7. **S2 scope:** check Upstox endpoints for corporate actions, fundamentals and
-   FII/DII; implement them, or remove them from Stage 1 with a written reason.
+7. **S2 scope:** corporate actions, fundamentals and news (FII/DII is done);
+   implement them, or remove them from Stage 1 with a written reason.
 8. Regenerate `STAGE_1_FINAL_ACCEPTANCE.md`, and declare COMPLETE only when
    criteria A–N are all met.
 
@@ -244,5 +245,5 @@ Checks beyond the tests:
 | "Daily: **03:45 UTC (9:15 IST)** exactly one timestamp" | A daily bar is keyed by `session_date` (IST midnight label, D4); its knowable_at is **after the close, the next day** | at 09:15 the day's bar does not exist yet. Treating it as 09:15 is exactly V1's look-ahead mistake |
 | "Instrument master: sector, listing status" | not available | Upstox's master does not have these fields |
 | "Store in central DB (Postgres + **Redis cache**)" | Postgres only | Stage 1 does not need a cache; it belongs to a later stage |
-| "Global markets, FII/DII" | not approved / B4 | no Upstox source is established |
+| "Global markets, FII/DII" | FII/DII: Upstox (done). Global markets: not approved | FII/DII is served by Upstox (B4 resolved). No Upstox source exists for S&P/DOW spot |
 | "Celery task scheduler" | CLI + runbook | a scheduler is needed from M4.4 onwards; not yet decided |

@@ -150,10 +150,18 @@ live on 2026-09-23, with history only from 2026-04-01. No substitute source is
 needed or used. (The earlier doc URLs `get-fii/` and `get-dii/` return 404; the
 real pages are `get-fii-data/` and `get-dii-data/`.)
 
-**Decision required:**
-- which of the four are in Stage 1 scope;
-- approval to measure the history depth of corporate actions and news, and
-  the FII/DII publication lag, before designing their ingestion.
+**Decided (2026-09-23, user):** FII/DII is **in Stage 1 scope**, and has been built and ingested
+(`prajna ingest institutional`; see the live validation doc §13).
+Its design choices follow existing decisions and change none of them:
+- knowable_at = fetched_at (unverified);
+- the fetch day is excluded (as for daily bars, B1);
+- revisions → FAIL (D3 as it stands).
+
+**Still required:**
+- are corporate actions, fundamentals and news in Stage 1 scope?
+- approval to measure the history depth of corporate actions and news;
+- (FII/DII) measure the publication lag, and whether same-day figures are
+  provisional, before `knowable_at_verified` can become true.
 
 ---
 

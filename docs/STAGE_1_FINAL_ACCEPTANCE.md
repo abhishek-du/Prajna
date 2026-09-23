@@ -113,7 +113,7 @@ Details: `docs/2026-09-23_M1_LIVE_SMOKE.md`.
 | B0 | Token expires daily ~03:30 IST | the runbook's `--login`, or the user logs in |
 | B1 / B2 | Bar finalisation and publication lag | M4 measurement |
 | B3 | full_d30 | inferred unavailable; confirm with Upstox or accept 5 rungs |
-| B4 | FII/DII from Upstox | probe; if absent, STOP (no substitution) or remove from scope |
+| B4 | FII/DII from Upstox | **RESOLVED 2026-09-23:** Upstox serves it; in scope; ingested (4,760 rows). See the M4 live validation doc §13 |
 | B7 | iiqM semantics | real pre-open day → harness `B7.observation` → human reading |
 | B8 | IEP/IEQ/IIQ population | real pre-open day → harness `B8` |
 | B10 | Special-session pre-open windows | observe on the next special session, or leave out of scope |

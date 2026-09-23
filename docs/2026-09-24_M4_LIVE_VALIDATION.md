@@ -162,3 +162,53 @@ D1, D2, D3, D5, S1, S2, P1 and survivorship. See
 [`2026-09-24_M4_DECISIONS.md`](2026-09-24_M4_DECISIONS.md), which includes the
 new finding that Upstox provides corporate actions, fundamentals, news and
 FII/DII.
+
+## 13. FII/DII ingest: first live commit (2026-09-23, ~19:30 IST)
+
+The user put FII/DII in Stage 1 scope on 2026-09-23, so it is ingested from
+Upstox only. This does not change the verdict above.
+
+- **Endpoints:** `GET /v2/market/fii` with `NSE_EQ|CASH`, `NSE_FO|INDEX_FUTURES`,
+  `NSE_FO|INDEX_OPTIONS`, `NSE_FO|STOCK_FUTURES`, `NSE_FO|STOCK_OPTIONS`, and
+  `GET /v2/market/dii` with `NSE_EQ|CASH`; `interval=1D`.
+- **Measured semantics:**
+  - `from=X` returns the 30 trading days **ending** at X;
+  - with no `from`, the latest 30;
+  - `time_stamp` = session date 00:00 IST;
+  - before 2026-04-01 the response is an empty 200;
+  - every record carries all 12 fields, and the non-applicable ones are 0.
+- **Fixtures:** 8 real responses in `backend/tests/fixtures/upstox_institutional/`,
+  with sha256 values in `manifest.json`.
+
+```bash
+prajna ingest institutional                           # dry run: 42 requests, 42 COMPLETE
+prajna ingest institutional --commit --token ***      # commit
+prajna ingest institutional --commit --token ***      # rerun (idempotence)
+```
+
+| Check | Result |
+|---|---|
+| Requests (commit) | 42 = 6 series × 7 windows (04-29, 05-27, …, 09-23), all COMPLETE, no GAP, no STALLED |
+| Rows | **4,760** = 119 trading days × 40 series (cash 2 + index fut 8 + index opt 10 + stock fut 8 + stock opt 10 + DII cash 2) |
+| Range | 2026-04-01 → 2026-09-22; 09-23 not yet published (and the fetch day is excluded anyway) |
+| Window overlaps | 3,200 observations seen twice. **0 conflicting values** |
+| Rerun | 6 requests, 0 inserted, 1,200 already present |
+| Provenance (every row) | 0 without a COMPLETE/COMMIT run · 0 without a payload · 0 wrong source · 0 `knowable_at ≠ fetched_at` · 0 verified · 0 `fetched_at ≠ raw_payload.fetched_at` · 0 on/after the fetch day · 0 duplicate (series, date) |
+| Replay (archive → parser → DB) | 42 runs, 4,760 rows, **0 mismatches** (value, unit, knowable_at, vendor record) |
+| Watermarks | `macro.<side>.<type>.1D` = 2026-09-22 for all 6 |
+
+**Tests:**
+- parser: 30, on real responses plus mutations;
+- integration: 12, covering walk, resume, earlier start, same-day exclusion,
+  dry run, revision = FAIL, window gap = FAIL, calendar gap = FAIL, 429 = ABORT,
+  error body archived, no token = refused.
+
+Full suite: **480 passed**.
+
+**Open (not decided here):**
+- **Publication lag:** UNMEASURED; knowable_at stays `fetched_at`, unverified.
+- **Same-day figures:** whether they are provisional and later revised is
+  UNMEASURED. A revision would FAIL (D3).
+- **Amount unit:** documented as INR, but the magnitude suggests INR crore;
+  stored as `INR_vendor`.
+- **Daily schedule:** the incremental needs a scheduler, the same open item as M4.4.
