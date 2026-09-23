@@ -185,6 +185,56 @@ def ingest_preopen(
     raise typer.Exit(0 if report.status == "COMPLETE" else 1)
 
 
+@ingest_app.command("calendar")
+def ingest_calendar_cmd(
+    date_from: str = typer.Option(..., "--from", help="YYYY-MM-DD"),
+    date_to: str = typer.Option(..., "--to", help="YYYY-MM-DD (inclusive, <= 400 days)"),
+    commit: bool = typer.Option(False, "--commit", help="write to the database"),
+    token: str = typer.Option(None, "--token", help="write authorization token"),
+):
+    """NSE trading sessions from Upstox /v2/market/holidays + /v2/market/timings.
+
+    One timings call per date (hours are never assumed). Uses the cached Upstox
+    token; an invalid token stops the run (blocker B0).
+    """
+    import datetime as _dt
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.ingest.calendar import ingest_calendar
+    from app.sources.upstox_calendar import UpstoxCalendarClient
+    from app.storage.payload_store import PayloadStore
+    from app.vendor.upstox.auth import load_cached
+
+    log = get_logger("cli")
+    rec = load_cached()
+    if rec is None:
+        log.error("upstox_token_missing", blocker="B0", action="run `prajna upstox login`")
+        raise typer.Exit(3)
+
+    async def _go():
+        client = UpstoxCalendarClient(rec.access_token)
+        try:
+            async with get_sessionmaker()() as s:
+                return await ingest_calendar(
+                    s, date_from=_dt.date.fromisoformat(date_from),
+                    date_to=_dt.date.fromisoformat(date_to),
+                    holidays=client.holidays, timings=client.timings,
+                    store=PayloadStore(get_settings().archive_dir),
+                    commit=commit, token=token,
+                )
+        finally:
+            await client.aclose()
+
+    report = asyncio.run(_go())
+    out = report.public()
+    out["sessions"] = [x for x in report.sessions if x["session_type"] != "NORMAL"]
+    out["anomalies"] = [{k: a[k] for k in ("severity", "kind", "subject")} | {
+        "reason": a["detail"].get("reason")} for a in report.anomalies]
+    typer.echo(_json.dumps(out, indent=2, default=str))
+    raise typer.Exit(0 if report.status == "COMPLETE" else 1)
+
+
 @ingest_app.command("universe")
 def ingest_universe(
     from_file: str = typer.Option(None, "--from-file", help="a local copy of NSE.json.gz"),

@@ -129,13 +129,16 @@ class IngestRunner:
         return ctx
 
     async def record_payload(
-        self, stored, *, http_status: int | None = None, storage_uri: str | None = None
+        self, stored, *, http_status: int | None = None, storage_uri: str | None = None,
+        vendor_endpoint: str | None = None,
     ) -> bool:
         """Step 3 bookkeeping. Idempotent on the content address.
 
         `storage_uri` overrides the file path for payloads that live inside a
         larger archive (a WebSocket frame is `<archive>#seq=<n>`). Returns
         True if this call recorded the payload, False if it was already known.
+        `vendor_endpoint` overrides the run's endpoint for runs that fetch from
+        several URLs (the calendar: one holidays call, one timings call per day).
         """
         assert self.ctx
         exists = await self.session.get(RawPayload, stored.sha256)
@@ -144,8 +147,9 @@ class IngestRunner:
         await self.session.execute(
             insert(RawPayload).values(
                 payload_sha256=stored.sha256, source=self.source,
-                vendor_endpoint=self.vendor_endpoint, request_params=self.request_params,
-                http_status=http_status, byte_size=stored.byte_size,
+                vendor_endpoint=vendor_endpoint or self.vendor_endpoint,
+                request_params=self.request_params, http_status=http_status,
+                byte_size=stored.byte_size,
                 content_type=stored.content_type, storage_uri=storage_uri or str(stored.path),
                 first_seen_run=self.ctx.run_id, fetched_at=stored.fetched_at,
                 vendor_reported_at=stored.vendor_reported_at,
