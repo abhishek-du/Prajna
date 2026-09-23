@@ -19,11 +19,13 @@ Readiness is EVENT-DRIVEN, never a sleep:
 
 Liveness:
   * transport heartbeat: WebSocket ping/pong (ping_interval / ping_timeout);
-  * data watchdog: no frame for `stale_after` seconds on an open connection is
-    `stale`, and the connection is recycled — a socket can be alive while the
-    feed behind it is dead;
+  * data watchdog: no frame carrying a SUBSCRIBED key for `stale_after`
+    seconds is `stale`, and the connection is recycled — a socket can be alive
+    while the feed behind it is dead, and Upstox ignores an unserviceable
+    subscription silently (seen live: market_info, then nothing);
   * reconnects are bounded, with exponential backoff, a FRESH authorize each
-    time (the URL is single-use) and a full resubscribe.
+    time (the URL is single-use) and a full resubscribe. Only a connection that
+    delivered subscribed data resets the failure count.
 
 UNVERIFIED VENDOR LIMITS (carried as config, not facts): the per-connection
 key cap for `full` (B5), the wire mode string (B6), and how many keys one
@@ -165,7 +167,7 @@ class PreopenRecorder:
         self.summary = RecorderSummary(archive=str(writer.path))
         self._subscribed = set(plan.subscribed)
         self._seen: set[str] = set()
-        self._got_data = False   # this connection delivered at least one frame
+        self._got_data = False   # this connection delivered data for a subscribed key
 
     # ── evidence ────────────────────────────────────────────────────────────
     def _event(self, name: str, **detail: Any) -> None:
@@ -285,22 +287,34 @@ class PreopenRecorder:
                         chunk_index=i // n, message_sha256=hashlib.sha256(msg).hexdigest())
 
     async def _pump(self, ws: ClientConnection) -> None:
+        """Receive until a stop condition. The watchdog measures time since the
+        last frame carrying a SUBSCRIBED key, not since any frame: live on
+        2026-09-23 an ignored subscription (full_d30 without Plus) produced a
+        market_info frame and then silence, and a feed of keyless frames is no
+        healthier than no feed at all."""
+        loop = asyncio.get_running_loop()
         confirmed = market_info = False
+        last_useful = loop.time()
         while self._should_stop() is None:
             left = self._seconds_left()
-            timeout = self.cfg.stale_after if left is None else min(self.cfg.stale_after, left)
+            quiet = loop.time() - last_useful
+            timeout = self.cfg.stale_after - quiet
+            if left is not None:
+                timeout = min(timeout, left)
             try:
-                msg = await asyncio.wait_for(ws.recv(), timeout=max(timeout, 0.001))
+                if timeout <= 0:
+                    raise TimeoutError
+                msg = await asyncio.wait_for(ws.recv(), timeout=timeout)
             except TimeoutError:
                 if self._should_stop():
                     return
-                self._event("stale", silent_for_s=self.cfg.stale_after)
+                self._event("stale", silent_for_s=self.cfg.stale_after,
+                            subscribed_data_seen=confirmed)
                 raise _Stale from None
 
             recv_at = now()
             self.w.append_frame(msg, recv_at)          # ARCHIVE FIRST, always
             self.summary.frames += 1
-            self._got_data = True
             if isinstance(msg, str):
                 self.summary.text_frames += 1
                 continue
@@ -315,10 +329,12 @@ class PreopenRecorder:
             if not market_info and fr.HasField("marketInfo"):
                 market_info = True
                 self._event("market_info", vendor_ts=fr.currentTs)
-            if fr.feeds:
-                hit = self._subscribed.intersection(fr.feeds.keys())
+            hit = self._subscribed.intersection(fr.feeds.keys()) if fr.feeds else set()
+            if hit:
                 self._seen |= hit
-                if not confirmed and hit:
+                last_useful = loop.time()
+                self._got_data = True
+                if not confirmed:
                     confirmed = True
                     self._event("subscription_confirmed", first_keys=len(hit),
                                 feed_type=pb.Type.Name(fr.type) if fr.type in pb.Type.values()

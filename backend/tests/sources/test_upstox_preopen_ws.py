@@ -144,6 +144,17 @@ class TestLiveness:
         assert "gave_up" in _names(events) and _names(events)[-1] == "capture_end"
         assert manifest_path(rec.w.path).exists()   # archive closed cleanly anyway
 
+    async def test_silently_ignored_subscription_still_gives_up(self, tmp_path):
+        """Seen live 2026-09-23 with full_d30: Upstox sends market_info and then
+        nothing for any subscribed key, with no error. market_info is not data
+        for our keys, so those connections must count as failures."""
+        cfg = RecorderConfig(**{**FAST.public(), "stale_after": 0.2, "max_reconnects": 2})
+        async with FakeUpstoxFeed([("stream", 10**6)], only_keys=set()) as feed:
+            rec, auth = _recorder(tmp_path, feed, cfg=cfg)
+            with pytest.raises(RecorderGaveUp):
+                await _run(rec)
+        assert auth.calls == 3 and rec.summary.never_seen == sorted(KEYS)
+
     async def test_auth_failure_is_not_retried(self, tmp_path):
         async def dead_token():
             raise VendorAuthError("feed authorize rejected: HTTP 401 ['UDAPI100050']")
