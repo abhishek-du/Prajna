@@ -388,6 +388,88 @@ class TestFailClosed:
         assert bad[0].n == 0
 
 
+class TestCheckpointCoverage:
+    """A checkpoint is a contiguous [covered_from, through]; it is never trusted
+    for a start it does not cover, and never advanced across a hole."""
+
+    async def _cp(self, s, key=SME, tf="1d"):
+        return await CandleIngestor(s, None, None, commit=False, token=None).checkpoint(
+            C.watermark_stream(tf, key))
+
+    async def test_earlier_start_is_not_skipped_by_a_later_checkpoint(self, db_session,
+                                                                     tmp_path, frozen):
+        await _seed_instruments(db_session)
+        frozen(AFTER_CLOSE)
+        v = Vendor()
+        late = plan_jobs([SME], ["1d"], D(2026, 9, 24 - 23), D(2026, 9, 23))[0]
+        await _ingestor(db_session, v, tmp_path).run(late)
+        assert (await self._cp(db_session)).covered_from == D(2026, 9, 1)
+        # a backfill from 2016 must fetch everything, not trust the 09-01 checkpoint
+        early = plan_jobs([SME], ["1d"], D(2016, 9, 24), D(2026, 9, 23))[0]
+        rep = await _ingestor(db_session, v, tmp_path).run(early)
+        assert [r.status for r in rep.results] == ["COMPLETE", "COMPLETE"]
+        cp = await self._cp(db_session)
+        assert (cp.covered_from, cp.through) == (D(2016, 9, 24), D(2026, 9, 22))
+        # now it covers the start: a rerun skips what is covered
+        again = await _ingestor(db_session, v, tmp_path).run(early)
+        assert [r.status for r in again.results] == ["SKIPPED", "COMPLETE"]
+
+    async def test_window_after_a_hole_never_moves_the_checkpoint(self, db_session, tmp_path,
+                                                                 frozen):
+        await _seed_instruments(db_session)
+        frozen(AFTER_CLOSE)
+        v = Vendor()
+        await _ingestor(db_session, v, tmp_path).run(
+            plan_jobs([R], ["5m"], D(2026, 7, 1), D(2026, 7, 31))[0])
+        assert (await self._cp(db_session, R, "5m")).through == D(2026, 7, 31)
+        # September only: August is a hole; its bars are stored, the checkpoint stays
+        rep = await _ingestor(db_session, v, tmp_path).run(
+            plan_jobs([R], ["5m"], D(2026, 9, 1), D(2026, 9, 23))[0])
+        (res,) = rep.results
+        assert res.status == "COMPLETE" and res.inserted > 0
+        assert "not contiguous" in res.coverage["checkpoint"]["change"]
+        cp = await self._cp(db_session, R, "5m")
+        assert (cp.covered_from, cp.through) == (D(2026, 7, 1), D(2026, 7, 31))
+        # so a later July->September run still fetches August
+        rep = await _ingestor(db_session, v, tmp_path).run(
+            plan_jobs([R], ["5m"], D(2026, 7, 1), D(2026, 9, 23))[0])
+        assert [r.status for r in rep.results] == ["SKIPPED", "COMPLETE", "COMPLETE"]
+        cp = await self._cp(db_session, R, "5m")
+        assert (cp.covered_from, cp.through) == (D(2026, 7, 1), D(2026, 9, 22))
+
+    async def test_legacy_checkpoint_without_covered_from_is_not_trusted(self, db_session,
+                                                                        tmp_path, frozen):
+        await _seed_instruments(db_session)
+        frozen(AFTER_CLOSE)
+        v = Vendor()
+        await _ingestor(db_session, v, tmp_path).run(_daily_jobs())
+        await db_session.execute(text(
+            "update ingest_run set request_params = request_params #- '{outcome,checkpoint}' "
+            "where stream = :s"), {"s": f"ohlcv.1d.{R}"})
+        cp = await self._cp(db_session, R)
+        assert cp.through == D(2026, 9, 22) and cp.covered_from is None
+        v.calls.clear()
+        rep = await _ingestor(db_session, v, tmp_path).run(_daily_jobs())
+        assert rep.results[0].status == "COMPLETE" and len(v.calls) == 1
+        assert (await self._cp(db_session, R)).covered_from == D(2026, 9, 8)
+
+
+def test_checkpoint_advance_rules():
+    w = C.Window
+    cp = IC.Checkpoint()
+    cp, why = cp.advance(w(D(2026, 7, 1), D(2026, 7, 31)), D(2026, 7, 31))
+    assert (cp.covered_from, cp.through, why) == (D(2026, 7, 1), D(2026, 7, 31), "started")
+    cp2, why = cp.advance(w(D(2026, 8, 1), D(2026, 8, 31)), D(2026, 8, 20))
+    assert (cp2.through, why) == (D(2026, 8, 20), "advanced")
+    cp3, why = cp2.advance(w(D(2026, 9, 1), D(2026, 9, 30)), D(2026, 9, 22))
+    assert cp3 == cp2 and "not contiguous" in why          # 08-21..08-31 still pending
+    cp4, why = cp.advance(w(D(2026, 8, 1), D(2026, 8, 31)), D(2026, 7, 31))
+    assert cp4 == cp and why == "nothing complete in the window"
+    assert IC.Checkpoint(D(2026, 7, 1), D(2026, 9, 1)).covers_start(D(2026, 7, 1))
+    assert not IC.Checkpoint(D(2026, 7, 2), D(2026, 9, 1)).covers_start(D(2026, 7, 1))
+    assert not IC.Checkpoint(None, D(2026, 9, 1)).covers_start(D(2020, 1, 1))
+
+
 async def _anoms(s, run_id):
     return [{"kind": r.kind, "detail": r.detail} for r in await _q(
         s, "select kind, detail from ingest_anomaly where run_id=:r", r=run_id)]

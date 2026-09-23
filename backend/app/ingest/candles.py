@@ -13,13 +13,23 @@ WHAT THIS DECIDES AND WHAT IT DOES NOT. It ingests whatever jobs it is given.
 Which timeframes (D2: vendor-fetched vs derived 5m/15m/1h) and how far back
 (D1) are the caller's choice, not encoded here.
 
-RESUME / CHECKPOINT. The watermark stream is ohlcv.<tf>.<key>, and
-last_logical_date means "every bar up to and including this date is
-persisted". Rules:
+RESUME / CHECKPOINT. The watermark stream is ohlcv.<tf>.<key>. A checkpoint
+is a CONTIGUOUS range [covered_from, last_logical_date]: every bar in it is
+persisted. last_logical_date lives on ingest_watermark; covered_from lives in
+the outcome of the run that set it (request_params.outcome.checkpoint), so no
+migration is needed. Rules:
+  * a batch trusts the checkpoint only if covered_from <= the batch's first
+    window start. Otherwise (an earlier start than any before, or a legacy
+    checkpoint without covered_from) no window is skipped, and the batch
+    rebuilds the range from its own first window. Stored bars dedupe as no-ops;
+  * a window advances the checkpoint only if it is contiguous with it
+    (from_date <= last_logical_date + 1 day). A window beyond a hole persists
+    its bars but never moves the checkpoint, so the hole is never skipped;
   * windows run oldest first; a window that fails STOPS its stream, so the
     watermark can never jump over a gap;
   * a window with FORMING/SETTLING bars advances the watermark only to the day
-    before the first such bar, so a later run fetches it again;
+    before the first such bar, so a later run fetches it again (and the
+    windows after it are then not contiguous, so they do not move it);
   * it never advances past the day BEFORE the fetch (IST): on the fetch day
     itself not all bars exist yet (a daily bar is not published same-day);
   * pending windows are those ending after the watermark;
@@ -49,7 +59,7 @@ from app.contracts import candles as C
 from app.contracts.provenance import AnomalyKind, AnomalySeverity, RunStatus, Source
 from app.core.clock import IST
 from app.core.errors import IngestCheckFailed, RateLimited, VendorAuthError, VendorError
-from app.db.models import IngestWatermark, Instrument, OhlcvBar, TradingSession
+from app.db.models import IngestRun, IngestWatermark, Instrument, OhlcvBar, TradingSession
 from app.ingest.checks import check_provenance_complete
 from app.ingest.runner import IngestRunner
 from app.parsers.upstox_candles import (
@@ -105,6 +115,34 @@ def plan_jobs(keys: Iterable[str], timeframes: Iterable[str], start: _dt.date,
                 unavailable.append(C.CoverageRecord(key, tf, wp.unavailable,
                                                     C.WindowOutcome.BEFORE_AVAILABILITY))
     return jobs, unavailable
+
+
+@dataclass(frozen=True, slots=True)
+class Checkpoint:
+    """[covered_from, through]: every bar in it is persisted. Both None = nothing
+    known. through set but covered_from None = a legacy checkpoint (start unknown)."""
+    covered_from: _dt.date | None = None
+    through: _dt.date | None = None
+
+    def covers_start(self, start: _dt.date) -> bool:
+        return (self.through is not None and self.covered_from is not None
+                and self.covered_from <= start)
+
+    def advance(self, window: C.Window, through: _dt.date) -> tuple[Checkpoint, str]:
+        """The checkpoint after a COMPLETE window whose bars are persisted up to
+        `through` (which may be before window.from_date: nothing settled yet)."""
+        if through < window.from_date:
+            return self, "nothing complete in the window"
+        if self.through is None:
+            return Checkpoint(window.from_date, through), "started"
+        if window.from_date > self.through + _dt.timedelta(days=1):
+            return self, f"not contiguous with the checkpoint ({self.through})"
+        return Checkpoint(min(self.covered_from or window.from_date, window.from_date),
+                          max(self.through, through)), "advanced"
+
+    def as_dict(self) -> dict[str, str | None]:
+        return {"covered_from": None if self.covered_from is None else str(self.covered_from),
+                "through": None if self.through is None else str(self.through)}
 
 
 @dataclass(slots=True)
@@ -186,6 +224,15 @@ class CandleIngestor:
         wm = await self.s.get(IngestWatermark, (SOURCE, stream))
         return wm.last_logical_date if wm else None
 
+    async def checkpoint(self, stream: str) -> Checkpoint:
+        wm = await self.s.get(IngestWatermark, (SOURCE, stream))
+        if wm is None or wm.last_logical_date is None:
+            return Checkpoint()
+        run = await self.s.get(IngestRun, wm.last_run_id) if wm.last_run_id else None
+        cf = ((run.request_params or {}).get("outcome") or {}).get("checkpoint", {}) \
+            .get("covered_from") if run else None
+        return Checkpoint(_dt.date.fromisoformat(cf) if cf else None, wm.last_logical_date)
+
     async def _session_opens(self, window: C.Window) -> dict[_dt.date, _dt.time]:
         return {r.session_date: r.open_ist for r in (await self.s.execute(
             select(TradingSession.session_date, TradingSession.open_ist).where(
@@ -204,7 +251,11 @@ class CandleIngestor:
         for stream in sorted(by_stream):
             sjobs = sorted(by_stream[stream],
                            key=lambda j: (j.window.from_date if j.window else _dt.date.max))
-            mark = await self.watermark(stream) if resume else None
+            first = next((j.window.from_date for j in sjobs if j.window), None)
+            cp = await self.checkpoint(stream) if resume else Checkpoint()
+            if first is not None and not cp.covers_start(first):
+                cp = Checkpoint()             # untrusted: rebuild from this batch's start
+            mark = cp.through
             broken = False
             for j in sjobs:
                 if stop_all or broken:
@@ -214,19 +265,16 @@ class CandleIngestor:
                 if mark and j.window and j.window.to_date <= mark:
                     rep.results.append(JobResult(j, "SKIPPED", complete_through=str(mark)))
                     continue
-                res = await self._one(j, mark)
+                res, cp = await self._one(j, cp)
                 rep.results.append(res)
                 if res.status == "ABORTED":
                     stop_all = res.error
                 elif res.status != "COMPLETE":
                     broken = True
-                elif res.complete_through and (mark is None or
-                                               _dt.date.fromisoformat(res.complete_through) > mark):
-                    mark = _dt.date.fromisoformat(res.complete_through)
         rep.stopped = stop_all
         return rep
 
-    async def _one(self, job: CandleJob, mark: _dt.date | None) -> JobResult:
+    async def _one(self, job: CandleJob, cp: Checkpoint) -> tuple[JobResult, Checkpoint]:
         runner = IngestRunner(
             self.s, source=SOURCE, stream=job.stream, vendor_endpoint=job.path(),
             request_params={"instrument_key": job.instrument_key, "timeframe": job.timeframe,
@@ -236,7 +284,7 @@ class CandleIngestor:
                             "completion_margin_s": C.COMPLETION_MARGIN.total_seconds(),
                             "completion_basis": C.COMPLETION_MARGIN_BASIS},
             operator=self.operator,
-            logical_date=job.window.to_date if job.window else None,
+            logical_date=cp.through,
         )
         ctx = await runner.open(commit=self.commit, token=self.token)
         res = JobResult(job, "RUNNING", run_id=ctx.run_id)
@@ -253,7 +301,7 @@ class CandleIngestor:
             except (RateLimited, VendorAuthError) as e:
                 await runner.fail(str(e), status=RunStatus.ABORTED)
                 res.status, res.error = "ABORTED", f"{type(e).__name__}: {e}"
-                return res
+                return res, cp
             except VendorError as e:
                 checks.add(AnomalySeverity.FAIL, AnomalyKind.VENDOR_ERROR, job.instrument_key,
                            error=str(e)[:300])
@@ -299,20 +347,20 @@ class CandleIngestor:
                 # stream with the historical backfill, and advancing to today
                 # would let a later backfill skip every older window. Its rows
                 # are persisted; the historical run of that day dedupes them.
-                through = mark
+                new, why = cp, "intraday job: checkpoint unchanged"
             else:
-                through = _complete_through(pc, job.window, r.fetched_at)
-                if mark and through < mark:
-                    through = mark                # never move a checkpoint backwards
-            ctx.logical_date = through
-            res.complete_through = None if through is None else str(through)
+                new, why = cp.advance(job.window,
+                                      _complete_through(pc, job.window, r.fetched_at))
+            ctx.logical_date = new.through
+            res.complete_through = None if new.through is None else str(new.through)
+            res.coverage["checkpoint"] = {**new.as_dict(), "change": why}
             await runner.finalize(rows_written=res.inserted, outcome=res.coverage)
             res.status = "COMPLETE"
-            return res
+            return res, new
         except IngestCheckFailed as e:
             await runner.fail(str(e), outcome=res.coverage)
             res.status, res.error, res.inserted = "FAILED", str(e)[:500], 0
-            return res
+            return res, cp
         except BaseException as e:
             await runner.fail(f"{type(e).__name__}: {e}", outcome=res.coverage)
             raise
