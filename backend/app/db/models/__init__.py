@@ -1,6 +1,7 @@
 """All ORM models. Importing this module registers every table on Base.metadata."""
 
 from app.db.base import Base
+from app.db.models.canon import CanonCoverage, CanonInstrument
 from app.db.models.contracts import Instrument, InstrumentUniverseMembership, TradingSession
 from app.db.models.control import IngestAnomaly, IngestRun, IngestWatermark, RawPayload
 from app.db.models.market import OhlcvBar, TickArchive
@@ -16,5 +17,5 @@ __all__ = [
     "PreopenTick", "PreopenBook", "PreopenSessionStatus",
     "OhlcvBar", "TickArchive",
     "CorporateAction", "FundamentalSnapshot", "MacroObservation", "NewsArticle",
-    "NewsInstrument",
+    "NewsInstrument", "CanonInstrument", "CanonCoverage",
 ]
