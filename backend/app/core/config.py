@@ -67,6 +67,10 @@ class Settings(BaseSettings):
     # once (e.g. the B1/B2 poller in market hours and an ingest job), their
     # fractions must add up to <= 0.9. Default 0.9 = the one-process rule.
     PRAJNA_UPSTOX_RATE_FRACTION: float = Field(default=0.9, gt=0.0, le=0.9)
+    # Stage 2 live/continuous mode (feeding downstream stages in real time).
+    # False by default and until explicitly approved: Stage 2 then only runs as
+    # batch processing, and nothing in it can reach signals, orders or brokers.
+    STAGE2_LIVE_ENABLED: bool = Field(default=False)
 
     # ── validators ──────────────────────────────────────────────────────────
     @field_validator("PRAJNA_DATABASE_URL", "PRAJNA_TEST_DATABASE_URL")

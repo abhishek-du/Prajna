@@ -1,0 +1,134 @@
+"""Stage 2 point-in-time read API: the contract Stage 3 consumes.
+
+Every read takes `as_of` and returns ONLY rows knowable strictly before it
+(`knowable_at < as_of`, the rule of contracts.knowable.assert_knowable_before),
+and each returned row is re-checked in Python. Reads go through the
+canonical views, so only NSE-universe instruments are visible (global
+instruments only through `global_bars` / `macro`). Nothing is filled in: a
+missing bar is absent; `coverage()` says why (DATA / EMPTY / QUARANTINED /
+VENDOR_ERROR / PENDING_BACKFILL / MISSING; 5m is OUT_OF_SCOPE).
+"""
+
+from __future__ import annotations
+
+import datetime as _dt
+from typing import Any
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.canon.time import assert_all_knowable
+from app.canon.validate import CANON_TIMEFRAMES
+from app.core.clock import to_utc
+
+
+class OutOfScope(ValueError):
+    """The timeframe is not part of the canonical layer (5m: D2-5m)."""
+
+
+async def _rows(s: AsyncSession, sql: str, what: str, as_of: _dt.datetime, **kw) -> list[dict]:
+    rows = [dict(r) for r in (await s.execute(text(sql), {"as_of": to_utc(as_of), **kw}))
+            .mappings().all()]
+    assert_all_knowable(rows, as_of, what)
+    return rows
+
+
+async def bars(s: AsyncSession, instrument_key: str, timeframe: str, as_of: _dt.datetime, *,
+               start: _dt.date | None = None, end: _dt.date | None = None,
+               limit: int | None = None) -> list[dict]:
+    """Bars of one NSE instrument knowable before as_of, oldest first. `limit`
+    keeps the LAST n bars."""
+    if timeframe not in CANON_TIMEFRAMES:
+        raise OutOfScope(f"timeframe {timeframe!r} is not canonical (in scope: "
+                         f"{', '.join(CANON_TIMEFRAMES)})")
+    lim = f"limit {int(limit)}" if limit else ""
+    rows = await _rows(s, f"""
+        select * from (select * from canon_market_bar
+          where instrument_key = :k and timeframe = :tf and knowable_at < :as_of
+            and (cast(:a as date) is null or market_date >= :a)
+            and (cast(:b as date) is null or market_date <= :b)
+          order by bar_start_utc desc {lim}) x order by bar_start_utc""",   # noqa: S608
+                       f"bar {instrument_key} {timeframe}", as_of, k=instrument_key,
+                       tf=timeframe, a=start, b=end)
+    return rows
+
+
+async def corporate_actions(s: AsyncSession, as_of: _dt.datetime,
+                            instrument_key: str | None = None) -> list[dict]:
+    return await _rows(s, """
+        select * from canon_corporate_action where knowable_at < :as_of
+          and (cast(:k as text) is null or instrument_key = :k)
+        order by knowable_at, id""", "corporate action", as_of, k=instrument_key)
+
+
+async def news(s: AsyncSession, as_of: _dt.datetime, instrument_key: str | None = None,
+               since: _dt.datetime | None = None) -> list[dict]:
+    """Per instrument: the (article, instrument) association must be knowable
+    (greatest of article and vendor-link knowable_at)."""
+    return await _rows(s, """
+        select * from canon_news where knowable_at < :as_of
+          and (cast(:k as text) is null or instrument_key = :k)
+          and (cast(:since as timestamptz) is null or published_at >= :since)
+        order by published_at, news_id""", "news", as_of, k=instrument_key,
+                       since=to_utc(since) if since else None)
+
+
+async def fundamentals(s: AsyncSession, instrument_key: str, as_of: _dt.datetime,
+                       statement_type: str | None = None) -> list[dict]:
+    """The LATEST snapshot per statement type among those knowable before as_of."""
+    return await _rows(s, """
+        select distinct on (statement_type) * from canon_fundamental
+        where instrument_key = :k and knowable_at < :as_of
+          and (cast(:st as text) is null or statement_type = :st)
+        order by statement_type, knowable_at desc""", "fundamentals", as_of,
+                       k=instrument_key, st=statement_type)
+
+
+async def sector(s: AsyncSession, instrument_key: str, as_of: _dt.datetime) -> str | None:
+    rows = await fundamentals(s, instrument_key, as_of, "profile")
+    return (rows[0]["payload"] or {}).get("sector") or None if rows else None
+
+
+async def preopen(s: AsyncSession, instrument_key: str, as_of: _dt.datetime,
+                  market_date: _dt.date | None = None) -> list[dict]:
+    return await _rows(s, """
+        select * from canon_preopen where instrument_key = :k and knowable_at < :as_of
+          and (cast(:d as date) is null or market_date = :d)
+        order by event_ts, tick_id""", "pre-open", as_of, k=instrument_key, d=market_date)
+
+
+async def macro(s: AsyncSession, as_of: _dt.datetime, series_prefix: str = "") -> list[dict]:
+    return await _rows(s, """
+        select * from canon_macro_observation where knowable_at < :as_of
+          and series_code like :p order by observation_date, series_code""",
+                       "macro observation", as_of, p=series_prefix + "%")
+
+
+async def global_bars(s: AsyncSession, instrument_key: str, as_of: _dt.datetime) -> list[dict]:
+    return await _rows(s, """
+        select * from canon_global_bar where instrument_key = :k and knowable_at < :as_of
+        order by bar_start_utc""", "global bar", as_of, k=instrument_key)
+
+
+async def coverage(s: AsyncSession, instrument_key: str, timeframe: str) -> list[dict]:
+    """Data-availability ranges (a meta view of what Stage 1 holds NOW; it is
+    not point-in-time data and carries no market values)."""
+    if timeframe not in CANON_TIMEFRAMES:
+        return [{"state": "OUT_OF_SCOPE", "timeframe": timeframe}]
+    return [dict(r) for r in (await s.execute(text("""
+        select c.* from canon_coverage c join canon_instrument ci using (instrument_id)
+        where ci.instrument_key = :k and c.timeframe = :tf order by c.from_date"""),
+        {"k": instrument_key, "tf": timeframe})).mappings().all()]
+
+
+async def context(s: AsyncSession, instrument_key: str, as_of: _dt.datetime, *,
+                  last_daily: int = 250) -> dict[str, Any]:
+    """Everything knowable about one instrument at as_of (no indicators)."""
+    return {
+        "as_of": to_utc(as_of).isoformat(), "instrument_key": instrument_key,
+        "daily_bars": await bars(s, instrument_key, "1d", as_of, limit=last_daily),
+        "corporate_actions": await corporate_actions(s, as_of, instrument_key),
+        "news": await news(s, as_of, instrument_key),
+        "fundamentals": await fundamentals(s, instrument_key, as_of),
+        "sector": await sector(s, instrument_key, as_of),
+    }

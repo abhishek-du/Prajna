@@ -992,5 +992,62 @@ def upstox_login(
     }, indent=2))
 
 
+
+
+# ── Stage 2 ──────────────────────────────────────────────────────────────────
+stage2_app = typer.Typer(help="Stage 2 data processing (derived from Stage 1; no vendor calls)")
+app.add_typer(stage2_app, name="stage2")
+
+
+@stage2_app.command("process")
+def stage2_process(
+    commit: bool = typer.Option(False, "--commit", help="write canon_* tables"),
+    token: str = typer.Option(None, "--token", help="write authorization token"),
+    full: bool = typer.Option(False, "--full", help="recompute every pair (not incremental)"),
+    live: bool = typer.Option(False, "--live", help="continuous mode (needs "
+                              "STAGE2_LIVE_ENABLED=true; not approved)"),
+):
+    """Stage 1 tables -> canon_instrument + canon_coverage. Incremental, idempotent."""
+    import json as _json
+
+    from app.canon.process import process
+    from app.db.engine import get_sessionmaker
+
+    if live and not get_settings().STAGE2_LIVE_ENABLED:
+        get_logger("cli").error("stage2_live_disabled",
+                                reason="STAGE2_LIVE_ENABLED is false (not approved)")
+        raise typer.Exit(2)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await process(s, commit=commit, token=token, full=full)
+
+    rep = asyncio.run(_go())
+    typer.echo(_json.dumps(rep.summary(), indent=2, default=str))
+    raise typer.Exit(0 if rep.status == "COMPLETE" else 1)
+
+
+@stage2_app.command("quality")
+def stage2_quality(out: str = typer.Option(None, "--out", help="also write the JSON here")):
+    """Stage 2 data-quality gates over the canonical layer. Read-only."""
+    import json as _json
+    import pathlib
+
+    from app.canon.quality import run_gates
+    from app.db.engine import get_sessionmaker
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await run_gates(s)
+
+    rep = asyncio.run(_go())
+    if out:
+        pathlib.Path(out).write_text(_json.dumps(rep, indent=2, default=str))
+    for g in rep["gates"]:
+        typer.echo(f"{g['status']:5} {g['count']:>8}  {g['gate']}"
+                   + (f"   -> {g['diagnostic']}" if g["diagnostic"] else ""))
+    typer.echo(f"QUALITY: {rep['status']}  {rep['informational']}")
+    raise typer.Exit(0 if rep["status"] == "PASS" else 1)
+
 if __name__ == "__main__":
     app()
