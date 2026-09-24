@@ -5,7 +5,7 @@
 #   ops/runbooks/daily.sh [--login] close   [YYYY-MM-DD]   # trading day, from 16:00 IST
 #   ops/runbooks/daily.sh [--login] morning [YYYY-MM-DD]   # the NEXT morning, from 07:15 IST
 #   ops/runbooks/daily.sh [--login] weekly                 # corporate actions
-#   ops/runbooks/daily.sh [--login] monthly                # fundamentals (~42k requests)
+#   ops/runbooks/daily.sh [--login] monthly                # calendar +60d, fundamentals (~42k)
 #
 # close    today's 1m / 15m / 1h bars for every NSE instrument (intraday
 #          endpoint; only COMPLETE bars persist; ~10.6k requests), then news.
@@ -87,6 +87,9 @@ case "$PHASE" in
     run corporate_actions "${CLI[@]}" ingest corporate-actions --commit --token "$TOKEN"
     ;;
   monthly)
+    # keep the calendar at least 60 days ahead (acceptance E needs today + 30)
+    CAL_TO="$(TZ=Asia/Kolkata date -d "${TODAY} +60 days" +%F)"
+    run calendar "${CLI[@]}" ingest calendar --from "$TODAY" --to "$CAL_TO" --commit --token "$TOKEN"
     run fundamentals "${CLI[@]}" ingest fundamentals --commit --token "$TOKEN"
     ;;
   *) say "unknown phase $PHASE"; exit 2 ;;
