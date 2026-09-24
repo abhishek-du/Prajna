@@ -8,7 +8,6 @@ import itertools
 import json
 import pathlib
 from decimal import Decimal
-
 from typing import ClassVar
 
 import pytest

@@ -224,6 +224,18 @@ def ingest_calendar_cmd(
                 bars = set((await s.execute(_text(
                     "select session_date from ohlcv_bar where timeframe='1d' "
                     "and instrument_key='NSE_INDEX|Nifty 50'"))).scalars())
+                # weekdays with NO NSE trading at all in Upstox data: no bar of any
+                # of the 3 indices and zero NSE_EQ daily bars (one query, the range)
+                closed = set((await s.execute(_text("""
+                    select d::date from generate_series(cast(:a as date), cast(:b as date),
+                                                        interval '1 day') d
+                    where extract(isodow from d) < 6 and not exists (
+                      select 1 from ohlcv_bar b join instrument i
+                        on i.instrument_id = b.instrument_id
+                      where b.timeframe = '1d' and b.session_date = d::date
+                        and i.segment in ('NSE_EQ', 'NSE_INDEX'))"""),
+                    {"a": _dt.date.fromisoformat(date_from),
+                     "b": _dt.date.fromisoformat(date_to)})).scalars())
                 return await ingest_calendar(
                     s, date_from=_dt.date.fromisoformat(date_from),
                     date_to=_dt.date.fromisoformat(date_to),
@@ -231,6 +243,7 @@ def ingest_calendar_cmd(
                     store=PayloadStore(get_settings().archive_dir),
                     commit=commit, token=token, holiday_on=client.holiday_on,
                     past_before=now_ist().date(), index_bar_dates=bars,
+                    market_closed_dates=closed,
                 )
         finally:
             await client.aclose()

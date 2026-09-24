@@ -230,11 +230,20 @@ HISTORICAL_EVIDENCE_BASIS = ("past date: session existence from the Upstox NIFTY
                              "bar; /v2/market/timings is a generic schedule for past dates")
 
 
+MARKET_CLOSED_BASIS = ("no NSE trading in Upstox market data on this date (no NIFTY 50, "
+                       "Nifty Bank or India VIX bar, zero NSE_EQ daily bars); the vendor "
+                       "holiday list has no entry (its history starts 2023)")
+
+
 def decide_historical(day: _dt.date, *, index_bar: bool,
                       holiday: HolidayEntry | None, holiday_asked: bool,
-                      nse: Hours | None) -> DecisionResult:
+                      nse: Hours | None, market_closed: bool = False) -> DecisionResult:
     """One PAST date. `index_bar`: NIFTY 50 has a daily bar on `day`.
-    `holiday`: the per-date holiday entry (if asked and present)."""
+    `holiday`: the per-date holiday entry (if asked and present).
+    `market_closed`: Upstox market data shows NO NSE trading at all that day
+    (no index bar of NIFTY 50 / Nifty Bank / India VIX and zero NSE_EQ daily
+    bars). Measured 2026-09-24: /v2/market/holidays/{date} is empty for every
+    date before 2023, so for those years this is the evidence of a closure."""
     res = DecisionResult()
     weekend = day.weekday() >= 5
     note: dict[str, Any] = {"weekday": day.strftime("%a"), "evidence": HISTORICAL_EVIDENCE_BASIS,
@@ -267,6 +276,11 @@ def decide_historical(day: _dt.date, *, index_bar: bool,
                                        None, note)
         return res
     if holiday and holiday.holiday_type == TRADING_HOLIDAY and holiday.nse_closed:
+        res.decision = SessionDecision(day, False, SessionType.HOLIDAY, None, None, None,
+                                       None, note)
+        return res
+    if holiday is None and market_closed:
+        note["closure_basis"] = MARKET_CLOSED_BASIS
         res.decision = SessionDecision(day, False, SessionType.HOLIDAY, None, None, None,
                                        None, note)
         return res

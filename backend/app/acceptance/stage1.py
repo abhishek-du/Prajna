@@ -341,7 +341,7 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
         where i.valid_to='infinity' and i.segment like 'GLOBAL%' group by 1 order by 1""")
     per = {k: {"stored": n, "quarantined": q, "through": str(t),
                "quarantine_rate": round(q / (n + q), 4) if n + q else None}
-           for k, n, q, t in glob_rows}
+           for k, n, t, q in glob_rows}
     q_ok = len(per) == 13 and all(v["stored"] > 0 and v["through"] >= str(prev)
                                   for v in per.values())
     out.append(Criterion("Q", "Global / macro", PASS if q_ok else FAIL,

@@ -211,3 +211,18 @@ async def test_past_date_before_the_index_history_is_refused(db_session, tmp_pat
     rep = await _past(db_session, tmp_path, cal, {D(2024, 1, 29)}, D(2024, 1, 25),
                       D(2024, 1, 25))
     assert rep.status == "FAILED"
+
+
+async def test_pre_2023_closure_needs_market_wide_evidence(db_session, tmp_path):
+    """Upstox's holiday API is empty before 2023 (measured). A bar-less weekday
+    is a HOLIDAY only with market-wide evidence; without it, refused."""
+    cal = _GenericPast(set(), {D(2024, 1, 26): "holidays_on_ordinary_day.json"})
+    bars = {D(2024, 1, 25), D(2024, 1, 29)}
+    rep = await ingest_calendar(db_session, date_from=D(2024, 1, 25), date_to=D(2024, 1, 29),
+                                holidays=cal.holidays, timings=cal.timings,
+                                store=PayloadStore(tmp_path), commit=True, token=TOKEN,
+                                holiday_on=cal.holiday_on, past_before=D(2026, 9, 24),
+                                index_bar_dates=bars, market_closed_dates={D(2024, 1, 26)})
+    assert rep.status == "COMPLETE", rep.anomalies
+    r = (await _rows(db_session))[D(2024, 1, 26)]
+    assert r.session_type == "HOLIDAY" and "closure_basis" in json.loads(r.note)

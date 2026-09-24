@@ -110,6 +110,7 @@ async def ingest_calendar(
     holiday_on: HolidayOnFn | None = None,
     past_before: _dt.date | None = None,
     index_bar_dates: set[_dt.date] | None = None,
+    market_closed_dates: set[_dt.date] | None = None,
 ) -> CalendarReport:
     """`holiday_on` (optional) answers for ONE date. The plain holidays list
     covers only the current year, so for a PAST weekday with no NSE timings
@@ -202,7 +203,8 @@ async def ingest_calendar(
                         checks.add(i.severity, i.kind, i.subject, **i.detail)
                     entry = (one.get(day) or [None])[0]
                 res = decide_historical(day, index_bar=bar, holiday=entry,
-                                        holiday_asked=asked, nse=nse)
+                                        holiday_asked=asked, nse=nse,
+                                        market_closed=day in (market_closed_dates or set()))
                 if res.decision is not None and asked:
                     res.decision.note["holiday_on_payload_sha256"] = ostored.sha256
             else:
