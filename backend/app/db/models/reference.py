@@ -177,3 +177,30 @@ class NewsArticle(Base, ProvenanceMixin):
         Index("ix_news_published", "published_at"),
         Index("ix_news_publisher", "publisher"),
     )
+
+
+class NewsInstrument(Base, ProvenanceMixin):
+    """The VENDOR's association of an article with an instrument.
+
+    This is not entity resolution (see NewsArticle): Upstox's /v2/news answers
+    a query for instrument keys with articles grouped BY key, and that grouping
+    is a vendor observation, stored as received. One article can belong to
+    several instruments, so the association cannot live on the article row.
+
+    knowable_at is the fetch time (unverified): the vendor does not say when it
+    tagged the article, only when the article was published.
+    """
+
+    __tablename__ = "news_instrument"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    news_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("news_article.id", ondelete="RESTRICT"), nullable=False
+    )
+    instrument_key: Mapped[str] = mapped_column(String(80), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("knowable_at <= fetched_at", name="ck_news_instrument_knowable"),
+        UniqueConstraint("news_id", "instrument_key", "source", name="uq_news_instrument"),
+        Index("ix_news_instrument_key", "instrument_key"),
+    )

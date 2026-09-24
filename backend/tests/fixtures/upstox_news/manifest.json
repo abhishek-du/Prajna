@@ -1,0 +1,14 @@
+[
+ {
+  "file": "news_3keys.json",
+  "sha256": "545b70bc7632c9327d6ee19980c19d7dfa99cd2919e55f0b9f789bcd57937c4d",
+  "request": "/v2/news?category=instrument_keys&instrument_keys=NSE_EQ|INE002A01018,NSE_EQ|INE040A01034,NSE_EQ|INE467B01029&page_number=1&page_size=100",
+  "keys": [
+   "NSE_EQ|INE002A01018",
+   "NSE_EQ|INE040A01034",
+   "NSE_EQ|INE467B01029"
+  ],
+  "http_status": 200,
+  "fetched_at": "2026-09-24T06:29:28.410460+00:00"
+ }
+]

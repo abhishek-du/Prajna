@@ -6,7 +6,7 @@ from app.db.models.control import IngestAnomaly, IngestRun, IngestWatermark, Raw
 from app.db.models.market import OhlcvBar, TickArchive
 from app.db.models.preopen import PreopenBook, PreopenSessionStatus, PreopenTick
 from app.db.models.reference import (
-    CorporateAction, FundamentalSnapshot, MacroObservation, NewsArticle,
+    CorporateAction, FundamentalSnapshot, MacroObservation, NewsArticle, NewsInstrument,
 )
 
 __all__ = [
@@ -16,4 +16,5 @@ __all__ = [
     "PreopenTick", "PreopenBook", "PreopenSessionStatus",
     "OhlcvBar", "TickArchive",
     "CorporateAction", "FundamentalSnapshot", "MacroObservation", "NewsArticle",
+    "NewsInstrument",
 ]

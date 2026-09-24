@@ -306,3 +306,13 @@ class TestCalendarClient:
     async def test_other_4xx_is_still_an_error_for_the_calendar(self):
         with pytest.raises(VendorError):
             await self._cal(_seq(_err(400, "UDAPI1015"))).timings(D(2026, 9, 24))
+
+
+def test_rate_fraction_scales_every_window():
+    from app.vendor.upstox.rest import default_windows
+    assert default_windows() == ((45, 1.0), (450, 60.0), (1800, 1800.0))
+    assert default_windows(0.25) == ((12, 1.0), (125, 60.0), (500, 1800.0))
+    with pytest.raises(ValueError):
+        default_windows(0.95)            # above the 90% safety margin
+    with pytest.raises(ValueError):
+        default_windows(0)

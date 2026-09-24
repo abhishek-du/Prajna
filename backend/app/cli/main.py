@@ -411,6 +411,60 @@ def ingest_institutional(
     raise typer.Exit(0 if not out["problems"] else 1)
 
 
+@ingest_app.command("news")
+def ingest_news(
+    key: list[str] = typer.Option(None, "--key", help="repeatable instrument_key; "
+                                  "default: every current instrument"),
+    commit: bool = typer.Option(False, "--commit", help="write to the database"),
+    token: str = typer.Option(None, "--token", help="write authorization token"),
+):
+    """Ingest Upstox news (/v2/news, last 7 days) into news_article + news_instrument.
+
+    Batches of 30 keys, every page archived first. Articles are identified by
+    (heading, published_time); a changed article is never overwritten (WARN).
+    Run at least daily: the vendor serves only the last 7 days.
+    """
+    import json as _json
+
+    from sqlalchemy import literal_column, select
+
+    from app.db.engine import get_sessionmaker
+    from app.db.models import Instrument
+    from app.ingest.news import NewsIngestor
+    from app.storage.payload_store import PayloadStore
+    from app.vendor.upstox.auth import load_cached
+    from app.vendor.upstox.rest import UpstoxRestClient
+
+    log = get_logger("cli")
+    rec = load_cached()
+    if rec is None:
+        log.error("upstox_token_missing", blocker="B0", action="run `prajna upstox login`")
+        raise typer.Exit(3)
+
+    async def _go():
+        rest = UpstoxRestClient(rec.access_token)
+        try:
+            async with get_sessionmaker()() as s:
+                ks = list(key or [])
+                if not ks:
+                    ks = list((await s.execute(select(Instrument.instrument_key).where(
+                        Instrument.valid_to == literal_column("'infinity'::date"),
+                        Instrument.segment == "NSE_EQ")
+                        .order_by(Instrument.instrument_key))).scalars())
+                ing = NewsIngestor(s, rest, PayloadStore(get_settings().archive_dir),
+                                   commit=commit, token=token)
+                return await ing.run(ks)
+        finally:
+            await rest.aclose()
+
+    rep = asyncio.run(_go())
+    out = rep.summary()
+    out["problems"] = [{"keys": f"{r.keys[0]}..({len(r.keys)})", "status": r.status,
+                        "error": r.error} for r in rep.results if r.status != "COMPLETE"][:50]
+    typer.echo(_json.dumps(out, indent=2, default=str))
+    raise typer.Exit(0 if not out["problems"] else 1)
+
+
 @ingest_app.command("universe")
 def ingest_universe(
     from_file: str = typer.Option(None, "--from-file", help="a local copy of NSE.json.gz"),

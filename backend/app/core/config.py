@@ -62,6 +62,11 @@ class Settings(BaseSettings):
     # Stage 7 concern. The tick_archive table exists from migration 0001 so the
     # contract is fixed, but the writer stays off until execution needs it.
     PRAJNA_TICK_PERSISTENCE_ENABLED: bool = Field(default=False)
+    # Share of Upstox's documented per-user rate limits THIS process may use.
+    # The quota is per user, not per process: when two REST processes run at
+    # once (e.g. the B1/B2 poller in market hours and an ingest job), their
+    # fractions must add up to <= 0.9. Default 0.9 = the one-process rule.
+    PRAJNA_UPSTOX_RATE_FRACTION: float = Field(default=0.9, gt=0.0, le=0.9)
 
     # ── validators ──────────────────────────────────────────────────────────
     @field_validator("PRAJNA_DATABASE_URL", "PRAJNA_TEST_DATABASE_URL")

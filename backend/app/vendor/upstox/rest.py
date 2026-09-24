@@ -65,8 +65,10 @@ QUOTE_MAX_KEYS = 500                 # documented for /v2/market-quote/quotes
 _RATE_LIMIT_TEXT = re.compile(r"too many requests|rate.?limit|throttl", re.IGNORECASE)
 
 
-def default_windows() -> tuple[tuple[int, float], ...]:
-    return tuple((int(n * LIMIT_FRACTION), s) for n, s in DOCUMENTED_LIMITS)
+def default_windows(fraction: float = LIMIT_FRACTION) -> tuple[tuple[int, float], ...]:
+    if not 0 < fraction <= LIMIT_FRACTION:
+        raise ValueError(f"rate fraction {fraction} outside (0, {LIMIT_FRACTION}]")
+    return tuple((max(1, int(n * fraction)), s) for n, s in DOCUMENTED_LIMITS)
 
 
 # ── rate limiter ────────────────────────────────────────────────────────────
@@ -144,7 +146,8 @@ def shared_limiter() -> RateLimiter:
     """The process-wide limiter every UpstoxRestClient uses by default."""
     global _SHARED
     if _SHARED is None:
-        _SHARED = RateLimiter()
+        from app.core.config import get_settings
+        _SHARED = RateLimiter(default_windows(get_settings().PRAJNA_UPSTOX_RATE_FRACTION))
     return _SHARED
 
 
