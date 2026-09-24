@@ -5,7 +5,11 @@ changes docs only.
 **When:** 2026-09-23, 18:55–19:05 IST, after the close.
 **Where:** DB `prajna` (Docker `postgres:18`), Upstox account 2UB7PH.
 
-## Verdict: **M4 live validation = PENDING**
+## Verdict: **M4 live validation = PENDING, and only B1/B2 over ≥ 3 sessions remain** (updated 2026-09-24 09:40 IST)
+
+Items (a) and (c) below were satisfied on 2026-09-24; see §9a, §10 and §15.
+
+**Original verdict (2026-09-23): PENDING**
 
 **Passed:**
 - **Phase 1:** first real 1D commit + provenance + idempotence + replay.
@@ -144,11 +148,78 @@ the settling cases). The live proof is scheduled for market hours on
 full B2 distribution for 09-24. **B1 and B2 stay UNVERIFIED** until ≥ 3
 sessions agree.
 
-## 10. Pre-open (Phase 5)
+### 9a. B1, second observation (2026-09-24 morning)
 
-**PENDING.** Scheduled: `ops/runbooks/preopen_day.sh --login 2026-09-24`
-starts at 08:30 IST. Its output will be
-`backend/var/acceptance/preopen_2026-09-24.json`.
+The poller's 1D historical requests show when 09-23's daily bar first appeared:
+
+| Instrument | Last absent (IST) | First present (IST) | Changed afterwards? |
+|---|---|---|---|
+| RELIANCE | 09-24 06:51:32 | 09-24 07:01:33 | no (identical to 09:32) |
+| HDFCBANK | 09-24 06:51:32 | 09-24 07:01:33 | no |
+| NIFTY 50 | 09-24 06:51:32 | 09-24 07:01:33 | no |
+
+- RELIANCE's historical 09-23 volume is **8,352,048**. That exactly equals the
+  intraday daily bar at 16:02 on 09-23: the historical bar carries the settled
+  post-close value.
+- **Session 1 of B1:** the daily bar is published between ~06:51 and 07:01 IST
+  on the next day, and was not revised through 09:32.
+- The current rule (knowable_at = fetched_at; never persisted on the fetch
+  day) is consistent with this. B1 stays UNVERIFIED until ≥ 3 sessions agree.
+
+**Open observation:** the poller's historical-candle requests kept returning
+200 between 03:30 and 08:30 IST on 09-24, with the token from 09-23. Either
+the token outlived ~03:30, or that endpoint does not check the token. This is
+UNVERIFIED and changes nothing: the pre-open runbook logs in before 08:30 in
+any case.
+
+## 10. Pre-open (Phase 5): **DONE, verdict WARN, real market data**
+
+**Command:** `ops/runbooks/preopen_day.sh --login 2026-09-24`.
+
+| Step | Timing and result |
+|---|---|
+| Start | 08:30 IST |
+| TOTP login | OK at 08:30:28 |
+| Universe | 3,527 committed |
+| Capture | 08:55:15 → 09:20:00 |
+| Replay | 2 archives, COMPLETE |
+| Acceptance | 09:31 |
+
+**Output:** `backend/var/acceptance/preopen_2026-09-24.json`.
+
+| Group | Result |
+|---|---|
+| A1–A8 (transport) | all PASS. 2 connections (2,000 + 1,527 keys), 3,527 / 3,527 subscribed keys produced frames, archives sha-verified (`d7240647…` 6,048 frames, `d11cb5d0…` 5,829 frames) |
+| B1–B5 (DB) | all PASS: 392,371 `preopen_tick` rows, 1,961,780 `preopen_book` rungs, 18 status rows. knowable_at > fetched_at: 0. Timestamps 08:55:15 → 09:19:59 IST |
+| C1 transitions | PASS: PRE_OPEN_START 09:00:00.013, PRE_OPEN_M_END 09:05:00.110, PRE_OPEN_END 09:09:13.010 |
+| C2 IEP | PASS: 3,119 of the 3,123 ticking instruments had an IEP; 2,280 had an IEQ |
+| C3 IIQ | PASS: iiq_total for 2,245 instruments, iiq_m for 1,908 |
+| C4 depth | PASS: 194,638 ticks with 4 quoted rungs; 851 with 5 |
+| C5 tbq/tsq | PASS: 3,123 instruments |
+| C6 completeness | **WARN**: 3,123 / 3,527 (88.6 %) had an in-window tick. The missing ones are spread across all series (EQ 308, SM 42, ST 26, BE 22, IV 5, BZ 1). The feed only sends on change, so these are most likely instruments without pre-open order activity. A3 proves every key delivered frames |
+| **B7** | **OBSERVED**. iiq_m is non-zero for 1,908 instruments; 103,559 ticks have a negative iiq_total and 84,070 a negative iiq_m; in 76,667 ticks \|iiq_m\| > \|iiq_total\| |
+| **B8** | **RESOLVED**. IEP is populated for CAS-eligible (211 / 211) and non-CAS (2,908) instruments |
+
+**Reconnects:** 12 in total, all caused by the 60 s stale watchdog. **All of
+them fell outside the pre-open window**:
+- 08:56–08:59, before PRE_OPEN_START;
+- 09:10–09:14, after PRE_OPEN_END.
+
+There were **0 disconnects between 09:00 and 09:09:13**, so no data is missing
+from the window. The 24 WARN GAP anomalies come from these reconnects.
+Possible improvement (not done): a longer stale threshold in the vendor-quiet
+periods.
+
+## 15. Live forming/settling exclusion in the DB path (2026-09-24, market hours)
+
+| Job | Fetched (IST) | Returned per instrument | Persisted | Excluded |
+|---|---|---|---|---|
+| 1m intraday, 4 instruments, `--commit` | 09:32:21 | 17 (09:15 → 09:31) | **15** (through the 09:29 bar) | **2 SETTLING** (09:30, 09:31: within the 120 s margin) |
+| 5m intraday, 4 instruments, `--commit` | 09:32:35 | 4 (09:15 → 09:30) | **3** (through the 09:25 bar) | **1 FORMING** (09:30) |
+
+Rows whose `bar end + 120 s > fetched_at`: **0 for 1m and 0 for 5m**. This
+satisfies item (a) of the verdict. 5m is committed under D2 (vendor-fetched,
+approved).
 
 ## 11. Failures / anomalies
 
