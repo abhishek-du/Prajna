@@ -275,7 +275,10 @@ def ingest_candles(
     key: list[str] = typer.Option(None, "--key", help="repeatable instrument_key"),
     keys_file: str = typer.Option(None, "--keys-file", help="instrument_keys, one per line"),
     all_instruments: bool = typer.Option(
-        False, "--all-instruments", help="every current row of the instrument table"),
+        False, "--all-instruments", help="every current NSE_EQ + NSE_INDEX instrument"),
+    global_instruments: bool = typer.Option(
+        False, "--global", help="every current GLOBAL_INDEX / GLOBAL_INDICATOR instrument "
+                                "(daily only: their sessions are not on the NSE grid)"),
     commit: bool = typer.Option(False, "--commit", help="write to the database"),
     token: str = typer.Option(None, "--token", help="write authorization token"),
     no_resume: bool = typer.Option(False, "--no-resume", help="ignore watermarks"),
@@ -300,8 +303,12 @@ def ingest_candles(
     from app.vendor.upstox.rest import UpstoxRestClient
 
     log = get_logger("cli")
-    if sum(bool(x) for x in (key, keys_file, all_instruments)) != 1:
-        log.error("choose_one_key_source", options="--key | --keys-file | --all-instruments")
+    if sum(bool(x) for x in (key, keys_file, all_instruments, global_instruments)) != 1:
+        log.error("choose_one_key_source",
+                  options="--key | --keys-file | --all-instruments | --global")
+        raise typer.Exit(2)
+    if global_instruments and set(timeframe) != {"1d"}:
+        log.error("global_is_daily_only", reason="intraday grid checks use NSE sessions")
         raise typer.Exit(2)
     if intraday == bool(date_from or date_to) or (not intraday and not (date_from and date_to)):
         log.error("choose_range", options="--from/--to (historical) | --intraday")
@@ -322,9 +329,13 @@ def ingest_candles(
         try:
             async with get_sessionmaker()() as s:
                 ks = keys
-                if all_instruments:
+                if all_instruments or global_instruments:
+                    from app.contracts.identity import GLOBAL_SEGMENTS
+                    segs = (sorted(GLOBAL_SEGMENTS) if global_instruments
+                            else ["NSE_EQ", "NSE_INDEX"])
                     ks = list((await s.execute(select(Instrument.instrument_key).where(
-                        Instrument.valid_to == literal_column("'infinity'::date"))
+                        Instrument.valid_to == literal_column("'infinity'::date"),
+                        Instrument.segment.in_(segs))
                         .order_by(Instrument.instrument_key))).scalars())
                 if intraday:
                     jobs, unavailable = [CandleJob(k, tf, None) for k in sorted(set(ks))
@@ -568,6 +579,57 @@ def ingest_fundamentals(
                         "error": r.error} for r in rep.results if r.status != "COMPLETE"][:50]
     typer.echo(_json.dumps(out, indent=2, default=str))
     raise typer.Exit(0 if not out["problems"] else 1)
+
+
+@ingest_app.command("instruments-global")
+def ingest_instruments_global(
+    payload_sha256: str = typer.Option(None, "--payload-sha256",
+                                       help="use an already archived global.json.gz"),
+    commit: bool = typer.Option(False, "--commit", help="write to the database"),
+    token: str = typer.Option(None, "--token", help="write authorization token"),
+):
+    """Load Upstox's global instruments (S&P, Dow, USD/INR, Brent, ...) into instrument.
+
+    Downloads the public global.json.gz (no token) and archives it first,
+    unless --payload-sha256 names an archived copy.
+    """
+    import json as _json
+    import pathlib
+
+    import httpx
+
+    from app.core.clock import now
+    from app.db.engine import get_sessionmaker
+    from app.ingest.global_instruments import GLOBAL_URL, load_global_instruments
+    from app.ingest.instruments import locate_archived, resolve_fetched_at
+    from app.storage.payload_store import PayloadStore, StoredPayload
+
+    store = PayloadStore(get_settings().archive_dir)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            if payload_sha256:
+                path = locate_archived(pathlib.Path(get_settings().archive_dir), payload_sha256)
+                fetched, _ = await resolve_fetched_at(s, payload_sha256, path)
+                data = PayloadStore.read(path, payload_sha256)
+                stored = StoredPayload(payload_sha256, path, len(data), "application/gzip",
+                                       fetched, None, True)
+            else:
+                async with httpx.AsyncClient(timeout=60, follow_redirects=True) as c:
+                    r = await c.get(GLOBAL_URL)
+                    fetched = now()
+                r.raise_for_status()
+                stored = store.put(r.content, source="UPSTOX_ASSETS",
+                                   content_type="application/gzip", ext="json.gz",
+                                   fetched_at=fetched)
+            return await load_global_instruments(s, stored, commit=commit, token=token)
+
+    rep = asyncio.run(_go())
+    typer.echo(_json.dumps({"status": rep.status, "committed": rep.committed,
+                            "payload_sha256": rep.payload_sha256, "rows": rep.rows_in_file,
+                            "inserted": rep.inserted, "already_current": rep.already_current,
+                            "keys": rep.keys, "error": rep.error}, indent=2))
+    raise typer.Exit(0 if rep.status == "COMPLETE" else 1)
 
 
 @ingest_app.command("universe")

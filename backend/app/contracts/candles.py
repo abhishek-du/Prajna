@@ -23,6 +23,7 @@ import enum
 from dataclasses import dataclass
 from decimal import Decimal
 
+from app.contracts.identity import GLOBAL_SEGMENTS
 from app.contracts.knowable import BAR_WIDTH
 from app.contracts.timeframe import VALID_TIMEFRAMES, session_date_for_intraday, upstox_interval
 from app.core.clock import IST, ist_at, to_utc
@@ -191,9 +192,24 @@ DAILY_COMPLETION_BASIS = ("UNVERIFIED (B1): only when fetched on a later IST dat
                           "session; 2026-09-23 daily bar changed until ~16:02 IST")
 
 
-def daily_state(session_date: _dt.date, fetched_at: _dt.datetime) -> BarState:
-    return (BarState.COMPLETE if to_utc(fetched_at).astimezone(IST).date() > session_date
-            else BarState.FORMING)
+# Global instruments (GLOBAL_INDEX / GLOBAL_INDICATOR) are labelled with their
+# own trading date, but their sessions end after NSE's day: US indices close
+# ~01:30-02:30 IST on D+1, and oil/FX/Dow futures trade until ~03:30 IST.
+# "Fetched on a later IST date" would call a still-open US bar complete at
+# 00:30 IST. So a global daily bar is complete only from D+1 12:00 IST,
+# 8.5 h after the latest listed close (global.json.gz end_time values).
+GLOBAL_DAILY_COMPLETE_AT = _dt.time(12, 0)
+GLOBAL_DAILY_COMPLETION_BASIS = ("global instrument: complete only from D+1 12:00 IST "
+                                 "(latest listed close ~03:30 IST)")
+
+
+def daily_state(session_date: _dt.date, fetched_at: _dt.datetime,
+                segment: str | None = None) -> BarState:
+    fetched_ist = to_utc(fetched_at).astimezone(IST)
+    if segment in GLOBAL_SEGMENTS:
+        cutoff = ist_at(session_date + _dt.timedelta(days=1), GLOBAL_DAILY_COMPLETE_AT)
+        return BarState.COMPLETE if fetched_ist >= cutoff else BarState.FORMING
+    return BarState.COMPLETE if fetched_ist.date() > session_date else BarState.FORMING
 
 
 # ── 3. timestamps ───────────────────────────────────────────────────────────

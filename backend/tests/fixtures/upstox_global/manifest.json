@@ -1,0 +1,36 @@
+[
+ {
+  "file": "hist_1d_DJI_2020_2026-09-23.json",
+  "sha256": "09d915af15f6078604dca829f334f1852253467d4bae38f58725a195dbf87bbd",
+  "instrument_key": "GLOBAL_INDEX|^DJI",
+  "window": [
+   "2020-01-01",
+   "2026-09-23"
+  ],
+  "fetched_at_basis": "probe 2026-09-24 ~12:05 IST"
+ },
+ {
+  "file": "hist_1d_USDINR_2020_2026-09-23.json",
+  "sha256": "361a25b16121e86358790ebacb6d82e17a0d309ad09529b60a4ed089ed63bcc5",
+  "instrument_key": "GLOBAL_INDICATOR|USDINR",
+  "window": [
+   "2020-01-01",
+   "2026-09-23"
+  ],
+  "fetched_at_basis": "probe 2026-09-24 ~12:05 IST"
+ },
+ {
+  "file": "hist_1d_N225_2020_2026-09-23.json",
+  "sha256": "0c77880c27f0beaeb46748eda6a52a528973d702be3e5eefcf5ddd7e5aedf5d3",
+  "instrument_key": "GLOBAL_INDEX|^N225",
+  "window": [
+   "2020-01-01",
+   "2026-09-23"
+  ],
+  "fetched_at_basis": "probe 2026-09-24 ~12:05 IST"
+ },
+ {
+  "file": "global.json.gz",
+  "sha256": "382910e1b7468cd567e212f5fbfee9b4fbc06bbddc3535b10fb623cbfeea4f6a"
+ }
+]

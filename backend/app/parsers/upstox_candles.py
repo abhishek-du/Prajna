@@ -285,7 +285,8 @@ def _one(c, pc: ParsedCandles, endpoint: Endpoint, timeframe: str,
 
     if timeframe == C.DAILY:
         state = (C.BarState.FORMING if endpoint is Endpoint.INTRADAY
-                 else C.daily_state(session, fetched_at))
+                 else C.daily_state(session, fetched_at,
+                                    segment=pc.instrument_key.split("|", 1)[0]))
         k = for_daily_bar(session, fetched_at)
     else:
         state = C.intraday_state(start, timeframe, fetched_at)

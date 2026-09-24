@@ -25,6 +25,12 @@ from dataclasses import dataclass
 SEGMENT_NSE_EQ = "NSE_EQ"
 SEGMENT_NSE_INDEX = "NSE_INDEX"
 SEGMENT_NSE_FO = "NSE_FO"
+# Upstox's global instruments file (global.json.gz): world indices and
+# indicators (S&P, Dow, USD/INR, Brent, ...). Not NSE; their sessions end
+# outside NSE hours.
+SEGMENT_GLOBAL_INDEX = "GLOBAL_INDEX"
+SEGMENT_GLOBAL_INDICATOR = "GLOBAL_INDICATOR"
+GLOBAL_SEGMENTS = frozenset({SEGMENT_GLOBAL_INDEX, SEGMENT_GLOBAL_INDICATOR})
 
 # `instrument_type` in the Upstox master carries the NSE SERIES. Counts observed
 # in NSE_EQ (9,730 rows): EQ 2668, SM 467, BE 235, GS 132, ST 103, BZ 27, IV 21,

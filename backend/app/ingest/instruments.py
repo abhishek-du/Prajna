@@ -43,7 +43,7 @@ from sqlalchemy import literal_column, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.contracts.identity import SEGMENT_NSE_INDEX
+from app.contracts.identity import GLOBAL_SEGMENTS, SEGMENT_NSE_INDEX
 from app.contracts.knowable import for_snapshot_download
 from app.contracts.provenance import AnomalyKind, AnomalySeverity, RunStatus, Source
 from app.contracts.universe import MasterInstrument, rules_fingerprint, select_preopen
@@ -282,8 +282,12 @@ async def load_current_instruments(
         report.planned, report.planned_rows_sha256 = len(plan.rows), plan.rows_sha256
 
         # 3. compare with what is already current: identical = no-op, else FAIL
+        # Global instruments come from another file (instrument.global); this
+        # NSE master neither selects nor judges them.
         current = {r.instrument_key: r for r in (await session.execute(
-            select(Instrument).where(Instrument.valid_to == _INFINITY))).scalars()}
+            select(Instrument).where(Instrument.valid_to == _INFINITY,
+                                     Instrument.segment.not_in(sorted(GLOBAL_SEGMENTS)))))
+                   .scalars()}
         fresh = []
         for key in plan.keys:
             row = plan.rows[key]
