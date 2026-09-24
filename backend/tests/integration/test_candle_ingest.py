@@ -489,3 +489,30 @@ def test_now_is_frozen_for_fetched_at():
         assert now() == AFTER_CLOSE.astimezone(UTC)
     finally:
         clock.unfreeze()
+
+
+async def test_q1_quarantined_bar_is_recorded_and_the_rest_stored(db_session, tmp_path,
+                                                                 frozen):
+    """Decision Q1: IDEA-style negative volume on one day."""
+    await _seed_instruments(db_session)
+    frozen(AFTER_CLOSE)
+    v = Vendor()
+    path = _daily_jobs()[0].path()
+    body = json.loads(_slice("hist_1d_2026-09-08_22", D(2026, 9, 8), D(2026, 9, 23)))
+    body["data"]["candles"][3][5] = -81259413
+    bad_day = body["data"]["candles"][3][0][:10]
+    v.override[path] = httpx.Response(200, content=json.dumps(body).encode())
+    rep = await _ingestor(db_session, v, tmp_path).run(_daily_jobs())
+    (res,) = rep.results
+    assert res.status == "COMPLETE" and res.inserted == 9 and res.coverage["quarantined"] == 1
+    stored = {r.session_date.isoformat() for r in await _q(db_session,
+              "select session_date from ohlcv_bar")}
+    assert bad_day not in stored and len(stored) == 9
+    (a,) = await _q(db_session, "select severity, kind, detail from ingest_anomaly "
+                                "where run_id=:r", r=res.run_id)
+    assert (a.severity, a.kind) == ("WARN", "QUARANTINED")
+    assert a.detail["session_date"] == bad_day and a.detail["decision"] == "Q1"
+    assert a.detail["payload_sha256"] == res.coverage["payload_sha256"]
+    wm = await _q(db_session, "select last_logical_date from ingest_watermark "
+                              "where stream=:st", st=f"ohlcv.1d.{R}")
+    assert wm[0].last_logical_date == D(2026, 9, 22)      # the window completed

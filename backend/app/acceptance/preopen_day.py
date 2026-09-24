@@ -271,10 +271,28 @@ async def evaluate(s: AsyncSession, manifest: pathlib.Path) -> AcceptanceReport:
         ticks_by_quoted_rungs={d.n: d.ticks for d in depth})
     add("C5", "buy/sell quantities (tbq/tsq) in pre-open", PASS if win.qty_instr else FAIL,
         instruments=win.qty_instr)
-    add("C6", "pre-open completeness (subscribed keys with >=1 in-window tick)",
-        PASS if subscribed and win.instruments == subscribed else WARN,
-        in_window_instruments=win.instruments, subscribed=subscribed,
-        ratio=round(win.instruments / subscribed, 4) if subscribed else None)
+    # C6, decision C6 (user, 2026-09-24): the denominator is the instruments
+    # with PRE-OPEN ACTIVITY, i.e. an IEP at any point of the capture. The feed
+    # only sends on change, so an instrument without pre-open orders has no
+    # in-window tick; it is recorded as "no pre-open activity", never
+    # fabricated. PASS iff every active instrument ticked inside the window.
+    act = (await _q(s, """
+        with active as (select distinct instrument_key from preopen_tick
+                        where run_id = any(:r) and iep > 0),
+             inwin as (select distinct instrument_key from preopen_tick
+                       where run_id = any(:r) and vendor_ts >= :w0 and vendor_ts < :w1)
+        select (select count(*) from active) active,
+               (select count(*) from active a join inwin using (instrument_key)) active_in_window,
+               (select count(*) from inwin) in_window""", r=run_ids, w0=w0, w1=w1))[0]
+    no_activity = subscribed - act.active if subscribed else None
+    add("C6", "pre-open completeness (every instrument with pre-open activity ticked "
+              "in the window)",
+        PASS if act.active and act.active_in_window == act.active else FAIL,
+        active_instruments=act.active, active_in_window=act.active_in_window,
+        in_window_instruments=act.in_window, subscribed=subscribed,
+        no_preopen_activity=no_activity,
+        ratio_of_subscribed=round(act.in_window / subscribed, 4) if subscribed else None,
+        rule="decision C6 (user, 2026-09-24)")
 
     evidence_ok = real and win.ticks > 0
     why = None if evidence_ok else (

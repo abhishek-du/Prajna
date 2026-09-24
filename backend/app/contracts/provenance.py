@@ -46,6 +46,10 @@ class AnomalyKind(str, enum.Enum):
     CLOCK_SKEW = "CLOCK_SKEW"
     # A frame's vendor time falls on a different IST date than the session.
     SESSION_MISMATCH = "SESSION_MISMATCH"
+    # Decision Q1 (user, 2026-09-24): a vendor bar that fails a VALUE-sanity
+    # rule (negative volume/OI, OHLC outside [low, high]) is not stored; the
+    # rest of its window is. One WARN per bar; the raw payload is archived.
+    QUARANTINED = "QUARANTINED"
 
 
 # Source identifiers. Upstox-only by constraint #1; there is deliberately no

@@ -105,6 +105,13 @@ class ParsedCandles:
                                  {"instrument_key": self.instrument_key,
                                   "timeframe": self.timeframe, **detail}))
 
+    def quarantine(self, subject: str, **detail: Any) -> None:
+        """Decision Q1: a value-insane vendor bar is skipped, never stored, and
+        recorded with everything needed to audit it; its window continues."""
+        self.issues.append(Issue(AnomalySeverity.WARN, AnomalyKind.QUARANTINED, subject,
+                                 {"instrument_key": self.instrument_key,
+                                  "timeframe": self.timeframe, "decision": "Q1", **detail}))
+
 
 def _decimal(v: Any, name: str, pc: ParsedCandles, ts: str) -> Decimal | None:
     if isinstance(v, bool) or not isinstance(v, int | float):
@@ -126,12 +133,15 @@ def _price(v: Any, name: str, pc: ParsedCandles, ts: str) -> Decimal | None:
 
 
 def _count(v: Any, name: str, pc: ParsedCandles, ts: str) -> Decimal | None:
+    """An integer count. Its SIGN is a value-sanity question (Q1), judged in _one."""
     d = _decimal(v, name, pc, ts)
-    if d is not None and (d != d.to_integral_value() or d < 0):
-        pc.fail(f"candle[{ts}]", field=name, reason="not a non-negative integer",
-                value=repr(v))
+    if d is not None and d != d.to_integral_value():
+        pc.fail(f"candle[{ts}]", field=name, reason="not an integer", value=repr(v))
         return None
     return d
+
+
+QUARANTINED = object()          # _one's marker for a Q1-quarantined bar
 
 
 def parse_candles(
@@ -201,9 +211,12 @@ def parse_candles(
     raw = d["candles"]
 
     seen: dict[_dt.datetime, CandleRow] = {}
-    invalid = identical_dupes = 0
+    invalid = identical_dupes = quarantined = 0
     for c in raw:
         got = _one(c, pc, endpoint, timeframe, fetched_at, window, session_opens)
+        if got is QUARANTINED:
+            quarantined += 1
+            continue
         if got is None:
             invalid += 1
             continue
@@ -231,7 +244,7 @@ def parse_candles(
         C.WindowOutcome.DATA if raw else C.WindowOutcome.EMPTY,
         returned=len(raw) - identical_dupes,
         complete=n[C.BarState.COMPLETE], forming=n[C.BarState.FORMING],
-        settling=n[C.BarState.SETTLING], invalid=invalid,
+        settling=n[C.BarState.SETTLING], invalid=invalid, quarantined=quarantined,
         payload_sha256=payload_sha256,
     )
     return pc
@@ -262,11 +275,17 @@ def _one(c, pc: ParsedCandles, endpoint: Endpoint, timeframe: str,
     oi = None if c[6] is None else _count(c[6], "open_interest", pc, ts)
     if None in (o, h, lo, cl, v) or (c[6] is not None and oi is None):
         return None
+    reason = None
     try:
         validate_bar(o, h, lo, cl, v)
     except ValueError as e:
-        pc.fail(f"candle[{ts}]", reason=f"insane OHLC: {e}")
-        return None
+        reason = f"insane OHLC: {e}"
+    if reason is None and oi is not None and oi < 0:
+        reason = f"negative open_interest {oi}"
+    if reason is not None:
+        pc.quarantine(f"candle[{ts}]", reason=reason, session_date=str(session),
+                      vendor_values=[str(x) for x in c[1:7]])
+        return QUARANTINED
 
     if not (window.from_date <= session <= window.to_date):
         pc.fail(f"candle[{ts}]", reason="outside the requested window",

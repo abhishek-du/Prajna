@@ -77,7 +77,9 @@ async def test_commit_events_with_full_provenance(db_session, tmp_path, at):
     bad = await _q(db_session, """
         select count(*) filter (where r.status <> 'COMPLETE' or r.mode <> 'COMMIT'),
                count(*) filter (where p.payload_sha256 is null),
-               count(*) filter (where c.knowable_at <> c.fetched_at or c.knowable_at_verified),
+               count(*) filter (where c.knowable_at > c.fetched_at or c.knowable_at_verified
+                                or c.knowable_at <> least(c.fetched_at, ((c.announcement_date
+                                   + time '23:59:59.999') at time zone 'Asia/Kolkata'))),
                count(*) filter (where c.announced_at is not null),
                count(*) filter (where c.announcement_date is null or c.content_sha256 is null)
         from corporate_action c join ingest_run r using (run_id)

@@ -177,6 +177,23 @@ def for_announced_fact(
                     f"{what}: vendor supplied no announcement time; fetched_at used")
 
 
+def for_announcement_date(
+    announced_on: _dt.date, fetched_at: _dt.datetime, *, what: str
+) -> Knowable:
+    """A fact whose vendor announcement is a DATE without a time (Upstox
+    corporate actions). Decision KN-CA (user, 2026-09-24): knowable at the END
+    of that IST day, 23:59:59.999, a conservative upper bound (the announcement
+    happened at some instant of that day), never later than when we held it.
+    Unverified: the vendor date itself is not independently confirmed."""
+    end_of_day = to_utc(ist_at(announced_on, _dt.time(23, 59, 59, 999000)))
+    fetched = to_utc(fetched_at)
+    if end_of_day <= fetched:
+        return Knowable(end_of_day, False,
+                        f"{what}: announcement DATE only; end of that IST day (KN-CA)")
+    return Knowable(fetched, False,
+                    f"{what}: announcement DATE is the fetch day or later; fetched_at used")
+
+
 # ── Read-side guard ─────────────────────────────────────────────────────────
 
 class LookAheadViolation(Exception):

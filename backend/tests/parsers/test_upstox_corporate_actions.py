@@ -70,11 +70,28 @@ def test_two_dividends_on_one_ex_date_are_two_events():
     assert {e.amount for e in p.events} == {Decimal("0.2"), Decimal("0.1")}
 
 
-def test_no_time_is_invented_and_knowable_is_fetch():
+def test_knowable_is_end_of_the_announcement_day_ist_kn_ca():
+    (e,) = _parse("dividend_RELIANCE_INE002A01018").events       # announced 24 Apr 2026
+    assert e.knowable.at == _dt.datetime(2026, 4, 24, 23, 59, 59, 999000, tzinfo=IST)
+    assert not e.knowable.verified and "KN-CA" in e.knowable.basis
     for name in MAN:
         for e in _parse(name).events:
-            assert e.knowable.at == FETCHED and not e.knowable.verified
-            assert not hasattr(e, "announced_at")
+            assert e.knowable.at <= FETCHED and not hasattr(e, "announced_at")
+
+
+def test_announced_on_the_fetch_day_is_bounded_by_fetch():
+    b = json.loads(_raw("dividend_RELIANCE_INE002A01018"))
+    b["data"][0]["event_details"][0]["value"] = "24 Sep 2026"      # the fetch day
+    (e,) = _parse("dividend_RELIANCE_INE002A01018", json.dumps(b).encode()).events
+    assert e.knowable.at == FETCHED
+
+
+def test_no_announcement_date_falls_back_to_fetch():
+    b = json.loads(_raw("dividend_RELIANCE_INE002A01018"))
+    b["data"][0]["event_details"] = [x for x in b["data"][0]["event_details"]
+                                     if x["name"] != "Announcement date"]
+    (e,) = _parse("dividend_RELIANCE_INE002A01018", json.dumps(b).encode()).events
+    assert e.knowable.at == FETCHED and e.announcement_date is None
 
 
 def test_empty_is_valid():

@@ -285,9 +285,10 @@ class CoverageRecord:
     invalid: int = 0
     payload_sha256: str | None = None
     vendor_error_code: str | None = None
+    quarantined: int = 0            # Q1: value-insane vendor bars, never stored
 
     def __post_init__(self) -> None:
-        n = self.complete + self.forming + self.settling + self.invalid
+        n = self.complete + self.forming + self.settling + self.invalid + self.quarantined
         if n != self.returned:
             raise ValueError(f"coverage does not add up: {n} classified != {self.returned}")
         if (self.outcome is WindowOutcome.DATA) != (self.returned > 0):

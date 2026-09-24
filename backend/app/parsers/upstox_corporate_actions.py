@@ -26,8 +26,10 @@ and the ingest flags every (ISIN, type, ex-date) that gains a second event.
 
 TIME. The announcement is a DATE without a time, so `announced_at` stays NULL
 (no invented time) and the date is kept in `announcement_date` and the raw
-payload. knowable_at follows contracts.knowable.for_announced_fact with no
-announcement instant: fetched_at, unverified.
+payload. knowable_at follows decision KN-CA (user, 2026-09-24):
+contracts.knowable.for_announcement_date = the END of the announcement day in
+IST, never later than fetched_at, unverified. Without an announcement date:
+fetched_at (for_announced_fact with no instant).
 
 RATIO. Stored verbatim in the vendor's A:B order (ratio_from = A,
 ratio_to = B). A split "5:10" with face value 10 -> 5 shows A = new, B = old
@@ -45,7 +47,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from app.contracts.knowable import Knowable, for_announced_fact
+from app.contracts.knowable import Knowable, for_announced_fact, for_announcement_date
 from app.contracts.provenance import AnomalyKind, AnomalySeverity
 
 TYPES = {"Dividend": "DIVIDEND", "Bonus": "BONUS", "Split": "SPLIT", "Rights Issue": "RIGHTS"}
@@ -157,7 +159,6 @@ def parse_corporate_actions(data: bytes, *, http_status: int, isin: str,
     if not isinstance(data_, list):
         issue(AnomalySeverity.FAIL, AnomalyKind.SCHEMA_DRIFT, reason="data is not a list")
         return out
-    knowable = for_announced_fact(None, fetched_at, what=KNOWABLE_WHAT)
     seen: set[str] = set()
     for ev in data_:
         if not isinstance(ev, dict) or set(ev) != _EVENT_KEYS \
@@ -209,6 +210,8 @@ def parse_corporate_actions(data: bytes, *, http_status: int, isin: str,
             issue(AnomalySeverity.WARN, AnomalyKind.PARSE_REJECT,
                   reason="announced after the ex-date (kept as sent)", name=name,
                   announced=str(announced), ex_date=str(ex_date))
+        knowable = (for_announcement_date(announced, fetched_at, what=KNOWABLE_WHAT)
+                     if announced else for_announced_fact(None, fetched_at, what=KNOWABLE_WHAT))
         h = content_sha256(ev)
         if h in seen:
             continue                        # the same event listed twice in one response

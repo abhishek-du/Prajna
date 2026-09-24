@@ -75,10 +75,14 @@ def test_dow_bar_of_d_is_not_persistable_before_d_plus_1_noon():
                    _dt.datetime(2026, 9, 24, 13, 0, tzinfo=IST))
     assert D(2026, 9, 23) in {r.session_date for r in later.complete}
     # Vendor data defect, measured 2026-09-24: 15 of 1,653 Dow bars have an open
-    # (or close) outside [low, high]. They are INVALID and fail the window; the
-    # contract is not loosened for globals (decision pending, see acceptance doc).
-    assert later.coverage.invalid == 15 and len(later.complete) == 1638
-    assert all(i.kind.value == "PARSE_REJECT" for i in later.issues)
+    # (or close) outside [low, high].
+    # Q1 (user, 2026-09-24): the 15 are QUARANTINED (WARN), the window is kept.
+    assert later.coverage.quarantined == 15 and later.coverage.invalid == 0
+    assert len(later.complete) == 1638
+    assert all(i.kind.value == "QUARANTINED" and i.severity.value == "WARN"
+               for i in later.issues)
+    assert {i.detail["decision"] for i in later.issues} == {"Q1"}
+    assert all(i.detail["vendor_values"] and i.detail["session_date"] for i in later.issues)
 
 
 def test_usdinr_history_zero_volume_and_invalid_bars():
@@ -86,7 +90,7 @@ def test_usdinr_history_zero_volume_and_invalid_bars():
                 _dt.datetime(2026, 9, 24, 13, 0, tzinfo=IST))
     assert pc.complete[0].session_date == D(2020, 4, 3)
     assert all(r.volume == 0 for r in pc.complete)        # indicators carry no volume
-    assert pc.coverage.invalid == 85                      # 76 with open 83.214 in 2023
+    assert pc.coverage.quarantined == 85                  # 76 with open 83.214 in 2023
 
 
 def test_nikkei_flat_bar_on_a_japanese_holiday_is_kept_as_sent():

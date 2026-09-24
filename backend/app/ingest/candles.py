@@ -182,7 +182,7 @@ def _coverage_dict(cv: C.CoverageRecord) -> dict[str, Any]:
     return {"outcome": cv.outcome.value, "window": [str(cv.window.from_date),
                                                     str(cv.window.to_date)],
             "returned": cv.returned, "complete": cv.complete, "forming": cv.forming,
-            "settling": cv.settling, "invalid": cv.invalid,
+            "settling": cv.settling, "invalid": cv.invalid, "quarantined": cv.quarantined,
             "payload_sha256": cv.payload_sha256, "vendor_error_code": cv.vendor_error_code}
 
 
@@ -325,7 +325,8 @@ class CandleIngestor:
                            error=str(e)[:300], payload_sha256=stored.sha256)
                 raise IngestCheckFailed(str(e)) from None
             for i in pc.issues:
-                checks.add(i.severity, i.kind, i.subject, **i.detail)
+                checks.add(i.severity, i.kind, i.subject,
+                           **{"payload_sha256": stored.sha256, **i.detail})
             cov = pc.coverage
             res.coverage = {**_coverage_dict(cov), "grid_unchecked": pc.grid_unchecked}
             if cov.outcome is C.WindowOutcome.VENDOR_ERROR:

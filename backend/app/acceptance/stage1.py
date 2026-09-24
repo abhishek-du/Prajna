@@ -36,35 +36,41 @@ DECISIONS: dict[str, dict[str, str]] = {
            "1m for the last 6 months", "ref": "M4.5 plan approved 2026-09-23 (M4_DECISIONS)"},
     "D2": {"status": "APPROVED", "decision": "vendor-fetched 15m/1h (and 1m)",
            "ref": "M4.5 plan approved 2026-09-23"},
-    "D2-5m": {"status": "PENDING", "decision": "5m: the approved plan does not fetch it "
-              "(\"can be derived from 1m later\"); the Stage-1 spec lists 5m. Fetch 5m since "
-              "2022 (~201k requests), fetch for the 1m depth only, or formally exclude",
-              "ref": "-"},
+    "D2-5m": {"status": "APPROVED", "decision": "5m is EXCLUDED from Stage 1 (it is exactly "
+              "the aggregation of 1m, measured 428/428); later-stage scope",
+              "ref": "user 2026-09-24 (D2-5m = B)"},
     "D3": {"status": "IN_FORCE", "decision": "a changed value for a stored bar/observation "
            "FAILS; nothing is overwritten (versioned storage not enabled)",
            "ref": "M1/M4 contracts; not changed"},
-    "D5": {"status": "PENDING", "decision": "all-day LTP/depth persistence: Stage 7 per M0 "
-           "(PRAJNA_TICK_PERSISTENCE_ENABLED=false); needs explicit confirmation as a "
-           "Stage-1 exclusion", "ref": "M0"},
+    "D5": {"status": "APPROVED", "decision": "all-day LTP/depth persistence stays in Stage 7; "
+           "recorder capability kept; pre-open persisted", "ref": "user 2026-09-24 (D5 confirmed)"},
     "S1": {"status": "IN_FORCE", "decision": "universe = NSE_EQ series EQ/BE/SM/BZ/ST/IV "
            "(REIT RR, D1/E1/IT/SZ/W1 excluded)", "ref": "M1; not changed"},
     "S2": {"status": "APPROVED", "decision": "FII/DII, corporate actions, news, fundamentals, "
            "global (where Upstox has it) are in Stage 1",
            "ref": "user 2026-09-23 (FII/DII) and Stage-1 completion mission 2026-09-24"},
-    "P1": {"status": "PENDING", "decision": "WebSocket knowable_at = vendor currentTs "
-           "(11-148 ms before receipt, M0 contract) vs fetched_at", "ref": "-"},
+    "P1": {"status": "APPROVED", "decision": "keep vendor currentTs as WebSocket knowable_at "
+           "(M0 contract); consumers use fetched_at for local receipt ordering",
+           "ref": "user 2026-09-24 (P1 = A)"},
     "SURV": {"status": "APPROVED", "decision": "survivorship-biased equity history accepted "
              "and documented: Upstox publishes no delisted/historical master (the "
              "'suspended' file answers 403)", "ref": "M4.5 plan approved 2026-09-23"},
-    "Q1": {"status": "PENDING", "decision": "invalid vendor bars (negative volume; OHLC "
-           "outside [low, high]): quarantine the single bar and store the rest, or keep "
-           "the whole-window FAIL", "ref": "-"},
-    "C6": {"status": "PENDING", "decision": "pre-open completeness C6 (88.6 % ticked in "
-           "window): explained (no IEP ever = no pre-open activity); accept as expected "
-           "or keep as WARN", "ref": "-"},
-    "KN-CA": {"status": "IN_FORCE", "decision": "corporate actions: announcement is a date "
-              "only; knowable_at = fetched_at (for_announced_fact). Alternative (end of the "
-              "announcement date, IST) needs approval", "ref": "M0 contract"},
+    "Q1": {"status": "APPROVED", "decision": "an invalid vendor bar (negative volume; OHLC "
+           "outside [low, high]; non-positive price) is QUARANTINED: never stored, raw kept, "
+           "one anomaly per bar; the rest of the window is stored",
+           "ref": "user 2026-09-24 (Q1 = A)"},
+    "C6": {"status": "APPROVED", "decision": "pre-open completeness counts instruments with "
+           "pre-open activity (an IEP at any point) as the denominator; instruments that "
+           "never had an IEP are recorded as 'no pre-open activity', never fabricated",
+           "ref": "user 2026-09-24 (C6 accepted)"},
+    "KN-CA": {"status": "APPROVED", "decision": "corporate actions: knowable_at = end of the "
+              "announcement date in IST (23:59:59.999, unverified), never later than fetched_at",
+              "ref": "user 2026-09-24 (KN-CA = B)"},
+    "CAL-FIX": {"status": "APPROVED", "decision": "delete the 1,096 calendar rows 2020-2022 "
+                "written by the superseded timings rule and re-ingest with the NIFTY-50 rule",
+                "ref": "user 2026-09-24"},
+    "LOGIN": {"status": "APPROVED", "decision": "one automated Upstox TOTP login per day by the "
+              "ops runbooks, until revoked", "ref": "user 2026-09-24"},
 }
 
 PROV_TABLES = ("ohlcv_bar", "macro_observation", "news_article", "news_instrument",
@@ -220,22 +226,27 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
             ) r on r.stream = w.stream
             join ingest_anomaly a on a.run_id = r.run_id and a.severity='FAIL'
             where r.status = 'FAILED'""")
-    f_status = PASS if dd["1d"]["covered_to_depth"] + len({x[0] for x in failed_1d}) \
-        >= dd["1d"]["instruments"] and not failed_1d else FAIL
-    f_status, f_dep = _blocked_or(f_status, "Q1") if failed_1d else (f_status, [])
+    q1 = dict(await _all(s, """select a.detail->>'timeframe', count(*) from ingest_anomaly a
+        join ingest_run r using (run_id) where a.kind = 'QUARANTINED' and r.mode = 'COMMIT'
+        and r.status = 'COMPLETE' group by 1"""))
+    f_status = PASS if dd["1d"]["covered_to_depth"] >= dd["1d"]["instruments"] \
+        and not failed_1d else FAIL
     out.append(Criterion("F", "1D candles (from 2020-01-01)", f_status,
-                         {"failed_streams": [list(x) for x in failed_1d][:10]}, dd["1d"],
-                         "instruments listed after 2020 are covered from their first bar",
-                         f_dep))
+                         {"failed_streams": [list(x) for x in failed_1d][:10],
+                          "quarantined_bars_Q1": q1.get("1d", 0)}, dd["1d"],
+                         "instruments listed after 2020 are covered from their first bar; "
+                         "value-insane vendor bars are quarantined (Q1), never stored"))
     for cid, tf, name in (("G", "1m", "1m candles (last 6 months)"),
                           ("I", "15m", "15m candles (from 2022-01)"),
                           ("J", "1h", "1h candles (from 2022-01)")):
         st = PASS if dd[tf]["covered_to_depth"] >= dd[tf]["instruments"] else FAIL
-        out.append(Criterion(cid, name, st, {}, dd[tf], "historical backfill (D1)"))
+        out.append(Criterion(cid, name, st, {"quarantined_bars_Q1": q1.get(tf, 0)}, dd[tf],
+                             "historical backfill (D1)"))
     five = (await _one(s, "select count(*) from ohlcv_bar where timeframe='5m'"))[0]
-    h_status, h_dep = _blocked_or(FAIL, "D2-5m")
-    out.append(Criterion("H", "5m candles", h_status, {}, {"bars": five},
-                         "not in the approved backfill plan", h_dep))
+    h_status = OUT if DECISIONS["D2-5m"]["status"] == "APPROVED" else BLOCKED
+    out.append(Criterion("H", "5m candles", h_status, {"decision": DECISIONS["D2-5m"]},
+                         {"bars": five}, "excluded from Stage 1 by decision D2-5m",
+                         [] if h_status == OUT else ["D2-5m"]))
 
     # K. pre-open
     reps = sorted(glob.glob(str(pathlib.Path("var/acceptance") / "preopen_*.json")))
@@ -264,8 +275,9 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
 
     # L. live WebSocket
     ticks = (await _one(s, "select count(*) from tick_archive"))[0]
-    l_status, l_dep = _blocked_or(FAIL, "D5")
-    out.append(Criterion("L", "Live WebSocket data", l_status,
+    l_status = OUT if DECISIONS["D5"]["status"] == "APPROVED" else BLOCKED
+    l_dep = [] if l_status == OUT else ["D5"]
+    out.append(Criterion("L", "Live WebSocket data (all-day persistence)", l_status,
                          {"recorder": "live-validated 2026-09-23/24: 2 connections, 3,527 keys, "
                                       "5-level depth; archived; pre-open persisted"},
                          {"tick_archive_rows": ticks},
@@ -320,16 +332,26 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
                           "rows": (await _one(s, "select count(*) from macro_observation"))[0]}))
 
     # Q. global / macro
-    gl = (await _one(s, """select count(*) from ohlcv_bar b join instrument i
-            on i.instrument_id=b.instrument_id where i.segment like 'GLOBAL%'"""))[0]
-    q_status, q_dep = _blocked_or(PASS if gl else FAIL, "Q1")
-    out.append(Criterion("Q", "Global / macro", q_status,
-                         {"available": "13 global instruments (S&P, Dow, USD/INR, ...) "
-                                       "loaded; 1D from 2020-04-03 served",
-                          "defect": "all 13 have invalid daily bars (263 total); dry run "
-                                    "FAILED all windows (PARSE_REJECT)",
-                          "bond_yields": "UNAVAILABLE on Upstox (not in any instrument file)"},
-                         {"global_bars": gl}, "bond yields: OUT_OF_SCOPE/UNAVAILABLE", q_dep))
+    glob_rows = await _all(s, """select i.instrument_key, count(b.*), max(b.session_date),
+            (select count(*) from ingest_anomaly a join ingest_run r using (run_id)
+             where a.kind='QUARANTINED' and r.mode='COMMIT' and r.status='COMPLETE'
+               and a.detail->>'instrument_key' = i.instrument_key)
+        from instrument i left join ohlcv_bar b on b.instrument_id = i.instrument_id
+             and b.timeframe = '1d'
+        where i.valid_to='infinity' and i.segment like 'GLOBAL%' group by 1 order by 1""")
+    per = {k: {"stored": n, "quarantined": q, "through": str(t),
+               "quarantine_rate": round(q / (n + q), 4) if n + q else None}
+           for k, n, q, t in glob_rows}
+    q_ok = len(per) == 13 and all(v["stored"] > 0 and v["through"] >= str(prev)
+                                  for v in per.values())
+    out.append(Criterion("Q", "Global / macro", PASS if q_ok else FAIL,
+                         {"source_available": "13 global instruments (S&P, Dow, USD/INR, ...); "
+                                              "1D from 2020-04-03",
+                          "data_acceptable": "only bars passing every sanity rule are stored; "
+                                             "the rest are quarantined per instrument (Q1)",
+                          "bond_yields": "VENDOR_UNAVAILABLE (no Upstox instrument)"},
+                         {"per_instrument": per},
+                         "bond yields VENDOR_UNAVAILABLE; quarantine rates reported, not hidden"))
 
     # R. daily incremental: a close + morning cycle for the same session
     closes = await _all(s, """select (r.started_at at time zone 'Asia/Kolkata')::date d,

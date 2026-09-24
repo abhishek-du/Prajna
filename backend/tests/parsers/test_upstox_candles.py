@@ -9,6 +9,8 @@ import json
 import pathlib
 from decimal import Decimal
 
+from typing import ClassVar
+
 import pytest
 
 from app.contracts import candles as C
@@ -200,15 +202,28 @@ class TestFailsLoud:
         assert len(pc.rows) == 74
 
     @pytest.mark.parametrize("i, value, reason", [
-        (1, "1247.6", "not a number"), (5, True, "not a number"), (5, -1, "non-negative"),
-        (5, 10.5, "non-negative"), (1, 1247.61234, "precision"), (2, 1.0, "insane OHLC"),
+        (1, "1247.6", "not a number"), (5, True, "not a number"),
+        (5, 10.5, "not an integer"), (1, 1247.61234, "precision"),
         (0, "2026-09-22T09:15:00", "offset"), (0, "yesterday", "ISO")])
     def test_bad_values_are_invalid_and_counted(self, i, value, reason):
+        """Structural defects (type, precision, timestamp) FAIL the window."""
         def poke(b):
             b["data"]["candles"][0][i] = value
         pc = _parse("hist_5m_2026-09-22", data=_mutate("hist_5m_2026-09-22", poke))
         assert pc.coverage.invalid == 1 and len(pc.rows) == 74
         assert reason in str(_fails(pc))
+
+    @pytest.mark.parametrize("i, value, reason", [
+        (5, -1, "negative volume"), (2, 1.0, "insane OHLC")])
+    def test_value_insane_bars_are_quarantined_not_failed(self, i, value, reason):
+        """Decision Q1 (user, 2026-09-24): skipped, recorded, window kept."""
+        def poke(b):
+            b["data"]["candles"][0][i] = value
+        pc = _parse("hist_5m_2026-09-22", data=_mutate("hist_5m_2026-09-22", poke))
+        assert pc.coverage.quarantined == 1 and pc.coverage.invalid == 0
+        assert len(pc.rows) == 74 and not _fails(pc)
+        (q,) = [x for x in pc.issues if x.kind is AnomalyKind.QUARANTINED]
+        assert reason in q.detail["reason"]
 
     def test_nan_is_refused(self):
         data = (FIX / "hist_5m_2026-09-22.json").read_bytes().replace(b"1240.4", b"NaN", 1)
@@ -259,3 +274,53 @@ class TestFailsLoud:
     def test_error_without_codes_still_names_the_status(self):
         pc = _parse("err_400_udapi1148", data=b'{"status": "error", "errors": []}', status=503)
         assert pc.coverage.vendor_error_code == "HTTP503"
+
+
+class TestQ1Quarantine:
+    """Decision Q1 (user, 2026-09-24): value-insane vendor bars are quarantined,
+    structural defects still fail."""
+
+    def _parse(self, candles, key="NSE_EQ|INE669E01016"):
+        import datetime as dt
+        import json as js
+
+        from app.contracts.candles import Window
+        from app.core.clock import IST
+        from app.parsers.upstox_candles import Endpoint, parse_candles
+        body = js.dumps({"status": "success", "data": {"candles": candles}}).encode()
+        return parse_candles(body, http_status=200, endpoint=Endpoint.HISTORICAL,
+                             instrument_key=key, timeframe="1d",
+                             fetched_at=dt.datetime(2026, 9, 24, 12, tzinfo=IST),
+                             window=Window(dt.date(2020, 1, 1), dt.date(2026, 9, 23)))
+
+    GOOD: ClassVar[list] = ["2024-08-29T00:00:00+05:30", 15.0, 15.5, 14.8, 15.2, 1000, 0]
+    NEG_VOL: ClassVar[list] = ["2024-08-30T00:00:00+05:30", 15.2, 15.4, 14.9, 15.0, -81259413, 0]  # IDEA
+
+    def test_negative_volume_is_quarantined_and_the_rest_kept(self):
+        pc = self._parse([self.NEG_VOL, self.GOOD])
+        assert [r.session_date.isoformat() for r in pc.complete] == ["2024-08-29"]
+        (i,) = pc.issues
+        assert (i.severity.value, i.kind.value) == ("WARN", "QUARANTINED")
+        assert i.detail["session_date"] == "2024-08-30" and "-81259413" in i.detail["reason"]
+        assert pc.coverage.quarantined == 1 and pc.coverage.invalid == 0
+
+    def test_open_outside_range_and_zero_open_are_quarantined(self):
+        bad1 = ["2024-08-28T00:00:00+05:30", 16.0, 15.5, 14.8, 15.2, 10, 0]
+        bad2 = ["2024-08-27T00:00:00+05:30", 0.0, 15.5, 14.8, 15.2, 10, 0]
+        pc = self._parse([bad1, bad2, self.GOOD])
+        assert pc.coverage.quarantined == 2 and len(pc.complete) == 1
+        assert all(i.kind.value == "QUARANTINED" for i in pc.issues)
+
+    def test_negative_open_interest_is_quarantined(self):
+        bad = ["2024-08-28T00:00:00+05:30", 15.0, 15.5, 14.8, 15.2, 10, -1]
+        assert self._parse([bad]).coverage.quarantined == 1
+
+    def test_structural_defects_still_fail(self):
+        frac_vol = ["2024-08-28T00:00:00+05:30", 15.0, 15.5, 14.8, 15.2, 10.5, 0]
+        pc = self._parse([frac_vol, self.GOOD])
+        assert any(i.severity.value == "FAIL" for i in pc.issues)
+        assert pc.coverage.invalid == 1 and pc.coverage.quarantined == 0
+
+    def test_quarantine_is_deterministic(self):
+        a, b = self._parse([self.NEG_VOL, self.GOOD]), self._parse([self.NEG_VOL, self.GOOD])
+        assert [i.detail for i in a.issues] == [i.detail for i in b.issues]
