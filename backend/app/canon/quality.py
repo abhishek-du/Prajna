@@ -55,6 +55,11 @@ GATES: list[tuple[str, str, str]] = [
         where timeframe = '1d'
           and (fetched_at at time zone 'Asia/Kolkata')::date <= market_date""",
      "a daily bar persisted on its own session day (B1: only from the next day)"),
+    ("non_session_bars_exposed", """
+        select b.instrument_key, b.market_date from canon_market_bar b
+        left join trading_session t on t.session_date = b.market_date
+        where t.is_trading_day is not true""",
+     "a bar on a non-trading day is visible to Stage 3 (canon_market_bar must hide it)"),
     ("orphan_instruments", """
         select b.instrument_id, b.instrument_key from ohlcv_bar b
         left join canon_instrument ci on ci.instrument_id = b.instrument_id
@@ -88,10 +93,8 @@ GATES: list[tuple[str, str, str]] = [
      "one article linked twice to the same instrument"),
     ("invalid_fundamentals", """
         select instrument_key, statement_type, period_end, fetched_at from canon_fundamental
-        where payload is null or payload = 'null'::jsonb
-           or (period_end is not null
-               and period_end > (fetched_at at time zone 'Asia/Kolkata')::date + 1)""",
-     "a fundamentals snapshot with no payload or a period ending after its fetch"),
+        where payload is null or payload = 'null'::jsonb or statement_type is null""",
+     "a fundamentals snapshot without a payload or statement type"),
     ("calendar_gaps_in_depth", """
         select d::date from generate_series('2020-01-01'::date, current_date - 1,
                                             interval '1 day') d
@@ -117,6 +120,17 @@ async def run_gates(s: AsyncSession, sample: int = 5) -> dict[str, Any]:
     null_rate = (await s.execute(text("""
         select round(avg((sector is null)::int)::numeric, 4) from canon_instrument
         where included and segment = 'NSE_EQ'"""))).scalar()
+    excluded = (await s.execute(text(
+        "select count(*) from canon_excluded_bar"))).scalar()
+    # A period LABEL ("Sep 2026") read as its month end can lie after the fetch:
+    # in-quarter filings (measured 2026-09-24: 2 shareholding snapshots). Not a
+    # look-ahead (knowable_at = fetched_at); period_end is a label, not a date
+    # the data describes. Reported, never hidden.
+    label_after = (await s.execute(text("""
+        select count(*) from canon_fundamental where period_end is not null
+          and period_end > (fetched_at at time zone 'Asia/Kolkata')::date + 1"""))).scalar()
     return {"status": "PASS" if all(r["status"] == "PASS" for r in results) else "FAIL",
             "gates": results,
-            "informational": {"sector_null_rate_nse_eq": float(null_rate or 0)}}
+            "informational": {"sector_null_rate_nse_eq": float(null_rate or 0),
+                              "bars_excluded_non_session (canon_excluded_bar)": excluded,
+                              "fundamentals_period_label_after_fetch": label_after}}

@@ -32,6 +32,8 @@ async def test_stage1_ingest_is_processed_and_served_point_in_time(db_session, t
     clock.freeze(AFTER_CLOSE)
     try:
         await _seed_instruments(s)
+        from tests.integration.test_institutional_ingest import _seed_calendar
+        await _seed_calendar(s, D(2026, 9, 1), D(2026, 9, 30))
         await s.execute(text("update instrument set isin = split_part(instrument_key, '|', 2),"
                              " instrument_type = 'EQ'"))
         rep1 = await _ingestor(s, Vendor(), tmp_path).run(_daily_jobs())
@@ -52,9 +54,10 @@ async def test_stage1_ingest_is_processed_and_served_point_in_time(db_session, t
         assert p2.status == "COMPLETE"
         assert all(v.get("pairs_changed", 0) == 0 for v in p2.coverage.values())
         assert p2.instruments["updated"] == 0 and p2.instruments["inserted"] == 0
-        # no calendar in this database: coverage names no sessions, and the
-        # quality gate says so instead of passing silently
-        assert await pit.coverage(s, SME, "1d") == []
+        # the calendar covers September only: coverage names those sessions, and
+        # the quality gate reports the rest of the depth instead of passing silently
+        assert {r["state"] for r in await pit.coverage(s, SME, "1d")} <= {
+            "DATA", "EMPTY", "PENDING_BACKFILL"}
         from app.canon.quality import run_gates
         gates = {g["gate"]: g for g in (await run_gates(s))["gates"]}
         assert gates["calendar_gaps_in_depth"]["status"] == "FAIL"

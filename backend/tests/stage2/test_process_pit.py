@@ -195,6 +195,30 @@ class TestPointInTime:
         assert ctx["news"] == [] and ctx["daily_bars"] == []
 
 
+class TestNonSessionBars:
+    async def test_placeholder_bar_on_a_weekend_is_excluded_and_traced(self, world):
+        """Real case (2025-04-26): flat, zero-volume vendor bars on a Saturday."""
+        s, ids = world
+        rid = await SEED._run(s, "ohlcv.1d.x")
+        sha = await SEED._payload(s, rid)
+        await s.execute(text("""
+            insert into ohlcv_bar (instrument_id, timeframe, session_date, bar_start_utc, source,
+              instrument_key, open, high, low, close, volume, vendor_ts_raw, run_id,
+              payload_sha256, fetched_at, knowable_at, knowable_at_basis)
+            values (:i, '1d', '2026-09-19', :b, 'UPSTOX_REST_V3', :k, 5, 5, 5, 5, 0, 'x', :r, :h,
+                    :f, :f, 't')"""),
+            {"i": ids[R], "b": ist(2026, 9, 19), "k": R, "r": rid, "h": sha,
+             "f": ist(2026, 9, 24, 8)})
+        await _process(s)
+        got = await pit.bars(s, R, "1d", NOW + _dt.timedelta(days=30))
+        assert D(2026, 9, 19) not in {r["market_date"] for r in got}
+        (x,) = await _q(s, "select * from canon_excluded_bar")
+        assert x.session_date == D(2026, 9, 19) and "WEEKEND" in x.reason
+        rep = await run_gates(s)
+        assert {g["gate"]: g["status"] for g in rep["gates"]}["non_session_bars_exposed"] == "PASS"
+        assert rep["informational"]["bars_excluded_non_session (canon_excluded_bar)"] == 1
+
+
 class TestQualityAndConstraints:
     async def test_gates_flag_the_seeded_inconsistency_only(self, world):
         s, _ = world
