@@ -1049,5 +1049,43 @@ def stage2_quality(out: str = typer.Option(None, "--out", help="also write the J
     typer.echo(f"QUALITY: {rep['status']}  {rep['informational']}")
     raise typer.Exit(0 if rep["status"] == "PASS" else 1)
 
+
+
+@acceptance_app.command("stage2")
+def acceptance_stage2(
+    run_tests: bool = typer.Option(False, "--run-tests", help="also run the full test suite"),
+    out: str = typer.Option("var/acceptance/stage2.json", "--out"),
+    md: str = typer.Option("../docs/STAGE_2_ACCEPTANCE.md", "--md", help="'' = do not write"),
+):
+    """Stage 2 gate: criteria A-P from the real database (+ the test suite)."""
+    import json as _json
+    import pathlib
+
+    from sqlalchemy import text as _t
+
+    from app.acceptance import stage2 as S2
+    from app.db.engine import get_sessionmaker
+
+    tests = S2.run_tests() if run_tests else None
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            rep = await S2.evaluate(s, tests)
+            dep = dict((await s.execute(_t("""
+                select timeframe || ' ' || state, sum(sessions) from canon_coverage
+                where state = 'PENDING_BACKFILL' group by 1 order by 1"""))).all())
+            return rep, {**{k: f"{int(v):,} sessions pending" for k, v in dep.items()},
+                         "sector": "grows with the fundamentals sweep (Stage 1 criterion D/O)"}
+
+    rep, dep = asyncio.run(_go())
+    pathlib.Path(out).parent.mkdir(parents=True, exist_ok=True)
+    pathlib.Path(out).write_text(_json.dumps(rep, indent=2, default=str))
+    if md:
+        pathlib.Path(md).write_text(S2.to_markdown(rep, dep))
+    for c in rep["criteria"]:
+        typer.echo(f"{c['id']}  {c['status']:8} {c['question']}")
+    typer.echo(f"STAGE 2: {rep['overall']}")
+    raise typer.Exit(0 if rep["overall"] == "PASS" else 1)
+
 if __name__ == "__main__":
     app()
