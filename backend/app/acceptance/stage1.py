@@ -370,9 +370,12 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
 
     # T. replay: random COMMIT runs per family, archive -> parser -> DB
     rp = await replay_sample(s)
+    arch = await verify_archive(s)
     t_ok = rp["runs"] > 0 and rp["mismatches"] == 0 and all(
-        v["runs"] for v in rp["by_family"].values() if v["available"])
-    out.append(Criterion("T", "Replay (archive -> parser -> DB)", PASS if t_ok else FAIL, rp))
+        v["runs"] for v in rp["by_family"].values() if v["available"]) \
+        and arch["mismatched"] == 0 and arch["missing"] == 0
+    out.append(Criterion("T", "Replay (archive -> parser -> DB) + raw archive hashes",
+                         PASS if t_ok else FAIL, {"replay": rp, "archive": arch}))
 
     # U. idempotency: natural keys unique
     dup = {
@@ -384,6 +387,13 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
         "corporate_action": (await _one(s, "select count(*) from (select 1 from corporate_action "
                                            "group by isin, content_sha256, source "
                                            "having count(*)>1) x"))[0],
+        "fundamentals_repeated_snapshot": (await _one(s, """select count(*) from (
+            select payload, lag(payload) over (partition by instrument_key, statement_type,
+              source order by knowable_at) prev from fundamental_snapshot) x
+            where payload = prev"""))[0],
+        "news_links": (await _one(s, "select count(*) from (select 1 from news_instrument "
+                                     "group by news_id, instrument_key, source "
+                                     "having count(*)>1) x"))[0],
     }
     out.append(Criterion("U", "Idempotency (no duplicate observations)",
                          PASS if not any(dup.values()) else FAIL, {"duplicates": dup},
@@ -526,6 +536,37 @@ async def replay_sample(s: AsyncSession, per_family: int = 25, seed: int | None 
                 mismatches += 1
     fam["news"] = {"runs": n, "rows": rows_cmp, "available": True}
 
+    # corporate actions: payloads of sampled runs re-parsed; each stored event
+    # must be re-derived identically (content, dates, knowable_at)
+    from app.parsers import upstox_corporate_actions as PC
+    n = rows_cmp = 0
+    for run_id, _rp in await runs("corporate_action.%"):
+        db = await _all(s, """select isin, content_sha256, announcement_date, ex_date,
+                              knowable_at, payload_sha256, fetched_at from corporate_action
+                              where run_id=:r""", r=run_id)
+        n += 1
+        for isin, h, ann, ex, kn, sha, fetched in db:
+            data, status = await payload(sha)
+            ev = {e.content_sha256: e for e in PC.parse_corporate_actions(
+                data, http_status=status, isin=isin, fetched_at=fetched).events}.get(h)
+            rows_cmp += 1
+            if ev is None or (ev.announcement_date, ev.ex_date, ev.knowable.at) != (ann, ex, kn):
+                mismatches += 1
+    fam["corporate_actions"] = {"runs": n, "rows": rows_cmp, "available": n > 0}
+
+    # fundamentals: the stored payload equals the archived response's data
+    n = rows_cmp = 0
+    for run_id, _rp in await runs("fundamentals.%"):
+        db = await _all(s, """select payload, payload_sha256 from fundamental_snapshot
+                              where run_id=:r""", r=run_id)
+        n += 1
+        for pl, sha in db:
+            data, _ = await payload(sha)
+            rows_cmp += 1
+            if json.loads(data).get("data") != pl:
+                mismatches += 1
+    fam["fundamentals"] = {"runs": n, "rows": rows_cmp, "available": n > 0}
+
     total = sum(v["runs"] for v in fam.values())
     return {"runs": total, "mismatches": mismatches, "by_family": fam, "per_family": per_family}
 
@@ -560,3 +601,49 @@ def to_markdown(rep: dict) -> str:
     for k, d in rep["decisions"].items():
         lines.append(f"| {k} | **{d['status']}** | {d['decision']} | {d['ref']} |")
     return "\n".join(lines) + "\n"
+
+
+async def verify_archive(s: AsyncSession) -> dict:
+    """Every raw_payload row: its archived bytes still hash to its sha256.
+    File payloads are read whole; WebSocket frames (<archive>#seq=n) are
+    re-read from their frame archive and each frame re-hashed."""
+    import hashlib
+
+    from app.storage.frame_archive import FrameArchiveReader
+    from app.storage.payload_store import PayloadStore
+
+    rows = await _all(s, "select payload_sha256, storage_uri from raw_payload")
+    files = [(h, u) for h, u in rows if "#seq=" not in u]
+    framed: dict[str, dict[int, str]] = {}
+    for h, u in rows:
+        if "#seq=" in u:
+            path, seq = u.split("#seq=")
+            framed.setdefault(path, {})[int(seq)] = h
+    ok = bad = missing = 0
+    for h, u in files:
+        if not pathlib.Path(u).exists():  # noqa: ASYNC240 (read-only audit)
+            missing += 1
+            continue
+        try:
+            PayloadStore.read(u, h)
+            ok += 1
+        except ValueError:
+            bad += 1
+    frames_ok = 0
+    for path, want in framed.items():
+        if not pathlib.Path(path).exists():  # noqa: ASYNC240 (read-only audit)
+            missing += len(want)
+            continue
+        seen = {}
+        for rec in FrameArchiveReader(pathlib.Path(path)):
+            if rec.seq in want:
+                seen[rec.seq] = hashlib.sha256(rec.payload).hexdigest()
+        for seq, h in want.items():
+            if seen.get(seq) == h:
+                frames_ok += 1
+            elif seq not in seen:
+                missing += 1
+            else:
+                bad += 1
+    return {"file_payloads_verified": ok, "frame_payloads_verified": frames_ok,
+            "frame_archives": len(framed), "mismatched": bad, "missing": missing}
