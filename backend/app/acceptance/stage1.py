@@ -291,7 +291,8 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
     async def swept(stream: str, key: str) -> int:
         return (await _one(s, f"""select count(distinct x) from (
             select jsonb_array_elements_text(request_params->'{key}') x from ingest_run
-            where stream=:st and mode='COMMIT' and status='COMPLETE') y""",  # noqa: S608
+            where stream=:st and mode='COMMIT' and status='COMPLETE'
+              and not request_params ? 'superseded') y""",  # noqa: S608
                            st=stream))[0]
     ca = await _one(s, "select count(*), count(distinct isin), min(announcement_date), "
                        "max(announcement_date) from corporate_action")
