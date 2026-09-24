@@ -837,6 +837,38 @@ acceptance_app = typer.Typer(help="acceptance evidence (read-only)")
 app.add_typer(acceptance_app, name="acceptance")
 
 
+@acceptance_app.command("stage1")
+def acceptance_stage1(
+    out: str = typer.Option("var/acceptance/stage1.json", "--out", help="JSON report"),
+    md: str = typer.Option("../docs/STAGE_1_FINAL_ACCEPTANCE.md", "--md",
+                           help="regenerate the acceptance document here ('' = no)"),
+):
+    """Stage-1 final gate: criteria A-Y from the REAL database. Read-only.
+
+    Exit 0 only when the overall verdict is COMPLETE.
+    """
+    import json as _json
+    import pathlib
+
+    from app.acceptance.stage1 import evaluate, to_markdown
+    from app.db.engine import get_sessionmaker
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await evaluate(s)
+
+    rep = asyncio.run(_go())
+    pathlib.Path(out).parent.mkdir(parents=True, exist_ok=True)
+    pathlib.Path(out).write_text(_json.dumps(rep, indent=2, default=str))
+    if md:
+        pathlib.Path(md).write_text(to_markdown(rep))
+    for c in rep["criteria"]:
+        typer.echo(f"{c['id']}  {c['status']:13} {c['name']}"
+                   + (f"   [blocked by {', '.join(c['decisions'])}]" if c["decisions"] else ""))
+    typer.echo(f"OVERALL: {rep['overall']}")
+    raise typer.Exit(0 if rep["overall"] == "COMPLETE" else 1)
+
+
 @acceptance_app.command("preopen")
 def acceptance_preopen(
     session_manifest: str = typer.Option(..., "--session", help="<stem>.session.json"),
