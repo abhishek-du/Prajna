@@ -171,10 +171,24 @@ class RestResponse:
     fetched_at: _dt.datetime
     error_codes: tuple[str, ...]
     attempts: tuple[Attempt, ...] = field(default_factory=tuple)
+    # the vendor's correlation id, when a response header carries one
+    request_id: str | None = None
 
     @property
     def ok(self) -> bool:
         return self.status == 200
+
+
+_REQUEST_ID_HEADERS = ("x-request-id", "x-requestid", "request-id", "x-amzn-requestid",
+                       "cf-ray")
+
+
+def _request_id(headers) -> str | None:
+    for h in _REQUEST_ID_HEADERS:
+        v = headers.get(h)
+        if v:
+            return f"{h}={v}"[:120]
+    return None
 
 
 def error_codes(data: bytes) -> tuple[str, ...]:
@@ -254,7 +268,7 @@ class UpstoxRestClient:
                     retry = True
                 else:
                     return RestResponse(url, r.status_code, r.content, fetched, codes,
-                                        tuple(attempts))
+                                        tuple(attempts), _request_id(r.headers))
             if not retry or n > len(self._backoff):
                 break
             backoff_wait = self._backoff[n - 1] + self._jitter()
