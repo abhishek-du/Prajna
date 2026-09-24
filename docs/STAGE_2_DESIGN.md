@@ -99,6 +99,21 @@ Python as well (defence in depth). Per source:
   taken among those knowable before `as_of`.
 - **Pre-open:** vendor `currentTs` (P1).
 - **FII/DII:** `fetched_at`.
+- **Coverage:** `coverage(key, tf, as_of)` is point-in-time as well. It
+  applies the section 3 rules to what was true strictly before `as_of`:
+  - bars knowable before `as_of` (the same rows `bars()` returns);
+  - quarantines and windows of Stage 1 runs finished before `as_of`;
+  - the checkpoint of the latest run finished before `as_of`;
+  - sessions dated before `as_of`'s market date only.
+
+  So a backtest cannot learn from coverage that a later session traded, how
+  many bars exist, or how a later ingest ended. `current_coverage(key, tf)`
+  (the materialized `canon_coverage`) is what Stage 1 holds **now**. It is
+  for live use and operations, never for a historical instant.
+- **Sector:** `sector(key, as_of)` reads the profile snapshots.
+  `canon_instrument.sector` / `sector_knowable_at` are the **current**
+  enrichment (the latest snapshot). Using them for a past instant would leak
+  a sector that was only known later.
 
 ## 5. Idempotency and increments
 

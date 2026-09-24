@@ -6,7 +6,13 @@ and each returned row is re-checked in Python. Reads go through the
 canonical views, so only NSE-universe instruments are visible (global
 instruments only through `global_bars` / `macro`). Nothing is filled in: a
 missing bar is absent; `coverage()` says why (DATA / EMPTY / QUARANTINED /
-VENDOR_ERROR / PENDING_BACKFILL / MISSING; 5m is OUT_OF_SCOPE).
+VENDOR_ERROR / PENDING_BACKFILL / MISSING; 5m is OUT_OF_SCOPE), as of the
+same instant.
+
+Two things here are NOT point-in-time and must never feed a historical
+decision: `current_coverage()` (what Stage 1 holds now, for live/ops) and
+the columns canon_instrument.sector / sector_knowable_at (the LATEST profile
+snapshot, i.e. today's sector). Historical sector: `sector(key, as_of)`.
 """
 
 from __future__ import annotations
@@ -17,9 +23,11 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.canon.time import assert_all_knowable
+from app.canon import coverage as COV
+from app.canon.process import _stage1_inputs, depth_start
+from app.canon.time import assert_all_knowable, market_date
 from app.canon.validate import CANON_TIMEFRAMES
-from app.core.clock import to_utc
+from app.core.clock import IST, now, to_utc
 
 
 class OutOfScope(ValueError):
@@ -85,6 +93,8 @@ async def fundamentals(s: AsyncSession, instrument_key: str, as_of: _dt.datetime
 
 
 async def sector(s: AsyncSession, instrument_key: str, as_of: _dt.datetime) -> str | None:
+    """The sector of the latest profile snapshot knowable before as_of. The only
+    historical access path: canon_instrument.sector is today's sector."""
     rows = await fundamentals(s, instrument_key, as_of, "profile")
     return (rows[0]["payload"] or {}).get("sector") or None if rows else None
 
@@ -110,9 +120,46 @@ async def global_bars(s: AsyncSession, instrument_key: str, as_of: _dt.datetime)
         order by bar_start_utc""", "global bar", as_of, k=instrument_key)
 
 
-async def coverage(s: AsyncSession, instrument_key: str, timeframe: str) -> list[dict]:
-    """Data-availability ranges (a meta view of what Stage 1 holds NOW; it is
-    not point-in-time data and carries no market values)."""
+async def coverage(s: AsyncSession, instrument_key: str, timeframe: str,
+                   as_of: _dt.datetime) -> list[dict]:
+    """Data-availability ranges AS THEY STOOD strictly before as_of: the
+    materialized rules (coverage.session_state) applied only to Stage 1 facts
+    that existed then — bars knowable before as_of (exactly what bars() returns),
+    quarantines/windows of runs finished before as_of, the checkpoint of the
+    latest run finished before as_of — over sessions dated before as_of's market
+    date. So a backtest cannot learn from coverage that a later session traded,
+    how many bars exist, or how a later ingestion ended. Meta data, no values."""
+    if timeframe not in CANON_TIMEFRAMES:
+        return [{"state": "OUT_OF_SCOPE", "timeframe": timeframe}]
+    included = (await s.execute(text(
+        "select 1 from canon_instrument where instrument_key = :k and included"),
+        {"k": instrument_key})).first()
+    if not included:
+        return []
+    as_of = to_utc(as_of)
+    before = market_date(as_of)
+    sessions = list((await s.execute(text(
+        "select session_date from trading_session where is_trading_day "
+        "and session_date >= :a and session_date < :b order by 1"),
+        {"a": depth_start(timeframe, now().astimezone(IST).date()), "b": before})).scalars())
+    bars_, quar, wins, cps = await _stage1_inputs(s, timeframe, {instrument_key}, as_of)
+    out = [{"instrument_key": instrument_key, "timeframe": timeframe, "as_of": as_of,
+            "from_date": r.from_date, "to_date": r.to_date, "state": r.state,
+            "sessions": r.sessions, "bars": r.bars, "quarantined": r.quarantined}
+           for r in COV.ranges(sessions, bars=bars_.get(instrument_key, {}),
+                               quarantined=quar.get(instrument_key, {}),
+                               windows=wins.get(instrument_key, []),
+                               checkpoint=cps.get(instrument_key))]
+    if any(r["to_date"] >= before for r in out):          # defence in depth
+        raise AssertionError(f"coverage {instrument_key} {timeframe} reaches {before}")
+    return out
+
+
+async def current_coverage(s: AsyncSession, instrument_key: str,
+                           timeframe: str) -> list[dict]:
+    """What Stage 1 holds NOW (the materialized canon_coverage), for live use
+    and operations. NOT point-in-time: it reflects ingestion done after any
+    historical instant, so a backtest must use coverage(..., as_of)."""
     if timeframe not in CANON_TIMEFRAMES:
         return [{"state": "OUT_OF_SCOPE", "timeframe": timeframe}]
     return [dict(r) for r in (await s.execute(text("""

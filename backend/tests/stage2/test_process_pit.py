@@ -185,7 +185,9 @@ class TestPointInTime:
         assert await pit.bars(s, SPX, "1d", NOW) == []            # not in the NSE universe
         with pytest.raises(pit.OutOfScope):
             await pit.bars(s, R, "5m", NOW)
-        assert (await pit.coverage(s, R, "5m"))[0]["state"] == "OUT_OF_SCOPE"
+        assert (await pit.coverage(s, R, "5m", NOW))[0]["state"] == "OUT_OF_SCOPE"
+        assert (await pit.current_coverage(s, R, "5m"))[0]["state"] == "OUT_OF_SCOPE"
+        assert await pit.coverage(s, SPX, "1d", NOW) == []     # excluded: no coverage
 
     async def test_context_is_point_in_time_throughout(self, world):
         s, _ = world
@@ -193,6 +195,115 @@ class TestPointInTime:
         ctx = await pit.context(s, R, ist(2026, 9, 21))
         assert ctx["sector"] == "Refineries" and ctx["corporate_actions"] == []
         assert ctx["news"] == [] and ctx["daily_bars"] == []
+
+
+def _cov(rows):
+    return [(r["from_date"].day, r["to_date"].day, r["state"], r["bars"]) for r in rows]
+
+
+class TestPointInTimeCoverage:
+    """coverage(as_of) shows only what Stage 1 knew strictly before as_of. The
+    seed's runs finish 09-24 11:00 IST; RELIANCE's bars are knowable 08:00."""
+
+    async def test_historical_as_of_cannot_see_future_sessions_or_ingestion(self, world):
+        s, _ = world
+        await _process(s)
+        # 09-17: RELIANCE traded 14..22 and a later window ran, but none of it
+        # was known yet: only the past sessions, all PENDING_BACKFILL, no bars
+        early = ist(2026, 9, 17, 12)
+        assert _cov(await pit.coverage(s, R, "1d", early)) == [(14, 16, "PENDING_BACKFILL", 0)]
+        assert _cov(await pit.coverage(s, H, "1d", early)) == [(14, 16, "PENDING_BACKFILL", 0)]
+        assert _cov(await pit.coverage(s, N, "1d", early)) == [(14, 16, "PENDING_BACKFILL", 0)]
+        assert await pit.bars(s, R, "1d", early) == []
+
+    async def test_bars_become_data_exactly_when_bars_does(self, world):
+        s, _ = world
+        await _process(s)
+        at = ist(2026, 9, 24, 8, 0)                       # bars knowable AT 08:00: not yet
+        assert {r["state"] for r in await pit.coverage(s, R, "1d", at)} == {
+            "PENDING_BACKFILL"}
+        # 1 us later the bars are visible; the windows, the quarantine and the
+        # failure (runs finished 11:00) are not: 21 and 23 are still pending
+        at = ist(2026, 9, 24, 8, 0, 0, 1)
+        assert _cov(await pit.coverage(s, R, "1d", at)) == [
+            (14, 18, "DATA", 5), (21, 21, "PENDING_BACKFILL", 0), (22, 22, "DATA", 1),
+            (23, 23, "PENDING_BACKFILL", 0)]
+        assert len(await pit.bars(s, R, "1d", at)) == 6
+        assert _cov(await pit.coverage(s, H, "1d", at)) == [(14, 23, "PENDING_BACKFILL", 0)]
+        # the run outcomes count only once their runs finished (strictly before)
+        fin = ist(2026, 9, 24, 11, 0)
+        assert _cov(await pit.coverage(s, H, "1d", fin)) == [(14, 23, "PENDING_BACKFILL", 0)]
+        after = fin + _dt.timedelta(microseconds=1)
+        assert _cov(await pit.coverage(s, R, "1d", after)) == [
+            (14, 18, "DATA", 5), (21, 21, "EMPTY", 0), (22, 22, "DATA", 1),
+            (23, 23, "QUARANTINED", 0)]
+        assert _cov(await pit.coverage(s, H, "1d", after)) == [(14, 23, "VENDOR_ERROR", 0)]
+        assert _cov(await pit.coverage(s, N, "1d", after)) == [(14, 23, "MISSING", 0)]
+
+    async def test_a_later_ingest_changes_current_coverage_not_the_past(self, world):
+        s, _ = world
+        # HDFCBANK's failed window is retried successfully on 09-25 10:00
+        await SEED._run(s, f"ohlcv.1d.{H}", started=ist(2026, 9, 25, 9),
+                        finished=ist(2026, 9, 25, 10), params={
+                            "window": ["2026-09-14", "2026-09-23"], "endpoint": "historical",
+                            "instrument_key": H, "timeframe": "1d"})
+        await _process(s)
+        assert _cov(await pit.current_coverage(s, H, "1d")) == [(14, 23, "EMPTY", 0)]
+        assert _cov(await pit.coverage(s, H, "1d", NOW)) == [(14, 23, "VENDOR_ERROR", 0)]
+        # on 09-25 the 09-24 session is past (not yet ingested); the retry counts
+        # only strictly after it finished
+        assert _cov(await pit.coverage(s, H, "1d", ist(2026, 9, 25, 10))) == [
+            (14, 23, "VENDOR_ERROR", 0), (24, 24, "PENDING_BACKFILL", 0)]
+        assert _cov(await pit.coverage(s, H, "1d", ist(2026, 9, 25, 10, 0, 0, 1))) == [
+            (14, 23, "EMPTY", 0), (24, 24, "PENDING_BACKFILL", 0)]
+
+    async def test_current_coverage_is_the_materialized_state_for_live_use(self, world):
+        s, _ = world
+        await _process(s)
+        cur = await pit.current_coverage(s, R, "1d")
+        assert _cov(cur) == [(14, 18, "DATA", 5), (21, 21, "EMPTY", 0), (22, 22, "DATA", 1),
+                             (23, 23, "QUARANTINED", 0)]
+        assert all(r["run_id"] for r in cur)
+        # as of now, the point-in-time rules reproduce the materialized table
+        # for every instrument and timeframe
+        for key in (R, H, N):
+            for tf in ("1d", "1h", "15m", "1m"):
+                pitc = await pit.coverage(s, key, tf, NOW)
+                cols = ("from_date", "to_date", "state", "sessions", "bars", "quarantined")
+                assert [tuple(r[c] for c in cols) for r in pitc] == \
+                    [tuple(r[c] for c in cols) for r in await pit.current_coverage(s, key, tf)]
+
+    async def test_coverage_never_reaches_the_as_of_market_date(self, world):
+        s, _ = world
+        await _process(s)
+        for at in (ist(2026, 9, 22, 0, 0), ist(2026, 9, 22, 15, 0), ist(2026, 9, 23, 0, 0, 0, 1)):
+            rows = await pit.coverage(s, R, "1d", at)
+            assert rows and max(r["to_date"] for r in rows) < at.date()
+
+
+class TestPointInTimeSector:
+    async def test_historical_sector_comes_from_snapshots_not_canon_instrument(self, world):
+        s, _ = world
+        await _process(s)
+        # canon_instrument holds TODAY's sector; the past must not see it
+        (cur,) = await _q(s, "select sector from canon_instrument where instrument_key = :k",
+                          k=R)
+        assert cur.sector == "Refineries"
+        assert await pit.sector(s, R, ist(2026, 9, 15)) == "Old"
+        assert (await pit.context(s, R, ist(2026, 9, 15)))["sector"] == "Old"
+        assert await pit.sector(s, R, ist(2026, 9, 9)) is None
+        # pit never reads the current column: changing it changes nothing
+        await s.execute(text("update canon_instrument set sector = 'TAMPERED' "
+                             "where instrument_key = :k"), {"k": R})
+        assert await pit.sector(s, R, ist(2026, 9, 15)) == "Old"
+        assert await pit.sector(s, R, NOW) == "Refineries"         # live: latest knowable
+        assert (await pit.context(s, R, NOW))["sector"] == "Refineries"
+
+    async def test_sector_boundary_is_strict(self, world):
+        s, _ = world
+        await _process(s)
+        assert await pit.sector(s, R, ist(2026, 9, 20, 12)) == "Old"          # AT: not yet
+        assert await pit.sector(s, R, ist(2026, 9, 20, 12, 0, 0, 1)) == "Refineries"
 
 
 class TestNonSessionBars:

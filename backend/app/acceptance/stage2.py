@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.canon import CANON_SOURCE, pit
 from app.canon.process import STREAM
 from app.canon.quality import run_gates
-from app.canon.time import LookAheadViolation
+from app.canon.time import LookAheadViolation, market_date
 from app.canon.universe import RULES_SHA256
 from app.core.clock import now
 
@@ -56,13 +56,22 @@ def run_tests() -> dict[str, Any]:
     return {"exit": p.returncode, "summary": tail[-1] if tail else p.stdout[-300:]}
 
 
-async def _pit_probes(s: AsyncSession, n: int = 40) -> dict[str, Any]:
+def _seed(seed: int | None) -> int:
+    """A new sample every run (a fixed seed would re-probe the same instruments
+    forever); the seed is reported so any run can be reproduced."""
+    return seed if seed is not None else int(now().timestamp() * 1000) % 2**31
+
+
+async def _pit_probes(s: AsyncSession, n: int = 40, seed: int | None = None) -> dict[str, Any]:
     """Random real (instrument, as_of) pairs: every row returned is knowable
-    strictly before as_of, and the first row knowable AT as_of is excluded."""
-    rnd = random.Random(20260924)  # noqa: S311 (sampling)
+    strictly before as_of, and the first row knowable AT as_of is excluded.
+    Coverage at the same as_of stops before its market date and counts exactly
+    the bars bars() returns for those sessions (no future ingestion state)."""
+    seed = _seed(seed)
+    rnd = random.Random(seed)  # noqa: S311 (sampling)
     keys = [k for (k,) in await _all(s, """select instrument_key from canon_instrument
                                             where included order by 1""")]
-    checked = rows = boundary_excluded = 0
+    checked = rows = boundary_excluded = coverage_consistent = 0
     for key in rnd.sample(keys, min(n, len(keys))):
         ks = await _all(s, """select knowable_at from canon_market_bar where instrument_key=:k
                               and timeframe='1d' order by knowable_at""", k=key)
@@ -78,11 +87,49 @@ async def _pit_probes(s: AsyncSession, n: int = 40) -> dict[str, Any]:
         if all(r["knowable_at"] < k for r in at_k) and after and \
                 all(r["knowable_at"] <= k for r in after) and len(after) > len(at_k):
             boundary_excluded += 1
-    return {"instruments_probed": checked, "rows_returned_after_boundary": rows,
-            "boundary_behaviour_correct": boundary_excluded}
+        cov = await pit.coverage(s, key, "1d", k)
+        day = market_date(k)
+        if all(c["to_date"] < day for c in cov) and \
+                sum(c["bars"] for c in cov) == sum(r["market_date"] < day for r in at_k):
+            coverage_consistent += 1
+    return {"seed": seed, "instruments_probed": checked, "rows_returned_after_boundary": rows,
+            "boundary_behaviour_correct": boundary_excluded,
+            "coverage_point_in_time": coverage_consistent}
 
 
-async def evaluate(s: AsyncSession, tests: dict | None = None) -> dict[str, Any]:
+async def _consumer_probes(s: AsyncSession, n: int = 10,
+                           seed: int | None = None) -> dict[str, Any]:
+    """What Stage 3 would do: pit.context + coverage for several real
+    instruments (RELIANCE and NIFTY 50 always, the rest sampled among those
+    with daily bars). Each must answer, with daily bars and no violation."""
+    seed = _seed(seed)
+    fixed = ["NSE_EQ|INE002A01018", "NSE_INDEX|Nifty 50"]
+    have = [k for (k,) in await _all(s, """select ci.instrument_key from canon_instrument ci
+        where ci.included and exists (select 1 from ohlcv_bar b where
+          b.instrument_id = ci.instrument_id and b.timeframe = '1d') order by 1""")]
+    rest = [k for k in have if k not in fixed]
+    keys = [k for k in fixed if k in have] + random.Random(seed).sample(  # noqa: S311
+        rest, min(max(n - 2, 0), len(rest)))
+    at, probes, ok = now(), {}, 0
+    for key in keys:
+        try:
+            ctx = await pit.context(s, key, at)
+            cov = await pit.coverage(s, key, "1d", at)
+            good = bool(ctx["daily_bars"]) and bool(cov)
+            probes[key] = {"daily_bars": len(ctx["daily_bars"]),
+                           "corporate_actions": len(ctx["corporate_actions"]),
+                           "news": len(ctx["news"]), "fundamentals": len(ctx["fundamentals"]),
+                           "sector": ctx["sector"], "coverage_ranges": len(cov)}
+        except Exception as e:                  # a probe must not fail
+            good, probes[key] = False, {"error": repr(e)[:200]}
+        ok += good
+    return {"seed": seed, "probed": len(keys), "ok": ok, "probes": probes}
+
+
+async def evaluate(s: AsyncSession, tests: dict | None = None,
+                   seed: int | None = None) -> dict[str, Any]:
+    """tests=None means the suite was NOT run: criteria resting on it (L, P)
+    are PENDING, and PENDING is never PASS, so the overall cannot be PASS."""
     out: list[dict] = []
 
     def add(cid, question, status, evidence, notes=""):
@@ -151,15 +198,17 @@ async def evaluate(s: AsyncSession, tests: dict | None = None) -> dict[str, Any]
     # E
     probes = {}
     try:
-        probes = await _pit_probes(s)
+        probes = await _pit_probes(s, seed=seed)
         e_real = probes["instruments_probed"] > 0 and \
-            probes["boundary_behaviour_correct"] == probes["instruments_probed"]
+            probes["boundary_behaviour_correct"] == probes["instruments_probed"] and \
+            probes["coverage_point_in_time"] == probes["instruments_probed"]
     except LookAheadViolation as e:
         e_real, probes = False, {"violation": str(e)}
     e_ok = e_real and (tests is None or tests.get("exit") == 0)
     add("E", "Is future leakage impossible?", PASS if e_ok else FAIL,
         {"real_db_probes": probes, "tests": TESTS["E"]},
-        "every read requires as_of; rows with knowable_at >= as_of are never returned")
+        "every read requires as_of (coverage too); rows with knowable_at >= as_of are "
+        "never returned")
     # F
     fx = await _one(s, """select
         count(*) filter (where included and segment not in ('NSE_EQ','NSE_INDEX')),
@@ -217,7 +266,7 @@ async def evaluate(s: AsyncSession, tests: dict | None = None) -> dict[str, Any]
         {"real_noop_reruns": [str(r.run_id) for r in noop[-3:]], "tests": TESTS["K"]})
     # L
     add("L", "Can processing resume after failure?",
-        PASS if tests is None or tests.get("exit") == 0 else FAIL,
+        PENDING if tests is None else (PASS if tests.get("exit") == 0 else FAIL),
         {"tests": TESTS["L"], "failed_canon_runs": sum(r.status == "FAILED" for r in runs),
          "note": "rows and checkpoint commit in one transaction"})
     # M
@@ -233,18 +282,11 @@ async def evaluate(s: AsyncSession, tests: dict | None = None) -> dict[str, Any]
         PASS if not missing and (tests is None or tests.get("exit") == 0) else FAIL,
         {"missing_constraints": missing, "tests": TESTS["N"]})
     # O
-    try:
-        key = "NSE_EQ|INE002A01018"
-        ctx = await pit.context(s, key, now())
-        o_ok = bool(ctx["daily_bars"])
-        o_ev = {"probe": key, "daily_bars": len(ctx["daily_bars"]),
-                "corporate_actions": len(ctx["corporate_actions"]), "news": len(ctx["news"]),
-                "fundamentals": len(ctx["fundamentals"]), "sector": ctx["sector"]}
-    except Exception as e:                      # the probe itself must not fail
-        o_ok, o_ev = False, {"error": repr(e)[:300]}
+    o_ev = await _consumer_probes(s, seed=seed)
+    o_ok = o_ev["probed"] > 0 and o_ev["ok"] == o_ev["probed"]
     add("O", "Can Stage 3 consume the canonical data safely?", PASS if o_ok else FAIL,
         {**o_ev, "api": "app.canon.pit: bars, corporate_actions, news, fundamentals, sector, "
-                        "preopen, macro, global_bars, coverage, context"})
+                        "preopen, macro, global_bars, coverage(as_of), context"})
     # P
     add("P", "Are all existing Stage 1 tests still passing?",
         PASS if tests and tests.get("exit") == 0 else (PENDING if tests is None else FAIL),
@@ -273,8 +315,11 @@ def to_markdown(rep: dict, dependency: dict) -> str:
     L += ["", "## Known limitations", "",
           "- Market data is not copied. The canonical layer is views over the "
           "validated Stage 1 tables, plus two derived tables.",
-          "- Coverage is a meta view of what Stage 1 holds **now**. It is not "
-          "point-in-time data.",
+          "- `pit.coverage(key, tf, as_of)` is point-in-time. `pit.current_coverage` "
+          "(the materialized table) is what Stage 1 holds **now**, for live use and "
+          "operations only.",
+          "- `canon_instrument.sector` is the **current** sector. The historical "
+          "sector comes from `pit.sector(key, as_of)`.",
           "- A news-instrument association is knowable only when the vendor link was "
           "fetched (the Stage 1 contract), so historical news associations become "
           "visible from their fetch time.",

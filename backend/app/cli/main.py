@@ -1056,6 +1056,7 @@ def acceptance_stage2(
     run_tests: bool = typer.Option(False, "--run-tests", help="also run the full test suite"),
     out: str = typer.Option("var/acceptance/stage2.json", "--out"),
     md: str = typer.Option("../docs/STAGE_2_ACCEPTANCE.md", "--md", help="'' = do not write"),
+    seed: int = typer.Option(None, "--seed", help="reproduce the E/O samples of a report"),
 ):
     """Stage 2 gate: criteria A-P from the real database (+ the test suite)."""
     import json as _json
@@ -1070,7 +1071,7 @@ def acceptance_stage2(
 
     async def _go():
         async with get_sessionmaker()() as s:
-            rep = await S2.evaluate(s, tests)
+            rep = await S2.evaluate(s, tests, seed=seed)
             dep = dict((await s.execute(_t("""
                 select timeframe || ' ' || state, sum(sessions) from canon_coverage
                 where state = 'PENDING_BACKFILL' group by 1 order by 1"""))).all())

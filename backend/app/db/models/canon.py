@@ -44,7 +44,9 @@ class CanonInstrument(Base):
     included: Mapped[bool] = mapped_column(Boolean, nullable=False)
     filter_reason: Mapped[str] = mapped_column(Text, nullable=False)
     rules_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
-    # enrichment (current view; point-in-time reads go through canon.pit)
+    # enrichment: the CURRENT view (latest profile snapshot = today's sector).
+    # Never use these columns for a historical instant; that leaks a sector
+    # known only later. Historical sector: canon.pit.sector(key, as_of).
     sector: Mapped[str | None] = mapped_column(Text, nullable=True)
     sector_knowable_at: Mapped[_dt.datetime | None] = mapped_column(
         TIMESTAMP(timezone=True), nullable=True)

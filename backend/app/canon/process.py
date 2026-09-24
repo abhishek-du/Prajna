@@ -113,15 +113,25 @@ async def build_instruments(s: AsyncSession, run_id) -> tuple[list[dict], dict[i
 
 
 # ── 2. canon_coverage ──────────────────────────────────────────────────────
-async def _stage1_inputs(s: AsyncSession, tf: str, keys: set[str] | None):
+async def _stage1_inputs(s: AsyncSession, tf: str, keys: set[str] | None,
+                         as_of: _dt.datetime | None = None):
     """Bars per (key, session), quarantined per (key, session), windows per key,
-    checkpoint per key, for one timeframe (optionally only some keys)."""
+    checkpoint per key, for one timeframe (optionally only some keys).
+
+    as_of=None: everything Stage 1 holds now (the materialized canon_coverage).
+    as_of=T: only what was true strictly before T (pit.coverage): bars
+    knowable before T, quarantines and windows of runs finished before T, and
+    the checkpoint of the latest run finished before T."""
     kf = "" if keys is None else " and b.instrument_key = any(:keys)"
+    if as_of is not None:
+        kf += " and b.knowable_at < :as_of"
+    tq = "" if as_of is None else " and r.finished_at < :as_of"
+    tw = "" if as_of is None else " and finished_at < :as_of"
     bars: dict = collections.defaultdict(dict)
     for k, d, n in (await s.execute(text(
             f"select b.instrument_key, b.session_date, count(*) from ohlcv_bar b "  # noqa: S608
             f"where b.timeframe = :tf{kf} group by 1, 2"),
-            {"tf": tf, "keys": list(keys or [])})).all():
+            {"tf": tf, "keys": list(keys or []), "as_of": as_of})).all():
         bars[k][d] = n
     qf = "" if keys is None else " and a.detail->>'instrument_key' = any(:keys)"
     quar: dict = collections.defaultdict(lambda: collections.defaultdict(int))
@@ -129,8 +139,8 @@ async def _stage1_inputs(s: AsyncSession, tf: str, keys: set[str] | None):
             select a.detail->>'instrument_key', (a.detail->>'session_date')::date, count(*)
             from ingest_anomaly a join ingest_run r using (run_id)
             where a.kind = 'QUARANTINED' and r.mode = 'COMMIT' and r.status = 'COMPLETE'
-              and a.detail->>'timeframe' = :tf{qf} group by 1, 2"""),       # noqa: S608
-            {"tf": tf, "keys": list(keys or [])})).all():
+              and a.detail->>'timeframe' = :tf{qf}{tq} group by 1, 2"""),  # noqa: S608
+            {"tf": tf, "keys": list(keys or []), "as_of": as_of})).all():
         quar[k][d] += n
     sf = "" if keys is None else " and split_part(stream, '.', 3) = any(:keys)"
     wins: dict = collections.defaultdict(list)
@@ -138,8 +148,8 @@ async def _stage1_inputs(s: AsyncSession, tf: str, keys: set[str] | None):
             select stream, status, started_at, request_params from ingest_run
             where stream like :p and mode = 'COMMIT' and status in ('COMPLETE', 'FAILED',
                                                        'ABORTED')
-              and not request_params ? 'superseded'{sf}"""),                # noqa: S608
-            {"p": f"ohlcv.{tf}.%", "keys": list(keys or [])})).all():
+              and not request_params ? 'superseded'{sf}{tw}"""),           # noqa: S608
+            {"p": f"ohlcv.{tf}.%", "keys": list(keys or []), "as_of": as_of})).all():
         key = stream.split(".", 2)[2]
         w = rp.get("window")
         if w:
@@ -147,8 +157,27 @@ async def _stage1_inputs(s: AsyncSession, tf: str, keys: set[str] | None):
         else:                                           # intraday run: its own IST day
             f = t = started.astimezone(IST).date()
         wins[key].append(COV.Window(f, t, status, started))
-    cf = "" if keys is None else " and split_part(w.stream, '.', 3) = any(:keys)"
     cps = {}
+    if as_of is not None:
+        # the checkpoint as it stood at T: that of the latest run finished before
+        # T which recorded one (the watermark's run, or an earlier one)
+        cf = "" if keys is None else " and split_part(w.stream, '.', 3) = any(:keys)"
+        for stream, through, cfrom in (await s.execute(text(f"""
+                select distinct on (w.stream) w.stream,
+                       (r.request_params->'outcome'->'checkpoint'->>'through')::date,
+                       (r.request_params->'outcome'->'checkpoint'->>'covered_from')::date
+                from ingest_watermark w join ingest_run r
+                  on (r.stream = w.stream or r.run_id = w.last_run_id)
+                where w.source = 'UPSTOX_REST_V3' and w.stream like :p
+                  and r.mode = 'COMMIT' and r.status = 'COMPLETE' and r.finished_at < :as_of
+                  and r.request_params->'outcome'->'checkpoint'->>'through' is not null
+                  and r.request_params->'outcome'->'checkpoint'->>'covered_from' is not null
+                  {cf}
+                order by w.stream, r.finished_at desc"""),                   # noqa: S608
+                {"p": f"ohlcv.{tf}.%", "keys": list(keys or []), "as_of": as_of})).all():
+            cps[stream.split(".", 2)[2]] = (cfrom, through)
+        return bars, quar, wins, cps
+    cf = "" if keys is None else " and split_part(w.stream, '.', 3) = any(:keys)"
     for stream, through, cfrom in (await s.execute(text(f"""
             select w.stream, w.last_logical_date,
                    (r.request_params->'outcome'->'checkpoint'->>'covered_from')::date

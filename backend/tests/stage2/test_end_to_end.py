@@ -56,8 +56,10 @@ async def test_stage1_ingest_is_processed_and_served_point_in_time(db_session, t
         assert p2.instruments["updated"] == 0 and p2.instruments["inserted"] == 0
         # the calendar covers September only: coverage names those sessions, and
         # the quality gate reports the rest of the depth instead of passing silently
-        assert {r["state"] for r in await pit.coverage(s, SME, "1d")} <= {
+        assert {r["state"] for r in await pit.current_coverage(s, SME, "1d")} <= {
             "DATA", "EMPTY", "PENDING_BACKFILL"}
+        assert {r["state"] for r in await pit.coverage(s, SME, "1d", AFTER_CLOSE)} <= {
+            "EMPTY", "PENDING_BACKFILL"}                  # the bars were not knowable yet
         from app.canon.quality import run_gates
         gates = {g["gate"]: g for g in (await run_gates(s))["gates"]}
         assert gates["calendar_gaps_in_depth"]["status"] == "FAIL"
