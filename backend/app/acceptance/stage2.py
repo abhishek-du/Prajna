@@ -7,6 +7,7 @@ Stage 1 update). Overall PASS needs every criterion PASS.
 
 from __future__ import annotations
 
+import datetime as _dt
 import json
 import random
 import subprocess
@@ -49,7 +50,7 @@ async def _all(s, sql, **kw):
 
 def run_tests() -> dict[str, Any]:
     """The full suite (Stage 1 + Stage 2): P, and test evidence for E/K/L/M/N."""
-    p = subprocess.run([sys.executable, "-m", "pytest", "-p", "no:randomly", "-q"],
+    p = subprocess.run([sys.executable, "-m", "pytest", "-p", "no:randomly"],
                        capture_output=True, text=True, timeout=3600)
     tail = [ln for ln in p.stdout.splitlines() if " passed" in ln or " failed" in ln]
     return {"exit": p.returncode, "summary": tail[-1] if tail else p.stdout[-300:]}
@@ -67,14 +68,18 @@ async def _pit_probes(s: AsyncSession, n: int = 40) -> dict[str, Any]:
                               and timeframe='1d' order by knowable_at""", k=key)
         if not ks:
             continue
-        as_of = ks[rnd.randrange(len(ks))][0]
-        got = await pit.bars(s, key, "1d", as_of)          # asserts every row itself
-        rows += len(got)
+        k = ks[rnd.randrange(len(ks))][0]
+        at_k = await pit.bars(s, key, "1d", k)              # asserts every row itself
+        after = await pit.bars(s, key, "1d", k + _dt.timedelta(microseconds=1))
         checked += 1
-        if all(r["knowable_at"] < as_of for r in got):
+        rows += len(after)
+        # AT k: nothing knowable at or after k; 1 us later: the rows knowable at k
+        # appear, and every returned row is strictly earlier than as_of
+        if all(r["knowable_at"] < k for r in at_k) and after and \
+                all(r["knowable_at"] <= k for r in after) and len(after) > len(at_k):
             boundary_excluded += 1
-    return {"instruments_probed": checked, "rows_returned": rows,
-            "boundary_row_excluded": boundary_excluded}
+    return {"instruments_probed": checked, "rows_returned_after_boundary": rows,
+            "boundary_behaviour_correct": boundary_excluded}
 
 
 async def evaluate(s: AsyncSession, tests: dict | None = None) -> dict[str, Any]:
@@ -148,7 +153,7 @@ async def evaluate(s: AsyncSession, tests: dict | None = None) -> dict[str, Any]
     try:
         probes = await _pit_probes(s)
         e_real = probes["instruments_probed"] > 0 and \
-            probes["boundary_row_excluded"] == probes["instruments_probed"]
+            probes["boundary_behaviour_correct"] == probes["instruments_probed"]
     except LookAheadViolation as e:
         e_real, probes = False, {"violation": str(e)}
     e_ok = e_real and (tests is None or tests.get("exit") == 0)
