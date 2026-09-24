@@ -50,6 +50,11 @@ class UpstoxCalendarClient:
     async def holidays(self) -> Fetched:
         return await self._get(HOLIDAYS_PATH)
 
+    async def holiday_on(self, day: _dt.date) -> Fetched:
+        """The holiday entry for ONE date (measured 2026-09-24: works for past
+        years, e.g. 2024-01-26 Republic Day; an ordinary day returns [])."""
+        return await self._get(f"{HOLIDAYS_PATH}/{day.isoformat()}")
+
     async def timings(self, day: _dt.date) -> Fetched:
         return await self._get(TIMINGS_PATH.format(date=day.isoformat()))
 

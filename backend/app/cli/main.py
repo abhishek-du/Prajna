@@ -221,7 +221,7 @@ def ingest_calendar_cmd(
                     date_to=_dt.date.fromisoformat(date_to),
                     holidays=client.holidays, timings=client.timings,
                     store=PayloadStore(get_settings().archive_dir),
-                    commit=commit, token=token,
+                    commit=commit, token=token, holiday_on=client.holiday_on,
                 )
         finally:
             await client.aclose()

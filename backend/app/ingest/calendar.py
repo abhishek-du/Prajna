@@ -53,6 +53,7 @@ MAX_DAYS = 400
 
 HolidaysFn = Callable[[], Awaitable[Fetched]]
 TimingsFn = Callable[[_dt.date], Awaitable[Fetched]]
+HolidayOnFn = Callable[[_dt.date], Awaitable[Fetched]]
 
 _COMPARE = ("is_trading_day", "session_type", "preopen_start_ist", "preopen_end_ist",
             "open_ist", "close_ist")
@@ -105,7 +106,13 @@ async def ingest_calendar(
     commit: bool,
     token: str | None,
     operator: str = "cli",
+    holiday_on: HolidayOnFn | None = None,
 ) -> CalendarReport:
+    """`holiday_on` (optional) answers for ONE date. The plain holidays list
+    covers only the current year, so for a PAST weekday with no NSE timings
+    the decision would be refused ("not covered"). With holiday_on, that one
+    date is asked directly, the answer archived, and the date decided on that
+    per-date list alone (it covers exactly that date)."""
     if date_to < date_from:
         raise ValueError("date_to is before date_from")
     ndays = (date_to - date_from).days + 1
@@ -159,6 +166,29 @@ async def ingest_calendar(
                            error=str(e))
                 continue
             res = decide(day, hol, nse, holidays_cover=cover)
+            if (res.decision is None and holiday_on is not None and nse is None
+                    and day.weekday() < 5 and not (cover and cover[0] <= day <= cover[1])):
+                of = await holiday_on(day)
+                ostored = archive(of)
+                if commit:
+                    await runner.record_payload(ostored, http_status=of.http_status,
+                                                vendor_endpoint=of.url)
+                try:
+                    one, oissues = parse_holidays(of.data)
+                except CalendarDecodeError as e:
+                    checks.add(AnomalySeverity.FAIL, AnomalyKind.PARSE_REJECT,
+                               f"holidays[{day}]", error=str(e))
+                    continue
+                for i in oissues:
+                    checks.add(i.severity, i.kind, i.subject, **i.detail)
+                if set(one) - {day}:
+                    checks.add(AnomalySeverity.FAIL, AnomalyKind.SCHEMA_DRIFT,
+                               f"holidays[{day}]", reason="per-date answer names other dates",
+                               dates=sorted(str(d) for d in set(one) - {day}))
+                    continue
+                res = decide(day, one, nse, holidays_cover=(day, day))
+                if res.decision is not None:
+                    res.decision.note["holiday_on_payload_sha256"] = ostored.sha256
             for i in res.issues:
                 checks.add(i.severity, i.kind, i.subject, **i.detail)
             if res.decision is None:

@@ -104,3 +104,52 @@ async def test_special_sessions_carry_vendor_hours(db_session, tmp_path):
     assert m.preopen_start_ist is None
     assert rows[D(2026, 11, 10)].session_type == "HOLIDAY"
     assert rows[D(2026, 11, 9)].session_type == "NORMAL"
+
+
+class _PastCalendar(FakeCalendar):
+    """A 2024 week: real shifted timings on trading days, empty on the holiday
+    and the weekend; the per-date holiday answers are the REAL recorded ones."""
+
+    def __init__(self, closed_days, per_date):
+        super().__init__()
+        self.past_closed = set(closed_days)
+        self.per_date = per_date
+
+    async def timings(self, day):
+        from app.core.clock import now
+        from app.sources.upstox_calendar import API, TIMINGS_PATH, Fetched
+        from tests.support.upstox_calendar import timings_for
+        data = EMPTY if (day in self.past_closed or day.weekday() >= 5) else timings_for(day)
+        return Fetched(API + TIMINGS_PATH.format(date=day), data, now(), 200)
+
+    async def holiday_on(self, day):
+        from app.core.clock import now
+        from app.sources.upstox_calendar import API, HOLIDAYS_PATH, Fetched
+        from tests.support.upstox_calendar import real
+        self.calls.append(f"holiday_on:{day}")
+        return Fetched(f"{API}{HOLIDAYS_PATH}/{day}", real(self.per_date[day]), now(), 200)
+
+
+async def test_past_holiday_is_decided_from_the_per_date_answer(db_session, tmp_path):
+    cal = _PastCalendar({D(2024, 1, 26)}, {D(2024, 1, 26): "holidays_on_2024-01-26.json"})
+    rep = await ingest_calendar(db_session, date_from=D(2024, 1, 25), date_to=D(2024, 1, 29),
+                                holidays=cal.holidays, timings=cal.timings,
+                                store=PayloadStore(tmp_path), commit=True, token=TOKEN,
+                                holiday_on=cal.holiday_on)
+    assert rep.status == "COMPLETE", rep.anomalies
+    rows = await _rows(db_session)
+    assert rows[D(2024, 1, 26)].session_type == "HOLIDAY"
+    assert [rows[D(2024, 1, d)].session_type for d in (25, 27, 28, 29)] == \
+        ["NORMAL", "WEEKEND", "WEEKEND", "NORMAL"]
+    assert cal.calls.count("holiday_on:2024-01-26") == 1          # asked only where needed
+    assert not [c for c in cal.calls if c.startswith("holiday_on:") and "26" not in c]
+
+
+async def test_past_weekday_without_timings_or_holiday_is_refused(db_session, tmp_path):
+    cal = _PastCalendar({D(2024, 1, 25)}, {D(2024, 1, 25): "holidays_on_ordinary_day.json"})
+    rep = await ingest_calendar(db_session, date_from=D(2024, 1, 25), date_to=D(2024, 1, 25),
+                                holidays=cal.holidays, timings=cal.timings,
+                                store=PayloadStore(tmp_path), commit=True, token=TOKEN,
+                                holiday_on=cal.holiday_on)
+    assert rep.status == "FAILED"                  # never guessed as a holiday
+    assert not await _rows(db_session)
