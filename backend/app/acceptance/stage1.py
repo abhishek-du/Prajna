@@ -189,12 +189,24 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
     cal = await _one(s, """select count(*), min(session_date), max(session_date),
         count(*) filter (where is_trading_day) from trading_session""")
     span = (cal[2] - cal[1]).days + 1 if cal[1] else 0
+    # Cross-source check: a past session exists iff NIFTY 50 has a daily bar.
+    xs = await _one(s, """select
+        count(*) filter (where t.is_trading_day and b.session_date is null),
+        count(*) filter (where not t.is_trading_day and b.session_date is not null)
+        from trading_session t left join ohlcv_bar b on b.session_date = t.session_date
+          and b.instrument_key = 'NSE_INDEX|Nifty 50' and b.timeframe = '1d'
+        where t.session_date < :last and t.session_date >= (select min(session_date)
+          from ohlcv_bar where instrument_key='NSE_INDEX|Nifty 50' and timeframe='1d')""",
+                    last=last)
     e_ok = cal[1] is not None and cal[1] <= _dt.date(2020, 1, 1) and cal[0] == span \
-        and cal[2] >= today + _dt.timedelta(days=30)
-    out.append(Criterion("E", "Trading calendar", PASS if e_ok else FAIL, {},
+        and cal[2] >= today + _dt.timedelta(days=30) and xs[0] == 0 and xs[1] == 0
+    out.append(Criterion("E", "Trading calendar", PASS if e_ok else FAIL,
+                         {"trading_day_without_nifty_bar": xs[0],
+                          "non_trading_day_with_nifty_bar": xs[1]},
                          {"rows": cal[0], "from": str(cal[1]), "to": str(cal[2]),
                           "contiguous": cal[0] == span, "trading_days": cal[3]},
-                         "required: every date 2020-01-01 .. today+30"))
+                         "required: every date 2020-01-01 .. today+30, and agreement with "
+                         "the NIFTY 50 daily bars for past dates"))
 
     # F-J. candle depth per timeframe (D1)
     six_months = today - _dt.timedelta(days=183)

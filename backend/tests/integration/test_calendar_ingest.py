@@ -153,3 +153,61 @@ async def test_past_weekday_without_timings_or_holiday_is_refused(db_session, tm
                                 holiday_on=cal.holiday_on)
     assert rep.status == "FAILED"                  # never guessed as a holiday
     assert not await _rows(db_session)
+
+
+class _GenericPast(_PastCalendar):
+    """Past dates as Upstox really answers them (measured 2026-09-24): the
+    timings endpoint gives the generic open schedule on EVERY weekday,
+    holidays included."""
+
+    async def timings(self, day):
+        from app.core.clock import now
+        from app.sources.upstox_calendar import API, TIMINGS_PATH, Fetched
+        from tests.support.upstox_calendar import timings_for
+        data = EMPTY if day.weekday() >= 5 else timings_for(day)
+        return Fetched(API + TIMINGS_PATH.format(date=day), data, now(), 200)
+
+
+async def _past(s, tmp_path, cal, bars, frm, to):
+    return await ingest_calendar(s, date_from=frm, date_to=to, holidays=cal.holidays,
+                                 timings=cal.timings, store=PayloadStore(tmp_path),
+                                 commit=True, token=TOKEN, holiday_on=cal.holiday_on,
+                                 past_before=D(2026, 9, 24), index_bar_dates=bars)
+
+
+async def test_past_holiday_with_generic_open_timings_is_a_holiday(db_session, tmp_path):
+    """The 2020-2022 defect: timings said open on Republic Day. With the index
+    bars as evidence the holiday is a HOLIDAY."""
+    cal = _GenericPast(set(), {D(2024, 1, 26): "holidays_on_2024-01-26.json"})
+    bars = {D(2024, 1, 25), D(2024, 1, 29)}
+    rep = await _past(db_session, tmp_path, cal, bars, D(2024, 1, 25), D(2024, 1, 29))
+    assert rep.status == "COMPLETE", rep.anomalies
+    rows = await _rows(db_session)
+    assert [rows[D(2024, 1, d)].session_type for d in (25, 26, 27, 28, 29)] == \
+        ["NORMAL", "HOLIDAY", "WEEKEND", "WEEKEND", "NORMAL"]
+    assert rows[D(2024, 1, 25)].open_ist == _dt.time(9, 15)
+    assert "index_bar" in json.loads(rows[D(2024, 1, 26)].note)
+    assert [c for c in cal.calls if c.startswith("holiday_on")] == ["holiday_on:2024-01-26"]
+
+
+async def test_past_weekday_without_bar_or_holiday_is_refused(db_session, tmp_path):
+    cal = _GenericPast(set(), {D(2024, 1, 25): "holidays_on_ordinary_day.json"})
+    rep = await _past(db_session, tmp_path, cal, {D(2024, 1, 24)}, D(2024, 1, 25),
+                      D(2024, 1, 25))
+    assert rep.status == "FAILED" and not await _rows(db_session)
+
+
+async def test_past_weekend_with_a_bar_is_a_special_session(db_session, tmp_path):
+    cal = _GenericPast(set(), {D(2024, 1, 27): "holidays_on_ordinary_day.json"})
+    rep = await _past(db_session, tmp_path, cal, {D(2024, 1, 27)}, D(2024, 1, 27),
+                      D(2024, 1, 27))
+    assert rep.status == "COMPLETE", rep.anomalies
+    r = (await _rows(db_session))[D(2024, 1, 27)]
+    assert (r.is_trading_day, r.session_type, r.open_ist) == (True, "SPECIAL", None)
+
+
+async def test_past_date_before_the_index_history_is_refused(db_session, tmp_path):
+    cal = _GenericPast(set(), {})
+    rep = await _past(db_session, tmp_path, cal, {D(2024, 1, 29)}, D(2024, 1, 25),
+                      D(2024, 1, 25))
+    assert rep.status == "FAILED"

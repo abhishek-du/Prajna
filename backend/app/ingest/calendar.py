@@ -41,6 +41,7 @@ from app.parsers.upstox_calendar import (
     CalendarDecodeError,
     SessionDecision,
     decide,
+    decide_historical,
     parse_holidays,
     parse_timings,
 )
@@ -107,12 +108,22 @@ async def ingest_calendar(
     token: str | None,
     operator: str = "cli",
     holiday_on: HolidayOnFn | None = None,
+    past_before: _dt.date | None = None,
+    index_bar_dates: set[_dt.date] | None = None,
 ) -> CalendarReport:
     """`holiday_on` (optional) answers for ONE date. The plain holidays list
     covers only the current year, so for a PAST weekday with no NSE timings
     the decision would be refused ("not covered"). With holiday_on, that one
     date is asked directly, the answer archived, and the date decided on that
-    per-date list alone (it covers exactly that date)."""
+    per-date list alone (it covers exactly that date).
+
+    PAST DATES (day < past_before) are decided by decide_historical: the
+    timings endpoint is a generic schedule for past dates (measured), so a
+    session exists iff NIFTY 50 has a daily bar (`index_bar_dates`, from
+    ohlcv_bar), and a weekday without one must be a holiday per the per-date
+    holiday answer, or the day is refused."""
+    if past_before is not None and (index_bar_dates is None or holiday_on is None):
+        raise ValueError("past dates need index_bar_dates and holiday_on")
     if date_to < date_from:
         raise ValueError("date_to is before date_from")
     ndays = (date_to - date_from).days + 1
@@ -165,8 +176,39 @@ async def ingest_calendar(
                 checks.add(AnomalySeverity.FAIL, AnomalyKind.PARSE_REJECT, f"timings[{day}]",
                            error=str(e))
                 continue
-            res = decide(day, hol, nse, holidays_cover=cover)
+            if past_before is not None and day < past_before:
+                if not index_bar_dates or day < min(index_bar_dates):
+                    checks.add(AnomalySeverity.FAIL, AnomalyKind.COVERAGE_DROP,
+                               f"trading_session[{day}]",
+                               reason="past date before the NIFTY 50 daily history: no "
+                                      "session evidence")
+                    continue
+                bar = day in index_bar_dates
+                entry, asked = None, False
+                if (not bar and day.weekday() < 5) or (bar and day.weekday() >= 5):
+                    of = await holiday_on(day)
+                    ostored = archive(of)
+                    asked = True
+                    if commit:
+                        await runner.record_payload(ostored, http_status=of.http_status,
+                                                    vendor_endpoint=of.url)
+                    try:
+                        one, oissues = parse_holidays(of.data)
+                    except CalendarDecodeError as e:
+                        checks.add(AnomalySeverity.FAIL, AnomalyKind.PARSE_REJECT,
+                                   f"holidays[{day}]", error=str(e))
+                        continue
+                    for i in oissues:
+                        checks.add(i.severity, i.kind, i.subject, **i.detail)
+                    entry = (one.get(day) or [None])[0]
+                res = decide_historical(day, index_bar=bar, holiday=entry,
+                                        holiday_asked=asked, nse=nse)
+                if res.decision is not None and asked:
+                    res.decision.note["holiday_on_payload_sha256"] = ostored.sha256
+            else:
+                res = decide(day, hol, nse, holidays_cover=cover)
             if (res.decision is None and holiday_on is not None and nse is None
+                    and not (past_before is not None and day < past_before)
                     and day.weekday() < 5 and not (cover and cover[0] <= day <= cover[1])):
                 of = await holiday_on(day)
                 ostored = archive(of)

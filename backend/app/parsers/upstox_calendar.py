@@ -218,3 +218,58 @@ def decide(
     note["hours_basis"] = "upstox /v2/market/timings NSE"
     res.decision = SessionDecision(day, True, stype, open_t, close_t, pre[0], pre[1], note)
     return res
+
+
+# ── past dates ──────────────────────────────────────────────────────────────
+# MEASURED 2026-09-24: for PAST dates /v2/market/timings/{date} answers the
+# generic weekday schedule even on holidays (2020-10-02 Gandhi Jayanti,
+# 2021-01-26, 2022-08-15 all show NSE 09:15-15:30). It is no evidence that a
+# past session happened. For past dates the evidence is Upstox's own NIFTY 50
+# daily candle: an index bar exists exactly on the days NSE traded.
+HISTORICAL_EVIDENCE_BASIS = ("past date: session existence from the Upstox NIFTY 50 daily "
+                             "bar; /v2/market/timings is a generic schedule for past dates")
+
+
+def decide_historical(day: _dt.date, *, index_bar: bool,
+                      holiday: HolidayEntry | None, holiday_asked: bool,
+                      nse: Hours | None) -> DecisionResult:
+    """One PAST date. `index_bar`: NIFTY 50 has a daily bar on `day`.
+    `holiday`: the per-date holiday entry (if asked and present)."""
+    res = DecisionResult()
+    weekend = day.weekday() >= 5
+    note: dict[str, Any] = {"weekday": day.strftime("%a"), "evidence": HISTORICAL_EVIDENCE_BASIS,
+                            "index_bar": index_bar}
+    if holiday:
+        note.update(holiday_type=holiday.holiday_type, description=holiday.description)
+    if index_bar:
+        if weekend or (holiday and holiday.nse_closed):
+            # e.g. a Muhurat or Budget-day session: the hours of that session
+            # are not known from a generic schedule.
+            note["hours_basis"] = "UNKNOWN: special session; timings is generic for past dates"
+            note["preopen_basis"] = "UNKNOWN: special session"
+            res.decision = SessionDecision(day, True, SessionType.SPECIAL, None, None, None,
+                                           None, note)
+            res.issues.append(Issue(AnomalySeverity.WARN, AnomalyKind.PARSE_REJECT,
+                                    f"trading_session[{day}]",
+                                    {"reason": "session on a weekend/holiday (index bar exists)"}))
+            return res
+        if nse is None:
+            return res.fail(day, "index bar exists but timings gives no NSE hours")
+        open_t, close_t = nse.ist_times()
+        pre = NSE_REGULAR_PREOPEN if open_t == NSE_REGULAR_OPEN else (None, None)
+        note["hours_basis"] = "upstox /v2/market/timings NSE (generic schedule for past dates)"
+        note["preopen_basis"] = PREOPEN_DERIVED_BASIS if pre[0] else "UNKNOWN"
+        res.decision = SessionDecision(day, True, SessionType.NORMAL, open_t, close_t,
+                                       pre[0], pre[1], note)
+        return res
+    if weekend:
+        res.decision = SessionDecision(day, False, SessionType.WEEKEND, None, None, None,
+                                       None, note)
+        return res
+    if holiday and holiday.holiday_type == TRADING_HOLIDAY and holiday.nse_closed:
+        res.decision = SessionDecision(day, False, SessionType.HOLIDAY, None, None, None,
+                                       None, note)
+        return res
+    return res.fail(day, "weekday without an index bar and without an NSE holiday entry",
+                    holiday_asked=holiday_asked,
+                    holiday_type=holiday.holiday_type if holiday else None)

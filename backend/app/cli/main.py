@@ -213,15 +213,24 @@ def ingest_calendar_cmd(
         raise typer.Exit(3)
 
     async def _go():
+        from sqlalchemy import text as _text
+
+        from app.core.clock import now_ist
         client = UpstoxCalendarClient(rec.access_token)
         try:
             async with get_sessionmaker()() as s:
+                # Past dates: session evidence = the NIFTY 50 daily bars already
+                # stored (timings is a generic schedule for past dates).
+                bars = set((await s.execute(_text(
+                    "select session_date from ohlcv_bar where timeframe='1d' "
+                    "and instrument_key='NSE_INDEX|Nifty 50'"))).scalars())
                 return await ingest_calendar(
                     s, date_from=_dt.date.fromisoformat(date_from),
                     date_to=_dt.date.fromisoformat(date_to),
                     holidays=client.holidays, timings=client.timings,
                     store=PayloadStore(get_settings().archive_dir),
                     commit=commit, token=token, holiday_on=client.holiday_on,
+                    past_before=now_ist().date(), index_bar_dates=bars,
                 )
         finally:
             await client.aclose()

@@ -41,8 +41,12 @@ class TradingSession(Base, ProvenanceMixin):
             "session_type in ('NORMAL','MUHURAT','SPECIAL','HOLIDAY','WEEKEND')",
             name="ck_session_type",
         ),
+        # A trading day has hours, except a PAST special session (Budget
+        # Saturday, Muhurat, DR drill) whose hours Upstox does not give for past
+        # dates: NULL = unknown, with the reason in `note` (never invented).
         CheckConstraint(
-            "not is_trading_day or (open_ist is not null and close_ist is not null)",
+            "not is_trading_day or session_type = 'SPECIAL' "
+            "or (open_ist is not null and close_ist is not null)",
             name="ck_session_trading_has_hours",
         ),
         CheckConstraint("knowable_at <= fetched_at", name="ck_trading_session_knowable"),
