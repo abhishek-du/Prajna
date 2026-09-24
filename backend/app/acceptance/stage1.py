@@ -433,8 +433,16 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
         "corporate_announced_after_fetch": (await _one(s, """select count(*) from corporate_action
             where announcement_date > (fetched_at at time zone 'Asia/Kolkata')::date"""))[0],
     }
-    out.append(Criterion("X", "No look-ahead", PASS if not any(la.values()) else FAIL,
-                         {"violations": la}))
+    # B1/B2 (timing contracts): measured by ops/measure/analyze_timing.py from the
+    # archived poller responses; VERIFIED needs >= 3 agreeing sessions.
+    bp = pathlib.Path("var/acceptance/b1b2.json")
+    b1b2 = json.loads(bp.read_text()) if bp.exists() else {}  # noqa: ASYNC240
+    timing = {k: {"status": b1b2.get(k, {}).get("status", "UNMEASURED"),
+                  "sessions_agreeing": b1b2.get(k, {}).get("sessions_agreeing", [])}
+              for k in ("B1", "B2")}
+    x_ok = not any(la.values()) and all(v["status"] == "VERIFIED" for v in timing.values())
+    out.append(Criterion("X", "No look-ahead (incl. B1/B2 verified over >= 3 sessions)",
+                         PASS if x_ok else FAIL, {"violations": la, "timing": timing}))
 
     # Y. survivorship
     y_status = PASS if DECISIONS["SURV"]["status"] == "APPROVED" else BLOCKED
