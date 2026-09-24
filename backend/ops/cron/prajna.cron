@@ -2,20 +2,21 @@
 # Install:  crontab ops/cron/prajna.cron      Inspect:  crontab -l
 # Logins: one automated Upstox TOTP login per day is permitted by the user
 # (2026-09-24, until revoked); --login logs in only if the token is invalid.
-# Jobs that hit the candles API share one lock so they never split its quota.
+# QUOTA IS PER USER: every job sets PRAJNA_UPSTOX_RATE_FRACTION so concurrent jobs sum <= 0.9
+# (candles jobs share one flock; fundamentals/corporate-actions run beside them).
 SHELL=/bin/bash
 B=/home/cis/windows/prajna/backend
 LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 # 07:00 Mon-Fri  previous session: 1D (all NSE), FII/DII, news
-0 7 * * 1-5   cd $B && flock -w 3600 $LK ops/runbooks/daily.sh --login morning >> var/logs/cron.log 2>&1
+0 7 * * 1-5   cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.5 flock -w 3600 $LK ops/runbooks/daily.sh --login morning >> var/logs/cron.log 2>&1
 # 08:25 Mon-Fri  real pre-open: universe, capture 08:55-09:20, replay, acceptance (skips non-trading days)
 25 8 * * 1-5  cd $B && ops/runbooks/preopen_day.sh --login >> var/logs/cron.log 2>&1
 # 16:05 Mon-Fri  today's 1m/15m/1h (complete bars only), news
-5 16 * * 1-5  cd $B && flock -w 3600 $LK ops/runbooks/daily.sh --login close >> var/logs/cron.log 2>&1
+5 16 * * 1-5  cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.35 flock -w 3600 $LK ops/runbooks/daily.sh --login close >> var/logs/cron.log 2>&1
 # 19:45 daily   intraday history backfill to the approved depth, until 06:50
-45 19 * * *   cd $B && flock -w 7200 $LK ops/runbooks/backfill.sh --login --until 06:50 >> var/logs/cron.log 2>&1
+45 19 * * *   cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.5 flock -w 7200 $LK ops/runbooks/backfill.sh --login --until 06:50 >> var/logs/cron.log 2>&1
 # weekends 09:00 more backfill until 19:30
-0 9 * * 0,6   cd $B && flock -w 600 $LK ops/runbooks/backfill.sh --login --until 19:30 >> var/logs/cron.log 2>&1
+0 9 * * 0,6   cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.5 flock -w 600 $LK ops/runbooks/backfill.sh --login --until 19:30 >> var/logs/cron.log 2>&1
 # Saturday 10:00  corporate actions; 1st of month 11:00 calendar +60d and fundamentals
-0 10 * * 6    cd $B && ops/runbooks/daily.sh --login weekly >> var/logs/cron.log 2>&1
-0 11 1 * *    cd $B && ops/runbooks/daily.sh --login monthly >> var/logs/cron.log 2>&1
+0 10 * * 6    cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.3 ops/runbooks/daily.sh --login weekly >> var/logs/cron.log 2>&1
+0 11 1 * *    cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.3 ops/runbooks/daily.sh --login monthly >> var/logs/cron.log 2>&1
