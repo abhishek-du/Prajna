@@ -1,0 +1,1 @@
+{"status":"error","errors":[{"errorCode":"UDAPI100011","message":"Invalid Instrument key","propertyPath":"getCompetitors.instrumentKey","invalidValue":"INE002A01018","error_code":"UDAPI100011","property_path":"getCompetitors.instrumentKey","invalid_value":"INE002A01018"}]}

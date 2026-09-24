@@ -1,0 +1,62 @@
+[
+ {
+  "file": "RELIANCE_profile.json",
+  "sha256": "eab9a2c707c02b12dc27053ce4489f6e995e2f74eff66b77b9cf23c9f4af9ba8"
+ },
+ {
+  "file": "RELIANCE_balance_sheet_consolidated_nofs.json",
+  "sha256": "9eddd2ce5c278d776b12075c0c543f43123c2a48b99fdbc0fe41cabfe262c442"
+ },
+ {
+  "file": "RELIANCE_cash_flow_consolidated_nofs.json",
+  "sha256": "7e946f57a5dd90d690623080fec49b3520a2f2362cb0970d67e94373c3d7da73"
+ },
+ {
+  "file": "RELIANCE_income_consolidated_yearly_nofs.json",
+  "sha256": "59b5d2a7e8ee5df7a15a9f0f2955178b40dde4c0cb6ec0d892974fcb796f8d31"
+ },
+ {
+  "file": "RELIANCE_share_holdings.json",
+  "sha256": "0fefa5e99f317a1fdd981f3908811c50ca01547989ce2256746186b8b37ba2e0"
+ },
+ {
+  "file": "RELIANCE_key_ratios.json",
+  "sha256": "2a777858ff12959b7c914707304268303c32b93780760e49d00dab17242c1cf3"
+ },
+ {
+  "file": "RELIANCE_income_consolidated_quarterly.json",
+  "sha256": "d5782b0c1f24a46268d114b79aef4b24392590f15a9760d07997b03341711bc8"
+ },
+ {
+  "file": "RELIANCE_income_standalone_yearly.json",
+  "sha256": "1edde02465dc5b7eca05cba05f5e3c42db68013b88c1d04f8f12dab059d7036c"
+ },
+ {
+  "file": "RELIANCE_balance_sheet_consolidated.json",
+  "sha256": "f74ae26246a8a7bedfa599bdad7a0bcd056eaf8743615f6c887481d6fdbb47b6"
+ },
+ {
+  "file": "RELIANCE_cash_flow_standalone.json",
+  "sha256": "0a82ccccebe200385702613d132efa3b07f1217e23ad6b4d90c36f45f240566e"
+ },
+ {
+  "file": "SME_key_ratios.json",
+  "sha256": "4e2f7315a2d76d9b559ce0a4911a34c77a1dc29758ee535a30e5221598569a9d"
+ },
+ {
+  "file": "INVIT_profile.json",
+  "sha256": "ea194c39c3239e4aa981648f21ded1e76ffd016f1e0b2ac0f6595832b1e88747"
+ },
+ {
+  "file": "INVIT_balance_sheet_standalone.json",
+  "sha256": "b2d9c59d719c44f1c27c4bc90be2309124c44fde07233452b235bca9ab9fa959"
+ },
+ {
+  "file": "RELIANCE_competitors_by_isin_400.json",
+  "sha256": "a3bbec940cb2287acaaf5f427e9c8f8ed003c7ee5055ae64b562465b53f7fe9b"
+ },
+ {
+  "file": "RELIANCE_competitors.json",
+  "sha256": "6cc460914a92a60653b95e2c6f32d814a9f6234cd86f5f3d5bd09e9fc334714e"
+ }
+]

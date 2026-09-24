@@ -465,6 +465,111 @@ def ingest_news(
     raise typer.Exit(0 if not out["problems"] else 1)
 
 
+@ingest_app.command("corporate-actions")
+def ingest_corporate_actions(
+    isin: list[str] = typer.Option(None, "--isin", help="repeatable ISIN; "
+                                   "default: every current NSE_EQ instrument"),
+    commit: bool = typer.Option(False, "--commit", help="write to the database"),
+    token: str = typer.Option(None, "--token", help="write authorization token"),
+):
+    """Ingest Upstox corporate actions (/v2/fundamentals/{ISIN}/corporate-actions).
+
+    Dividends, bonus, splits, rights: what Upstox serves (about one year back).
+    Announcement is a DATE (no time is invented); knowable_at = fetched_at.
+    """
+    import json as _json
+
+    from sqlalchemy import literal_column, select
+
+    from app.db.engine import get_sessionmaker
+    from app.db.models import Instrument
+    from app.ingest.corporate_actions import CorporateActionIngestor
+    from app.storage.payload_store import PayloadStore
+    from app.vendor.upstox.auth import load_cached
+    from app.vendor.upstox.rest import UpstoxRestClient
+
+    log = get_logger("cli")
+    rec = load_cached()
+    if rec is None:
+        log.error("upstox_token_missing", blocker="B0", action="run `prajna upstox login`")
+        raise typer.Exit(3)
+
+    async def _go():
+        rest = UpstoxRestClient(rec.access_token)
+        try:
+            async with get_sessionmaker()() as s:
+                isins = list(isin or [])
+                if not isins:
+                    isins = [x for x in (await s.execute(select(Instrument.isin).where(
+                        Instrument.valid_to == literal_column("'infinity'::date"),
+                        Instrument.segment == "NSE_EQ"))).scalars() if x]
+                ing = CorporateActionIngestor(s, rest, PayloadStore(get_settings().archive_dir),
+                                              commit=commit, token=token)
+                return await ing.run(isins)
+        finally:
+            await rest.aclose()
+
+    rep = asyncio.run(_go())
+    out = rep.summary()
+    out["problems"] = [{"isins": f"{r.isins[0]}..({len(r.isins)})", "status": r.status,
+                        "error": r.error} for r in rep.results if r.status != "COMPLETE"][:50]
+    typer.echo(_json.dumps(out, indent=2, default=str))
+    raise typer.Exit(0 if not out["problems"] else 1)
+
+
+@ingest_app.command("fundamentals")
+def ingest_fundamentals(
+    isin: list[str] = typer.Option(None, "--isin", help="repeatable ISIN; "
+                                   "default: every current NSE_EQ instrument"),
+    commit: bool = typer.Option(False, "--commit", help="write to the database"),
+    token: str = typer.Option(None, "--token", help="write authorization token"),
+):
+    """Ingest Upstox fundamentals (12 variants per ISIN) into fundamental_snapshot.
+
+    profile, key ratios, shareholding, competitors, balance sheet / cash flow
+    (consolidated + standalone) and income statement (x yearly/quarterly), each
+    kept as sent. A new snapshot is stored only when the content changed.
+    """
+    import json as _json
+
+    from sqlalchemy import literal_column, select
+
+    from app.db.engine import get_sessionmaker
+    from app.db.models import Instrument
+    from app.ingest.fundamentals import FundamentalsIngestor
+    from app.storage.payload_store import PayloadStore
+    from app.vendor.upstox.auth import load_cached
+    from app.vendor.upstox.rest import UpstoxRestClient
+
+    log = get_logger("cli")
+    rec = load_cached()
+    if rec is None:
+        log.error("upstox_token_missing", blocker="B0", action="run `prajna upstox login`")
+        raise typer.Exit(3)
+
+    async def _go():
+        rest = UpstoxRestClient(rec.access_token)
+        try:
+            async with get_sessionmaker()() as s:
+                isins = list(isin or [])
+                if not isins:
+                    isins = [x for x in (await s.execute(select(Instrument.isin).where(
+                        Instrument.valid_to == literal_column("'infinity'::date"),
+                        Instrument.segment == "NSE_EQ"))).scalars() if x]
+                ing = FundamentalsIngestor(s, rest, PayloadStore(get_settings().archive_dir),
+                                           commit=commit, token=token)
+                return await ing.run(isins)
+        finally:
+            await rest.aclose()
+
+    rep = asyncio.run(_go())
+    out = rep.summary()
+    out["problems"] = [{"isins": f"{r.isins[0]}..({len(r.isins)})", "status": r.status,
+                        "error": r.error} for r in rep.results if r.status != "COMPLETE"][:50]
+    typer.echo(_json.dumps(out, indent=2, default=str))
+    raise typer.Exit(0 if not out["problems"] else 1)
+
+
 @ingest_app.command("universe")
 def ingest_universe(
     from_file: str = typer.Option(None, "--from-file", help="a local copy of NSE.json.gz"),

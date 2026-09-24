@@ -55,6 +55,13 @@ class CorporateAction(Base, ProvenanceMixin):
 
     vendor_action_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     vendor_payload: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
+    # Upstox gives the announcement as a DATE only. It is kept as a date;
+    # announced_at (an instant) stays NULL rather than inventing a time.
+    announcement_date: Mapped[_dt.date | None] = mapped_column(Date, nullable=True)
+    # Identity of one vendor event: sha256 of its canonical JSON. Upstox has no
+    # event id, and (isin, type, ex_date) is NOT unique: two different
+    # dividends can share an ex-date (measured 2026-09-24).
+    content_sha256: Mapped[str | None] = mapped_column(CHAR(64), nullable=True)
 
     __table_args__ = (
         CheckConstraint(
@@ -65,6 +72,7 @@ class CorporateAction(Base, ProvenanceMixin):
             "isin", "action_type", "ex_date", "vendor_action_id", "source",
             name="uq_ca_observation",
         ),
+        UniqueConstraint("isin", "content_sha256", "source", name="uq_ca_content"),
         Index("ix_ca_isin_ex", "isin", "ex_date"),
         Index("ix_ca_ex_date", "ex_date"),
     )

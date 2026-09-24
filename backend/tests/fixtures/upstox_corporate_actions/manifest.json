@@ -1,0 +1,43 @@
+[
+ {
+  "file": "dup_same_ex_INE572G01025.json",
+  "sha256": "a1c6535c94ab2701e30675d459f664b88b0b3ba85e70619bd38c2a6057a42a89",
+  "isin": "INE572G01025",
+  "http_status": 200,
+  "archive": "var/archive/UPSTOX_REST_V2/2026/09/24/a1c6535c94ab2701e30675d459f664b88b0b3ba85e70619bd38c2a6057a42a89.json.gz"
+ },
+ {
+  "file": "split_bonus_INE838B01021.json",
+  "sha256": "20f92f590f855990003d9c973939629d04cf1b076828d2a943101614e938e6c9",
+  "isin": "INE838B01021",
+  "http_status": 200,
+  "archive": "var/archive/UPSTOX_REST_V2/2026/09/24/20f92f590f855990003d9c973939629d04cf1b076828d2a943101614e938e6c9.json.gz"
+ },
+ {
+  "file": "rights_INE741L01018.json",
+  "sha256": "58d7a40954a075d9712ae138cab88803fd8f1d2a810f073a4039259d8f84fc5c",
+  "isin": "INE741L01018",
+  "http_status": 200,
+  "archive": "var/archive/UPSTOX_REST_V2/2026/09/24/58d7a40954a075d9712ae138cab88803fd8f1d2a810f073a4039259d8f84fc5c.json.gz"
+ },
+ {
+  "file": "dividend_RELIANCE_INE002A01018.json",
+  "sha256": "65f915126d15e933fd56db0c05f59afbaa5bbc90b6175d3dd65ae4b83b55065a",
+  "isin": "INE002A01018",
+  "http_status": 200,
+  "archive": "var/archive/UPSTOX_REST_V2/2026/09/24/65f915126d15e933fd56db0c05f59afbaa5bbc90b6175d3dd65ae4b83b55065a.json.gz"
+ },
+ {
+  "file": "dividends_TCS_INE467B01029.json",
+  "sha256": "0c78cd01708dbfffbbcd8820ed062bc5a6acf6a8f842586b58a813d02fbee5cd",
+  "isin": "INE467B01029",
+  "http_status": 200,
+  "archive": "var/archive/UPSTOX_REST_V2/2026/09/24/0c78cd01708dbfffbbcd8820ed062bc5a6acf6a8f842586b58a813d02fbee5cd.json.gz"
+ },
+ {
+  "file": "empty.json",
+  "sha256": "20bc1392a17b383b46fffc33c8e796755452883bfcfc2d33c90342ea70227639",
+  "isin": null,
+  "http_status": 200
+ }
+]
