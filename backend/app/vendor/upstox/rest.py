@@ -50,6 +50,7 @@ from app.core.errors import RateLimited, VendorAuthError, VendorError
 
 API = "https://api.upstox.com"
 TIMEOUT = 30.0
+WALL_TIMEOUT = 60.0        # whole-request wall clock (seconds)
 
 DOCUMENTED_LIMITS = ((50, 1.0), (500, 60.0), (2000, 1800.0))   # (requests, seconds)
 LIMIT_FRACTION = 0.9
@@ -230,8 +231,11 @@ class UpstoxRestClient:
             limiter_wait = await self.limiter.acquire()
             at = now()
             try:
-                r = await self._client.get(url, headers=headers)
-            except (httpx.TimeoutException, httpx.TransportError) as e:
+                # httpx's per-phase timeouts did not fire on a half-closed socket
+                # (observed 2026-09-24: 25 min hang); bound the whole request.
+                r = await asyncio.wait_for(self._client.get(url, headers=headers),
+                                           timeout=WALL_TIMEOUT)
+            except (httpx.TimeoutException, httpx.TransportError, TimeoutError) as e:
                 attempts.append(Attempt(n, at, None, type(e).__name__, limiter_wait,
                                         backoff_wait))
                 retry = True

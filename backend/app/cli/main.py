@@ -502,6 +502,8 @@ def ingest_news(
 def ingest_corporate_actions(
     isin: list[str] = typer.Option(None, "--isin", help="repeatable ISIN; "
                                    "default: every current NSE_EQ instrument"),
+    resume_hours: int = typer.Option(0, "--resume-hours", help="skip ISINs already swept by a "
+                                     "COMPLETE, non-superseded commit run in the last N hours"),
     commit: bool = typer.Option(False, "--commit", help="write to the database"),
     token: str = typer.Option(None, "--token", help="write authorization token"),
 ):
@@ -536,6 +538,15 @@ def ingest_corporate_actions(
                     isins = [x for x in (await s.execute(select(Instrument.isin).where(
                         Instrument.valid_to == literal_column("'infinity'::date"),
                         Instrument.segment == "NSE_EQ"))).scalars() if x]
+                if resume_hours:
+                    from sqlalchemy import text as _t
+                    done = set((await s.execute(_t(
+                        "select distinct jsonb_array_elements_text(request_params->'isins') "
+                        "from ingest_run where stream='corporate_action.isin' and mode='COMMIT' "
+                        "and status='COMPLETE' and not request_params ? 'superseded' "
+                        "and started_at > now() - make_interval(hours => :h)"),
+                        {"h": resume_hours})).scalars())
+                    isins = [i for i in isins if i not in done]
                 ing = CorporateActionIngestor(s, rest, PayloadStore(get_settings().archive_dir),
                                               commit=commit, token=token)
                 return await ing.run(isins)

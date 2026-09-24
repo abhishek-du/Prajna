@@ -316,3 +316,23 @@ def test_rate_fraction_scales_every_window():
         default_windows(0.95)            # above the 90% safety margin
     with pytest.raises(ValueError):
         default_windows(0)
+
+
+async def test_hung_request_is_bounded_by_the_wall_clock(monkeypatch):
+    """A half-closed socket once hung a job for 25 min; the whole request is bounded."""
+    import asyncio
+
+    import httpx
+
+    import app.vendor.upstox.rest as R
+
+    monkeypatch.setattr(R, "WALL_TIMEOUT", 0.05)
+
+    async def hang(request):
+        await asyncio.sleep(5)
+
+    c = R.UpstoxRestClient("tok", client=httpx.AsyncClient(transport=httpx.MockTransport(hang)),
+                           limiter=R.RateLimiter(windows=((1000, 1.0),)),
+                           sleep=lambda s: asyncio.sleep(0), backoff=(0.0,))
+    with pytest.raises(R.VendorError):
+        await c.get("/x")
