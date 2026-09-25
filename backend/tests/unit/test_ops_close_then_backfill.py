@@ -313,6 +313,20 @@ class TestStaticGuards:
         assert "timeout -k 60 --signal=INT" in body and "--token" not in body
 
 
+    def test_timing_monitor_is_scheduled_guarded_and_read_only(self):
+        text = (BACKEND / "ops" / "cron" / "prajna.cron").read_text()
+        mon = [ln for ln in text.splitlines() if "timing_monitor.sh" in ln
+               and not ln.startswith("#")]
+        assert [ln.split()[:5] for ln in mon] == [["21", "9", "*", "*", "1-5"],
+                                                   ["10", "16", "*", "*", "1-5"]]
+        assert all("$LK" not in ln for ln in mon)          # never the candles lock
+        body = (RUNBOOKS / "timing_monitor.sh").read_text()
+        assert 'pgrep -f "ops/measure/candle_timin[g].py"' in body     # one poller only
+        assert "--login" not in body and "PRAJNA_SUPPLIED_TOKEN" not in body
+        assert "--token" not in body and "--commit" not in body         # read-only
+        assert "timeout -k 60 --signal=INT" in body
+        assert "TIMING_LATE_REVISION_DETECTED" in body and "analyze_timing.py" in body
+
 
 class TestInterruptedClose:
     """A close killed by its hard stop (or any interruption) leaves no, an

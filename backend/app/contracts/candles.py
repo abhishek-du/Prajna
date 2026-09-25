@@ -151,16 +151,18 @@ def plan_windows(timeframe: str, start: _dt.date, end: _dt.date) -> WindowPlan:
 #   5m   SERVED WHILE FORMING; 2 of 42 bars still changed up to 30.9 s after
 #        their end (they are built from 1m bars that arrive late)
 #   15m, 1h served while forming; none changed after their end
-# So a bar is persistable only once its end is behind us by a margin. 120 s is
-# about 3x the largest lag seen. ONE session: UNVERIFIED (B2).
-COMPLETION_MARGIN = _dt.timedelta(seconds=120)
-COMPLETION_MARGIN_BASIS = "UNVERIFIED (B2): 3x the 36 s max lag seen on 2026-09-23, one session"
+# So a bar is persistable only once its end is behind us by a margin. Since
+# decision TIMING-B2 (2026-09-25) the margin is PER TIMEFRAME and lives in
+# contracts.timing (1m/15m/1h 120 s: an engineering threshold chosen from
+# observation - Nifty 50 1m closes were revised up to 95.6 s after the end -
+# monitored, not a vendor SLA). Persistability is timing finality only;
+# knowable_at stays the fetch time (contracts.knowable).
 
 
 class BarState(str, enum.Enum):
     COMPLETE = "COMPLETE"       # may be persisted
     FORMING = "FORMING"         # archived only; a later fetch will persist it
-    SETTLING = "SETTLING"       # ended, but within COMPLETION_MARGIN: archived only
+    SETTLING = "SETTLING"       # ended, but within its completion margin: archived only
 
 
 def bar_width(timeframe: str) -> _dt.timedelta:
@@ -178,7 +180,8 @@ def intraday_state(bar_start: _dt.datetime, timeframe: str,
     fetched = to_utc(fetched_at)
     if end > fetched:
         return BarState.FORMING
-    if end + COMPLETION_MARGIN > fetched:
+    from app.contracts.timing import margin    # timing imports this module
+    if end + margin(timeframe) > fetched:
         return BarState.SETTLING
     return BarState.COMPLETE
 

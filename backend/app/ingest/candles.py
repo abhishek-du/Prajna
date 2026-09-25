@@ -57,6 +57,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.contracts import candles as C
+from app.contracts import timing
 from app.contracts import revision as REV
 from app.contracts.ca_factor import factor_for
 from app.contracts.identity import GLOBAL_SEGMENTS
@@ -295,8 +296,9 @@ class CandleIngestor:
                             "endpoint": job.endpoint.value,
                             "window": None if job.window is None else
                             [str(job.window.from_date), str(job.window.to_date)],
-                            "completion_margin_s": C.COMPLETION_MARGIN.total_seconds(),
-                            "completion_basis": C.COMPLETION_MARGIN_BASIS},
+                            "completion_margin_s": None if job.timeframe == C.DAILY else
+                            timing.margin(job.timeframe).total_seconds(),
+                            "completion_basis": timing.BASIS},
             operator=self.operator,
             logical_date=cp.through,
         )

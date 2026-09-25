@@ -30,6 +30,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.clock import IST, now
 
 PASS, FAIL, BLOCKED, OUT = "PASS", "FAIL", "BLOCKED", "OUT_OF_SCOPE"
+# hardening: evidence that can only come from future sessions/refreshes, and
+# criteria deferred by an explicit scope decision; neither is ever PASS
+WAITING, DEFERRED = "WAITING_FOR_EVIDENCE", "DEFERRED"
 
 DECISIONS: dict[str, dict[str, str]] = {
     "D1": {"status": "APPROVED", "decision": "1D from 2020-01-01; 1h and 15m from 2022-01; "
@@ -39,9 +42,11 @@ DECISIONS: dict[str, dict[str, str]] = {
     "D2-5m": {"status": "APPROVED", "decision": "5m is EXCLUDED from Stage 1 (it is exactly "
               "the aggregation of 1m, measured 428/428); later-stage scope",
               "ref": "user 2026-09-24 (D2-5m = B)"},
-    "D3": {"status": "IN_FORCE", "decision": "a changed value for a stored bar/observation "
-           "FAILS; nothing is overwritten (versioned storage not enabled)",
-           "ref": "M1/M4 contracts; not changed"},
+    "D3": {"status": "IN_FORCE", "decision": "the first observation of a bar is immutable; a "
+           "later different vendor value is classified (contracts.revision) and, when "
+           "explained (CA_ADJUSTMENT / ROUNDING / SETTLEMENT / GLOBAL_REVISION), recorded in "
+           "ohlcv_observation; an UNEXPLAINED change still FAILS",
+           "ref": "M1/M4 contracts; refined by PRICE-BASIS (hardening phase 6, 2026-09-25)"},
     "D5": {"status": "APPROVED", "decision": "all-day LTP/depth persistence stays in Stage 7; "
            "recorder capability kept; pre-open persisted", "ref": "user 2026-09-24 (D5 confirmed)"},
     "S1": {"status": "IN_FORCE", "decision": "universe = NSE_EQ series EQ/BE/SM/BZ/ST/IV "
@@ -69,6 +74,39 @@ DECISIONS: dict[str, dict[str, str]] = {
     "CAL-FIX": {"status": "APPROVED", "decision": "delete the 1,096 calendar rows 2020-2022 "
                 "written by the superseded timings rule and re-ingest with the NIFTY-50 rule",
                 "ref": "user 2026-09-24"},
+    "PRICE-BASIS": {"status": "APPROVED", "decision": "Option B: raw observed prices are the "
+                    "canonical basis (ohlcv_payload_basis); our own corporate-action factors "
+                    "(ca_factor) derive PIT-adjusted views; vendor-adjusted history is never "
+                    "passed off as raw", "ref": "user 2026-09-25 (hardening decisions 2-4)"},
+    "SECCLASS": {"status": "APPROVED", "decision": "sector coverage (D) is measured over "
+                 "STOCK instruments only (instrument_security_class, >= 2 agreeing signals)",
+                 "ref": "user 2026-09-25 (hardening decision 1)"},
+    "LIFECYCLE": {"status": "APPROVED", "decision": "completeness gates use the ACTIVE "
+                  "universe (daily master refresh; REMOVED_FROM_MASTER / INELIGIBLE / "
+                  "VENDOR_REJECTED kept, not counted)", "ref": "user 2026-09-25 (decision 7)"},
+    "GLOBAL-FINALITY": {"status": "APPROVED", "decision": "global bars are exposed only once "
+                        "final (confirmed re-observation or history); revisions and "
+                        "placeholders withheld; Q per-instrument contract",
+                        "ref": "user 2026-09-25 (decisions 6-8)"},
+    "BACKFILL-DEFER": {"status": "APPROVED", "decision": "the historical intraday backfill "
+                       "(1m 6 months, 15m/1h from 2022; ~293k requests) is DEFERRED for "
+                       "Stage 1 (live readiness); capability kept, cron entries disabled; it "
+                       "belongs to Stage 3 preparation",
+                       "ref": "user 2026-09-25 (hardening decision 1 / directive 10)"},
+    "TIMING-B2": {"status": "APPROVED", "decision": "B2 REVISED. Original: '1m bars never "
+                  "change once listed'. Finding 2026-09-25: 90/1,125 NSE_INDEX|Nifty 50 1m bars "
+                  "revised, latest 95.6 s after the bar end (RELIANCE, HDFCBANK: none); 15m <= "
+                  "110.9 s, 1h <= 111.0 s; 5m (out of scope) 145.9 s. New: a candle is "
+                  "timing-final from bar_end + completion_margin(timeframe) (1m/15m/1h 120 s; "
+                  "an engineering threshold chosen from observation, configurable, monitored, "
+                  "NOT a vendor SLA). A revision at/after the margin is a LATE_REVISION: "
+                  "recorded, X BLOCKED, explicit contract review; the margin is never enlarged "
+                  "silently. Timing finality never changes knowable_at (the fetch time)",
+                  "ref": "user 2026-09-25 (master directive: B2/X contract change)"},
+    "TIMING-REVIEW": {"status": "PENDING", "decision": "explicit contract review, required "
+                      "only when a late revision (after the TIMING-B2 margin) or a B1 "
+                      "contradiction is recorded; the margin is never enlarged silently",
+                      "ref": "-"},
     "LOGIN": {"status": "APPROVED", "decision": "one automated Upstox TOTP login per day by the "
               "ops runbooks, until revoked", "ref": "user 2026-09-24"},
 }
@@ -156,7 +194,7 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
               count(*) filter (where p.payload_sha256 is null),
               count(*) filter (where x.knowable_at_basis is null or x.knowable_at_basis = '')
             from {t} x left join ingest_run r on r.run_id = x.run_id
-            left join raw_payload p on p.payload_sha256 = x.payload_sha256""")  # noqa: S608
+            left join raw_payload p on p.payload_sha256 = x.payload_sha256""")
         prov[t] = {"rows": r[0], "bad_run": r[1], "no_payload": r[2], "no_basis": r[3]}
         bad_total += r[1] + r[2] + r[3]
     orphans = (await _one(s, """select count(*) from preopen_book b where not exists
@@ -167,7 +205,7 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
                          {"violations": bad_total}, prov))
 
     # C. point-in-time: knowable_at <= fetched_at everywhere
-    pit = {t: (await _one(s, f"select count(*) from {t} "  # noqa: S608 (constant names)
+    pit = {t: (await _one(s, f"select count(*) from {t} "
                              "where knowable_at > fetched_at"))[0]
            for t in PROV_TABLES}
     out.append(Criterion("C", "Point-in-time safety (knowable_at <= fetched_at)",
@@ -267,9 +305,16 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
     for cid, tf, name in (("G", "1m", "1m candles (last 6 months)"),
                           ("I", "15m", "15m candles (from 2022-01)"),
                           ("J", "1h", "1h candles (from 2022-01)")):
-        st = PASS if dd[tf]["covered_to_depth"] >= dd[tf]["instruments"] else FAIL
-        out.append(Criterion(cid, name, st, {"quarantined_bars_Q1": q1.get(tf, 0)}, dd[tf],
-                             "historical backfill (D1)"))
+        # historical DEPTH only (checkpoints reaching 2022 / 6 months); live
+        # same-day completeness is criterion R. Deferred by decision BACKFILL-DEFER.
+        depth_ok = dd[tf]["covered_to_depth"] >= dd[tf]["instruments"]
+        st = PASS if depth_ok else (
+            DEFERRED if DECISIONS["BACKFILL-DEFER"]["status"] == "APPROVED" else FAIL)
+        out.append(Criterion(cid, name, st, {"quarantined_bars_Q1": q1.get(tf, 0),
+                                             "measures": "historical depth only"}, dd[tf],
+                             "historical backfill (D1); DEFERRED_FOR_STAGE_1 by decision "
+                             "BACKFILL-DEFER (live same-day completeness: R)",
+                             [] if depth_ok else ["BACKFILL-DEFER"]))
     five = (await _one(s, "select count(*) from ohlcv_bar where timeframe='5m'"))[0]
     h_status = OUT if DECISIONS["D2-5m"]["status"] == "APPROVED" else BLOCKED
     out.append(Criterion("H", "5m candles", h_status, {"decision": DECISIONS["D2-5m"]},
@@ -281,7 +326,7 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
     k_ev = {}
     k_status = FAIL
     if reps:
-        rep = json.loads(pathlib.Path(reps[-1]).read_text())  # noqa: ASYNC240 (small local file)
+        rep = json.loads(pathlib.Path(reps[-1]).read_text())
         k_ev = {"report": reps[-1], "verdict": rep["verdict"],
                 "real_market_data": rep["real_market_data"],
                 "non_pass": {c["id"]: c["status"] for c in rep["checks"] if c["status"] != "PASS"},
@@ -321,7 +366,7 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
         return (await _one(s, f"""select count(distinct x) from (
             select jsonb_array_elements_text(request_params->'{key}') x from ingest_run
             where stream=:st and mode='COMMIT' and status='COMPLETE'
-              and not request_params ? 'superseded') y""",  # noqa: S608
+              and not request_params ? 'superseded') y""",
                            st=stream))[0]
     ca = await _one(s, "select count(*), count(distinct isin), min(announcement_date), "
                        "max(announcement_date) from corporate_action")
@@ -361,42 +406,113 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
                          {"streams": {k: str(v) for k, v in fd},
                           "rows": (await _one(s, "select count(*) from macro_observation"))[0]}))
 
-    # Q. global / macro
-    glob_rows = await _all(s, """select i.instrument_key, count(b.*), max(b.session_date),
-            (select count(*) from ingest_anomaly a join ingest_run r using (run_id)
-             where a.kind='QUARANTINED' and r.mode='COMMIT' and r.status='COMPLETE'
-               and a.detail->>'instrument_key' = i.instrument_key)
-        from instrument i left join ohlcv_bar b on b.instrument_id = i.instrument_id
-             and b.timeframe = '1d'
-        where i.valid_to='infinity' and i.segment like 'GLOBAL%' group by 1 order by 1""")
-    per = {k: {"stored": n, "quarantined": q, "through": str(t),
-               "quarantine_rate": round(q / (n + q), 4) if n + q else None}
-           for k, n, t, q in glob_rows}
-    q_ok = len(per) == 13 and all(v["stored"] > 0 and v["through"] >= str(prev)
-                                  for v in per.values())
-    out.append(Criterion("Q", "Global / macro", PASS if q_ok else FAIL,
-                         {"source_available": "13 global instruments (S&P, Dow, USD/INR, ...); "
-                                              "1D from 2020-04-03",
-                          "data_acceptable": "only bars passing every sanity rule are stored; "
-                                             "the rest are quarantined per instrument (Q1)",
+    # Q. global / macro under the finality contract (hardening phase 5).
+    # Old rule: every global instrument has a bar dated >= the previous NSE
+    # session - wrong both ways (foreign holidays failed it; placeholder and
+    # later-revised bars passed it). New rule, per instrument, from its own
+    # measured contract (global_instrument_contract):
+    #   fetched   a COMPLETE fetch of the instrument finished within 36 h
+    #   final     its latest CONFIRMED label is at most gap_days_p99 + 3 days
+    #             old (+3: first observation D+1, re-observation >= 6 h later)
+    #   clean     no REVISED / PLACEHOLDER label is exposed in canon_global_bar
+    #   measured  a contract row exists
+    # WAITING_FOR_EVIDENCE: fetched and clean, but the newest labels still wait
+    # for their confirming re-observation (the next scheduled refresh).
+    gq = await _all(s, """
+        select i.instrument_key,
+               c.gap_days_p99, c.weekend_label_share,
+               (select max(r.finished_at) from ingest_run r
+                 where r.stream = 'ohlcv.1d.' || i.instrument_key and r.status = 'COMPLETE'
+                   and r.mode = 'COMMIT') as last_fetch,
+               (select max(g.label_date) from canon_global_bar g
+                 where g.instrument_key = i.instrument_key) as last_final,
+               (select max(f.session_date) from global_bar_finality f
+                 where f.instrument_key = i.instrument_key
+                   and f.finality = 'UNCONFIRMED') as pending,
+               (select count(*) from global_bar_finality f
+                 where f.instrument_key = i.instrument_key
+                   and f.finality in ('REVISED', 'PLACEHOLDER')) as withheld,
+               (select count(*) from canon_global_bar g join global_bar_finality f
+                  on f.instrument_id = g.instrument_id and f.bar_start_utc = g.bar_start_utc
+                 where g.instrument_key = i.instrument_key
+                   and f.finality in ('REVISED', 'PLACEHOLDER')) as leaked,
+               (select count(*) from canon_global_vendor_absent v
+                 where v.instrument_key = i.instrument_key) as vendor_absent
+        from instrument i
+        left join global_instrument_contract c on c.instrument_key = i.instrument_key
+        where i.valid_to = 'infinity' and i.segment in ('GLOBAL_INDEX', 'GLOBAL_INDICATOR')
+        order by 1""")
+    per: dict[str, Any] = {}
+    fails, waits = [], []
+    at = now()
+    for k, p99, wshare, last_fetch, last_final, pending, withheld, leaked, absent in gq:
+        fetched = last_fetch is not None and at - last_fetch <= _dt.timedelta(hours=36)
+        limit = (p99 or 4) + 3
+        age = (today - last_final).days if last_final else None
+        final = age is not None and age <= limit
+        st = PASS if (p99 is not None and fetched and final and not leaked) else FAIL
+        if st == FAIL and p99 is not None and fetched and not leaked and pending:
+            st = WAITING
+        per[k] = {"status": st, "measured": p99 is not None, "fetched_within_36h": fetched,
+                  "last_final_label": str(last_final), "final_age_days": age,
+                  "limit_days": limit, "pending_unconfirmed": str(pending),
+                  "withheld_revised_or_placeholder": withheld, "leaked": leaked,
+                  "vendor_absent_days": absent, "weekend_label_share": str(wshare)}
+        (fails if st == FAIL else waits if st == WAITING else []).append(k)
+    q_status = FAIL if fails or len(per) != 13 else (WAITING if waits else PASS)
+    out.append(Criterion("Q", "Global / macro", q_status,
+                         {"contract": "per-instrument finality (migration 0010, "
+                                      "global_instrument_contract)",
+                          "failing": fails, "waiting_for_confirmation": waits,
                           "bond_yields": "VENDOR_UNAVAILABLE (no Upstox instrument)"},
                          {"per_instrument": per},
-                         "bond yields VENDOR_UNAVAILABLE; quarantine rates reported, not hidden"))
+                         "new rule: fresh COMPLETE fetch + a CONFIRMED label within the "
+                         "instrument's own p99 gap + 3 days + nothing revised/placeholder "
+                         "exposed (old: a bar on the previous NSE session)"))
 
-    # R. daily incremental: a close + morning cycle for the same session
-    closes = await _all(s, """select (r.started_at at time zone 'Asia/Kolkata')::date d,
+    # R. daily incremental (live): for the last trading session, every ACTIVE
+    # NSE instrument had a COMPLETE intraday run for 1m, 15m and 1h (the close),
+    # and the same-day rerun check inserted nothing (idempotency, CLOSE_RERUN_CHECK
+    # in the close log). No rerun evidence yet -> WAITING_FOR_EVIDENCE.
+    active = (await _one(s, "select count(*) from instrument where valid_to='infinity' and "
+                            "segment in ('NSE_EQ','NSE_INDEX') and lifecycle_status='ACTIVE'"))[0]
+    live = {}
+    for tf in ("1m", "15m", "1h"):
+        rows = await _all(s, """select (r.started_at at time zone 'Asia/Kolkata')::date d,
             count(distinct r.request_params->>'instrument_key') from ingest_run r
-            where r.stream like 'ohlcv.1m.NSE_%' and r.mode='COMMIT' and r.status='COMPLETE'
-              and r.request_params->>'endpoint' = 'intraday' group by 1 order by 1""")
-    full_close = [str(d) for d, n in closes if n >= 3000]
-    out.append(Criterion("R", "Daily incremental ingestion", PASS if full_close else FAIL,
-                         {"sessions_with_full_close_run": full_close,
-                          "runbook": "ops/runbooks/daily.sh close|morning|weekly|monthly"}))
+            where r.stream like 'ohlcv.' || :tf || '.NSE_%' and r.mode='COMMIT'
+              and r.status='COMPLETE' and r.request_params->>'endpoint' = 'intraday'
+            group by 1 order by 1 desc limit 5""", tf=tf)
+        live[tf] = {str(d): n for d, n in rows}
+    sessions = sorted({d for v in live.values() for d in v}, reverse=True)
+    full = [d for d in sessions if all(live[tf].get(d, 0) >= 0.99 * active
+                                       for tf in ("1m", "15m", "1h"))]
+    reruns = []
+    for f in sorted(pathlib.Path("var/logs/daily").glob("close_then_backfill_*.log")):
+        for line in f.read_text(errors="replace").splitlines():
+            if "CLOSE_RERUN_CHECK" in line and "inserted=" in line:
+                reruns.append(line.split("] ", 1)[-1])
+    idem = [r for r in reruns if "idempotent=True" in r]
+    r_status = FAIL if not full else (PASS if idem and not [r for r in reruns
+                                                           if "idempotent=False" in r]
+                                      else WAITING)
+    out.append(Criterion("R", "Daily incremental ingestion", r_status,
+                         {"sessions_complete_all_intraday_tfs": full,
+                          "rerun_checks": reruns[-3:],
+                          "runbook": "ops/runbooks/close_then_backfill.sh --no-backfill"},
+                         {"active_instruments": active, "complete_runs_by_session": live},
+                         "new rule: 1m + 15m + 1h complete for >= 99 % of ACTIVE instruments "
+                         "on a session AND a same-day rerun inserting nothing (old: 1m only)"))
 
     # S. historical backfill = F, G, I, J
-    s_ok = all(c.status == PASS for c in out if c.id in ("F", "G", "I", "J"))
-    out.append(Criterion("S", "Historical backfill to the approved depth",
-                         PASS if s_ok else FAIL, {"from": ["F", "G", "I", "J"]}))
+    parts = {c.id: c.status for c in out if c.id in ("F", "G", "I", "J")}
+    s_status = PASS if all(v == PASS for v in parts.values()) else (
+        DEFERRED if parts.get("F") == PASS and all(v in (PASS, DEFERRED) for v in parts.values())
+        else FAIL)
+    out.append(Criterion("S", "Historical backfill to the approved depth", s_status,
+                         {"from": parts}, notes="intraday depth DEFERRED_FOR_STAGE_1 "
+                         "(BACKFILL-DEFER); 1D depth (F) is required and measured",
+                         decisions=["BACKFILL-DEFER"] if s_status == DEFERRED else []))
 
     # T. replay: random COMMIT runs per family, archive -> parser -> DB
     rp = await replay_sample(s)
@@ -466,13 +582,36 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
     # B1/B2 (timing contracts): measured by ops/measure/analyze_timing.py from the
     # archived poller responses; VERIFIED needs >= 3 agreeing sessions.
     bp = pathlib.Path("var/acceptance/b1b2.json")
-    b1b2 = json.loads(bp.read_text()) if bp.exists() else {}  # noqa: ASYNC240
+    b1b2 = json.loads(bp.read_text()) if bp.exists() else {}
     timing = {k: {"status": b1b2.get(k, {}).get("status", "UNMEASURED"),
-                  "sessions_agreeing": b1b2.get(k, {}).get("sessions_agreeing", [])}
+                  "sessions_observed": b1b2.get(k, {}).get("sessions_observed", []),
+                  "sessions_agreeing": b1b2.get(k, {}).get("sessions_agreeing", []),
+                  "sessions_disagreeing": b1b2.get(k, {}).get("sessions_disagreeing", {})}
               for k in ("B1", "B2")}
-    x_ok = not any(la.values()) and all(v["status"] == "VERIFIED" for v in timing.values())
+    if "per_timeframe" in b1b2.get("B2", {}):          # revised B2 (decision TIMING-B2)
+        timing["B2"]["contract"] = b1b2["B2"]["contract"]
+        timing["B2"]["late_revisions"] = len(b1b2["B2"].get("late_revisions", []))
+        timing["B2"]["headroom"] = {
+            tf: {"margin_s": v["margin_s"], "observed_max_s": v["revision_latency_s"]["max"],
+                 "headroom_s": v["headroom_s"], "bars_sampled": v["bars_sampled"]}
+            for tf, v in b1b2["B2"]["per_timeframe"].items() if v["in_scope"]}
+        timing["B2"]["evidence_sufficiency"] = b1b2["B2"].get("evidence_sufficiency")
+        timing["B2_original"] = {"status": b1b2.get("B2_original", {}).get("status"),
+                                 "superseded_by": "TIMING-B2"}
+    violations = any(la.values())
+    verified = all(v["status"] == "VERIFIED" for v in timing.values())
+    # a contradicted timing contract cannot verify by waiting: it needs a decision
+    contradicted = [k for k in ("B1", "B2") if timing[k]["status"] == "CONTRADICTED"]
+    x_status = FAIL if violations else (
+        BLOCKED if contradicted else (PASS if verified else WAITING))
     out.append(Criterion("X", "No look-ahead (incl. B1/B2 verified over >= 3 sessions)",
-                         PASS if x_ok else FAIL, {"violations": la, "timing": timing}))
+                         x_status, {"violations": la, "timing": timing},
+                         notes="0 violations required (FAIL otherwise); B1 and the revised "
+                               "B2 (TIMING-B2: timing-final at bar_end + margin) need >= 3 "
+                               "agreeing sessions (WAITING_FOR_EVIDENCE until then); any late "
+                               "revision (after the margin) or B1 contradiction: BLOCKED for "
+                               "contract review; knowable_at stays the fetch time regardless",
+                         decisions=["TIMING-REVIEW"] if contradicted else []))
 
     # Y. survivorship
     y_status = PASS if DECISIONS["SURV"]["status"] == "APPROVED" else BLOCKED
@@ -482,8 +621,16 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
 
     order = {c.id: c for c in out}
     crit = [order[k] for k in sorted(order)]
-    overall = "COMPLETE" if all(c.status in (PASS, OUT) for c in crit) else "NOT COMPLETE"
-    return {"generated_at": now().isoformat(), "overall": overall, "last_session": str(last),
+    # COMPLETE: every criterion PASS, approved OUT_OF_SCOPE, or approved DEFERRED.
+    # LIVE_READY: nothing FAIL or BLOCKED (WAITING_FOR_EVIDENCE items listed).
+    settled = (PASS, OUT, DEFERRED)
+    overall = "COMPLETE" if all(c.status in settled for c in crit) else "NOT COMPLETE"
+    live_ready = "PASS" if not [c for c in crit if c.status in (FAIL, BLOCKED)] else "NOT PASS"
+    return {"generated_at": now().isoformat(), "overall": overall, "live_readiness": live_ready,
+            "waiting_for_evidence": [c.id for c in crit if c.status == WAITING],
+            "deferred": [c.id for c in crit if c.status == DEFERRED],
+            "failing": [c.id for c in crit if c.status in (FAIL, BLOCKED)],
+            "last_session": str(last),
             "criteria": [{
                 "id": c.id, "name": c.name, "status": c.status, "evidence": c.evidence,
                 "db_state": c.db_state, "notes": c.notes, "decisions": c.decisions}
@@ -500,7 +647,7 @@ async def replay_sample(s: AsyncSession, per_family: int = 25, seed: int | None 
     from app.parsers.upstox_candles import Endpoint, parse_candles
     from app.storage.payload_store import PayloadStore
 
-    rnd = random.Random(seed)  # noqa: S311 (sampling, not security)
+    rnd = random.Random(seed)
     fam: dict[str, dict] = {}
     mismatches = 0
 
@@ -609,6 +756,36 @@ async def replay_sample(s: AsyncSession, per_family: int = 25, seed: int | None 
     return {"runs": total, "mismatches": mismatches, "by_family": fam, "per_family": per_family}
 
 
+# Rules changed by the Stage 1 hardening (2026-09-25): criterion -> (old, new).
+RULE_CHANGES: dict[str, tuple[str, str]] = {
+    "D": ("sector >= 90 % of ALL current NSE_EQ (fund units / entitlements in the "
+          "denominator)", "sector >= 90 % of ACTIVE instruments classified STOCK; REVIEW = 0; "
+          "UNCLASSIFIED only within 7 days"),
+    "F": ("every current instrument's 1D checkpoint; any failed 1D stream fails",
+          "ACTIVE instruments only; corporate-action-explained revisions are recorded, not "
+          "failures (UNEXPLAINED still fails)"),
+    "G": ("1m checkpoint reaches 6 months for every instrument", "historical depth only; "
+          "DEFERRED_FOR_STAGE_1 (BACKFILL-DEFER); live 1m is part of R"),
+    "I": ("15m checkpoint reaches 2022 for every instrument", "historical depth only; DEFERRED "
+          "(BACKFILL-DEFER); live 15m is part of R"),
+    "J": ("1h checkpoint reaches 2022 for every instrument", "historical depth only; DEFERRED "
+          "(BACKFILL-DEFER); live 1h is part of R"),
+    "Q": ("every global instrument has a bar dated >= the previous NSE session",
+          "per-instrument finality contract: fresh COMPLETE fetch, a CONFIRMED label within "
+          "its own p99 gap + 3 d, no revised/placeholder label exposed"),
+    "R": ("a session with >= 3,000 complete 1m close runs", "1m + 15m + 1h complete for >= 99 % "
+          "of ACTIVE instruments AND a same-day rerun inserting nothing"),
+    "S": ("F, G, I, J all PASS", "F PASS required; G/I/J depth DEFERRED (BACKFILL-DEFER)"),
+    "W": ("1D coverage of every current instrument", "unchanged rule, ACTIVE universe"),
+    "X": ("0 violations AND B1/B2 verified, else FAIL", "0 violations required (else FAIL); "
+          "B1 and B2 as revised by TIMING-B2 (timing-final at bar_end + per-timeframe "
+          "margin, 120 s; engineering threshold, monitored) need >= 3 agreeing sessions "
+          "(WAITING_FOR_EVIDENCE until then, never PASS); a late revision or a B1 "
+          "contradiction makes X BLOCKED; original B2 ('1m never changes') is recorded as "
+          "CONTRADICTED 2026-09-25 (90/1,125 Nifty 50 1m bars, max 95.6 s)"),
+}
+
+
 def to_markdown(rep: dict) -> str:
     lines = [
         "# Stage 1 final acceptance",
@@ -616,13 +793,18 @@ def to_markdown(rep: dict) -> str:
         f"**Generated:** {rep['generated_at']} by `prajna acceptance stage1` (read-only, "
         "computed from the prajna database; regenerate, do not edit).",
         "",
-        f"## Overall: **{rep['overall']}**",
+        f"## Overall: **{rep['overall']}** - live readiness: **{rep.get('live_readiness')}**",
         "",
-        "Stage 2 remains LOCKED unless the overall is COMPLETE." if rep["overall"] != "COMPLETE"
-        else "Every criterion is PASS or an approved OUT_OF_SCOPE.",
+        f"- Waiting for evidence: {', '.join(rep.get('waiting_for_evidence') or []) or 'none'}",
+        f"- Deferred by decision: {', '.join(rep.get('deferred') or []) or 'none'}",
+        f"- Failing: {', '.join(rep.get('failing') or []) or 'none'}",
         "",
-        "| # | Criterion | Status | DB state | Evidence | Notes / decisions |",
-        "|---|---|---|---|---|---|",
+        "COMPLETE = every criterion PASS, approved OUT_OF_SCOPE or approved DEFERRED. "
+        "LIVE_READY = nothing FAIL/BLOCKED. WAITING_FOR_EVIDENCE and DEFERRED are never PASS.",
+        "",
+        "| # | Criterion | Old rule | New rule | Status | Current result (DB state) | "
+        "Evidence | Reason / decisions |",
+        "|---|---|---|---|---|---|---|---|",
     ]
 
     def cell(d) -> str:
@@ -630,10 +812,10 @@ def to_markdown(rep: dict) -> str:
         return t.replace("|", "\\|")[:600]
 
     for c in rep["criteria"]:
-        blocked = f" **Blocked by:** {', '.join(c['decisions'])}" if c["decisions"] else ""
-        notes = c["notes"] + blocked
-        lines.append(f"| {c['id']} | {c['name']} | **{c['status']}** | {cell(c['db_state'])} | "
-                     f"{cell(c['evidence'])} | {notes} |")
+        old, new = RULE_CHANGES.get(c["id"], ("", "unchanged"))
+        dec = f" **Decisions:** {', '.join(c['decisions'])}" if c["decisions"] else ""
+        lines.append(f"| {c['id']} | {c['name']} | {old} | {new} | **{c['status']}** | "
+                     f"{cell(c['db_state'])} | {cell(c['evidence'])} | {c['notes']}{dec} |")
     lines += ["", "## Decision register", "", "| id | status | decision | reference |",
               "|---|---|---|---|"]
     for k, d in rep["decisions"].items():
@@ -659,7 +841,7 @@ async def verify_archive(s: AsyncSession) -> dict:
             framed.setdefault(path, {})[int(seq)] = h
     ok = bad = missing = 0
     for h, u in files:
-        if not pathlib.Path(u).exists():  # noqa: ASYNC240 (read-only audit)
+        if not pathlib.Path(u).exists():
             missing += 1
             continue
         try:
@@ -669,7 +851,7 @@ async def verify_archive(s: AsyncSession) -> dict:
             bad += 1
     frames_ok = 0
     for path, want in framed.items():
-        if not pathlib.Path(path).exists():  # noqa: ASYNC240 (read-only audit)
+        if not pathlib.Path(path).exists():
             missing += len(want)
             continue
         seen = {}

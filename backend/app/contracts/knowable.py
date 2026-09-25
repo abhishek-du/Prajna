@@ -112,7 +112,11 @@ def for_daily_bar(
     at_close = to_utc(ist_at(session_date, close_ist))
     fetched = to_utc(fetched_at)
     if settlement_lag_verified:
-        return Knowable(at_close, True, f"session close {close_ist} IST (measured)")
+        # B1 verified says WHEN the bar is final, not when Prajna knew it: the
+        # point-in-time instant stays the fetch (decision TIMING-B2, 2026-09-25)
+        return Knowable(max(at_close, fetched), True,
+                        f"fetched_at (bar final from the session close {close_ist} IST, "
+                        "measured; finality never moves knowable_at before the fetch)")
     return Knowable(
         max(at_close, fetched),
         False,
@@ -140,7 +144,11 @@ def for_intraday_bar(
         raise ValueError(f"unknown timeframe {timeframe!r}; refusing to guess its width")
     bar_end = to_utc(bar_start) + width
     if publication_lag_verified:
-        return Knowable(bar_end, True, f"bar_start + {timeframe} (lag measured)")
+        # timing finality (contracts.timing: bar_end + margin) is not knowledge:
+        # a bar fetched hours after its end is knowable at the fetch (TIMING-B2)
+        return Knowable(max(bar_end, to_utc(fetched_at)), True,
+                        f"fetched_at ({timeframe} timing-final at bar_end + margin, "
+                        "measured; finality never moves knowable_at before the fetch)")
     return Knowable(
         max(bar_end, to_utc(fetched_at)),
         False,

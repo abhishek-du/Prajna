@@ -990,7 +990,7 @@ def acceptance_stage1(
         pathlib.Path(md).write_text(to_markdown(rep))
     for c in rep["criteria"]:
         typer.echo(f"{c['id']}  {c['status']:13} {c['name']}"
-                   + (f"   [blocked by {', '.join(c['decisions'])}]" if c["decisions"] else ""))
+                   + (f"   [decision {', '.join(c['decisions'])}]" if c["decisions"] else ""))
     typer.echo(f"OVERALL: {rep['overall']}")
     raise typer.Exit(0 if rep["overall"] == "COMPLETE" else 1)
 

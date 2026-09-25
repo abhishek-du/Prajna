@@ -122,10 +122,22 @@ class TestCompleteness:
         fetched = _dt.datetime(2026, 9, 23, 20, 0, tzinfo=UTC)
         assert C.daily_state(D(2026, 9, 23), fetched) is C.BarState.COMPLETE
 
-    def test_margin_is_marked_unverified(self):
-        assert C.COMPLETION_MARGIN == _dt.timedelta(seconds=120)
-        assert "UNVERIFIED" in C.COMPLETION_MARGIN_BASIS
+    def test_margin_is_per_timeframe_and_an_engineering_threshold(self):
+        from app.contracts import timing
+        for tf in ("1m", "15m", "1h"):
+            assert timing.margin(tf) == _dt.timedelta(seconds=120)
+        assert "NOT a vendor SLA" in timing.BASIS
+        assert not hasattr(C, "COMPLETION_MARGIN")                  # no global constant
         assert "UNVERIFIED" in C.DAILY_COMPLETION_BASIS
+
+    def test_settling_follows_the_timeframe_margin(self):
+        from app.contracts import timing
+        start = ist(2026, 9, 25, 10, 0)
+        end = start + C.bar_width("1m")
+        m = timing.margin("1m")
+        assert C.intraday_state(start, "1m", end + m - _dt.timedelta(seconds=1)) \
+            is C.BarState.SETTLING
+        assert C.intraday_state(start, "1m", end + m) is C.BarState.COMPLETE
 
     def test_daily_has_no_fixed_width(self):
         with pytest.raises(ValueError):

@@ -34,11 +34,13 @@ class TestDailyBar:
         assert k.verified is False
         assert "UNVERIFIED (B1)" in k.basis
 
-    def test_verified_path_uses_exact_close(self):
+    def test_verified_finality_never_moves_knowable_before_the_fetch(self):
+        """TIMING-B2: B1 verified = the bar is final from the close; Prajna still
+        only KNEW it at the fetch (the stricter rule replaced 'exact close')."""
         session = _dt.date(2026, 9, 1)
         k = K.for_daily_bar(session, _utc(2026, 9, 2), settlement_lag_verified=True)
         assert k.verified is True
-        assert k.at == _dt.datetime.combine(session, _dt.time(15, 30), tzinfo=IST).astimezone(UTC)
+        assert k.at == _utc(2026, 9, 2)
 
 
 class TestIntradayBar:
