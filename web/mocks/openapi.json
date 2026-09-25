@@ -1,0 +1,2957 @@
+{
+ "components": {
+  "schemas": {
+   "Candle": {
+    "properties": {
+     "adjustment_status": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "adjusted=true only: AS_STORED / ADJUSTED / RECONSTRUCTED",
+      "title": "Adjustment Status"
+     },
+     "bar_start": {
+      "format": "date-time",
+      "title": "Bar Start",
+      "type": "string"
+     },
+     "basis_as_of": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Basis As Of"
+     },
+     "basis_confidence": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Basis Confidence"
+     },
+     "close": {
+      "title": "Close",
+      "type": "number"
+     },
+     "factor_applied": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Factor Applied"
+     },
+     "fetched_at": {
+      "format": "date-time",
+      "title": "Fetched At",
+      "type": "string"
+     },
+     "high": {
+      "title": "High",
+      "type": "number"
+     },
+     "knowable_at": {
+      "description": "earliest instant Prajna knew this bar (its fetch; never bar end)",
+      "format": "date-time",
+      "title": "Knowable At",
+      "type": "string"
+     },
+     "low": {
+      "title": "Low",
+      "type": "number"
+     },
+     "market_date": {
+      "format": "date",
+      "title": "Market Date",
+      "type": "string"
+     },
+     "open": {
+      "title": "Open",
+      "type": "number"
+     },
+     "open_interest": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Open Interest"
+     },
+     "price_basis": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "RAW_OBSERVED / VENDOR_ADJUSTED (as of basis_as_of)",
+      "title": "Price Basis"
+     },
+     "timeframe": {
+      "title": "Timeframe",
+      "type": "string"
+     },
+     "volume": {
+      "title": "Volume",
+      "type": "number"
+     }
+    },
+    "required": [
+     "timeframe",
+     "bar_start",
+     "market_date",
+     "open",
+     "high",
+     "low",
+     "close",
+     "volume",
+     "open_interest",
+     "knowable_at",
+     "fetched_at",
+     "price_basis",
+     "basis_as_of"
+    ],
+    "title": "Candle",
+    "type": "object"
+   },
+   "CandleSeries": {
+    "properties": {
+     "adjusted": {
+      "title": "Adjusted",
+      "type": "boolean"
+     },
+     "candles": {
+      "items": {
+       "$ref": "#/components/schemas/Candle"
+      },
+      "title": "Candles",
+      "type": "array"
+     },
+     "instrument_key": {
+      "title": "Instrument Key",
+      "type": "string"
+     },
+     "refused": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "integer"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "adjusted=true: rows withheld (low confidence / reconstructed) unless allowed",
+      "title": "Refused"
+     },
+     "timeframe": {
+      "title": "Timeframe",
+      "type": "string"
+     }
+    },
+    "required": [
+     "instrument_key",
+     "timeframe",
+     "adjusted",
+     "candles"
+    ],
+    "title": "CandleSeries",
+    "type": "object"
+   },
+   "CorporateAction": {
+    "properties": {
+     "action_type": {
+      "title": "Action Type",
+      "type": "string"
+     },
+     "amount": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Amount"
+     },
+     "announcement_date": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Announcement Date"
+     },
+     "ex_date": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ex Date"
+     },
+     "face_value_after": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Face Value After"
+     },
+     "face_value_before": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Face Value Before"
+     },
+     "factor_price": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Factor Price"
+     },
+     "factor_status": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "EXACT / UNCERTAIN / UNSUPPORTED",
+      "title": "Factor Status"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "knowable_at": {
+      "format": "date-time",
+      "title": "Knowable At",
+      "type": "string"
+     },
+     "ratio_from": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ratio From"
+     },
+     "ratio_to": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ratio To"
+     },
+     "record_date": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Record Date"
+     },
+     "vendor_applied": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "does the vendor's later history include this action (APPLIED / NOT_APPLIED / UNKNOWN)",
+      "title": "Vendor Applied"
+     }
+    },
+    "required": [
+     "id",
+     "action_type",
+     "announcement_date",
+     "ex_date",
+     "record_date",
+     "amount",
+     "ratio_from",
+     "ratio_to",
+     "face_value_before",
+     "face_value_after",
+     "knowable_at"
+    ],
+    "title": "CorporateAction",
+    "type": "object"
+   },
+   "Envelope_CandleSeries_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/CandleSeries"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/Meta"
+     }
+    },
+    "required": [
+     "data",
+     "meta"
+    ],
+    "title": "Envelope[CandleSeries]",
+    "type": "object"
+   },
+   "Envelope_MarketSession_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/MarketSession"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/Meta"
+     }
+    },
+    "required": [
+     "data",
+     "meta"
+    ],
+    "title": "Envelope[MarketSession]",
+    "type": "object"
+   },
+   "Envelope_Profile_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/Profile"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/Meta"
+     }
+    },
+    "required": [
+     "data",
+     "meta"
+    ],
+    "title": "Envelope[Profile]",
+    "type": "object"
+   },
+   "Envelope_Quality_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/Quality"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/Meta"
+     }
+    },
+    "required": [
+     "data",
+     "meta"
+    ],
+    "title": "Envelope[Quality]",
+    "type": "object"
+   },
+   "Envelope_Quote_": {
+    "properties": {
+     "data": {
+      "$ref": "#/components/schemas/Quote"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/Meta"
+     }
+    },
+    "required": [
+     "data",
+     "meta"
+    ],
+    "title": "Envelope[Quote]",
+    "type": "object"
+   },
+   "Envelope_dict_str__Any__": {
+    "properties": {
+     "data": {
+      "additionalProperties": true,
+      "title": "Data",
+      "type": "object"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/Meta"
+     }
+    },
+    "required": [
+     "data",
+     "meta"
+    ],
+    "title": "Envelope[dict[str, Any]]",
+    "type": "object"
+   },
+   "Envelope_list_CorporateAction__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/CorporateAction"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/Meta"
+     }
+    },
+    "required": [
+     "data",
+     "meta"
+    ],
+    "title": "Envelope[list[CorporateAction]]",
+    "type": "object"
+   },
+   "Envelope_list_Freshness__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/Freshness"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/Meta"
+     }
+    },
+    "required": [
+     "data",
+     "meta"
+    ],
+    "title": "Envelope[list[Freshness]]",
+    "type": "object"
+   },
+   "Envelope_list_Fundamental__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/Fundamental"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/Meta"
+     }
+    },
+    "required": [
+     "data",
+     "meta"
+    ],
+    "title": "Envelope[list[Fundamental]]",
+    "type": "object"
+   },
+   "Envelope_list_GlobalBar__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/GlobalBar"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/Meta"
+     }
+    },
+    "required": [
+     "data",
+     "meta"
+    ],
+    "title": "Envelope[list[GlobalBar]]",
+    "type": "object"
+   },
+   "Envelope_list_GlobalInstrument__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/GlobalInstrument"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/Meta"
+     }
+    },
+    "required": [
+     "data",
+     "meta"
+    ],
+    "title": "Envelope[list[GlobalInstrument]]",
+    "type": "object"
+   },
+   "Envelope_list_GlobalLabel__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/GlobalLabel"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/Meta"
+     }
+    },
+    "required": [
+     "data",
+     "meta"
+    ],
+    "title": "Envelope[list[GlobalLabel]]",
+    "type": "object"
+   },
+   "Envelope_list_Instrument__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/Instrument"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/Meta"
+     }
+    },
+    "required": [
+     "data",
+     "meta"
+    ],
+    "title": "Envelope[list[Instrument]]",
+    "type": "object"
+   },
+   "Envelope_list_LatestPrice__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/LatestPrice"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/Meta"
+     }
+    },
+    "required": [
+     "data",
+     "meta"
+    ],
+    "title": "Envelope[list[LatestPrice]]",
+    "type": "object"
+   },
+   "Envelope_list_NewsItem__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/NewsItem"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/Meta"
+     }
+    },
+    "required": [
+     "data",
+     "meta"
+    ],
+    "title": "Envelope[list[NewsItem]]",
+    "type": "object"
+   },
+   "Envelope_list_SearchHit__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/SearchHit"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/Meta"
+     }
+    },
+    "required": [
+     "data",
+     "meta"
+    ],
+    "title": "Envelope[list[SearchHit]]",
+    "type": "object"
+   },
+   "Envelope_list_SectorCount__": {
+    "properties": {
+     "data": {
+      "items": {
+       "$ref": "#/components/schemas/SectorCount"
+      },
+      "title": "Data",
+      "type": "array"
+     },
+     "meta": {
+      "$ref": "#/components/schemas/Meta"
+     }
+    },
+    "required": [
+     "data",
+     "meta"
+    ],
+    "title": "Envelope[list[SectorCount]]",
+    "type": "object"
+   },
+   "Freshness": {
+    "properties": {
+     "age_hours": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Age Hours"
+     },
+     "dataset": {
+      "title": "Dataset",
+      "type": "string"
+     },
+     "expected_cadence": {
+      "title": "Expected Cadence",
+      "type": "string"
+     },
+     "last_complete_run_finished": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Complete Run Finished"
+     },
+     "last_status": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Status"
+     }
+    },
+    "required": [
+     "dataset",
+     "last_complete_run_finished",
+     "age_hours",
+     "last_status",
+     "expected_cadence"
+    ],
+    "title": "Freshness",
+    "type": "object"
+   },
+   "Fundamental": {
+    "properties": {
+     "fetched_at": {
+      "format": "date-time",
+      "title": "Fetched At",
+      "type": "string"
+     },
+     "knowable_at": {
+      "format": "date-time",
+      "title": "Knowable At",
+      "type": "string"
+     },
+     "payload": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "items": {},
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Payload"
+     },
+     "period_end": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Period End"
+     },
+     "period_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Period Type"
+     },
+     "statement_type": {
+      "title": "Statement Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "statement_type",
+     "period_end",
+     "period_type",
+     "payload",
+     "knowable_at",
+     "fetched_at"
+    ],
+    "title": "Fundamental",
+    "type": "object"
+   },
+   "GlobalBar": {
+    "properties": {
+     "close": {
+      "title": "Close",
+      "type": "number"
+     },
+     "finality": {
+      "description": "CONFIRMED / CONFIRMED_BY_AGE (others never exposed)",
+      "title": "Finality",
+      "type": "string"
+     },
+     "first_fetched_at": {
+      "format": "date-time",
+      "title": "First Fetched At",
+      "type": "string"
+     },
+     "high": {
+      "title": "High",
+      "type": "number"
+     },
+     "knowable_at": {
+      "format": "date-time",
+      "title": "Knowable At",
+      "type": "string"
+     },
+     "label_date": {
+      "description": "the vendor's label; NOT necessarily the instrument's trading date",
+      "format": "date",
+      "title": "Label Date",
+      "type": "string"
+     },
+     "low": {
+      "title": "Low",
+      "type": "number"
+     },
+     "open": {
+      "title": "Open",
+      "type": "number"
+     },
+     "volume": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Volume"
+     }
+    },
+    "required": [
+     "label_date",
+     "open",
+     "high",
+     "low",
+     "close",
+     "volume",
+     "finality",
+     "knowable_at",
+     "first_fetched_at"
+    ],
+    "title": "GlobalBar",
+    "type": "object"
+   },
+   "GlobalInstrument": {
+    "properties": {
+     "confirm_hours": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirm Hours"
+     },
+     "instrument_key": {
+      "title": "Instrument Key",
+      "type": "string"
+     },
+     "label_semantics": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Label Semantics"
+     },
+     "latest": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "latest CONFIRMED bar knowable before as_of",
+      "title": "Latest"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "segment": {
+      "title": "Segment",
+      "type": "string"
+     }
+    },
+    "required": [
+     "instrument_key",
+     "name",
+     "segment",
+     "label_semantics",
+     "confirm_hours",
+     "latest"
+    ],
+    "title": "GlobalInstrument",
+    "type": "object"
+   },
+   "GlobalLabel": {
+    "properties": {
+     "close": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "only for exposed labels",
+      "title": "Close"
+     },
+     "confirmed_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Confirmed At"
+     },
+     "exposed": {
+      "title": "Exposed",
+      "type": "boolean"
+     },
+     "finality": {
+      "description": "REVISED / PLACEHOLDER / UNCONFIRMED (withheld: no values) or CONFIRMED / CONFIRMED_BY_AGE",
+      "title": "Finality",
+      "type": "string"
+     },
+     "first_fetched_at": {
+      "format": "date-time",
+      "title": "First Fetched At",
+      "type": "string"
+     },
+     "label_date": {
+      "format": "date",
+      "title": "Label Date",
+      "type": "string"
+     },
+     "revised_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Revised At"
+     }
+    },
+    "required": [
+     "label_date",
+     "finality",
+     "exposed",
+     "close",
+     "first_fetched_at",
+     "confirmed_at",
+     "revised_at"
+    ],
+    "title": "GlobalLabel",
+    "type": "object"
+   },
+   "HTTPValidationError": {
+    "properties": {
+     "detail": {
+      "items": {
+       "$ref": "#/components/schemas/ValidationError"
+      },
+      "title": "Detail",
+      "type": "array"
+     }
+    },
+    "title": "HTTPValidationError",
+    "type": "object"
+   },
+   "Instrument": {
+    "properties": {
+     "exchange": {
+      "title": "Exchange",
+      "type": "string"
+     },
+     "instrument_key": {
+      "description": "vendor-stable key, e.g. 'NSE_EQ|INE002A01018'",
+      "title": "Instrument Key",
+      "type": "string"
+     },
+     "instrument_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Instrument Type"
+     },
+     "isin": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Isin"
+     },
+     "lifecycle_since": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Lifecycle Since"
+     },
+     "lifecycle_status": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "ACTIVE / INELIGIBLE / REMOVED_FROM_MASTER / VENDOR_REJECTED",
+      "title": "Lifecycle Status"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "sector": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "CURRENT sector (latest profile); not point-in-time - see /profile?as_of",
+      "title": "Sector"
+     },
+     "security_class": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "STOCK / FUND_UNIT / RIGHTS_ENTITLEMENT / OTHER (explainable, >= 2 signals); null for indices",
+      "title": "Security Class"
+     },
+     "segment": {
+      "title": "Segment",
+      "type": "string"
+     },
+     "trading_symbol": {
+      "title": "Trading Symbol",
+      "type": "string"
+     }
+    },
+    "required": [
+     "instrument_key",
+     "trading_symbol",
+     "name",
+     "isin",
+     "segment",
+     "exchange",
+     "instrument_type",
+     "lifecycle_since"
+    ],
+    "title": "Instrument",
+    "type": "object"
+   },
+   "LatestPrice": {
+    "properties": {
+     "change": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "close - previous_close (null when not comparable)",
+      "title": "Change"
+     },
+     "change_pct": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Change Pct"
+     },
+     "close": {
+      "title": "Close",
+      "type": "number"
+     },
+     "comparable": {
+      "description": "false when a split/bonus ex-date falls between the two sessions or their price basis differs: the raw difference would not be a market move",
+      "title": "Comparable",
+      "type": "boolean"
+     },
+     "comparable_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Comparable Reason"
+     },
+     "instrument_key": {
+      "title": "Instrument Key",
+      "type": "string"
+     },
+     "knowable_at": {
+      "format": "date-time",
+      "title": "Knowable At",
+      "type": "string"
+     },
+     "market_date": {
+      "description": "session of the latest 1d bar knowable before as_of",
+      "format": "date",
+      "title": "Market Date",
+      "type": "string"
+     },
+     "previous_close": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Previous Close"
+     },
+     "previous_market_date": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Previous Market Date"
+     },
+     "price_basis": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Basis"
+     },
+     "volume": {
+      "title": "Volume",
+      "type": "number"
+     }
+    },
+    "required": [
+     "instrument_key",
+     "market_date",
+     "close",
+     "previous_market_date",
+     "previous_close",
+     "change",
+     "change_pct",
+     "volume",
+     "comparable",
+     "comparable_reason",
+     "knowable_at",
+     "price_basis"
+    ],
+    "title": "LatestPrice",
+    "type": "object"
+   },
+   "MarketSession": {
+    "properties": {
+     "calendar_source": {
+      "title": "Calendar Source",
+      "type": "string"
+     },
+     "close_ist": {
+      "anyOf": [
+       {
+        "format": "time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Close Ist"
+     },
+     "date": {
+      "format": "date",
+      "title": "Date",
+      "type": "string"
+     },
+     "is_trading_day": {
+      "title": "Is Trading Day",
+      "type": "boolean"
+     },
+     "next_trading_day": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Next Trading Day"
+     },
+     "open_ist": {
+      "anyOf": [
+       {
+        "format": "time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Open Ist"
+     },
+     "preopen_start_ist": {
+      "anyOf": [
+       {
+        "format": "time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Preopen Start Ist"
+     },
+     "previous_trading_day": {
+      "anyOf": [
+       {
+        "format": "date",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Previous Trading Day"
+     },
+     "session_type": {
+      "description": "NORMAL / SPECIAL / HOLIDAY / WEEKEND",
+      "title": "Session Type",
+      "type": "string"
+     },
+     "state": {
+      "description": "at as_of: PRE_OPEN / OPEN / CLOSED / NON_TRADING_DAY (calendar only; not a feed status)",
+      "title": "State",
+      "type": "string"
+     }
+    },
+    "required": [
+     "date",
+     "is_trading_day",
+     "session_type",
+     "preopen_start_ist",
+     "open_ist",
+     "close_ist",
+     "state",
+     "previous_trading_day",
+     "next_trading_day",
+     "calendar_source"
+    ],
+    "title": "MarketSession",
+    "type": "object"
+   },
+   "Meta": {
+    "properties": {
+     "as_of": {
+      "description": "knowledge instant of the answer (UTC)",
+      "format": "date-time",
+      "title": "As Of",
+      "type": "string"
+     },
+     "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+     },
+     "knowledge_rule": {
+      "default": "knowable_at < as_of",
+      "title": "Knowledge Rule",
+      "type": "string"
+     },
+     "notes": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+     },
+     "point_in_time": {
+      "description": "true: only rows knowable before as_of",
+      "title": "Point In Time",
+      "type": "boolean"
+     },
+     "total": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "list endpoints: rows matching the filter (for pagination)",
+      "title": "Total"
+     }
+    },
+    "required": [
+     "as_of",
+     "generated_at",
+     "point_in_time"
+    ],
+    "title": "Meta",
+    "type": "object"
+   },
+   "NewsItem": {
+    "properties": {
+     "headline": {
+      "title": "Headline",
+      "type": "string"
+     },
+     "instrument_key": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Instrument Key"
+     },
+     "knowable_at": {
+      "format": "date-time",
+      "title": "Knowable At",
+      "type": "string"
+     },
+     "news_id": {
+      "title": "News Id",
+      "type": "integer"
+     },
+     "published_at": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "vendor publication time",
+      "title": "Published At"
+     },
+     "publisher": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "as supplied by the vendor (often none)",
+      "title": "Publisher"
+     },
+     "received_at": {
+      "description": "when Prajna fetched it",
+      "format": "date-time",
+      "title": "Received At",
+      "type": "string"
+     },
+     "url": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Url"
+     }
+    },
+    "required": [
+     "news_id",
+     "instrument_key",
+     "headline",
+     "url",
+     "published_at",
+     "received_at",
+     "knowable_at"
+    ],
+    "title": "NewsItem",
+    "type": "object"
+   },
+   "Profile": {
+    "properties": {
+     "instrument": {
+      "$ref": "#/components/schemas/Instrument"
+     },
+     "lifecycle_periods": {
+      "items": {
+       "additionalProperties": true,
+       "type": "object"
+      },
+      "title": "Lifecycle Periods",
+      "type": "array"
+     },
+     "profile": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "latest vendor profile payload knowable before as_of",
+      "title": "Profile"
+     },
+     "sector_as_of": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "sector of the latest profile snapshot knowable before as_of",
+      "title": "Sector As Of"
+     },
+     "security_class_signals": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Security Class Signals"
+     }
+    },
+    "required": [
+     "instrument",
+     "sector_as_of",
+     "security_class_signals",
+     "lifecycle_periods",
+     "profile"
+    ],
+    "title": "Profile",
+    "type": "object"
+   },
+   "Quality": {
+    "properties": {
+     "coverage": {
+      "additionalProperties": {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      "description": "current coverage ranges per timeframe (NOT PIT)",
+      "title": "Coverage",
+      "type": "object"
+     },
+     "instrument_key": {
+      "title": "Instrument Key",
+      "type": "string"
+     },
+     "observations": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "description": "later vendor observations by class (append-only)",
+      "title": "Observations",
+      "type": "object"
+     },
+     "price_basis": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "title": "Price Basis",
+      "type": "object"
+     },
+     "provenance": {
+      "additionalProperties": true,
+      "title": "Provenance",
+      "type": "object"
+     },
+     "quarantined_bars": {
+      "title": "Quarantined Bars",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "instrument_key",
+     "coverage",
+     "observations",
+     "price_basis",
+     "quarantined_bars",
+     "provenance"
+    ],
+    "title": "Quality",
+    "type": "object"
+   },
+   "Quote": {
+    "properties": {
+     "age_seconds": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "as_of minus the newest bar's knowable_at",
+      "title": "Age Seconds"
+     },
+     "instrument_key": {
+      "title": "Instrument Key",
+      "type": "string"
+     },
+     "last_1d": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Candle"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "last_1m": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Candle"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "source": {
+      "description": "what the numbers are; Stage 1 has no canonical live tick store",
+      "title": "Source",
+      "type": "string"
+     }
+    },
+    "required": [
+     "instrument_key",
+     "source",
+     "last_1m",
+     "last_1d",
+     "age_seconds"
+    ],
+    "title": "Quote",
+    "type": "object"
+   },
+   "SearchHit": {
+    "properties": {
+     "exchange": {
+      "title": "Exchange",
+      "type": "string"
+     },
+     "instrument_key": {
+      "description": "vendor-stable key, e.g. 'NSE_EQ|INE002A01018'",
+      "title": "Instrument Key",
+      "type": "string"
+     },
+     "instrument_type": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Instrument Type"
+     },
+     "isin": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Isin"
+     },
+     "lifecycle_since": {
+      "anyOf": [
+       {
+        "format": "date-time",
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Lifecycle Since"
+     },
+     "lifecycle_status": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "ACTIVE / INELIGIBLE / REMOVED_FROM_MASTER / VENDOR_REJECTED",
+      "title": "Lifecycle Status"
+     },
+     "match": {
+      "description": "SYMBOL_EXACT / SYMBOL_PREFIX / ISIN / NAME",
+      "title": "Match",
+      "type": "string"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "sector": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "CURRENT sector (latest profile); not point-in-time - see /profile?as_of",
+      "title": "Sector"
+     },
+     "security_class": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "description": "STOCK / FUND_UNIT / RIGHTS_ENTITLEMENT / OTHER (explainable, >= 2 signals); null for indices",
+      "title": "Security Class"
+     },
+     "segment": {
+      "title": "Segment",
+      "type": "string"
+     },
+     "trading_symbol": {
+      "title": "Trading Symbol",
+      "type": "string"
+     }
+    },
+    "required": [
+     "instrument_key",
+     "trading_symbol",
+     "name",
+     "isin",
+     "segment",
+     "exchange",
+     "instrument_type",
+     "lifecycle_since",
+     "match"
+    ],
+    "title": "SearchHit",
+    "type": "object"
+   },
+   "SectorCount": {
+    "properties": {
+     "sector": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sector"
+     },
+     "stocks": {
+      "title": "Stocks",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "sector",
+     "stocks"
+    ],
+    "title": "SectorCount",
+    "type": "object"
+   },
+   "ValidationError": {
+    "properties": {
+     "ctx": {
+      "title": "Context",
+      "type": "object"
+     },
+     "input": {
+      "title": "Input"
+     },
+     "loc": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ]
+      },
+      "title": "Location",
+      "type": "array"
+     },
+     "msg": {
+      "title": "Message",
+      "type": "string"
+     },
+     "type": {
+      "title": "Error Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "loc",
+     "msg",
+     "type"
+    ],
+    "title": "ValidationError",
+    "type": "object"
+   }
+  }
+ },
+ "info": {
+  "description": "READ-ONLY: every request runs in a READ ONLY transaction; there is no write\nendpoint. Every data read goes through app.canon.pit (knowable_at < as_of,\nre-checked row by row) or a canonical view with the same rule, so a client\ncannot see a value earlier than Prajna knew it. `as_of` defaults to now: for\nlive use that is \"everything knowable so far\"; for research pass a past\ninstant. Nothing here computes features, signals or decisions (Stage 3 is\nLOCKED) and nothing is shaped for one particular frontend.",
+  "title": "Prajna read API",
+  "version": "1.0.0"
+ },
+ "openapi": "3.1.0",
+ "paths": {
+  "/v1/acceptance": {
+   "get": {
+    "description": "The latest generated Stage 1 / Stage 2 acceptance verdicts (read from the\nreports the gates wrote; this endpoint never re-evaluates).",
+    "operationId": "acceptance_v1_acceptance_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_dict_str__Any__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Acceptance",
+    "tags": [
+     "operations"
+    ]
+   }
+  },
+  "/v1/freshness": {
+   "get": {
+    "operationId": "freshness_v1_freshness_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_list_Freshness__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Freshness",
+    "tags": [
+     "operations"
+    ]
+   }
+  },
+  "/v1/global": {
+   "get": {
+    "description": "The 13 global indices/indicators with their measured label contract and\nthe latest CONFIRMED bar (unconfirmed, revised and placeholder bars are\nnever exposed).",
+    "operationId": "global_markets_v1_global_get",
+    "parameters": [
+     {
+      "description": "knowledge instant (ISO-8601 with offset); default now",
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "knowledge instant (ISO-8601 with offset); default now",
+       "title": "As Of"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_list_GlobalInstrument__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Global Markets",
+    "tags": [
+     "global"
+    ]
+   }
+  },
+  "/v1/global/{instrument_key}/candles": {
+   "get": {
+    "operationId": "global_candles_v1_global__instrument_key__candles_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "instrument_key",
+      "required": true,
+      "schema": {
+       "title": "Instrument Key",
+       "type": "string"
+      }
+     },
+     {
+      "description": "knowledge instant (ISO-8601 with offset); default now",
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "knowledge instant (ISO-8601 with offset); default now",
+       "title": "As Of"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 250,
+       "maximum": 5000,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_list_GlobalBar__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Global Candles",
+    "tags": [
+     "global"
+    ]
+   }
+  },
+  "/v1/global/{instrument_key}/finality": {
+   "get": {
+    "description": "Every recent label with its finality status. Withheld labels (REVISED /\nPLACEHOLDER / UNCONFIRMED) carry no values. Current state (not PIT).",
+    "operationId": "global_finality_v1_global__instrument_key__finality_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "instrument_key",
+      "required": true,
+      "schema": {
+       "title": "Instrument Key",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 30,
+       "maximum": 500,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_list_GlobalLabel__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Global Finality",
+    "tags": [
+     "global"
+    ]
+   }
+  },
+  "/v1/instruments": {
+   "get": {
+    "description": "The canonical NSE universe (current state). Default: ACTIVE listings;\nlifecycle_status=ANY for every status. An empty filter value means no filter.",
+    "operationId": "instruments_v1_instruments_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "segment",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Segment"
+      }
+     },
+     {
+      "in": "query",
+      "name": "security_class",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Security Class"
+      }
+     },
+     {
+      "in": "query",
+      "name": "lifecycle_status",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": "ACTIVE",
+       "title": "Lifecycle Status"
+      }
+     },
+     {
+      "in": "query",
+      "name": "sector",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Sector"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 500,
+       "maximum": 5000,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "offset",
+      "required": false,
+      "schema": {
+       "default": 0,
+       "minimum": 0,
+       "title": "Offset",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_list_Instrument__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Instruments",
+    "tags": [
+     "instruments"
+    ]
+   }
+  },
+  "/v1/instruments/{instrument_key}/candles": {
+   "get": {
+    "description": "OHLCV as knowable at as_of. adjusted=true: split/bonus-adjusted as a trader\nknew it then (pit.bars_adjusted); low-confidence / reconstructed rows are\nwithheld unless allowed, and counted in `refused`.",
+    "operationId": "candles_v1_instruments__instrument_key__candles_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "instrument_key",
+      "required": true,
+      "schema": {
+       "title": "Instrument Key",
+       "type": "string"
+      }
+     },
+     {
+      "description": "1m / 15m / 1h / 1d",
+      "in": "query",
+      "name": "timeframe",
+      "required": true,
+      "schema": {
+       "description": "1m / 15m / 1h / 1d",
+       "title": "Timeframe",
+       "type": "string"
+      }
+     },
+     {
+      "description": "knowledge instant (ISO-8601 with offset); default now",
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "knowledge instant (ISO-8601 with offset); default now",
+       "title": "As Of"
+      }
+     },
+     {
+      "in": "query",
+      "name": "start",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Start"
+      }
+     },
+     {
+      "in": "query",
+      "name": "end",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "End"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "maximum": 5000,
+         "minimum": 1,
+         "type": "integer"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "default": 500,
+       "title": "Limit"
+      }
+     },
+     {
+      "in": "query",
+      "name": "adjusted",
+      "required": false,
+      "schema": {
+       "default": false,
+       "title": "Adjusted",
+       "type": "boolean"
+      }
+     },
+     {
+      "in": "query",
+      "name": "allow_low_confidence",
+      "required": false,
+      "schema": {
+       "default": false,
+       "title": "Allow Low Confidence",
+       "type": "boolean"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_CandleSeries_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Candles",
+    "tags": [
+     "market data"
+    ]
+   }
+  },
+  "/v1/instruments/{instrument_key}/corporate-actions": {
+   "get": {
+    "description": "Actions knowable before as_of, with the versioned adjustment factor.",
+    "operationId": "corporate_actions_v1_instruments__instrument_key__corporate_actions_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "instrument_key",
+      "required": true,
+      "schema": {
+       "title": "Instrument Key",
+       "type": "string"
+      }
+     },
+     {
+      "description": "knowledge instant (ISO-8601 with offset); default now",
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "knowledge instant (ISO-8601 with offset); default now",
+       "title": "As Of"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_list_CorporateAction__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Corporate Actions",
+    "tags": [
+     "reference data"
+    ]
+   }
+  },
+  "/v1/instruments/{instrument_key}/fundamentals": {
+   "get": {
+    "description": "The latest snapshot per statement type knowable before as_of.",
+    "operationId": "fundamentals_v1_instruments__instrument_key__fundamentals_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "instrument_key",
+      "required": true,
+      "schema": {
+       "title": "Instrument Key",
+       "type": "string"
+      }
+     },
+     {
+      "description": "knowledge instant (ISO-8601 with offset); default now",
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "knowledge instant (ISO-8601 with offset); default now",
+       "title": "As Of"
+      }
+     },
+     {
+      "in": "query",
+      "name": "statement_type",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Statement Type"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_list_Fundamental__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Fundamentals",
+    "tags": [
+     "reference data"
+    ]
+   }
+  },
+  "/v1/instruments/{instrument_key}/profile": {
+   "get": {
+    "operationId": "profile_v1_instruments__instrument_key__profile_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "instrument_key",
+      "required": true,
+      "schema": {
+       "title": "Instrument Key",
+       "type": "string"
+      }
+     },
+     {
+      "description": "knowledge instant (ISO-8601 with offset); default now",
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "knowledge instant (ISO-8601 with offset); default now",
+       "title": "As Of"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_Profile_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Profile",
+    "tags": [
+     "instruments"
+    ]
+   }
+  },
+  "/v1/instruments/{instrument_key}/quality": {
+   "get": {
+    "description": "Current coverage, vendor-revision observations, price basis, quarantines.",
+    "operationId": "quality_v1_instruments__instrument_key__quality_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "instrument_key",
+      "required": true,
+      "schema": {
+       "title": "Instrument Key",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_Quality_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Quality",
+    "tags": [
+     "operations"
+    ]
+   }
+  },
+  "/v1/instruments/{instrument_key}/quote": {
+   "get": {
+    "description": "The newest stored bars. Stage 1 keeps no canonical live tick store (criterion\nL: OUT_OF_SCOPE), so this is NOT a real-time quote; age_seconds says how old.",
+    "operationId": "quote_v1_instruments__instrument_key__quote_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "instrument_key",
+      "required": true,
+      "schema": {
+       "title": "Instrument Key",
+       "type": "string"
+      }
+     },
+     {
+      "description": "knowledge instant (ISO-8601 with offset); default now",
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "knowledge instant (ISO-8601 with offset); default now",
+       "title": "As Of"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_Quote_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Quote",
+    "tags": [
+     "market data"
+    ]
+   }
+  },
+  "/v1/latest": {
+   "get": {
+    "description": "Latest daily close and the previous one, per instrument, as knowable at\nas_of. The change is withheld (comparable=false) across a split/bonus ex-date\nor a price-basis difference, where a raw difference is not a market move.",
+    "operationId": "latest_v1_latest_get",
+    "parameters": [
+     {
+      "description": "comma-separated instrument keys (max 200)",
+      "in": "query",
+      "name": "keys",
+      "required": true,
+      "schema": {
+       "description": "comma-separated instrument keys (max 200)",
+       "title": "Keys",
+       "type": "string"
+      }
+     },
+     {
+      "description": "knowledge instant (ISO-8601 with offset); default now",
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "knowledge instant (ISO-8601 with offset); default now",
+       "title": "As Of"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_list_LatestPrice__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Latest",
+    "tags": [
+     "market data"
+    ]
+   }
+  },
+  "/v1/market/session": {
+   "get": {
+    "description": "The NSE calendar entry for a date (default: today IST) and, for today,\nthe calendar state at as_of. Calendar only: says nothing about feeds.",
+    "operationId": "market_session_v1_market_session_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "date",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Date"
+      }
+     },
+     {
+      "description": "knowledge instant (ISO-8601 with offset); default now",
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "knowledge instant (ISO-8601 with offset); default now",
+       "title": "As Of"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_MarketSession_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Market Session",
+    "tags": [
+     "market data"
+    ]
+   }
+  },
+  "/v1/news": {
+   "get": {
+    "description": "News knowable before as_of (the article AND its instrument link), newest\nfirst. published_at = vendor time; received_at = Prajna's fetch.",
+    "operationId": "news_v1_news_get",
+    "parameters": [
+     {
+      "description": "knowledge instant (ISO-8601 with offset); default now",
+      "in": "query",
+      "name": "as_of",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "description": "knowledge instant (ISO-8601 with offset); default now",
+       "title": "As Of"
+      }
+     },
+     {
+      "in": "query",
+      "name": "instrument_key",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Instrument Key"
+      }
+     },
+     {
+      "in": "query",
+      "name": "since",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "format": "date-time",
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Since"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 100,
+       "maximum": 1000,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_list_NewsItem__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "News",
+    "tags": [
+     "news"
+    ]
+   }
+  },
+  "/v1/pipeline/status": {
+   "get": {
+    "description": "Last run per job family, running runs, lock, token AGE (never the token),\ndisk, recent runbook markers.",
+    "operationId": "pipeline_status_v1_pipeline_status_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_dict_str__Any__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Pipeline Status",
+    "tags": [
+     "operations"
+    ]
+   }
+  },
+  "/v1/search": {
+   "get": {
+    "description": "Symbol / ISIN / name search, ranked: exact symbol, symbol prefix, ISIN, name.",
+    "operationId": "search_v1_search_get",
+    "parameters": [
+     {
+      "in": "query",
+      "name": "q",
+      "required": true,
+      "schema": {
+       "maxLength": 64,
+       "minLength": 1,
+       "title": "Q",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 20,
+       "maximum": 100,
+       "minimum": 1,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_list_SearchHit__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Search",
+    "tags": [
+     "instruments"
+    ]
+   }
+  },
+  "/v1/sectors": {
+   "get": {
+    "description": "Current sector distribution of ACTIVE stocks (security_class STOCK).",
+    "operationId": "sectors_v1_sectors_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Envelope_list_SectorCount__"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Sectors",
+    "tags": [
+     "instruments"
+    ]
+   }
+  }
+ }
+}
