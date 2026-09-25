@@ -61,6 +61,83 @@ async def bars(s: AsyncSession, instrument_key: str, timeframe: str, as_of: _dt.
     return rows
 
 
+async def bars_adjusted(s: AsyncSession, instrument_key: str, timeframe: str,
+                        as_of: _dt.datetime, *, start: _dt.date | None = None,
+                        end: _dt.date | None = None, allow_reconstructed: bool = False,
+                        allow_low_confidence: bool = False) -> dict[str, Any]:
+    """Split/bonus-adjusted bars AS A TRADER KNEW THEM at as_of (phase 7).
+
+    For each bar knowable before as_of (the same rows as bars()):
+      target = product of EXACT ca_factor F with  bar_date < ex_date <= market
+               date of as_of  AND  knowable_at < as_of  (KN-CA)
+      baked  = product of F the vendor already applied to the stored value
+               (vendor_applied = APPLIED, bar_date < ex_date <= the payload's
+               basis_as_of); RAW_OBSERVED payloads bake nothing
+      net    = target / baked:   1 -> as stored (AS_STORED)
+                                >1 -> price / net, volume * net (ADJUSTED, exact)
+                                <1 -> the stored value contains an action NOT yet
+                                      knowable at as_of: undoing it multiplies a
+                                      rounded vendor value (RECONSTRUCTED,
+                                      approximate) -> refused unless
+                                      allow_reconstructed
+    LOW confidence (refused unless allow_low_confidence): a vendor-adjusted row
+    older than the corporate-action horizon (earlier events are unknown), an
+    UNKNOWN vendor treatment inside (bar, basis_as_of], or no recorded basis.
+    A future corporate action can never change what an earlier as_of sees.
+    """
+    from decimal import Decimal
+
+    rows = await bars(s, instrument_key, timeframe, as_of, start=start, end=end)
+    as_of_u = to_utc(as_of)
+    day = market_date(as_of_u)
+    basis = {r[0]: (r[1], r[2]) for r in (await s.execute(text(
+        "select payload_sha256, price_basis, basis_as_of from ohlcv_payload_basis "
+        "where payload_sha256 = any(:h)"),
+        {"h": list({r["payload_sha256"] for r in rows})})).all()}
+    events = [dict(e) for e in (await s.execute(text("""
+        select ca_id, ex_date, factor_price, knowable_at, vendor_applied from ca_factor
+        where instrument_key = :k and status = 'EXACT' and ex_date is not null
+        order by ex_date"""), {"k": instrument_key})).mappings().all()]
+    horizon = (await s.execute(text("select min(ex_date) from corporate_action"))).scalar()
+    known = [e for e in events if e["ex_date"] <= day and e["knowable_at"] < as_of_u]
+    out, refused = [], {"reconstructed": 0, "low_confidence": 0}
+    for r in rows:
+        bd = r["market_date"]
+        pb, bas = basis.get(r["payload_sha256"], (None, None))
+        target = Decimal(1)
+        used = [e["ca_id"] for e in known if bd < e["ex_date"]]
+        for e in known:
+            if bd < e["ex_date"]:
+                target *= Decimal(e["factor_price"])
+        baked, low = Decimal(1), pb is None
+        if pb == "VENDOR_ADJUSTED":
+            for e in events:
+                if bd < e["ex_date"] <= bas:
+                    if e["vendor_applied"] == "APPLIED":
+                        baked *= Decimal(e["factor_price"])
+                    elif e["vendor_applied"] == "UNKNOWN":
+                        low = True
+            low = low or (horizon is not None and bd < horizon)
+        net = target / baked
+        status = "AS_STORED" if net == 1 else ("ADJUSTED" if net > 1 else "RECONSTRUCTED")
+        if low and not allow_low_confidence:
+            refused["low_confidence"] += 1
+            continue
+        if status == "RECONSTRUCTED" and not allow_reconstructed:
+            refused["reconstructed"] += 1
+            continue
+        adj = dict(r)
+        for f in ("open", "high", "low", "close"):
+            adj[f] = (Decimal(str(r[f])) / net).quantize(Decimal("0.000001"))
+        adj["volume"] = Decimal(str(r["volume"])) * net
+        adj.update(adjustment_status=status, factor_applied=net, ca_ids_known=used,
+                   price_basis=pb, basis_as_of=bas, basis_confidence="LOW" if low else "HIGH")
+        out.append(adj)
+    return {"as_of": as_of_u.isoformat(), "instrument_key": instrument_key,
+            "timeframe": timeframe, "rows": out, "refused": refused,
+            "events_known": [e["ca_id"] for e in known], "horizon": horizon}
+
+
 async def corporate_actions(s: AsyncSession, as_of: _dt.datetime,
                             instrument_key: str | None = None) -> list[dict]:
     return await _rows(s, """

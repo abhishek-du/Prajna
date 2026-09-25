@@ -24,7 +24,7 @@ exec > >(tee -a "var/logs/daily/maintenance_${TODAY}.log") 2>&1
 export PRAJNA_SUPPLIED_TOKEN="$(grep '^PRAJNA_WRITE_TOKEN=' .env | cut -d= -f2-)"
 say() { echo "[$(TZ=Asia/Kolkata date '+%F %T IST')] $*"; }
 rc=0
-DERIVE=(price-basis)
+DERIVE=(price-basis ca-factors)
 
 summ() {  # summ <kind> <json>: one-line summary of a command's JSON output
   "$P" - "$1" "$2" <<'EOF' 2>/dev/null || echo "FAILED (unreadable output)"

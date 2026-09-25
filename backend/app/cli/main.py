@@ -1116,6 +1116,17 @@ def derive_price_basis_cmd(
     _derive("derive_price_basis", commit, token)
 
 
+@derive_app.command("ca-factors")
+def derive_ca_factors_cmd(
+    commit: bool = typer.Option(False, "--commit"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"),
+):
+    """Derive the adjustment factor of every corporate action (versioned), and
+    whether the vendor's stored history is adjusted for it (with evidence)."""
+    _derive("derive_ca_factors", commit, token)
+
+
 ops_app = typer.Typer(help="operations: status, maintenance (no vendor calls)")
 app.add_typer(ops_app, name="ops")
 
