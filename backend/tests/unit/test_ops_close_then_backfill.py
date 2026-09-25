@@ -297,6 +297,22 @@ class TestStaticGuards:
         deferred = (BACKEND / "ops" / "cron" / "prajna.cron").read_text()
         assert deferred.count("# DEFERRED_FOR_STAGE_1:") == 2         # capability kept
 
+    def test_news_poll_runs_in_market_hours_without_login_or_candles_lock(self):
+        text = (BACKEND / "ops" / "cron" / "prajna.cron").read_text()
+        news = [ln for ln in text.splitlines() if "news_poll.sh" in ln and not ln.startswith("#")]
+        assert news, "market-hours news polling is scheduled"
+        for ln in news:
+            minute, hour, _, _, dow = ln.split()[:5]
+            assert dow == "1-5" and "$LK" not in ln and "news.lock" in ln
+            hours = [int(h) for h in hour.replace("-", ",").split(",")]
+            assert min(hours) >= 9 and max(hours) <= 15
+            if hour == "9":
+                assert minute == "30"            # after the 08:55-09:20 pre-open capture
+        body = (RUNBOOKS / "news_poll.sh").read_text()
+        assert "--login" not in body and "PRAJNA_SUPPLIED_TOKEN" in body
+        assert "timeout -k 60 --signal=INT" in body and "--token" not in body
+
+
 
 class TestInterruptedClose:
     """A close killed by its hard stop (or any interruption) leaves no, an
