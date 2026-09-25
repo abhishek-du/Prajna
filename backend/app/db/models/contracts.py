@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as _dt
+import uuid
 
 from sqlalchemy import (
     BigInteger,
@@ -18,7 +19,7 @@ from sqlalchemy import (
     Time,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, ExcludeConstraint
+from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, UUID, ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, ProvenanceMixin
@@ -240,4 +241,51 @@ class InstrumentAttributeVersion(Base, ProvenanceMixin):
         CheckConstraint("valid_from < valid_to", name="ck_attr_version_order"),
         CheckConstraint("knowable_at <= fetched_at", name="ck_attr_version_knowable"),
         Index("ix_attr_version_instrument", "instrument_id", "valid_from"),
+    )
+
+
+SECURITY_CLASSES = ("STOCK", "FUND_UNIT", "RIGHTS_ENTITLEMENT", "OTHER")
+CLASS_STATUSES = ("CLASSIFIED", "REVIEW", "UNCLASSIFIED")
+
+
+class InstrumentSecurityClass(Base):
+    """What kind of security an instrument is (hardening phase 3). Derived.
+
+    STOCK               equity of an operating company (the D sector universe)
+    FUND_UNIT           a mutual-fund / ETF scheme unit
+    RIGHTS_ENTITLEMENT  a tradeable rights entitlement (-RE)
+    OTHER               anything else, with a subclass (INVIT_UNIT, INDEX, GLOBAL)
+
+    A class needs >= 2 agreeing independent signals and no contradicting one;
+    a contradiction is REVIEW, too little evidence UNCLASSIFIED (class NULL).
+    Every signal's raw value and vote is kept in `signals`, so each decision
+    is explainable. Current-state metadata (not point-in-time): recomputed by
+    `prajna classify securities` after each master refresh / fundamentals sweep.
+    """
+
+    __tablename__ = "instrument_security_class"
+
+    instrument_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("instrument.instrument_id", ondelete="RESTRICT"),
+        primary_key=True)
+    instrument_key: Mapped[str] = mapped_column(String(80), nullable=False)
+    security_class: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    subclass: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    signals: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    method_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    classified_at: Mapped[_dt.datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ingest_run.run_id", ondelete="RESTRICT"), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("security_class is null or security_class in "
+                        "('STOCK','FUND_UNIT','RIGHTS_ENTITLEMENT','OTHER')",
+                        name="ck_secclass_class"),
+        CheckConstraint("status in ('CLASSIFIED','REVIEW','UNCLASSIFIED')",
+                        name="ck_secclass_status"),
+        CheckConstraint("(status = 'CLASSIFIED') = (security_class is not null)",
+                        name="ck_secclass_classified_has_class"),
+        Index("ix_secclass_class", "security_class", "status"),
     )

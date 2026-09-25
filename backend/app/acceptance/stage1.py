@@ -173,24 +173,49 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
     out.append(Criterion("C", "Point-in-time safety (knowable_at <= fetched_at)",
                          PASS if not any(pit.values()) else FAIL, {"violations": pit}))
 
-    # D. instrument master
+    # D. instrument master + sector coverage of STOCKS (hardening phase 3).
+    # Old rule: sector >= 90 % of ALL current NSE_EQ (fund units and rights
+    # entitlements, which have no sector by nature, were in the denominator).
+    # New rule: sector >= 90 % of ACTIVE NSE_EQ instruments classified STOCK
+    # (instrument_security_class, >= 2 agreeing signals); REVIEW must be 0 and
+    # UNCLASSIFIED only within a 7-day grace for new listings.
     inst = await _one(s, """select
         count(*) filter (where segment='NSE_EQ'), count(*) filter (where segment='NSE_INDEX'),
         count(*) filter (where segment like 'GLOBAL%'),
         count(*) filter (where segment='NSE_EQ' and (isin is null or trading_symbol is null))
-        from instrument where valid_to='infinity'""")
-    sector = await _one(s, """select count(distinct instrument_key) from fundamental_snapshot
-        where statement_type='profile' and payload ? 'sector'
-          and coalesce(payload->>'sector','') <> ''""")
-    d_ok = inst[0] > 3000 and inst[1] == 3 and inst[3] == 0
-    d_status = PASS if d_ok and sector[0] >= 0.9 * inst[0] else FAIL
-    out.append(Criterion("D", "Instrument master", d_status,
+        from instrument where valid_to='infinity' and lifecycle_status='ACTIVE'""")
+    cls = await _all(s, """select coalesce(c.security_class, '-'), coalesce(c.subclass, '-'),
+            coalesce(c.status, 'MISSING'), count(*),
+            count(*) filter (where c.status = 'UNCLASSIFIED' and i.first_seen < :grace),
+            count(*) filter (where c.security_class = 'STOCK' and p.sector is not null)
+        from instrument i
+        left join instrument_security_class c using (instrument_id)
+        left join lateral (select nullif(f.payload->>'sector', '') sector
+            from fundamental_snapshot f where f.instrument_key = i.instrument_key
+              and f.statement_type = 'profile' order by f.knowable_at desc limit 1) p on true
+        where i.valid_to = 'infinity' and i.lifecycle_status = 'ACTIVE' and i.segment = 'NSE_EQ'
+        group by 1, 2, 3 order by 1, 2, 3""", grace=today - _dt.timedelta(days=7))
+    breakdown = {f"{c}/{sub}/{st}": n for c, sub, st, n, _, _ in cls}
+    stocks = sum(n for c, _, st, n, _, _ in cls if c == "STOCK" and st == "CLASSIFIED")
+    with_sector = sum(ws for *_, ws in cls)
+    review = sum(n for _, _, st, n, _, _ in cls if st == "REVIEW")
+    unclassified_old = sum(old for *_, old, _ in cls)
+    missing = sum(n for _, _, st, n, _, _ in cls if st == "MISSING")
+    coverage = with_sector / stocks if stocks else 0.0
+    d_ok = inst[0] > 3000 and inst[1] == 3 and inst[3] == 0 and stocks > 0 \
+        and coverage >= 0.9 and review == 0 and unclassified_old == 0 and missing == 0
+    out.append(Criterion("D", "Instrument master", PASS if d_ok else FAIL,
         {"sector_source": "fundamental_snapshot(profile).payload.sector",
-         "listing_status": "UNAVAILABLE: Upstox 'suspended' instruments file answers 403 "
-                           "AccessDenied (archived sha a824bc77...)"},
-        {"nse_eq": inst[0], "nse_index": inst[1], "global": inst[2],
-         "nse_eq_missing_isin_or_symbol": inst[3], "instruments_with_sector": sector[0]},
-        "sector comes from fundamentals (not a master field); needs >= 90 % of NSE_EQ"))
+         "classification": "instrument_security_class (prajna classify securities)",
+         "listing_status": "instrument.lifecycle_status (daily master refresh, phase 2)"},
+        {"active_nse_eq": inst[0], "nse_index": inst[1], "global": inst[2],
+         "nse_eq_missing_isin_or_symbol": inst[3], "eligible_stock_count": stocks,
+         "sector_present_count": with_sector, "sector_missing_count": stocks - with_sector,
+         "coverage_percentage": round(100 * coverage, 2), "review": review,
+         "unclassified_beyond_grace": unclassified_old, "unclassified_missing_row": missing,
+         "breakdown": breakdown},
+        "new rule: sector >= 90 % of ACTIVE STOCK instruments (old: of all NSE_EQ); "
+        "REVIEW = 0; UNCLASSIFIED only within 7 days of first_seen"))
 
     # E. calendar coverage 2020-01-01 .. last session + 30 days
     cal = await _one(s, """select count(*), min(session_date), max(session_date),

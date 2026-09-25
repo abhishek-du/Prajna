@@ -3,21 +3,29 @@
 from app.db.base import Base
 from app.db.models.canon import CanonCoverage, CanonInstrument
 from app.db.models.contracts import (
-    Instrument, InstrumentAttributeVersion, InstrumentLifecyclePeriod,
-    InstrumentUniverseMembership, TradingSession,
+    Instrument,
+    InstrumentAttributeVersion,
+    InstrumentLifecyclePeriod,
+    InstrumentSecurityClass,
+    InstrumentUniverseMembership,
+    TradingSession,
 )
 from app.db.models.control import IngestAnomaly, IngestRun, IngestWatermark, RawPayload
 from app.db.models.market import OhlcvBar, TickArchive
 from app.db.models.preopen import PreopenBook, PreopenSessionStatus, PreopenTick
 from app.db.models.reference import (
-    CorporateAction, FundamentalSnapshot, MacroObservation, NewsArticle, NewsInstrument,
+    CorporateAction,
+    FundamentalSnapshot,
+    MacroObservation,
+    NewsArticle,
+    NewsInstrument,
 )
 
 __all__ = [
     "Base",
     "IngestRun", "RawPayload", "IngestWatermark", "IngestAnomaly",
     "TradingSession", "Instrument", "InstrumentUniverseMembership",
-    "InstrumentLifecyclePeriod", "InstrumentAttributeVersion",
+    "InstrumentLifecyclePeriod", "InstrumentAttributeVersion", "InstrumentSecurityClass",
     "PreopenTick", "PreopenBook", "PreopenSessionStatus",
     "OhlcvBar", "TickArchive",
     "CorporateAction", "FundamentalSnapshot", "MacroObservation", "NewsArticle",

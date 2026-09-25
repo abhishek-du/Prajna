@@ -13,7 +13,8 @@
 # refresh  the vendor instrument master: new listings, attribute versions and
 #          the listing lifecycle (hardening phase 2); then each NEW listing is
 #          brought to the Stage 1 contract: 1D history from 2020 (1 request),
-#          fundamentals (12) and corporate actions (1). Never deletes anything.
+#          fundamentals (12) and corporate actions (1); then the security
+#          classification (STOCK / FUND_UNIT / ...). Never deletes anything.
 # morning  the session's daily bar for every NSE instrument (historical
 #          endpoint, window = the 7 days up to the session so the checkpoint
 #          stays contiguous across weekends and holidays; stored bars are
@@ -107,6 +108,8 @@ case "$PHASE" in
     else
       say "   no new listings"
     fi
+    # classification after the new listings' fundamentals (hardening phase 3)
+    run classify_securities "${CLI[@]}" classify securities --commit
     ;;
   weekly)
     run corporate_actions "${CLI[@]}" ingest corporate-actions --commit
@@ -116,6 +119,7 @@ case "$PHASE" in
     CAL_TO="$(TZ=Asia/Kolkata date -d "${TODAY} +60 days" +%F)"
     run calendar "${CLI[@]}" ingest calendar --from "$TODAY" --to "$CAL_TO" --commit
     run fundamentals "${CLI[@]}" ingest fundamentals --commit
+    run classify_securities "${CLI[@]}" classify securities --commit
     ;;
   *) say "unknown phase $PHASE"; exit 2 ;;
 esac

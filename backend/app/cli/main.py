@@ -1083,6 +1083,31 @@ def upstox_login(
 
 
 # ── Stage 2 ──────────────────────────────────────────────────────────────────
+classify_app = typer.Typer(help="derived classifications (no vendor calls)")
+app.add_typer(classify_app, name="classify")
+
+
+@classify_app.command("securities")
+def classify_securities_cmd(
+    commit: bool = typer.Option(False, "--commit", help="write instrument_security_class"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"),
+):
+    """Classify every current instrument as STOCK / FUND_UNIT / RIGHTS_ENTITLEMENT
+    / OTHER from >= 2 independent signals; disagreement is REVIEW, too little
+    evidence UNCLASSIFIED. Exit 0 when COMPLETE (REVIEW items are reported)."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.ingest.security_class import classify_securities
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await classify_securities(s, commit=commit, token=token)
+
+    typer.echo(_json.dumps(asyncio.run(_go()), indent=2, default=str))
+
+
 stage2_app = typer.Typer(help="Stage 2 data processing (derived from Stage 1; no vendor calls)")
 app.add_typer(stage2_app, name="stage2")
 
