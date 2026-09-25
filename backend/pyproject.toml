@@ -25,6 +25,9 @@ dependencies = [
   "python-dotenv>=1.0",
   # Upstox TOTP login (app/vendor/upstox/auth.py) needs browser TLS impersonation.
   "curl_cffi>=0.7",
+  # read API (app/readapi) and the internal db viewer (app/web)
+  "fastapi>=0.115",
+  "uvicorn>=0.30",
 ]
 
 [project.optional-dependencies]
