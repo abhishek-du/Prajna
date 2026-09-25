@@ -33,6 +33,7 @@ export PRAJNA_SUPPLIED_TOKEN="$(grep '^PRAJNA_WRITE_TOKEN=' .env | cut -d= -f2-)
 say() { echo "[$(TZ=Asia/Kolkata date '+%F %T IST')] $*"; }
 STATUS="started"
 TICK=""
+RELOGGED=0
 finish() {
   local rc=$?
   [[ -n "$TICK" ]] && { pkill -P "$TICK" 2>/dev/null; kill "$TICK" 2>/dev/null; }
@@ -51,6 +52,17 @@ stop_s=$(TZ=Asia/Kolkata date -d "today ${UNTIL}" +%s)
 (( stop_s <= now_s )) && stop_s=$(TZ=Asia/Kolkata date -d "tomorrow ${UNTIL}" +%s)
 say "== backfill until ${UNTIL} IST ($(( (stop_s - now_s) / 60 )) min)"
 say "BACKFILL_STARTED until=${UNTIL} fraction=${PRAJNA_UPSTOX_RATE_FRACTION:-default}"
+# overrun guard (hardening phase 4): never start inside 06:50-16:00 IST on a
+# trading day - the morning run, the pre-open and the live session own the quota
+hhmm="${PRAJNA_TEST_NOW_HHMM:-$(TZ=Asia/Kolkata date +%H%M)}"
+if [[ ! "$hhmm" < "0650" && "$hhmm" < "1600" ]]; then
+  today_trading="$("${CLI[@]}" db sql "select is_trading_day from trading_session where session_date = '$(TZ=Asia/Kolkata date +%F)'" 2>/dev/null | sed -n 3p | tr -d ' ')"
+  if [[ "$today_trading" == "True" ]]; then
+    STATUS="refused_trading_hours"
+    say "refusing to start at ${hhmm} IST on a trading day (06:50-16:00 belongs to live jobs)"
+    exit 0
+  fi
+fi
 if pgrep -f "app.cli.main.* ingest candles" > /dev/null; then
   STATUS="another_candles_job_running"
   say "another candles job is running; not starting (the quota is per user)"; exit 0
@@ -77,19 +89,33 @@ for st in "${STAGES[@]}"; do
   ( while sleep 1800; do progress "$TF" "$FROM"; done ) &
   TICK=$!
   set +e
-  timeout --signal=INT "${left}" "${CLI[@]}" ingest candles --timeframe "$TF" --from "$FROM" \
-    --to "$LAST" --all-instruments --commit \
-    > "var/logs/backfill/${TF}_${STAMP}.json"
-  rc=$?
+  while true; do
+    timeout -k 120 --signal=INT "${left}" "${CLI[@]}" ingest candles --timeframe "$TF" \
+      --from "$FROM" --to "$LAST" --all-instruments --commit \
+      > "var/logs/backfill/${TF}_${STAMP}.json"
+    rc=$?
+    stopped="$("$P" -c "import json,sys; print(json.load(open(sys.argv[1])).get('stopped') or '')" "var/logs/backfill/${TF}_${STAMP}.json" 2>/dev/null || true)"
+    # the Upstox token expires at ~03:30 IST: exactly ONE re-login (that day's
+    # single permitted automated login), then the same stage resumes from its
+    # checkpoint; a second auth failure stops the run
+    if [[ $rc -ne 0 && "$stopped" == VendorAuthError* && $LOGIN -eq 1 && $RELOGGED -eq 0 ]]; then
+      RELOGGED=1
+      say "BACKFILL_RELOGIN after an auth abort (${stopped:0:80}); resuming ${TF}"
+      "${CLI[@]}" upstox login || { STATUS="relogin_failed"; exit 3; }
+      left=$(( stop_s - $(TZ=Asia/Kolkata date +%s) ))
+      (( left < 120 )) && { STATUS="time_window_over"; exit 0; }
+      continue
+    fi
+    break
+  done
   pkill -P "$TICK" 2>/dev/null; kill "$TICK" 2>/dev/null; TICK=""
   set -e
   say "   ${TF} exit ${rc}"
   progress "$TF" "$FROM"
   case $rc in
     0) ;;                                  # stage complete -> next stage
-    124|130) STATUS="time_limit_resumable"; say "stopped at the time limit (resumable)"; exit 0 ;;
-    *) "$P" -c "import json,sys; d=json.load(open(sys.argv[1])); print('   stopped:', d.get('stopped'), '| failed:', len(d.get('failed',[])))" \
-         "var/logs/backfill/${TF}_${STAMP}.json" 2>/dev/null || true
+    124|130|137) STATUS="time_limit_resumable"; say "stopped at the time limit (resumable)"; exit 0 ;;
+    *) say "   stopped: ${stopped:-?}"
        STATUS="stage_${TF}_not_complete"
        say "stage ${TF} not complete (see log); stopping, resumable"; exit "$rc" ;;
   esac

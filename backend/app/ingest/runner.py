@@ -19,6 +19,9 @@ transaction: they are both true or neither is.
 from __future__ import annotations
 
 import datetime as _dt
+import os
+import pathlib
+import socket
 import subprocess
 import sys
 import uuid
@@ -74,6 +77,17 @@ class RunContext:
         return self.mode is RunMode.COMMIT
 
 
+def boot_id() -> str | None:
+    try:
+        return pathlib.Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+    except OSError:
+        return None
+
+
+def runner_identity() -> dict[str, Any]:
+    return {"pid": os.getpid(), "host": socket.gethostname(), "boot_id": boot_id()}
+
+
 class IngestRunner:
     def __init__(
         self,
@@ -113,8 +127,11 @@ class IngestRunner:
             insert(IngestRun).values(
                 run_id=ctx.run_id, source=self.source, stream=self.stream,
                 logical_date=self.logical_date, vendor_endpoint=self.vendor_endpoint,
-                request_params=self.request_params, code_git_sha=git_sha(),
-                config_sha256=config_sha256(self.request_params),
+                # `runner` identifies the process, so an orphaned RUNNING row (a
+                # killed process, a reboot) can be recognised and reaped; it is
+                # excluded from config_sha256, which hashes only what was asked
+                request_params={**self.request_params, "runner": runner_identity()},
+                code_git_sha=git_sha(), config_sha256=config_sha256(self.request_params),
                 argv=redact_argv(sys.argv),
                 operator=self.operator, mode=mode.value, status=RunStatus.RUNNING.value,
                 authz_token_sha256=authz, started_at=ctx.started_at, rows_written=0,

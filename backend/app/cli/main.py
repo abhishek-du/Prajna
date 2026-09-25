@@ -1083,6 +1083,78 @@ def upstox_login(
 
 
 # ── Stage 2 ──────────────────────────────────────────────────────────────────
+ops_app = typer.Typer(help="operations: status, maintenance (no vendor calls)")
+app.add_typer(ops_app, name="ops")
+
+
+@ops_app.command("reap-runs")
+def ops_reap_runs(
+    commit: bool = typer.Option(False, "--commit", help="mark orphaned RUNNING runs ABORTED"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"),
+):
+    """Mark RUNNING runs whose process is provably gone (pid dead, machine
+    rebooted, or no identity and > 48 h old) ABORTED, with the reason."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.ops.reaper import reap_runs
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await reap_runs(s, commit=commit, token=token)
+
+    typer.echo(_json.dumps(asyncio.run(_go()), indent=2, default=str))
+
+
+@ops_app.command("status")
+def ops_status(write: bool = typer.Option(False, "--write",
+                                          help="also save var/status/ops_status_<stamp>.json")):
+    """Operational snapshot: last run per job family, RUNNING runs, candles
+    lock, token age, disk, recent runbook markers. Read-only."""
+    import json as _json
+    import pathlib
+
+    from app.core.clock import now_ist
+    from app.db.engine import get_sessionmaker
+    from app.ops.status import snapshot
+
+    base = pathlib.Path(__file__).resolve().parents[2]
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await snapshot(s, base)
+
+    snap = asyncio.run(_go())
+    doc = _json.dumps(snap, indent=2, default=str)
+    if write:
+        out = base / "var" / "status" / f"ops_status_{now_ist():%Y%m%dT%H%M}.json"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(doc)
+    typer.echo(doc)
+
+
+@ops_app.command("warmup-plan")
+def ops_warmup_plan(
+    sessions: int = typer.Option(..., "--sessions", help="completed sessions the feature needs"),
+    timeframe: list[str] = typer.Option(..., "--timeframe", help="repeatable: 1m 15m 1h"),
+    fraction: float = typer.Option(0.5, "--fraction", help="share of the per-user quota"),
+):
+    """Plan a TARGETED warm-up (N sessions, ACTIVE instruments lacking them):
+    window, request windows, cost. Read-only; no vendor calls. The deferred
+    full historical backfill is never planned here."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.ops.warmup import plan
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await plan(s, sessions=sessions, timeframes=timeframe, fraction=fraction)
+
+    typer.echo(_json.dumps(asyncio.run(_go()), indent=2, default=str))
+
+
 classify_app = typer.Typer(help="derived classifications (no vendor calls)")
 app.add_typer(classify_app, name="classify")
 

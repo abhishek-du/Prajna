@@ -76,7 +76,12 @@ case "$PHASE" in
     if [[ "$DAY" == "$TODAY" && "$(TZ=Asia/Kolkata date +%H%M)" < "1600" ]]; then
       say "ABORT: run 'close' after 16:00 IST (bars still forming)"; exit 2
     fi
-    run intraday "${CLI[@]}" ingest candles --timeframe 1m --timeframe 15m --timeframe 1h \
+    # hard stop (hardening phase 4): the close may never overlap the next
+    # morning's jobs; SIGINT first (runs abort cleanly), SIGKILL 120 s later
+    STOP_S=$(TZ=Asia/Kolkata date -d "tomorrow 06:40" +%s)
+    LEFT=$(( STOP_S - $(TZ=Asia/Kolkata date +%s) ))
+    run intraday timeout -k 120 --signal=INT "$LEFT" \
+      "${CLI[@]}" ingest candles --timeframe 1m --timeframe 15m --timeframe 1h \
       --intraday --all-instruments --commit
     run news "${CLI[@]}" ingest news --commit
     ;;
