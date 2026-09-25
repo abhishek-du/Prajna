@@ -381,6 +381,7 @@ def ingest_candles(
                             else ["NSE_EQ", "NSE_INDEX"])
                     ks = list((await s.execute(select(Instrument.instrument_key).where(
                         Instrument.valid_to == literal_column("'infinity'::date"),
+                        Instrument.lifecycle_status == "ACTIVE",
                         Instrument.segment.in_(segs))
                         .order_by(Instrument.instrument_key))).scalars())
                 if intraday:
@@ -508,6 +509,7 @@ def ingest_news(
                 if not ks:
                     ks = list((await s.execute(select(Instrument.instrument_key).where(
                         Instrument.valid_to == literal_column("'infinity'::date"),
+                        Instrument.lifecycle_status == "ACTIVE",
                         Instrument.segment == "NSE_EQ")
                         .order_by(Instrument.instrument_key))).scalars())
                 ing = NewsIngestor(s, rest, PayloadStore(get_settings().archive_dir),
@@ -564,6 +566,7 @@ def ingest_corporate_actions(
                 if not isins:
                     isins = [x for x in (await s.execute(select(Instrument.isin).where(
                         Instrument.valid_to == literal_column("'infinity'::date"),
+                        Instrument.lifecycle_status == "ACTIVE",
                         Instrument.segment == "NSE_EQ"))).scalars() if x]
                 if resume_hours:
                     from sqlalchemy import text as _t
@@ -627,6 +630,7 @@ def ingest_fundamentals(
                 if not isins:
                     isins = [x for x in (await s.execute(select(Instrument.isin).where(
                         Instrument.valid_to == literal_column("'infinity'::date"),
+                        Instrument.lifecycle_status == "ACTIVE",
                         Instrument.segment == "NSE_EQ"))).scalars() if x]
                 ing = FundamentalsIngestor(s, rest, PayloadStore(get_settings().archive_dir),
                                            commit=commit, token=token)
@@ -640,6 +644,60 @@ def ingest_fundamentals(
                         "error": r.error} for r in rep.results if r.status != "COMPLETE"][:50]
     typer.echo(_json.dumps(out, indent=2, default=str))
     raise typer.Exit(0 if not out["problems"] else 1)
+
+
+@ingest_app.command("instruments-refresh")
+def ingest_instruments_refresh(
+    download: bool = typer.Option(False, "--download",
+                                  help="fetch the public master from assets.upstox.com"),
+    payload_sha256: str = typer.Option(None, "--payload-sha256",
+                                       help="an instrument master already in raw_payload"),
+    from_file: str = typer.Option(None, "--from-file", help="a local NSE.json.gz (tests, replay)"),
+    commit: bool = typer.Option(False, "--commit", help="write to the database"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"),
+):
+    """Daily instrument-master refresh: new listings, attribute versions and the
+    listing lifecycle (ACTIVE / INELIGIBLE / REMOVED_FROM_MASTER / VENDOR_REJECTED).
+
+    Archives the master first; never deletes; refuses a master that selects
+    fewer than 95 % of the listed instruments. Exit 0 only when COMPLETE.
+    """
+    import json as _json
+    import pathlib
+
+    from app.core.clock import now
+    from app.db.engine import get_sessionmaker
+    from app.ingest.instrument_refresh import refresh_instruments
+    from app.ingest.universe import load_archived_master
+    from app.sources.upstox_instruments import MASTER_URL, download_master
+    from app.storage.payload_store import PayloadStore
+
+    log = get_logger("cli")
+    if sum(bool(x) for x in (download, payload_sha256, from_file)) != 1:
+        log.error("choose_one_source", options="--download | --payload-sha256 | --from-file")
+        raise typer.Exit(2)
+    store = PayloadStore(get_settings().archive_dir)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            status, uri = None, MASTER_URL
+            if download:
+                d = await download_master()
+                data, fetched, status, uri = d.data, d.fetched_at, d.http_status, d.url
+            elif payload_sha256:
+                data, fetched, status = await load_archived_master(s, payload_sha256)
+            else:
+                pth = pathlib.Path(from_file)
+                # when a local copy was downloaded is unknown: now() is never too early
+                data, fetched, uri = pth.read_bytes(), now(), f"file://{pth.resolve()}"
+            return await refresh_instruments(s, data, fetched_at=fetched, commit=commit,
+                                             token=token, store=store, http_status=status,
+                                             source_uri=uri)
+
+    rep = asyncio.run(_go())
+    typer.echo(_json.dumps(rep.public(), indent=2, default=str))
+    raise typer.Exit(0 if rep.status == "COMPLETE" else 1)
 
 
 @ingest_app.command("instruments-global")

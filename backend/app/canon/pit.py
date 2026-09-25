@@ -24,7 +24,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.canon import coverage as COV
-from app.canon.process import _stage1_inputs, depth_start
+from app.canon.process import _stage1_inputs, depth_start, session_cutoff
 from app.canon.time import assert_all_knowable, market_date
 from app.canon.validate import CANON_TIMEFRAMES
 from app.core.clock import IST, now, to_utc
@@ -138,6 +138,16 @@ async def coverage(s: AsyncSession, instrument_key: str, timeframe: str,
         return []
     as_of = to_utc(as_of)
     before = market_date(as_of)
+    # the listing state in force at as_of, as far as it was knowable then: a
+    # delisting known only later must not shorten a historical view
+    life = (await s.execute(text("""
+        select p.status, p.valid_from from instrument_lifecycle_period p
+        join instrument i using (instrument_id)
+        where i.instrument_key = :k and p.valid_from < :a and p.knowable_at < :a
+        order by p.valid_from desc limit 1"""), {"k": instrument_key, "a": as_of})).first()
+    end = session_cutoff(*life) if life else None
+    if end is not None:
+        before = min(before, end)
     sessions = list((await s.execute(text(
         "select session_date from trading_session where is_trading_day "
         "and session_date >= :a and session_date < :b order by 1"),

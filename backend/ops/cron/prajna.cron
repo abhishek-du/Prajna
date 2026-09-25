@@ -7,6 +7,9 @@
 SHELL=/bin/bash
 B=/home/cis/windows/prajna/backend
 LK=/home/cis/windows/prajna/backend/var/run/candles.lock
+# 06:30 daily   instrument-master refresh + lifecycle; new listings get 1D history,
+#               fundamentals, corporate actions (hardening phase 2)
+30 6 * * *    cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.5 flock -w 600 $LK ops/runbooks/daily.sh --login refresh >> var/logs/cron.log 2>&1
 # 07:00 Mon-Fri  previous session: 1D (all NSE), FII/DII, news
 0 7 * * 1-5   cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.5 flock -w 3600 $LK ops/runbooks/daily.sh --login morning >> var/logs/cron.log 2>&1
 # 08:25 Mon-Fri  real pre-open: universe, capture 08:55-09:20, replay, acceptance (skips non-trading days)

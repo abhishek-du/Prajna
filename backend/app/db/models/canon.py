@@ -53,6 +53,11 @@ class CanonInstrument(Base):
     sector_snapshot_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("fundamental_snapshot.id", ondelete="RESTRICT"), nullable=True)
     preopen_universe_session: Mapped[_dt.date | None] = mapped_column(Date, nullable=True)
+    # listing lifecycle passthrough (hardening phase 2): coverage of a non-ACTIVE
+    # instrument stops at lifecycle_since; its bars stay visible (no survivorship)
+    lifecycle_status: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    lifecycle_since: Mapped[_dt.datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True), nullable=True)
     content_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
     run_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("ingest_run.run_id", ondelete="RESTRICT"),

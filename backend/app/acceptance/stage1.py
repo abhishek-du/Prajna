@@ -121,7 +121,8 @@ async def _candle_depth(s, tf: str, since: _dt.date, last: _dt.date) -> dict[str
         left join ingest_watermark w on w.source='UPSTOX_REST_V3'
              and w.stream = 'ohlcv.' || :tf || '.' || i.instrument_key
         left join ingest_run r on r.run_id = w.last_run_id
-        where i.valid_to = 'infinity' and i.segment in ('NSE_EQ','NSE_INDEX')""", tf=tf)
+        where i.valid_to = 'infinity' and i.segment in ('NSE_EQ','NSE_INDEX')
+          and i.lifecycle_status = 'ACTIVE'""", tf=tf)
     bars = dict(await _all(s, """select instrument_key, count(*) from ohlcv_bar
                                  where timeframe=:tf group by 1""", tf=tf))
     lag = _dt.timedelta(days=3)
@@ -225,6 +226,8 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
               where stream like 'ohlcv.1d.NSE_%' and mode='COMMIT' order by stream, started_at desc
             ) r on r.stream = w.stream
             join ingest_anomaly a on a.run_id = r.run_id and a.severity='FAIL'
+            join instrument i on i.instrument_key = r.request_params->>'instrument_key'
+             and i.valid_to = 'infinity' and i.lifecycle_status = 'ACTIVE'
             where r.status = 'FAILED'""")
     q1 = dict(await _all(s, """select a.detail->>'timeframe', count(*) from ingest_anomaly a
         join ingest_run r using (run_id) where a.kind = 'QUARANTINED' and r.mode = 'COMMIT'
@@ -285,8 +288,9 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
                          l_dep))
 
     # M-O. corporate actions, news, fundamentals
-    nse_isins = (await _one(s, "select count(distinct isin) from instrument "
-                               "where valid_to='infinity' and segment='NSE_EQ'"))[0]
+    nse_isins = (await _one(s, "select count(distinct isin) from instrument where "
+                               "valid_to='infinity' and segment='NSE_EQ' "
+                               "and lifecycle_status='ACTIVE'"))[0]
 
     async def swept(stream: str, key: str) -> int:
         return (await _one(s, f"""select count(distinct x) from (

@@ -50,6 +50,9 @@ class AnomalyKind(str, enum.Enum):
     # rule (negative volume/OI, OHLC outside [low, high]) is not stored; the
     # rest of its window is. One WARN per bar; the raw payload is archived.
     QUARANTINED = "QUARANTINED"
+    # Hardening phase 2: a master refresh changed an instrument's listing
+    # state or attributes (new listing, removal, rejection, version). WARN.
+    LIFECYCLE = "LIFECYCLE"
 
 
 # Source identifiers. Upstox-only by constraint #1; there is deliberately no

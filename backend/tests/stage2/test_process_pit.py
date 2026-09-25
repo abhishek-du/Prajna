@@ -365,3 +365,48 @@ class TestQualityAndConstraints:
         with pytest.raises(IntegrityError):
             async with s.begin_nested():
                 await s.execute(text(sql))
+
+
+class TestLifecycleCoverage:
+    """Hardening phase 2: coverage of an instrument that left the master stops
+    where it left (no endless PENDING_BACKFILL), its bars stay visible, and a
+    historical as_of never learns of a removal that was not knowable yet."""
+
+    async def _remove(self, s, key, at, known):
+        iid = (await s.execute(text("select instrument_id from instrument where instrument_key=:k"),
+                               {"k": key})).scalar()
+        row = (await s.execute(text("select run_id, payload_sha256 from instrument where "
+                                    "instrument_id=:i"), {"i": iid})).one()
+        for status, frm, to in (("ACTIVE", ist(2026, 9, 1), at), ("REMOVED_FROM_MASTER", at, None)):
+            await s.execute(text("""
+                insert into instrument_lifecycle_period (instrument_id, status, valid_from,
+                  valid_to, reason, source, run_id, payload_sha256, fetched_at, knowable_at,
+                  knowable_at_verified, knowable_at_basis)
+                values (:i, :st, :f, coalesce(cast(:t as timestamptz), 'infinity'), 'test',
+                        'UPSTOX_ASSETS', :r, :h, :k, :k, false, 't')"""),
+                {"i": iid, "st": status, "f": frm, "t": to, "r": row[0], "h": row[1],
+                 "k": max(known, frm)})
+        await s.execute(text("update instrument set lifecycle_status='REMOVED_FROM_MASTER' "
+                             "where instrument_id=:i"), {"i": iid})
+
+    async def test_removed_instrument_coverage_stops_and_bars_stay(self, world):
+        s, _ = world
+        # effective 09-18 07:00, but Prajna only learned it on 09-23 10:00
+        await self._remove(s, R, ist(2026, 9, 18, 7, 0), known=ist(2026, 9, 23, 10, 0))
+        await _process(s)
+        (ci,) = await _q(s, "select lifecycle_status, lifecycle_since from canon_instrument "
+                            "where instrument_key=:k", k=R)
+        assert ci.lifecycle_status == "REMOVED_FROM_MASTER"
+        assert await _states(s, R) == [(14, 17, "DATA")]        # sessions before 09-18 only
+        assert await _states(s, R, "1h") == [(14, 17, "PENDING_BACKFILL")]
+        got = await pit.bars(s, R, "1d", NOW)
+        assert len(got) == 6                                     # history still visible
+        # PIT: before the removal was knowable the historical view is not shortened
+        after = await pit.coverage(s, R, "1d", ist(2026, 9, 24, 9, 0))      # known by then
+        assert max(r["to_date"] for r in after) == D(2026, 9, 17)
+        at_21 = await pit.coverage(s, R, "1d", ist(2026, 9, 21, 12, 0))
+        assert (min(r["from_date"] for r in at_21), max(r["to_date"] for r in at_21)) == (
+            D(2026, 9, 14), D(2026, 9, 18))                   # 09-18 still expected on 09-21
+        later = await pit.coverage(s, R, "1d", NOW)
+        assert max(r["to_date"] for r in later) == D(2026, 9, 17)
+        assert [r["state"] for r in later] == ["DATA"]

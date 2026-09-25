@@ -6,9 +6,14 @@
 #   ops/runbooks/daily.sh [--login] morning [YYYY-MM-DD]   # the NEXT morning, from 07:15 IST
 #   ops/runbooks/daily.sh [--login] weekly                 # corporate actions
 #   ops/runbooks/daily.sh [--login] monthly                # calendar +60d, fundamentals (~42k)
+#   ops/runbooks/daily.sh [--login] refresh                # instrument master (daily, 06:30)
 #
 # close    today's 1m / 15m / 1h bars for every NSE instrument (intraday
 #          endpoint; only COMPLETE bars persist; ~10.6k requests), then news.
+# refresh  the vendor instrument master: new listings, attribute versions and
+#          the listing lifecycle (hardening phase 2); then each NEW listing is
+#          brought to the Stage 1 contract: 1D history from 2020 (1 request),
+#          fundamentals (12) and corporate actions (1). Never deletes anything.
 # morning  the session's daily bar for every NSE instrument (historical
 #          endpoint, window = the 7 days up to the session so the checkpoint
 #          stays contiguous across weekends and holidays; stored bars are
@@ -83,6 +88,25 @@ case "$PHASE" in
       --all-instruments --commit
     run fii_dii "${CLI[@]}" ingest institutional --commit
     run news "${CLI[@]}" ingest news --commit
+    ;;
+  refresh)
+    run instruments_refresh "${CLI[@]}" ingest instruments-refresh --download --commit
+    R="var/logs/daily/${PHASE}_${TODAY}_instruments_refresh.json"
+    NEW_KEYS="$("$P" -c 'import json,sys; print(" ".join(json.load(open(sys.argv[1])).get("new_keys") or []))' "$R" 2>/dev/null || true)"
+    if [[ -n "$NEW_KEYS" ]]; then
+      say "   new listings: ${NEW_KEYS}"
+      LAST="$(sql1 "select max(session_date) from trading_session where is_trading_day and session_date < '${TODAY}'")"
+      KARGS=(); IARGS=()
+      for k in $NEW_KEYS; do KARGS+=(--key "$k"); [[ "$k" == NSE_EQ\|* ]] && IARGS+=(--isin "${k#NSE_EQ|}"); done
+      run new_listings_1d "${CLI[@]}" ingest candles --timeframe 1d --from 2020-01-01 --to "$LAST" \
+        "${KARGS[@]}" --commit
+      if [[ ${#IARGS[@]} -gt 0 ]]; then
+        run new_listings_fundamentals "${CLI[@]}" ingest fundamentals "${IARGS[@]}" --commit
+        run new_listings_corporate_actions "${CLI[@]}" ingest corporate-actions "${IARGS[@]}" --commit
+      fi
+    else
+      say "   no new listings"
+    fi
     ;;
   weekly)
     run corporate_actions "${CLI[@]}" ingest corporate-actions --commit

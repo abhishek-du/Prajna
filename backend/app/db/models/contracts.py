@@ -5,12 +5,26 @@ from __future__ import annotations
 import datetime as _dt
 
 from sqlalchemy import (
-    BigInteger, CheckConstraint, Date, Index, Integer, Numeric, String, Text, Time, text,
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    Date,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    Time,
+    text,
 )
-from sqlalchemy.dialects.postgresql import ExcludeConstraint, TIMESTAMP
+from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, ExcludeConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, ProvenanceMixin
+
+LIFECYCLE_STATES = ("ACTIVE", "REMOVED_FROM_MASTER", "VENDOR_REJECTED", "INELIGIBLE")
+LIFECYCLE_SQL = ", ".join(f"'{s}'" for s in LIFECYCLE_STATES)
 
 
 class TradingSession(Base, ProvenanceMixin):
@@ -92,7 +106,19 @@ class Instrument(Base, ProvenanceMixin):
     valid_from: Mapped[_dt.date] = mapped_column(Date, nullable=False)
     valid_to: Mapped[_dt.date] = mapped_column(Date, nullable=False, server_default="infinity")
 
+    # Listing lifecycle (hardening phase 2). valid_from/valid_to above are the
+    # IDENTITY version and are never closed because a key left the master; the
+    # listing state is the current row of instrument_lifecycle_period, cached
+    # here. Jobs and completeness gates use lifecycle_status = 'ACTIVE'.
+    lifecycle_status: Mapped[str] = mapped_column(String(24), nullable=False,
+                                                  server_default="ACTIVE")
+    first_seen: Mapped[_dt.date | None] = mapped_column(Date, nullable=True)
+    last_seen: Mapped[_dt.date | None] = mapped_column(Date, nullable=True)
+
     __table_args__ = (
+        CheckConstraint(f"lifecycle_status in ({LIFECYCLE_SQL})",
+                        name="ck_instrument_lifecycle_status"),
+        Index("ix_instrument_lifecycle", "lifecycle_status"),
         ExcludeConstraint(
             ("instrument_key", "="),
             (text("daterange(valid_from, valid_to, '[)')"), "&&"),
@@ -127,4 +153,91 @@ class InstrumentUniverseMembership(Base, ProvenanceMixin):
     __table_args__ = (
         CheckConstraint("knowable_at <= fetched_at", name="ck_universe_knowable"),
         Index("ix_universe_session", "universe", "session_date"),
+    )
+
+
+class InstrumentLifecyclePeriod(Base, ProvenanceMixin):
+    """Append-only history of an instrument's listing state.
+
+    One row per period [valid_from, valid_to) in one state, never overlapping
+    for an instrument (GiST). A transition closes the open period and opens a
+    new one; nothing is deleted, so "was X listed at T" stays answerable.
+    knowable_at is when Prajna held the master (or vendor evidence) that
+    established the state.
+
+      ACTIVE               in the vendor master and selectable
+      REMOVED_FROM_MASTER  absent from a fully parsed vendor master
+      INELIGIBLE           still in the master, no longer in the S1 selection
+      VENDOR_REJECTED      in the master, but the vendor rejects its key
+                           (UDAPI100011 on >= 2 distinct sessions)
+    """
+
+    __tablename__ = "instrument_lifecycle_period"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    instrument_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("instrument.instrument_id", ondelete="RESTRICT"), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False)
+    valid_from: Mapped[_dt.datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    valid_to: Mapped[_dt.datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False,
+                                                   server_default="infinity")
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    evidence: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
+
+    __table_args__ = (
+        ExcludeConstraint(
+            ("instrument_id", "="),
+            (text("tstzrange(valid_from, valid_to, '[)')"), "&&"),
+            name="ex_lifecycle_no_overlap", using="gist",
+        ),
+        CheckConstraint("valid_from < valid_to", name="ck_lifecycle_order"),
+        CheckConstraint(f"status in ({LIFECYCLE_SQL})", name="ck_lifecycle_status"),
+        CheckConstraint("knowable_at <= fetched_at", name="ck_lifecycle_knowable"),
+        Index("ix_lifecycle_instrument", "instrument_id", "valid_from"),
+    )
+
+
+class InstrumentAttributeVersion(Base, ProvenanceMixin):
+    """Append-only history of an instrument's vendor attributes.
+
+    The vendor changes attributes often (2026-09-23 -> 09-25: 16 instruments,
+    e.g. EQ<->BE series moves, SME->EQ migration, PCA flags, CHAVDA lot size
+    1000 -> 2000 after its bonus). instrument_id stays stable; each attribute
+    state is a version [valid_from, valid_to), non-overlapping (GiST). The
+    instrument row's attribute columns are a cache of the open version, kept
+    in the same transaction and checked by a consistency gate.
+    """
+
+    __tablename__ = "instrument_attribute_version"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    instrument_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("instrument.instrument_id", ondelete="RESTRICT"), nullable=False)
+    trading_symbol: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    short_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    isin: Mapped[str | None] = mapped_column(String(12), nullable=True)
+    instrument_type: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    security_type: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    exchange_token: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    lot_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    tick_size: Mapped[float | None] = mapped_column(Numeric(14, 4), nullable=True)
+    freeze_quantity: Mapped[float | None] = mapped_column(Numeric(20, 2), nullable=True)
+    qty_multiplier: Mapped[float | None] = mapped_column(Numeric(14, 4), nullable=True)
+    cas_eligible: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    segment: Mapped[str] = mapped_column(String(16), nullable=False)
+    exchange: Mapped[str] = mapped_column(String(16), nullable=False)
+    valid_from: Mapped[_dt.datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    valid_to: Mapped[_dt.datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False,
+                                                   server_default="infinity")
+
+    __table_args__ = (
+        ExcludeConstraint(
+            ("instrument_id", "="),
+            (text("tstzrange(valid_from, valid_to, '[)')"), "&&"),
+            name="ex_attr_version_no_overlap", using="gist",
+        ),
+        CheckConstraint("valid_from < valid_to", name="ck_attr_version_order"),
+        CheckConstraint("knowable_at <= fetched_at", name="ck_attr_version_knowable"),
+        Index("ix_attr_version_instrument", "instrument_id", "valid_from"),
     )

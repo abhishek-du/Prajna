@@ -86,8 +86,11 @@ async def build_instruments(s: AsyncSession, run_id) -> tuple[list[dict], dict[i
         select i.instrument_id, i.instrument_key, i.segment, i.exchange, i.trading_symbol,
                i.name, i.isin, i.instrument_type,
                sec.sector, sec.knowable_at as sector_knowable_at, sec.id as sector_snapshot_id,
-               uni.session_date as preopen_universe_session
+               uni.session_date as preopen_universe_session,
+               i.lifecycle_status, lp.valid_from as lifecycle_since
         from instrument i
+        left join instrument_lifecycle_period lp
+          on lp.instrument_id = i.instrument_id and lp.valid_to = 'infinity'
         left join lateral (
             select f.id, f.knowable_at, nullif(f.payload->>'sector', '') as sector
             from fundamental_snapshot f
@@ -189,9 +192,18 @@ async def _stage1_inputs(s: AsyncSession, tf: str, keys: set[str] | None,
     return bars, quar, wins, cps
 
 
+def session_cutoff(status: str | None, since: _dt.datetime | None) -> _dt.date | None:
+    """A non-ACTIVE instrument is expected only on sessions before the IST date
+    it left ACTIVE (its bars stay visible; later sessions are not "pending")."""
+    if status in (None, "ACTIVE") or since is None:
+        return None
+    return since.astimezone(IST).date()
+
+
 async def build_coverage(s: AsyncSession, tf: str, sessions: list[_dt.date],
                          instruments: dict[str, int], keys: set[str] | None,
-                         run_id, write: bool) -> dict[str, int]:
+                         run_id, write: bool,
+                         cutoff: dict[str, _dt.date] | None = None) -> dict[str, int]:
     bars, quar, wins, cps = await _stage1_inputs(s, tf, keys)
     targets = instruments if keys is None else {k: v for k, v in instruments.items()
                                                 if k in keys}
@@ -206,7 +218,15 @@ async def build_coverage(s: AsyncSession, tf: str, sessions: list[_dt.date],
     new_rows: list[dict] = []
     replace: list[int] = []
     for key, iid in sorted(targets.items()):
-        rs = COV.ranges(sessions, bars=bars.get(key, {}), quarantined=quar.get(key, {}),
+        end = (cutoff or {}).get(key)
+        own = sessions if end is None else [d for d in sessions if d < end]
+        if not own:
+            if existing.get(iid):
+                stats["pairs_changed"] += 1
+                stats["ranges_deleted"] += len(existing[iid])
+                replace.append(iid)
+            continue
+        rs = COV.ranges(own, bars=bars.get(key, {}), quarantined=quar.get(key, {}),
                         windows=wins.get(key, []), checkpoint=cps.get(key))
         got = [(r.from_date, r.to_date, r.state, r.sessions, r.bars, r.quarantined) for r in rs]
         for r in rs:
@@ -268,6 +288,8 @@ async def process(s: AsyncSession, *, commit: bool, token: str | None, full: boo
                     CanonInstrument.instrument_id == r["instrument_id"]).values(**r))
         # 2 coverage: full or incremental, per timeframe
         included = {r["instrument_key"]: r["instrument_id"] for r in rows if r["included"]}
+        cutoff = {r["instrument_key"]: c for r in rows if r["included"]
+                  and (c := session_cutoff(r["lifecycle_status"], r["lifecycle_since"]))}
         reasons = []
         if full:
             reasons.append("requested --full")
@@ -302,7 +324,8 @@ async def process(s: AsyncSession, *, commit: bool, token: str | None, full: boo
                 "select session_date from trading_session where is_trading_day "
                 "and session_date between :a and :b order by 1"),
                 {"a": depth_start(tf, today), "b": last})).scalars())
-            st = await build_coverage(s, tf, sessions, included, keys, ctx.run_id, commit)
+            st = await build_coverage(s, tf, sessions, included, keys, ctx.run_id, commit,
+                                      cutoff)
             st["mode"] = "FULL" if keys is None else "INCREMENTAL"
             cov[tf] = st
         rep.coverage = cov
