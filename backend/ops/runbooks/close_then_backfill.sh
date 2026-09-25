@@ -70,11 +70,12 @@ if [[ "$verdict" == "not_completed" ]]; then
 fi
 
 if [[ -f "$J" ]]; then                  # a trading day: the same-day rerun check
-  TOKEN="$(grep '^PRAJNA_WRITE_TOKEN=' .env | cut -d= -f2-)"
+  # the write token travels in the environment, never in argv (visible to ps)
+  export PRAJNA_SUPPLIED_TOKEN="$(grep '^PRAJNA_WRITE_TOKEN=' .env | cut -d= -f2-)"
   args=(); for k in "${RERUN_KEYS[@]}"; do args+=(--key "$k"); done
   R="var/logs/daily/close_${TODAY}_rerun_check.json"
   PRAJNA_UPSTOX_RATE_FRACTION="$CLOSE_FRACTION" "${CLI[@]}" ingest candles --timeframe 1m \
-    --timeframe 15m --timeframe 1h --intraday "${args[@]}" --commit --token "$TOKEN" > "$R"
+    --timeframe 15m --timeframe 1h --intraday "${args[@]}" --commit > "$R"
   "$PY" - "$R" <<'EOF' | while read -r line; do say "CLOSE_RERUN_CHECK $line"; done
 import json, sys
 try:

@@ -28,7 +28,8 @@ CLI=("$P" -m app.cli.main --plain)
 mkdir -p var/logs/backfill
 STAMP="$(TZ=Asia/Kolkata date +%F_%H%M)"
 exec > >(tee -a "var/logs/backfill/backfill_${STAMP}.log") 2>&1
-TOKEN="$(grep '^PRAJNA_WRITE_TOKEN=' .env | cut -d= -f2-)"
+# the write token travels in the environment, never in argv (visible to ps)
+export PRAJNA_SUPPLIED_TOKEN="$(grep '^PRAJNA_WRITE_TOKEN=' .env | cut -d= -f2-)"
 say() { echo "[$(TZ=Asia/Kolkata date '+%F %T IST')] $*"; }
 STATUS="started"
 TICK=""
@@ -77,7 +78,7 @@ for st in "${STAGES[@]}"; do
   TICK=$!
   set +e
   timeout --signal=INT "${left}" "${CLI[@]}" ingest candles --timeframe "$TF" --from "$FROM" \
-    --to "$LAST" --all-instruments --commit --token "$TOKEN" \
+    --to "$LAST" --all-instruments --commit \
     > "var/logs/backfill/${TF}_${STAMP}.json"
   rc=$?
   pkill -P "$TICK" 2>/dev/null; kill "$TICK" 2>/dev/null; TICK=""

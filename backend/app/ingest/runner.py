@@ -30,7 +30,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.contracts.provenance import RunMode, RunStatus, config_sha256
-from app.core.authz import authorize_write
+from app.core.authz import authorize_write, redact_argv
 from app.core.clock import now
 from app.core.logging import bind_run, clear_run, get_logger
 from app.db.models import IngestAnomaly, IngestRun, IngestWatermark, RawPayload
@@ -114,7 +114,8 @@ class IngestRunner:
                 run_id=ctx.run_id, source=self.source, stream=self.stream,
                 logical_date=self.logical_date, vendor_endpoint=self.vendor_endpoint,
                 request_params=self.request_params, code_git_sha=git_sha(),
-                config_sha256=config_sha256(self.request_params), argv=sys.argv,
+                config_sha256=config_sha256(self.request_params),
+                argv=redact_argv(sys.argv),
                 operator=self.operator, mode=mode.value, status=RunStatus.RUNNING.value,
                 authz_token_sha256=authz, started_at=ctx.started_at, rows_written=0,
             )

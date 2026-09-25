@@ -26,7 +26,8 @@ CLI=("$P" -m app.cli.main --plain)
 mkdir -p var/logs var/acceptance
 LOG="var/logs/preopen_${DAY}.log"
 exec > >(tee -a "$LOG") 2>&1
-TOKEN="$(grep '^PRAJNA_WRITE_TOKEN=' .env | cut -d= -f2-)"
+# the write token travels in the environment, never in argv (visible to ps)
+export PRAJNA_SUPPLIED_TOKEN="$(grep '^PRAJNA_WRITE_TOKEN=' .env | cut -d= -f2-)"
 say() { echo "[$(TZ=Asia/Kolkata date '+%F %T IST')] $*"; }
 
 say "== pre-open acceptance day $DAY"
@@ -51,7 +52,7 @@ if ! "${CLI[@]}" upstox token-status | grep -q '"valid": true'; then
 fi
 
 say "3/6 universe"
-"${CLI[@]}" ingest universe --download --session-date "$DAY" --commit --token "$TOKEN" \
+"${CLI[@]}" ingest universe --download --session-date "$DAY" --commit \
   --keys-out "var/logs/universe_${DAY}.txt" | tee "var/logs/universe_${DAY}.json" >/dev/null
 grep -q '"status": "COMPLETE"' "var/logs/universe_${DAY}.json" || { say "ABORT: universe"; exit 4; }
 
@@ -69,7 +70,7 @@ say "capture exit ${CAP}; manifest ${MANIFEST}"
 
 say "5/6 replay"
 set +e
-"${CLI[@]}" ingest preopen --replay-from-session "$MANIFEST" --commit --token "$TOKEN" \
+"${CLI[@]}" ingest preopen --replay-from-session "$MANIFEST" --commit \
   > "var/logs/replay_${DAY}.json"
 REP=$?
 set -e

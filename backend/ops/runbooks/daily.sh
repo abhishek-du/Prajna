@@ -34,7 +34,8 @@ mkdir -p var/logs/daily
 TODAY="$(TZ=Asia/Kolkata date +%F)"
 LOG="var/logs/daily/${PHASE}_${DAY:-$TODAY}.log"
 exec > >(tee -a "$LOG") 2>&1
-TOKEN="$(grep '^PRAJNA_WRITE_TOKEN=' .env | cut -d= -f2-)"
+# the write token travels in the environment, never in argv (visible to ps)
+export PRAJNA_SUPPLIED_TOKEN="$(grep '^PRAJNA_WRITE_TOKEN=' .env | cut -d= -f2-)"
 say() { echo "[$(TZ=Asia/Kolkata date '+%F %T IST')] $*"; }
 FAIL=0
 run() {  # run <name> <cmd...>: log, keep going, remember failures
@@ -70,8 +71,8 @@ case "$PHASE" in
       say "ABORT: run 'close' after 16:00 IST (bars still forming)"; exit 2
     fi
     run intraday "${CLI[@]}" ingest candles --timeframe 1m --timeframe 15m --timeframe 1h \
-      --intraday --all-instruments --commit --token "$TOKEN"
-    run news "${CLI[@]}" ingest news --commit --token "$TOKEN"
+      --intraday --all-instruments --commit
+    run news "${CLI[@]}" ingest news --commit
     ;;
   morning)
     if [[ -z "$DAY" ]]; then
@@ -79,18 +80,18 @@ case "$PHASE" in
     fi
     FROM="$(TZ=Asia/Kolkata date -d "${DAY} -7 days" +%F)"
     run daily_1d "${CLI[@]}" ingest candles --timeframe 1d --from "$FROM" --to "$DAY" \
-      --all-instruments --commit --token "$TOKEN"
-    run fii_dii "${CLI[@]}" ingest institutional --commit --token "$TOKEN"
-    run news "${CLI[@]}" ingest news --commit --token "$TOKEN"
+      --all-instruments --commit
+    run fii_dii "${CLI[@]}" ingest institutional --commit
+    run news "${CLI[@]}" ingest news --commit
     ;;
   weekly)
-    run corporate_actions "${CLI[@]}" ingest corporate-actions --commit --token "$TOKEN"
+    run corporate_actions "${CLI[@]}" ingest corporate-actions --commit
     ;;
   monthly)
     # keep the calendar at least 60 days ahead (acceptance E needs today + 30)
     CAL_TO="$(TZ=Asia/Kolkata date -d "${TODAY} +60 days" +%F)"
-    run calendar "${CLI[@]}" ingest calendar --from "$TODAY" --to "$CAL_TO" --commit --token "$TOKEN"
-    run fundamentals "${CLI[@]}" ingest fundamentals --commit --token "$TOKEN"
+    run calendar "${CLI[@]}" ingest calendar --from "$TODAY" --to "$CAL_TO" --commit
+    run fundamentals "${CLI[@]}" ingest fundamentals --commit
     ;;
   *) say "unknown phase $PHASE"; exit 2 ;;
 esac

@@ -17,6 +17,28 @@ import hmac
 from app.core.config import get_settings
 from app.core.errors import AuthorizationError
 
+REDACTED = "<redacted>"
+
+
+def redact_argv(argv: list[str]) -> list[str]:
+    """argv safe to persist: the value of --token (either form) and any
+    occurrence of the configured token are replaced. Only the fingerprint
+    (authz_token_sha256) identifies the token on a run."""
+    configured = get_settings().PRAJNA_WRITE_TOKEN
+    out: list[str] = []
+    after_flag = False
+    for a in argv:
+        if after_flag:
+            a, after_flag = REDACTED, False
+        elif a == "--token":
+            after_flag = True
+        elif a.startswith("--token="):
+            a = "--token=" + REDACTED
+        if configured and configured in a:
+            a = a.replace(configured, REDACTED)
+        out.append(a)
+    return out
+
 
 def token_fingerprint(token: str) -> str:
     """Stable sha256 of a token, safe to persist on ingest_run."""

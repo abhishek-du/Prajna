@@ -119,6 +119,26 @@ def db_web(
     serve(host=host, port=port)
 
 
+@db_app.command("redact-argv")
+def db_redact_argv(
+    commit: bool = typer.Option(False, "--commit", help="rewrite the rows (default: count)"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN; prefer the env: argv is visible to ps)"),
+):
+    """Redact write tokens persisted in ingest_run.argv (idempotent; RUNNING
+    rows are skipped until they finish)."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.ingest.redact import redact_run_argv
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await redact_run_argv(s, commit=commit, token=token)
+
+    typer.echo(_json.dumps(asyncio.run(_go()), indent=2))
+
+
 @db_app.command("check-isolation")
 def db_check_isolation():
     """Prove the configured DSN is not a V1 database."""
@@ -134,7 +154,8 @@ def db_check_isolation():
 @ingest_app.command("preopen")
 def ingest_preopen(
     commit: bool = typer.Option(False, "--commit", help="write to the database"),
-    token: str = typer.Option(None, "--token", help="write authorization token"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN; prefer the env: argv is visible to ps)"),
     replay_from: str = typer.Option(None, "--replay-from-archive", help="re-parse one archive"),
     replay_session_manifest: str = typer.Option(
         None, "--replay-from-session", help="re-parse every archive of a capture session"),
@@ -190,7 +211,8 @@ def ingest_calendar_cmd(
     date_from: str = typer.Option(..., "--from", help="YYYY-MM-DD"),
     date_to: str = typer.Option(..., "--to", help="YYYY-MM-DD (inclusive, <= 400 days)"),
     commit: bool = typer.Option(False, "--commit", help="write to the database"),
-    token: str = typer.Option(None, "--token", help="write authorization token"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN; prefer the env: argv is visible to ps)"),
 ):
     """NSE trading sessions from Upstox /v2/market/holidays + /v2/market/timings.
 
@@ -262,7 +284,8 @@ def ingest_instruments(
     payload_sha256: str = typer.Option(
         ..., "--payload-sha256", help="sha256 of an ALREADY ARCHIVED instrument master"),
     commit: bool = typer.Option(False, "--commit", help="write to the database"),
-    token: str = typer.Option(None, "--token", help="write authorization token"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN; prefer the env: argv is visible to ps)"),
 ):
     """M3.0: load CURRENT instrument rows from an archived Upstox master.
 
@@ -302,7 +325,8 @@ def ingest_candles(
         False, "--global", help="every current GLOBAL_INDEX / GLOBAL_INDICATOR instrument "
                                 "(daily only: their sessions are not on the NSE grid)"),
     commit: bool = typer.Option(False, "--commit", help="write to the database"),
-    token: str = typer.Option(None, "--token", help="write authorization token"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN; prefer the env: argv is visible to ps)"),
     no_resume: bool = typer.Option(False, "--no-resume", help="ignore watermarks"),
 ):
     """Ingest Upstox candles into ohlcv_bar (dry-run by default). M4.3.
@@ -394,7 +418,8 @@ def ingest_institutional(
                               help="YYYY-MM-DD; the vendor has nothing before 2026-04-01"),
     max_requests: int = typer.Option(20, "--max-requests", help="per series"),
     commit: bool = typer.Option(False, "--commit", help="write to the database"),
-    token: str = typer.Option(None, "--token", help="write authorization token"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN; prefer the env: argv is visible to ps)"),
     no_resume: bool = typer.Option(False, "--no-resume", help="ignore watermarks"),
 ):
     """Ingest Upstox FII/DII activity (1D) into macro_observation (dry-run by default).
@@ -449,7 +474,8 @@ def ingest_news(
     key: list[str] = typer.Option(None, "--key", help="repeatable instrument_key; "
                                   "default: every current instrument"),
     commit: bool = typer.Option(False, "--commit", help="write to the database"),
-    token: str = typer.Option(None, "--token", help="write authorization token"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN; prefer the env: argv is visible to ps)"),
 ):
     """Ingest Upstox news (/v2/news, last 7 days) into news_article + news_instrument.
 
@@ -505,7 +531,8 @@ def ingest_corporate_actions(
     resume_hours: int = typer.Option(0, "--resume-hours", help="skip ISINs already swept by a "
                                      "COMPLETE, non-superseded commit run in the last N hours"),
     commit: bool = typer.Option(False, "--commit", help="write to the database"),
-    token: str = typer.Option(None, "--token", help="write authorization token"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN; prefer the env: argv is visible to ps)"),
 ):
     """Ingest Upstox corporate actions (/v2/fundamentals/{ISIN}/corporate-actions).
 
@@ -566,7 +593,8 @@ def ingest_fundamentals(
     isin: list[str] = typer.Option(None, "--isin", help="repeatable ISIN; "
                                    "default: every current NSE_EQ instrument"),
     commit: bool = typer.Option(False, "--commit", help="write to the database"),
-    token: str = typer.Option(None, "--token", help="write authorization token"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN; prefer the env: argv is visible to ps)"),
 ):
     """Ingest Upstox fundamentals (12 variants per ISIN) into fundamental_snapshot.
 
@@ -619,7 +647,8 @@ def ingest_instruments_global(
     payload_sha256: str = typer.Option(None, "--payload-sha256",
                                        help="use an already archived global.json.gz"),
     commit: bool = typer.Option(False, "--commit", help="write to the database"),
-    token: str = typer.Option(None, "--token", help="write authorization token"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN; prefer the env: argv is visible to ps)"),
 ):
     """Load Upstox's global instruments (S&P, Dow, USD/INR, Brent, ...) into instrument.
 
@@ -678,7 +707,8 @@ def ingest_universe(
                          "at capture, not here)"),
     keys_out: str = typer.Option(None, "--keys-out", help="write the subscribed keys here"),
     commit: bool = typer.Option(False, "--commit", help="write to the database"),
-    token: str = typer.Option(None, "--token", help="write authorization token"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN; prefer the env: argv is visible to ps)"),
 ):
     """Select the pre-open universe from the Upstox instrument master.
 
@@ -1002,7 +1032,8 @@ app.add_typer(stage2_app, name="stage2")
 @stage2_app.command("process")
 def stage2_process(
     commit: bool = typer.Option(False, "--commit", help="write canon_* tables"),
-    token: str = typer.Option(None, "--token", help="write authorization token"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN; prefer the env: argv is visible to ps)"),
     full: bool = typer.Option(False, "--full", help="recompute every pair (not incremental)"),
     live: bool = typer.Option(False, "--live", help="continuous mode (needs "
                               "STAGE2_LIVE_ENABLED=true; not approved)"),
