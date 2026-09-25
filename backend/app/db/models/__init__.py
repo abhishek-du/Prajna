@@ -12,6 +12,7 @@ from app.db.models.contracts import (
 )
 from app.db.models.control import IngestAnomaly, IngestRun, IngestWatermark, RawPayload
 from app.db.models.market import (
+    GlobalInstrumentContract,
     OhlcvBar,
     OhlcvObservation,
     OhlcvPayloadBasis,
@@ -34,6 +35,7 @@ __all__ = [
     "InstrumentLifecyclePeriod", "InstrumentAttributeVersion", "InstrumentSecurityClass",
     "PreopenTick", "PreopenBook", "PreopenSessionStatus",
     "OhlcvBar", "TickArchive", "OhlcvPayloadBasis", "OhlcvObservation", "CaFactor",
+    "GlobalInstrumentContract",
     "CorporateAction", "FundamentalSnapshot", "MacroObservation", "NewsArticle",
     "NewsInstrument", "CanonInstrument", "CanonCoverage",
 ]

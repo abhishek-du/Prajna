@@ -184,3 +184,36 @@ class OhlcvObservation(Base):
                         name="ck_observation_class"),
         Index("ix_observation_bar", "instrument_id", "timeframe", "bar_start_utc"),
     )
+
+
+class GlobalInstrumentContract(Base):
+    """Measured behaviour of one global index/indicator (hardening phase 5).
+
+    The vendor has no foreign-market calendar and its daily labels are not
+    trading dates for every instrument; nothing here is assumed - each field is
+    measured from the stored series and the revision history
+    (prajna derive global-contracts). confirm_hours: how long after the first
+    observation an unchanged re-observation makes a label final.
+    """
+
+    __tablename__ = "global_instrument_contract"
+
+    instrument_key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    label_semantics: Mapped[str] = mapped_column(Text, nullable=False)
+    weekday_profile: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    weekend_label_share: Mapped[float] = mapped_column(Numeric(8, 4), nullable=False)
+    absent_weekdays_per_year: Mapped[float] = mapped_column(Numeric(8, 2), nullable=False)
+    gap_days_p50: Mapped[int] = mapped_column(Integer, nullable=False)
+    gap_days_p99: Mapped[int] = mapped_column(Integer, nullable=False)
+    gap_days_max: Mapped[int] = mapped_column(Integer, nullable=False)
+    placeholder_flat_repeat: Mapped[int] = mapped_column(Integer, nullable=False)
+    same_open_as_previous: Mapped[int] = mapped_column(Integer, nullable=False)
+    revisions_observed: Mapped[int] = mapped_column(Integer, nullable=False)
+    confirm_hours: Mapped[int] = mapped_column(Integer, nullable=False)
+    completion_rule: Mapped[str] = mapped_column(Text, nullable=False)
+    measured_through: Mapped[_dt.date] = mapped_column(Date, nullable=False)
+    evidence: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
+    method_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    measured_at: Mapped[_dt.datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ingest_run.run_id", ondelete="RESTRICT"), nullable=False)

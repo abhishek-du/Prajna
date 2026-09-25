@@ -1105,6 +1105,26 @@ def _derive(fn_name: str, commit: bool, token: str | None):
     typer.echo(_json.dumps(asyncio.run(_go()), indent=2, default=str))
 
 
+@derive_app.command("global-contracts")
+def derive_global_contracts_cmd(
+    commit: bool = typer.Option(False, "--commit"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"),
+):
+    """Measure each global instrument's label semantics, gaps, placeholders and
+    revisions from its own stored series (no calendar assumed)."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.ingest.global_contract import derive_global_contracts
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await derive_global_contracts(s, commit=commit, token=token)
+
+    typer.echo(_json.dumps(asyncio.run(_go()), indent=2, default=str))
+
+
 @derive_app.command("price-basis")
 def derive_price_basis_cmd(
     commit: bool = typer.Option(False, "--commit"),
