@@ -11,10 +11,13 @@ LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 0 7 * * 1-5   cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.5 flock -w 3600 $LK ops/runbooks/daily.sh --login morning >> var/logs/cron.log 2>&1
 # 08:25 Mon-Fri  real pre-open: universe, capture 08:55-09:20, replay, acceptance (skips non-trading days)
 25 8 * * 1-5  cd $B && ops/runbooks/preopen_day.sh --login >> var/logs/cron.log 2>&1
-# 16:05 Mon-Fri  today's 1m/15m/1h (complete bars only), news
-5 16 * * 1-5  cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.35 flock -w 3600 $LK ops/runbooks/daily.sh --login close >> var/logs/cron.log 2>&1
-# 19:45 daily   intraday history backfill to the approved depth, until 06:50
-45 19 * * *   cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.5 flock -w 7200 $LK ops/runbooks/backfill.sh --login --until 06:50 >> var/logs/cron.log 2>&1
+# 16:05 Mon-Fri  today's 1m/15m/1h (complete bars only), news (fraction 0.35), then -
+#                in the SAME lock hold - the intraday backfill until 06:50 (0.5),
+#                only if the close ran through (see the runbook)
+5 16 * * 1-5  cd $B && flock -w 3600 $LK ops/runbooks/close_then_backfill.sh --until 06:50 >> var/logs/cron.log 2>&1
+# 19:45 daily   fallback backfill (weekends/holidays, or if the 16:05 chain did not
+#               run); -n: never waits behind a job that holds the lock
+45 19 * * *   cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.5 flock -n $LK ops/runbooks/backfill.sh --login --until 06:50 >> var/logs/cron.log 2>&1
 # weekends 09:00 more backfill until 19:30
 0 9 * * 0,6   cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.5 flock -w 600 $LK ops/runbooks/backfill.sh --login --until 19:30 >> var/logs/cron.log 2>&1
 # Saturday 10:00  corporate actions; 1st of month 11:00 calendar +60d and fundamentals
