@@ -22,7 +22,14 @@ from __future__ import annotations
 import datetime as _dt
 
 from sqlalchemy import (
-    BigInteger, CheckConstraint, Date, ForeignKey, Index, Numeric, SmallInteger, String,
+    BigInteger,
+    CheckConstraint,
+    Date,
+    ForeignKey,
+    Index,
+    Numeric,
+    SmallInteger,
+    String,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import TIMESTAMP

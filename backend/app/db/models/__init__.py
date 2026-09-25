@@ -11,9 +11,15 @@ from app.db.models.contracts import (
     TradingSession,
 )
 from app.db.models.control import IngestAnomaly, IngestRun, IngestWatermark, RawPayload
-from app.db.models.market import OhlcvBar, TickArchive
+from app.db.models.market import (
+    OhlcvBar,
+    OhlcvObservation,
+    OhlcvPayloadBasis,
+    TickArchive,
+)
 from app.db.models.preopen import PreopenBook, PreopenSessionStatus, PreopenTick
 from app.db.models.reference import (
+    CaFactor,
     CorporateAction,
     FundamentalSnapshot,
     MacroObservation,
@@ -27,7 +33,7 @@ __all__ = [
     "TradingSession", "Instrument", "InstrumentUniverseMembership",
     "InstrumentLifecyclePeriod", "InstrumentAttributeVersion", "InstrumentSecurityClass",
     "PreopenTick", "PreopenBook", "PreopenSessionStatus",
-    "OhlcvBar", "TickArchive",
+    "OhlcvBar", "TickArchive", "OhlcvPayloadBasis", "OhlcvObservation", "CaFactor",
     "CorporateAction", "FundamentalSnapshot", "MacroObservation", "NewsArticle",
     "NewsInstrument", "CanonInstrument", "CanonCoverage",
 ]

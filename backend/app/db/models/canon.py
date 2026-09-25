@@ -17,7 +17,15 @@ import datetime as _dt
 import uuid
 
 from sqlalchemy import (
-    BigInteger, Boolean, CheckConstraint, Date, ForeignKey, Index, Integer, String, Text,
+    BigInteger,
+    Boolean,
+    CheckConstraint,
+    Date,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
 )
 from sqlalchemy.dialects.postgresql import CHAR, TIMESTAMP, UUID
 from sqlalchemy.orm import Mapped, mapped_column

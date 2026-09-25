@@ -30,6 +30,7 @@ from typing import Any
 
 from sqlalchemy import insert, type_coerce, update
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.contracts.provenance import RunMode, RunStatus, config_sha256
@@ -108,6 +109,7 @@ class IngestRunner:
         self.operator = operator
         self.logical_date = logical_date
         self.ctx: RunContext | None = None
+        self._payloads: list[dict[str, Any]] = []
 
     async def open(self, *, commit: bool, token: str | None) -> RunContext:
         """Step 1. Authorization is resolved HERE, at the write path.
@@ -163,8 +165,7 @@ class IngestRunner:
         exists = await self.session.get(RawPayload, stored.sha256)
         if exists:
             return False
-        await self.session.execute(
-            insert(RawPayload).values(
+        values = dict(
                 payload_sha256=stored.sha256, source=self.source,
                 vendor_endpoint=vendor_endpoint or self.vendor_endpoint,
                 request_params=self.request_params, http_status=http_status,
@@ -173,7 +174,10 @@ class IngestRunner:
                 first_seen_run=self.ctx.run_id, fetched_at=stored.fetched_at,
                 vendor_reported_at=stored.vendor_reported_at,
             )
-        )
+        await self.session.execute(insert(RawPayload).values(**values))
+        # kept so fail() can re-index it: a FAILED run's data rolls back, but the
+        # archived bytes it fetched stay findable (hardening phase 6)
+        self._payloads.append(values)
         return True
 
     async def _flush_anomalies(self) -> None:
@@ -236,6 +240,9 @@ class IngestRunner:
         """Abort. Data is rolled back; the run row and anomalies are kept."""
         assert self.ctx
         await self.session.rollback()
+        for values in self._payloads:              # the archive index survives a failure
+            await self.session.execute(pg_insert(RawPayload).values(**values)
+                                       .on_conflict_do_nothing())
         await self._flush_anomalies()
         await self.session.execute(
             update(IngestRun).where(IngestRun.run_id == self.ctx.run_id).values(

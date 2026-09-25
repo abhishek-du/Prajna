@@ -3,12 +3,21 @@
 from __future__ import annotations
 
 import datetime as _dt
+import uuid
+from decimal import Decimal
 
 from sqlalchemy import (
-    BigInteger, CheckConstraint, Date, ForeignKey, Index, Numeric, String, Text,
+    BigInteger,
+    CheckConstraint,
+    Date,
+    ForeignKey,
+    Index,
+    Numeric,
+    String,
+    Text,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import CHAR, JSONB, TIMESTAMP
+from sqlalchemy.dialects.postgresql import CHAR, JSONB, TIMESTAMP, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, ProvenanceMixin
@@ -62,6 +71,12 @@ class CorporateAction(Base, ProvenanceMixin):
     # event id, and (isin, type, ex_date) is NOT unique: two different
     # dividends can share an ex-date (measured 2026-09-24).
     content_sha256: Mapped[str | None] = mapped_column(CHAR(64), nullable=True)
+
+    # hardening phase 7: when Prajna first and last held this exact event
+    first_seen_at: Mapped[_dt.datetime | None] = mapped_column(TIMESTAMP(timezone=True),
+                                                               nullable=True)
+    last_seen_at: Mapped[_dt.datetime | None] = mapped_column(TIMESTAMP(timezone=True),
+                                                              nullable=True)
 
     __table_args__ = (
         CheckConstraint(
@@ -211,4 +226,48 @@ class NewsInstrument(Base, ProvenanceMixin):
         CheckConstraint("knowable_at <= fetched_at", name="ck_news_instrument_knowable"),
         UniqueConstraint("news_id", "instrument_key", "source", name="uq_news_instrument"),
         Index("ix_news_instrument_key", "instrument_key"),
+    )
+
+
+class CaFactor(Base):
+    """Derived, versioned adjustment factor of one corporate action (phase 7).
+
+    status EXACT (factor proven from structured vendor fields), UNCERTAIN, or
+    UNSUPPORTED (never applied; e.g. rights, whose structured premium is 0.0).
+    vendor_applied: whether the vendor's own history is adjusted for it,
+    measured on our stored series (APPLIED / NOT_APPLIED / UNKNOWN / N/A),
+    with the evidence. knowable_at is the event's KN-CA knowable_at.
+    """
+
+    __tablename__ = "ca_factor"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    ca_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("corporate_action.id", ondelete="RESTRICT"), nullable=False)
+    instrument_key: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    action_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    ex_date: Mapped[_dt.date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(String(12), nullable=False)
+    method: Mapped[str] = mapped_column(String(16), nullable=False)
+    factor_price: Mapped[Decimal | None] = mapped_column(Numeric(24, 12), nullable=True)
+    factor_volume: Mapped[Decimal | None] = mapped_column(Numeric(24, 12), nullable=True)
+    knowable_at: Mapped[_dt.datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    vendor_applied: Mapped[str] = mapped_column(String(12), nullable=False)
+    vendor_evidence: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    inputs: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
+    method_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    derived_at: Mapped[_dt.datetime] = mapped_column(TIMESTAMP(timezone=True), nullable=False)
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("ingest_run.run_id", ondelete="RESTRICT"), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("status in ('EXACT','UNCERTAIN','UNSUPPORTED')",
+                        name="ck_ca_factor_status"),
+        CheckConstraint("vendor_applied in ('APPLIED','NOT_APPLIED','UNKNOWN','N/A')",
+                        name="ck_ca_factor_vendor"),
+        CheckConstraint("(status = 'EXACT') = (factor_price is not null)",
+                        name="ck_ca_factor_exact_has_factor"),
+        UniqueConstraint("ca_id", "method_version", name="uq_ca_factor_version"),
+        Index("ix_ca_factor_key", "instrument_key", "ex_date"),
     )

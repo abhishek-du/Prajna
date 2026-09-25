@@ -6,7 +6,15 @@ import datetime as _dt
 import uuid
 
 from sqlalchemy import (
-    ARRAY, BigInteger, CheckConstraint, ForeignKey, Index, Integer, Interval, String, Text,
+    ARRAY,
+    BigInteger,
+    CheckConstraint,
+    ForeignKey,
+    Index,
+    Integer,
+    Interval,
+    String,
+    Text,
 )
 from sqlalchemy.dialects.postgresql import CHAR, JSONB, TIMESTAMP, UUID
 from sqlalchemy.orm import Mapped, mapped_column

@@ -49,6 +49,7 @@ import datetime as _dt
 import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import literal_column, select, tuple_
@@ -56,10 +57,22 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.contracts import candles as C
+from app.contracts import revision as REV
+from app.contracts.ca_factor import factor_for
+from app.contracts.identity import GLOBAL_SEGMENTS
 from app.contracts.provenance import AnomalyKind, AnomalySeverity, RunStatus, Source
 from app.core.clock import IST
 from app.core.errors import IngestCheckFailed, RateLimited, VendorAuthError, VendorError
-from app.db.models import IngestRun, IngestWatermark, Instrument, OhlcvBar, TradingSession
+from app.db.models import (
+    CorporateAction,
+    IngestRun,
+    IngestWatermark,
+    Instrument,
+    OhlcvBar,
+    OhlcvObservation,
+    OhlcvPayloadBasis,
+    TradingSession,
+)
 from app.ingest.checks import check_provenance_complete
 from app.ingest.runner import IngestRunner
 from app.parsers.upstox_candles import (
@@ -153,6 +166,7 @@ class JobResult:
     coverage: dict[str, Any] | None = None
     inserted: int = 0
     already_present: int = 0
+    observations: dict[str, int] = field(default_factory=dict)   # class -> count
     complete_through: str | None = None
     error: str | None = None
 
@@ -312,6 +326,7 @@ class CandleIngestor:
             if self.commit:
                 await runner.record_payload(stored, http_status=r.status,
                                             vendor_endpoint=r.url)
+                await self._record_basis(stored, job, r.fetched_at)
 
             today = r.fetched_at.astimezone(IST).date()
             opens = await self._session_opens(job.window or C.Window(today, today))
@@ -340,8 +355,11 @@ class CandleIngestor:
             checks.raise_if_failed()
 
             if self.commit and rows:
-                res.inserted, res.already_present = await self._write(rows, checks)
+                res.inserted, res.already_present, res.observations = await self._write(
+                    rows, checks, fetched_at=r.fetched_at)
                 checks.raise_if_failed()
+                if res.observations:
+                    res.coverage["observations"] = res.observations
 
             if job.window is None:
                 # An intraday job never moves the checkpoint: it shares the
@@ -378,9 +396,54 @@ class CandleIngestor:
                 "knowable_at_verified": row.knowable.verified,
                 "knowable_at_basis": row.knowable.basis[:200]}
 
-    async def _write(self, rows: list[dict], checks) -> tuple[int, int]:
+    async def _record_basis(self, stored, job: CandleJob, fetched_at) -> None:
+        """The price basis of this payload (hardening phase 6)."""
+        is_global = job.instrument_key.split("|", 1)[0] in GLOBAL_SEGMENTS
+        raw = is_global or job.endpoint.value == "intraday"
+        rule = ("global: no corporate actions" if is_global else
+                "intraday endpoint: same-day bars as traded" if raw else
+                "historical endpoint: vendor-adjusted as of the fetch")
+        await self.s.execute(pg_insert(OhlcvPayloadBasis).values(
+            payload_sha256=stored.sha256, endpoint=job.endpoint.value,
+            price_basis="RAW_OBSERVED" if raw else "VENDOR_ADJUSTED",
+            basis_as_of=fetched_at.astimezone(IST).date(), basis_confidence="HIGH",
+            method_version="basis-v1", evidence={"rule": rule}).on_conflict_do_nothing())
+
+    async def _events(self, key: str) -> list[REV.Event]:
+        """Recorded split/bonus events of an instrument with a proven factor."""
+        out = []
+        for ca in (await self.s.execute(select(CorporateAction).where(
+                CorporateAction.instrument_key == key,
+                CorporateAction.action_type.in_(("SPLIT", "BONUS"))))).scalars():
+            f = factor_for(ca.action_type, ratio=(ca.vendor_payload or {}).get("ratio"),
+                           fv_before=ca.face_value_before, fv_after=ca.face_value_after)
+            if f.status == "EXACT" and ca.ex_date is not None:
+                out.append(REV.Event(ca.id, ca.ex_date, f.factor_price))
+        return out
+
+    async def _tick(self, iid: int) -> Decimal | None:
+        ts = (await self.s.execute(select(Instrument.tick_size).where(
+            Instrument.instrument_id == iid))).scalar()
+        return None if ts is None else Decimal(str(ts)) / 100      # master: paise
+
+    async def _observe(self, r: dict, klass: str, reason: str, explained: dict, fetched):
+        await self.s.execute(pg_insert(OhlcvObservation).values(
+            instrument_id=r["instrument_id"], timeframe=r["timeframe"],
+            session_date=r["session_date"], bar_start_utc=r["bar_start_utc"],
+            source=r["source"], instrument_key=r["instrument_key"],
+            **{f: r[f] for f in C.BAR_VALUE_FIELDS}, run_id=r["run_id"],
+            payload_sha256=r["payload_sha256"], fetched_at=fetched, classification=klass,
+            reason=reason, explained_by=explained, method_version=REV.METHOD_VERSION))
+
+    async def _write(self, rows: list[dict], checks, *, fetched_at=None
+                     ) -> tuple[int, int, dict[str, int]]:
+        """First observation wins (D3): a new key is inserted; an identical one
+        is a no-op; a DIFFERENT value is classified (contracts.revision) and,
+        when explained, recorded in ohlcv_observation - the stored bar is never
+        touched. UNEXPLAINED still fails the run."""
         pk = ("instrument_id", "timeframe", "session_date", "bar_start_utc", "source")
         inserted = present = 0
+        observed: dict[str, int] = {}
         for i in range(0, len(rows), _CHUNK):
             chunk = rows[i : i + _CHUNK]
             res = await self.s.execute(
@@ -396,17 +459,45 @@ class CandleIngestor:
                 tuple(getattr(e, k) for k in pk): e for e in (await self.s.execute(
                     select(OhlcvBar).where(tuple_(*(getattr(OhlcvBar, k) for k in pk)).in_(
                         [tuple(r[k] for k in pk) for r in clash])))).scalars()}
+            events: dict[str, list[REV.Event]] = {}
+            ticks: dict[int, Decimal | None] = {}
             for r in clash:
                 e = existing[tuple(r[k] for k in pk)]
+                key = r["instrument_key"]
                 if C.same_observation({f: getattr(e, f) for f in C.BAR_VALUE_FIELDS}, r):
                     present += 1
-                else:
-                    checks.add(AnomalySeverity.FAIL, AnomalyKind.DUPLICATE_KEY, r["instrument_key"],
-                               reason="a different bar is already stored (D3: revisions are "
-                                      "not stored; conflict fails)",
+                    if key.split("|", 1)[0] in GLOBAL_SEGMENTS:
+                        # positive evidence of finality for a provisional global
+                        # label (phase 5): the vendor returned it unchanged again
+                        await self._observe(r, "REOBSERVED", "unchanged re-observation",
+                                            {}, r["fetched_at"] or fetched_at)
+                        observed["REOBSERVED"] = observed.get("REOBSERVED", 0) + 1
+                    continue
+                if key not in events:
+                    events[key] = await self._events(key)
+                if r["instrument_id"] not in ticks:
+                    ticks[r["instrument_id"]] = await self._tick(r["instrument_id"])
+                fetched = r["fetched_at"] or fetched_at
+                width = C.BAR_WIDTH.get(r["timeframe"]) if r["timeframe"] != "1d" else None
+                last_bar = width is not None and (
+                    (r["bar_start_utc"] + width).astimezone(IST).time() >= _dt.time(15, 29))
+                v = REV.classify({f: getattr(e, f) for f in C.BAR_VALUE_FIELDS}, r,
+                                 bar_date=r["session_date"],
+                                 fetch_date=fetched.astimezone(IST).date(),
+                                 tick=ticks[r["instrument_id"]], events=events[key],
+                                 is_global=key.split("|", 1)[0] in GLOBAL_SEGMENTS,
+                                 last_bar_of_session=last_bar)
+                if v.fails:
+                    checks.add(AnomalySeverity.FAIL, AnomalyKind.DUPLICATE_KEY, key,
+                               reason="a different bar is already stored and no rule explains "
+                                      "it (D3: UNEXPLAINED revisions fail)",
                                timeframe=r["timeframe"],
                                bar_start_utc=r["bar_start_utc"].isoformat(),
                                stored={f: str(getattr(e, f)) for f in C.BAR_VALUE_FIELDS},
                                new={f: str(r[f]) for f in C.BAR_VALUE_FIELDS},
-                               stored_payload_sha256=e.payload_sha256)
-        return inserted, present
+                               stored_payload_sha256=e.payload_sha256,
+                               classification=v.classification, why=v.reason)
+                    continue
+                await self._observe(r, v.classification, v.reason, v.explained_by, fetched)
+                observed[v.classification] = observed.get(v.classification, 0) + 1
+        return inserted, present, observed

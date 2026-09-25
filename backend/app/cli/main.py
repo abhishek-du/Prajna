@@ -406,6 +406,11 @@ def ingest_candles(
     out["coverage"] = {o: sum(1 for r in rep.results if r.coverage and
                               r.coverage["outcome"] == o)
                        for o in ("DATA", "EMPTY", "VENDOR_ERROR")}
+    obs: dict[str, int] = {}
+    for r in rep.results:                      # classified later observations (phase 6)
+        for k, v in (r.observations or {}).items():
+            obs[k] = obs.get(k, 0) + v
+    out["observations"] = obs
     typer.echo(_json.dumps(out, indent=2, default=str))
     raise typer.Exit(0 if not rep.stopped and not rep.count("FAILED") else 1)
 
@@ -1083,6 +1088,34 @@ def upstox_login(
 
 
 # ── Stage 2 ──────────────────────────────────────────────────────────────────
+derive_app = typer.Typer(help="derived Stage 1 records (no vendor calls)")
+app.add_typer(derive_app, name="derive")
+
+
+def _derive(fn_name: str, commit: bool, token: str | None):
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.ingest import ca_derive
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await getattr(ca_derive, fn_name)(s, commit=commit, token=token)
+
+    typer.echo(_json.dumps(asyncio.run(_go()), indent=2, default=str))
+
+
+@derive_app.command("price-basis")
+def derive_price_basis_cmd(
+    commit: bool = typer.Option(False, "--commit"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"),
+):
+    """Give every candle payload without one its price basis (RAW_OBSERVED /
+    VENDOR_ADJUSTED). Idempotent."""
+    _derive("derive_price_basis", commit, token)
+
+
 ops_app = typer.Typer(help="operations: status, maintenance (no vendor calls)")
 app.add_typer(ops_app, name="ops")
 
