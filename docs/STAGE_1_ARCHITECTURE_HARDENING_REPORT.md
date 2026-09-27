@@ -102,6 +102,7 @@ an evidence file, or a commit.
 | 07:00 Mon–Fri | morning: previous session 1D, FII/DII, news |
 | 08:25 Mon–Fri | real pre-open capture |
 | 09:30–15:30 every 30 min Mon–Fri | `news_poll.sh` (own lock, fraction 0.2, no login) |
+| 11:00 and 19:00 Sat–Sun | `news_poll.sh` weekend sweep (added 2026-09-28: without it the weekend went ~55 h without a news sweep and criterion N failed; the longest gap is now 16 h) |
 | 12:40 and 21:10 daily | `global_refresh.sh` (13 requests, fraction 0.1) |
 | 16:05 Mon–Fri | `close_then_backfill.sh --no-backfill`: close, then the same-day rerun check; hard stop 06:40 |
 | 23:55 daily | `maintenance.sh status` |
@@ -529,6 +530,11 @@ flock -w 3600 var/run/candles.lock ops/runbooks/close_then_backfill.sh --no-back
 - **Token:** rotation is one-way. A new token is issued by editing `.env` `PRAJNA_WRITE_TOKEN` (fingerprints only, never printed).
 
 ## O. Known limitations
+
+**Post-report finding (2026-09-27/28).** Over the first weekend, criterion N (News: a sweep within 36 h) failed:
+- **Cause:** every news job was scheduled Mon–Fri, so there was no sweep from Fri 23:36 to Mon 07:00. That is a scheduling gap, not data loss, since the vendor keeps 7 days of news.
+- **Fix:** a weekend sweep (Sat/Sun 11:00 and 19:00 IST), with its test.
+- **Rule:** unchanged.
 
 1. **Pre-horizon history.** Raw 1D prices before the corporate-action horizon (2025-09-24; the vendor feed is about 1 year deep) are unrecoverable. The stored history is vendor-adjusted as of its fetch date, and `bars_adjusted` marks it LOW confidence and refuses it by default.
 2. **Stock count 3,155 vs 3,172.** The 21 InvITs are classified OTHER (ISIN security code 23, series IV), so D counts 3,155 STOCK. The directive's 3,172 included them; the difference is reported, not hidden.

@@ -26,6 +26,9 @@ LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 #               51 h with close/morning polling only (measured 2026-09-25)
 30 9 * * 1-5      cd $B && flock -n var/run/news.lock ops/runbooks/news_poll.sh >> var/logs/cron.log 2>&1
 0,30 10-15 * * 1-5 cd $B && flock -n var/run/news.lock ops/runbooks/news_poll.sh >> var/logs/cron.log 2>&1
+# 11:00, 19:00 Sat-Sun  weekend news sweep: no weekday job runs on weekends, which left
+#               ~55 h without a sweep (acceptance N requires one within 36 h); max gap now 16 h
+0 11,19 * * 0,6   cd $B && flock -n var/run/news.lock ops/runbooks/news_poll.sh >> var/logs/cron.log 2>&1
 # 09:21, 16:10 Mon-Fri  timing-finality monitor (TIMING-B2): read-only B1/B2 poller until
 #               09:10 next day, then the verdict (var/acceptance/b1b2.json, criterion X);
 #               skips when a poller already runs; fraction 0.55; no login, no write token

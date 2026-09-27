@@ -342,7 +342,7 @@ CADENCE = {"candles_1d": ("ohlcv.1d.NSE%", "daily 07:00 IST (previous session)")
            "candles_15m": ("ohlcv.15m.%", "daily close 16:05 IST"),
            "candles_1h": ("ohlcv.1h.%", "daily close 16:05 IST"),
            "global_1d": ("ohlcv.1d.GLOBAL%", "12:40 and 21:10 IST"),
-           "news": ("news.%", "every 30 min 09:30-15:30 IST Mon-Fri, close, morning"),
+           "news": ("news.%", "every 30 min 09:30-15:30 IST Mon-Fri, close, morning; Sat-Sun 11:00 and 19:00"),
            "fii_dii": ("macro.%", "daily 07:00 IST"),
            "corporate_actions": ("corporate_action.%", "weekly (Sat) + new listings"),
            "fundamentals": ("fundamentals.%", "monthly + new listings"),

@@ -301,13 +301,21 @@ class TestStaticGuards:
         text = (BACKEND / "ops" / "cron" / "prajna.cron").read_text()
         news = [ln for ln in text.splitlines() if "news_poll.sh" in ln and not ln.startswith("#")]
         assert news, "market-hours news polling is scheduled"
+        weekend = [ln for ln in news if ln.split()[4] == "0,6"]
         for ln in news:
             minute, hour, _, _, dow = ln.split()[:5]
-            assert dow == "1-5" and "$LK" not in ln and "news.lock" in ln
-            hours = [int(h) for h in hour.replace("-", ",").split(",")]
-            assert min(hours) >= 9 and max(hours) <= 15
-            if hour == "9":
-                assert minute == "30"            # after the 08:55-09:20 pre-open capture
+            assert dow in ("1-5", "0,6") and "$LK" not in ln and "news.lock" in ln
+            if dow == "1-5":
+                hours = [int(h) for h in hour.replace("-", ",").split(",")]
+                assert min(hours) >= 9 and max(hours) <= 15
+                if hour == "9":
+                    assert minute == "30"        # after the 08:55-09:20 pre-open capture
+        # weekends are swept too: acceptance N needs a sweep within 36 h, and no
+        # weekday job runs Sat/Sun (Fri 23:36 close -> Mon 07:00 was ~55 h)
+        assert weekend, "weekend news sweep scheduled"
+        hours = sorted(int(h) for ln in weekend for h in ln.split()[1].split(","))
+        gaps = [b - a for a, b in zip(hours, hours[1:])] + [24 - hours[-1] + hours[0]]
+        assert max(gaps) <= 24                    # never more than a day between weekend sweeps
         body = (RUNBOOKS / "news_poll.sh").read_text()
         assert "--login" not in body and "PRAJNA_SUPPLIED_TOKEN" in body
         assert "timeout -k 60 --signal=INT" in body and "--token" not in body
