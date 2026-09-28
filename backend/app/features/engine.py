@@ -53,6 +53,17 @@ from app.features.snapshots import Snapshot
 from app.ingest.runner import IngestRunner
 
 SOURCE = "PRAJNA_STAGE3"
+# One multi-row INSERT binds (rows x columns) parameters; asyncpg refuses more than
+# 32,767 per statement. feature_value binds 15 per row (16 columns, id generated),
+# so the old 5,000-row chunks bound 75,000 and a full-universe run failed. Batches
+# are sized from a budget ~8% under the limit (15 per row -> 2,000 rows, 30,000).
+ASYNCPG_MAX_BIND_PARAMS = 32767
+PARAM_BUDGET = 30000
+
+
+def batch_rows(params_per_row: int) -> int:
+    """Rows per INSERT so that rows x params_per_row <= PARAM_BUDGET."""
+    return max(1, PARAM_BUDGET // max(1, params_per_row))
 BENCHMARK = "NSE_INDEX|Nifty 50"
 
 
@@ -327,8 +338,9 @@ async def persist(s: AsyncSession, res: SnapshotResult, run_id) -> tuple[int, in
                "input_max_knowable_at": r.input_max_knowable_at, "computed_at": at,
                "run_id": run_id} for r in res.rows]
     inserted = 0
-    for i in range(0, len(values), 5000):
-        chunk = values[i:i + 5000]
+    step = batch_rows(len(values[0])) if values else 1       # one bind parameter per key
+    for i in range(0, len(values), step):
+        chunk = values[i:i + step]
         inserted += (await s.execute(pg_insert(FeatureValue).values(chunk).on_conflict_do_nothing(
             constraint="uq_feature_value"))).rowcount
     stored = {(r[0], r[1]): (r[2], r[3], r[4]) for r in (await s.execute(text("""

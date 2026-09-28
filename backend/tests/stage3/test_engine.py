@@ -750,3 +750,91 @@ class TestAdversarialPointInTime:
         assert v[(W.VIX, "india_vix_level")] == (None, "MISSING_INPUT")
         po = by(await E.compute_snapshot(world, await snap(world, "PRE_OPEN", day), [W.A]))
         assert po[(W.VIX, "india_vix_level")] == (ok(W.close_of(W.VIX, n))[0], None)
+
+
+class TestPersistScale:
+    """BUG-STAGE3-PERSIST-PARAM-LIMIT: one multi-row INSERT binds rows x 15 parameters
+    and asyncpg allows 32,767; 5,000-row chunks (75,000) failed on the real universe
+    (180,919 rows, 2026-09-28). Found by measuring persistence; the seed world's
+    ~275 rows never crossed the limit."""
+
+    def test_bind_parameters_per_row_are_counted_from_the_real_statement(self):
+        from sqlalchemy.dialects.postgresql import asyncpg as pg_asyncpg
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        from app.db.models import FeatureValue
+        row = {c.name: None for c in FeatureValue.__table__.columns if c.name != "id"}
+
+        def binds(n):
+            st = pg_insert(FeatureValue).values([dict(row) for _ in range(n)])
+            return len(st.on_conflict_do_nothing(constraint="uq_feature_value")
+                       .compile(dialect=pg_asyncpg.dialect()).positiontup)
+        assert binds(1) == len(row) == 15
+        assert binds(E.batch_rows(15)) == 30000 <= E.PARAM_BUDGET < E.ASYNCPG_MAX_BIND_PARAMS
+        assert binds(E.batch_rows(15) + 1) > E.PARAM_BUDGET
+        assert binds(5000) == 75000 > E.ASYNCPG_MAX_BIND_PARAMS          # the old chunk
+        assert E.batch_rows(10 ** 6) == 1
+
+    async def test_rows_across_several_batches_persist_then_rerun_is_idempotent(self, world):
+        """5,000 rows: the old single-chunk failure boundary (> 2,184 rows) crossed, and
+        3 batches at 2,000; then the rerun finds all present, a changed value fails
+        the determinism check, and nothing is overwritten or duplicated."""
+        sn = await snap(world)
+        res = await E.compute_snapshot(world, sn, [W.A], with_context=False)
+        base = [r for r in res.rows if r.scope == "INSTRUMENT"]
+        rows = [E.FeatureRow(r.scope, f"NSE_EQ|SCALE{i:05d}", r.feature_id, r.value, r.reason,
+                             r.inputs_sha256, r.input_max_knowable_at)
+                for i in range(-(-5000 // len(base))) for r in base][:5000]
+        res.rows = rows
+        seen = []
+
+        def spy(conn, cursor, statement, params, context, executemany):
+            if statement.lstrip().lower().startswith("insert into feature_value"):
+                seen.append(len(params))
+        from sqlalchemy import event
+        sync = world.bind.sync_engine
+        event.listen(sync, "before_cursor_execute", spy)
+        try:
+            rid = await _run(world, "features.scale", source="PRAJNA_STAGE3")
+            assert await E.persist(world, res, rid) == (5000, 0)
+        finally:
+            event.remove(sync, "before_cursor_execute", spy)
+        assert seen == [30000, 30000, 15000]                     # parameters per statement
+        assert await E.persist(world, res, rid) == (0, 5000)
+        assert await count(world, """select count(*) from (select 1 from feature_value
+            group by instrument_key, session_date, snapshot, feature_id having count(*) > 1)
+            x""") == 0
+        i = next(i for i, r in enumerate(rows) if r.value is not None)
+        res.rows = [*rows[:i], E.FeatureRow(rows[i].scope, rows[i].instrument_key,
+                    rows[i].feature_id, rows[i].value + 1, None, rows[i].inputs_sha256,
+                    rows[i].input_max_knowable_at), *rows[i + 1:]]
+        with pytest.raises(E.DeterminismMismatch):
+            await E.persist(world, res, rid)
+        assert await count(world, "select count(*) from feature_value") == 5000
+
+    async def test_a_failure_after_a_batch_leaves_no_partial_snapshot(self, world, unlocked,
+                                                                     monkeypatch):
+        """A run whose persistence fails after its first INSERT batch is committed has
+        written nothing: the run is FAILED and 0 feature values remain."""
+        real, n = E.persist, {"batches": 0}
+
+        async def failing(s, res, run_id):
+            rows = res.rows
+            res.rows = rows * 40                             # > 1 batch of 2,000 rows
+            from sqlalchemy import event
+
+            def after(*a):
+                n["batches"] += 1
+                if n["batches"] == 2:
+                    raise RuntimeError("injected failure after 1 committed-in-tx batch")
+            event.listen(s.bind.sync_engine, "after_cursor_execute", after)
+            try:
+                return await real(s, res, run_id)
+            finally:
+                event.remove(s.bind.sync_engine, "after_cursor_execute", after)
+                res.rows = rows
+        monkeypatch.setattr(E, "persist", failing)
+        with pytest.raises(RuntimeError, match="injected"):
+            await run(world)
+        assert n["batches"] >= 2 and await stored(world) == 0
+        assert await events(world, "RUN_FAILED") == 1
