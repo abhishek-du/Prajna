@@ -1,6 +1,6 @@
 # Stage 2 acceptance
 
-**Generated:** 2026-09-28T16:51:11.575744+00:00 by `prajna acceptance stage2` (read-only; regenerate, do not edit).
+**Generated:** 2026-09-28T17:48:51.443631+00:00 by `prajna acceptance stage2` (read-only; regenerate, do not edit).
 
 ## Overall: **PASS**
 
@@ -12,7 +12,7 @@ Stage 3 stays locked until this is PASS.
 | B | Is data normalized consistently? | **PASS** | {"duplicate_bars": 0, "invalid_timeframe": 0, "null_required_bar_fields": 0, "coverage_contradicts_bars": 0, "non_session_bars_exposed": 0} |  |
 | C | Are timestamps correct? | **PASS** | {"bar_knowable_before_event_end": 0, "daily_bar_fetched_same_session": 0, "daily_label_not_0000_ist": 0, "daily_event_not_session_hours": 0, "intraday_outside_session": 0, "market_date_not_label_date": 0} | D4: daily label 00:00 IST; event = the session's own hours (Muhurat sessions included); knowable after it |
 | D | Is knowable_at preserved? | **PASS** | {"canonical_vs_stage1_mismatches": 0, "knowable_after_fetched": 0} |  |
-| E | Is future leakage impossible? | **PASS** | {"real_db_probes": {"seed": 1760385958, "instruments_probed": 40, "rows_returned_after_boundary": 39541, "boundary_behaviour_correct": 40, "coverage_point_in_time": 40}, "tests": ["TestPointInTime", "test_knowable_is_strictly_before"]} | every read requires as_of (coverage too); rows with knowable_at >= as_of are never returned |
+| E | Is future leakage impossible? | **PASS** | {"real_db_probes": {"seed": 1763845434, "instruments_probed": 40, "rows_returned_after_boundary": 39831, "boundary_behaviour_correct": 40, "coverage_point_in_time": 40}, "tests": ["TestPointInTime", "test_knowable_is_strictly_before"]} | every read requires as_of (coverage too); rows with knowable_at >= as_of are never returned |
 | F | Is NSE filtering correct? | **PASS** | {"non_nse_included": 0, "eligible_equity_excluded": 0, "global_included": 0, "stale_rules": 0, "missing_reason": 0, "rules_sha256": "911fa7abf926ed38736e815cdfb69aac4cba63bf654e345b8ceb2392515df5f6"} |  |
 | G | Is instrument mapping correct? | **PASS** | {"mapping_mismatches": 0, "orphans": 0, "missing_identifiers": 0} |  |
 | H | Is data enrichment traceable? | **PASS** | {"instruments_with_sector": 3192, "sector_not_traceable_to_snapshot": 0} | sector coverage grows with the Stage 1 fundamentals sweep; PIT sector via pit.sector() |
@@ -22,8 +22,8 @@ Stage 3 stays locked until this is PASS.
 | L | Can processing resume after failure? | **PASS** | {"tests": ["test_crash_rolls_back_and_the_rerun_resumes"], "failed_canon_runs": 0, "note": "rows and checkpoint commit in one transaction"} |  |
 | M | Can Stage 2 process incremental Stage 1 updates? | **PASS** | {"real_incremental_runs": ["caf0abb0-acc1-4d61-b9a0-ec4a30989b3b", "3c60d7c9-8915-4c6b-94cc-61cfde058da6", "3bcb7bef-5c86-4fef-9550-141cd1c19db7"], "tests": ["test_incremental_update_touches_only_the_new_pair"]} | real evidence needs a Stage 1 run finishing after a Stage 2 checkpoint |
 | N | Are database constraints enforced? | **PASS** | {"missing_constraints": [], "tests": ["test_db_constraints"]} |  |
-| O | Can Stage 3 consume the canonical data safely? | **PASS** | {"seed": 1760391781, "probed": 10, "ok": 10, "probes": {"NSE_EQ\|INE002A01018": {"daily_bars": 250, "corporate_actions": 1, "news": 2, "fundamentals": 12, "sector": "Refineries", "coverage_ranges": 1}, "NSE_INDEX\|Nifty 50": {"daily_bars": 250, "corporate_actions": 0, "news": 0, "fundamentals": 0, "sector": null, "coverage_ranges": 1}, "NSE_EQ\|INE542F01020": {"daily_bars": 229, "corporate_actions": 0, "news": 0, "fundamentals": 12, "sector": "Ship Building", "coverage_ranges": 106}, "NSE_EQ\|INE17IR01028": {"daily_bars": 51, "corporate_actions": 0, "news": 0, "fundamentals": 12, "sector": "Cables", "coverage_ranges": 2}, "NSE_EQ\|INF0QA701714": {"daily_bars": 250, "corporate_actions": 0, "n |  |
-| P | Are all existing Stage 1 tests still passing? | **PASS** | {"exit": 0, "summary": "1119 passed, 4 skipped in 329.12s (0:05:29)"} |  |
+| O | Can Stage 3 consume the canonical data safely? | **PASS** | {"seed": 1763851382, "probed": 10, "ok": 10, "probes": {"NSE_EQ\|INE002A01018": {"daily_bars": 250, "corporate_actions": 1, "news": 2, "fundamentals": 12, "sector": "Refineries", "coverage_ranges": 1}, "NSE_INDEX\|Nifty 50": {"daily_bars": 250, "corporate_actions": 0, "news": 0, "fundamentals": 0, "sector": null, "coverage_ranges": 1}, "NSE_EQ\|INE666D01022": {"daily_bars": 250, "corporate_actions": 0, "news": 0, "fundamentals": 12, "sector": "Glass", "coverage_ranges": 1}, "NSE_EQ\|INE668G01021": {"daily_bars": 250, "corporate_actions": 1, "news": 0, "fundamentals": 12, "sector": "Realty", "coverage_ranges": 2}, "NSE_EQ\|INE372E01025": {"daily_bars": 111, "corporate_actions": 1, "news": 0,  |  |
+| P | Are all existing Stage 1 tests still passing? | **PASS** | {"exit": 0, "summary": "1122 passed, 4 skipped in 337.68s (0:05:37)"} |  |
 
 ## Quality gates
 

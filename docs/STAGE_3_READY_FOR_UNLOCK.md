@@ -27,7 +27,7 @@ Criterion O (production evidence) stays PENDING by design. It needs the first au
 
 | Prerequisite | Result |
 |---|---|
-| **Stage 1** | **COMPLETE**, identical from `backend/`, the repository root and an unrelated directory after the path fix 69a3a94 (`audit/evidence/stage1_cwd_verification.json`): 20 PASS, G/I/J/S DEFERRED (BACKFILL-DEFER), H/L OUT_OF_SCOPE, 0 failing, 0 waiting. Before the fix, the same gate run from the repository root reported NOT COMPLETE |
+| **Stage 1** | **COMPLETE**, identical from `backend/`, the repository root and an unrelated directory after the path fix 69a3a94 (`audit/evidence/stage1_cwd_verification.json`): 25 criteria, 19 PASS, G/I/J/S DEFERRED (BACKFILL-DEFER), H/L OUT_OF_SCOPE, 0 failing, 0 waiting. Before the fix, the same gate run from the repository root reported NOT COMPLETE |
 | **Stage 2** | **PASS**: report of 2026-09-28 09:16 UTC, 16/16, with tests |
 | **Stage 3 decisions** | FEATURE-SCOPE, FEATURE-PARAMS, FEATURE-SNAPSHOTS, FEATURE-NO-SOURCE and FII-DII-STALENESS: all APPROVED (`docs/STAGE_3_DECISIONS.md`) |
 | **Locks** (`prajna stage3 locks`, no token) | RUN: every condition PASS except `stage3_enabled` (false) and `write_token` (none), so **LOCKED**. BACKFILL: the same, plus `backfill_enabled` false |

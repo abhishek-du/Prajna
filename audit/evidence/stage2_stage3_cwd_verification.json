@@ -1,0 +1,197 @@
+{
+ "findings": [
+  "BUG-CLI-STAGE2-STAGE3-DEFAULT-PATHS-UNANCHORED",
+  "gate test subprocess cwd (P/K)"
+ ],
+ "before": {
+  "default_outputs_pre_fix_975d6b3_from_repo_root": {
+   "command": "prajna acceptance stage3 (pre-fix code in a scratch worktree, run from its root)",
+   "result": "JSON written to <root>/var/acceptance/stage3.json (rogue directory); then FileNotFoundError writing '../docs/STAGE_3_ACCEPTANCE.md' (resolves ABOVE the repository; it would have written outside the repo had that directory existed); exit 1 from the crash"
+  },
+  "test_subprocess_pre_fix": {
+   "repo_root": "pytest rootdir=/home/cis/windows/prajna, no configfile: 99 failed, 738 passed, 4 skipped, 282 errors (two independent runs, identical counts)",
+   "unrelated_dir": "no tests collected (exit 5)",
+   "backend": "backend/pyproject.toml applies; suite passes",
+   "consequence": "Stage 2 P and Stage 3 K recorded FAIL from anywhere but backend/ (fail-closed but wrong); docs/STAGE_2_ACCEPTANCE.md committed at bcf10e0 shows exactly such a run (P FAIL, 99 failed/282 errors)"
+  }
+ },
+ "fixes": {
+  "1327f75": "default --out/--md anchored (stage2, stage3, news)",
+  "bcf10e0": "run_tests() cwd=BACKEND_ROOT (stage2, stage3)",
+  "1e93993": "regression test for the run_tests cwd"
+ },
+ "after": {
+  "/home/cis/windows/prajna/backend :: stage2": {
+   "rc": "0",
+   "concurrent_before": "0",
+   "secs": "386",
+   "json_updated": "yes",
+   "doc_updated": "yes",
+   "stray_outputs": "[]",
+   "generated_at": "2026-09-28T17:48:51.443631+00:00",
+   "overall": "PASS",
+   "statuses": {
+    "A": "PASS",
+    "B": "PASS",
+    "C": "PASS",
+    "D": "PASS",
+    "E": "PASS",
+    "F": "PASS",
+    "G": "PASS",
+    "H": "PASS",
+    "I": "PASS",
+    "J": "PASS",
+    "K": "PASS",
+    "L": "PASS",
+    "M": "PASS",
+    "N": "PASS",
+    "O": "PASS",
+    "P": "PASS"
+   },
+   "tests": null
+  },
+  "/tmp/claude-1000/-home-cis-windows-prajna/6c2c4592-f715-4930-a31c-5d11149b314d/scratchpad/cwd_other (unrelated) :: stage2": {
+   "rc": "0",
+   "concurrent_before": "0",
+   "secs": "389",
+   "json_updated": "yes",
+   "doc_updated": "yes",
+   "stray_outputs": "[]",
+   "generated_at": "2026-09-28T17:42:25.698174+00:00",
+   "overall": "PASS",
+   "statuses": {
+    "A": "PASS",
+    "B": "PASS",
+    "C": "PASS",
+    "D": "PASS",
+    "E": "PASS",
+    "F": "PASS",
+    "G": "PASS",
+    "H": "PASS",
+    "I": "PASS",
+    "J": "PASS",
+    "K": "PASS",
+    "L": "PASS",
+    "M": "PASS",
+    "N": "PASS",
+    "O": "PASS",
+    "P": "PASS"
+   },
+   "tests": null
+  },
+  "/home/cis/windows/prajna (repository root) :: stage2": {
+   "rc": "0",
+   "concurrent_before": "0",
+   "secs": "383",
+   "json_updated": "yes",
+   "doc_updated": "yes",
+   "stray_outputs": "[]",
+   "generated_at": "2026-09-28T17:35:56.233428+00:00",
+   "overall": "PASS",
+   "statuses": {
+    "A": "PASS",
+    "B": "PASS",
+    "C": "PASS",
+    "D": "PASS",
+    "E": "PASS",
+    "F": "PASS",
+    "G": "PASS",
+    "H": "PASS",
+    "I": "PASS",
+    "J": "PASS",
+    "K": "PASS",
+    "L": "PASS",
+    "M": "PASS",
+    "N": "PASS",
+    "O": "PASS",
+    "P": "PASS"
+   },
+   "tests": null
+  },
+  "/home/cis/windows/prajna/backend :: stage3": {
+   "rc": "1",
+   "concurrent_before": "0",
+   "secs": "510",
+   "json_updated": "yes",
+   "doc_updated": "yes",
+   "stray_outputs": "[]",
+   "generated_at": "2026-09-28T17:29:33.690351+00:00",
+   "overall": "NOT COMPLETE (PRODUCTION READY)",
+   "statuses": {
+    "A": "PASS",
+    "B": "PASS",
+    "C": "PASS",
+    "D": "PASS",
+    "E": "PASS",
+    "F": "PASS",
+    "G": "PASS",
+    "H": "PASS",
+    "I": "PASS",
+    "J": "PASS",
+    "K": "PASS",
+    "L": "PASS",
+    "M": "PASS",
+    "N": "PASS",
+    "O": "PENDING"
+   },
+   "tests": "1122 passed, 4 skipped in 329.91s (0:05:29)"
+  },
+  "/tmp/claude-1000/-home-cis-windows-prajna/6c2c4592-f715-4930-a31c-5d11149b314d/scratchpad/cwd_other (unrelated) :: stage3": {
+   "rc": "1",
+   "concurrent_before": "0",
+   "secs": "521",
+   "json_updated": "yes",
+   "doc_updated": "yes",
+   "stray_outputs": "[]",
+   "generated_at": "2026-09-28T17:21:03.021319+00:00",
+   "overall": "NOT COMPLETE (PRODUCTION READY)",
+   "statuses": {
+    "A": "PASS",
+    "B": "PASS",
+    "C": "PASS",
+    "D": "PASS",
+    "E": "PASS",
+    "F": "PASS",
+    "G": "PASS",
+    "H": "PASS",
+    "I": "PASS",
+    "J": "PASS",
+    "K": "PASS",
+    "L": "PASS",
+    "M": "PASS",
+    "N": "PASS",
+    "O": "PENDING"
+   },
+   "tests": "1122 passed, 4 skipped in 338.41s (0:05:38)"
+  },
+  "/home/cis/windows/prajna (repository root) :: stage3": {
+   "rc": "1",
+   "concurrent_before": "1",
+   "secs": "539",
+   "json_updated": "yes",
+   "doc_updated": "yes",
+   "stray_outputs": "[]",
+   "generated_at": "2026-09-28T17:12:22.324553+00:00",
+   "overall": "NOT COMPLETE (PRODUCTION READY)",
+   "statuses": {
+    "A": "PASS",
+    "B": "PASS",
+    "C": "PASS",
+    "D": "PASS",
+    "E": "PASS",
+    "F": "PASS",
+    "G": "PASS",
+    "H": "PASS",
+    "I": "PASS",
+    "J": "PASS",
+    "K": "PASS",
+    "L": "PASS",
+    "M": "PASS",
+    "N": "PASS",
+    "O": "PENDING"
+   },
+   "tests": "1122 passed, 4 skipped in 359.95s (0:05:59)"
+  }
+ },
+ "stray_output_check": "none of /home/cis/windows/docs, /home/cis/windows/prajna/var, <unrelated>/var, <scratch>/docs exists after the six runs"
+}
