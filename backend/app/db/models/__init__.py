@@ -13,12 +13,18 @@ from app.db.models.contracts import (
 from app.db.models.control import IngestAnomaly, IngestRun, IngestWatermark, RawPayload
 from app.db.models.features import FeatureValue, Stage3Event
 from app.db.models.news import (
+    NewsAIEnrichment,
+    NewsAssessment,
     NewsAudit,
     NewsClassification,
+    NewsContent,
     NewsEntityLink,
+    NewsEntityMention,
     NewsItem,
     NewsItemObservation,
     NewsPoll,
+    NewsStory,
+    NewsStoryMember,
 )
 from app.db.models.market import (
     GlobalInstrumentContract,
@@ -47,7 +53,8 @@ __all__ = [
     "GlobalInstrumentContract",
     "FeatureValue", "Stage3Event",
     "NewsPoll", "NewsItem", "NewsItemObservation", "NewsClassification", "NewsEntityLink",
-    "NewsAudit",
+    "NewsAudit", "NewsStory", "NewsStoryMember", "NewsEntityMention", "NewsAssessment",
+    "NewsContent", "NewsAIEnrichment",
     "CorporateAction", "FundamentalSnapshot", "MacroObservation", "NewsArticle",
     "NewsInstrument", "CanonInstrument", "CanonCoverage",
 ]

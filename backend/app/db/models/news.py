@@ -17,6 +17,7 @@ from sqlalchemy import (
     Index,
     Integer,
     Numeric,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -28,6 +29,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 
 TS = TIMESTAMP(timezone=True)
+_CONTENT = ("'AVAILABLE','NOT_AVAILABLE','ROBOTS_BLOCKED','TERMS_BLOCKED','PAYWALL',"
+            "'HTTP_BLOCKED','ERROR'")
 
 
 class NewsPoll(Base):
@@ -94,10 +97,23 @@ class NewsItem(Base):
     first_poll_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("news_poll.id", ondelete="RESTRICT"), nullable=False)
     payload_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    # 0014: normalisation fields (NULL = not provided / not checked, never guessed)
+    source_priority: Mapped[int | None] = mapped_column(SmallInteger)
+    terms_status: Mapped[str | None] = mapped_column(String(12))
+    robots_allowed: Mapped[bool | None] = mapped_column(Boolean)
+    content_fetch_status: Mapped[str] = mapped_column(String(16), nullable=False,
+                                                      server_default="NOT_AVAILABLE")
+    metadata_sha256: Mapped[str | None] = mapped_column(CHAR(64))
+    content_sha256: Mapped[str | None] = mapped_column(CHAR(64))
+    processed_at: Mapped[_dt.datetime | None] = mapped_column(TS)
 
     __table_args__ = (
         UniqueConstraint("source", "source_article_id", name="uq_news_item_source_id"),
         CheckConstraint("knowable_at >= discovered_at", name="ck_news_item_knowable"),
+        CheckConstraint(f"content_fetch_status in ({_CONTENT})",
+                        name="ck_news_item_content_status"),
+        CheckConstraint("processed_at is null or processed_at >= discovered_at",
+                        name="ck_news_item_processed"),
         Index("ix_news_item_knowable", "knowable_at"),
         Index("ix_news_item_title_hash", "title_norm_hash"),
     )
@@ -185,4 +201,157 @@ class NewsAudit(Base):
     __table_args__ = (
         CheckConstraint("event in ('REFUSED','KILL_ON','KILL_OFF','BLOCKED')",
                         name="ck_news_audit_event"),
+    )
+
+
+class NewsStory(Base):
+    """One underlying event reported by one or more articles (grouping rules versioned)."""
+
+    __tablename__ = "news_story"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    first_item_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("news_item.id", ondelete="RESTRICT"), nullable=False)
+    rule_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    created_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+    knowable_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+
+    __table_args__ = (CheckConstraint("knowable_at >= created_at", name="ck_news_story_knowable"),)
+
+
+class NewsStoryMember(Base):
+    """An article joining a story, WHEN (knowable_at) and WHY (method, score, evidence)."""
+
+    __tablename__ = "news_story_member"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    story_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("news_story.id", ondelete="RESTRICT"), nullable=False)
+    item_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("news_item.id", ondelete="RESTRICT"), nullable=False)
+    method: Mapped[str] = mapped_column(String(24), nullable=False)
+    score: Mapped[float] = mapped_column(Numeric(5, 4), nullable=False)
+    evidence: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    rule_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    joined_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+    knowable_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("method in ('FOUNDER','SAME_URL','SAME_TITLE','SIMILAR')",
+                        name="ck_news_story_member_method"),
+        CheckConstraint("score between 0 and 1", name="ck_news_story_member_score"),
+        CheckConstraint("knowable_at >= joined_at", name="ck_news_story_member_knowable"),
+        UniqueConstraint("item_id", "rule_version", name="uq_news_story_member"),
+        Index("ix_news_story_member_story", "story_id"),
+    )
+
+
+class NewsEntityMention(Base):
+    """A non-company entity (index, sector, commodity, currency, regulator, ...)."""
+
+    __tablename__ = "news_entity_mention"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    item_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("news_item.id", ondelete="RESTRICT"), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(24), nullable=False)
+    entity_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    method: Mapped[str] = mapped_column(String(24), nullable=False)
+    confidence: Mapped[float] = mapped_column(Numeric(4, 3), nullable=False)
+    evidence: Mapped[str] = mapped_column(Text, nullable=False)
+    version: Mapped[str] = mapped_column(String(32), nullable=False)
+    mapped_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+    knowable_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("entity_type in ('INDEX','SECTOR','COMMODITY','CURRENCY','BOND_YIELD',"
+                        "'GEOPOLITICAL','REGULATOR','GOVERNMENT','CENTRAL_BANK','MACRO_INDICATOR',"
+                        "'EXCHANGE','COURT')", name="ck_news_mention_type"),
+        CheckConstraint("confidence between 0 and 1", name="ck_news_mention_conf"),
+        CheckConstraint("knowable_at >= mapped_at", name="ck_news_mention_knowable"),
+        UniqueConstraint("item_id", "entity_type", "entity_id", "version", name="uq_news_mention"),
+    )
+
+
+class NewsAssessment(Base):
+    """Potential relevance (NOT a price prediction): scope, impact, direction, breaking."""
+
+    __tablename__ = "news_assessment"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    item_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("news_item.id", ondelete="RESTRICT"), nullable=False)
+    basis: Mapped[str] = mapped_column(String(8), nullable=False)
+    market_scope: Mapped[str] = mapped_column(String(8), nullable=False)
+    potential_impact: Mapped[str] = mapped_column(String(8), nullable=False)
+    impact_direction: Mapped[str] = mapped_column(String(8), nullable=False)
+    is_breaking: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    breaking_reason: Mapped[str | None] = mapped_column(Text)
+    evidence: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    rule_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    assessed_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+    knowable_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("basis in ('RULES','AI')", name="ck_news_assess_basis"),
+        CheckConstraint("market_scope in ('STOCK','SECTOR','INDEX','MARKET','MACRO','GLOBAL',"
+                        "'UNKNOWN')", name="ck_news_assess_scope"),
+        CheckConstraint("potential_impact in ('LOW','MEDIUM','HIGH','UNKNOWN')",
+                        name="ck_news_assess_impact"),
+        CheckConstraint("impact_direction in ('POSITIVE','NEGATIVE','MIXED','NEUTRAL','UNKNOWN')",
+                        name="ck_news_assess_direction"),
+        CheckConstraint("knowable_at >= assessed_at", name="ck_news_assess_knowable"),
+        UniqueConstraint("item_id", "basis", "rule_version", name="uq_news_assessment"),
+    )
+
+
+class NewsContent(Base):
+    """An article-body fetch attempt; the body is stored only when AVAILABLE."""
+
+    __tablename__ = "news_content"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    item_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("news_item.id", ondelete="RESTRICT"), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    http_status: Mapped[int | None] = mapped_column(Integer)
+    robots_allowed: Mapped[bool | None] = mapped_column(Boolean)
+    terms_status: Mapped[str | None] = mapped_column(String(12))
+    body: Mapped[str | None] = mapped_column(Text)
+    content_sha256: Mapped[str | None] = mapped_column(CHAR(64))
+    error: Mapped[str | None] = mapped_column(Text)
+    fetched_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+    knowable_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(f"status in ({_CONTENT})", name="ck_news_content_status"),
+        CheckConstraint("(status = 'AVAILABLE') = (body is not null)", name="ck_news_content_body"),
+        CheckConstraint("knowable_at >= fetched_at", name="ck_news_content_knowable"),
+    )
+
+
+class NewsAIEnrichment(Base):
+    """AI output (Bedrock): enrichment only, never a source fact; fully versioned."""
+
+    __tablename__ = "news_ai_enrichment"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    item_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("news_item.id", ondelete="RESTRICT"), nullable=False)
+    status: Mapped[str] = mapped_column(String(12), nullable=False)
+    model_id: Mapped[str] = mapped_column(String(120), nullable=False)
+    model_version: Mapped[str | None] = mapped_column(String(60))
+    prompt_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    input_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    output: Mapped[dict | None] = mapped_column(JSONB)
+    error: Mapped[str | None] = mapped_column(Text)
+    generated_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+    knowable_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("status in ('OK','ERROR','TIMEOUT','INVALID')", name="ck_news_ai_status"),
+        CheckConstraint("(status = 'OK') = (output is not null)", name="ck_news_ai_output"),
+        CheckConstraint("knowable_at >= generated_at", name="ck_news_ai_knowable"),
+        UniqueConstraint("item_id", "model_id", "prompt_version", "input_sha256",
+                         name="uq_news_ai"),
     )
