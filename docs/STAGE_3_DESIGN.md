@@ -1,6 +1,6 @@
 # Stage 3: feature engineering (design)
 
-**Status, 2026-09-28:** the code is implemented, tested and dry-run ready. **Production execution is locked. No Stage 3 historical backfill has run.** The generated verdict is `docs/STAGE_3_ACCEPTANCE.md`; regenerate it with `prajna acceptance stage3 --run-tests`.
+**Status, 2026-09-28 (evening):** the code is implemented and tested. Full-universe persistence has been verified in an isolated test schema (see §9). **Production execution is locked** (`PRAJNA_STAGE3_ENABLED=false`, no write token). **0 production feature values exist. No Stage 3 historical backfill has run.** The generated verdict is `docs/STAGE_3_ACCEPTANCE.md`; regenerate it with `prajna acceptance stage3 --run-tests`.
 
 ## 1. Scope (derived from the repository; nothing invented)
 
@@ -30,6 +30,9 @@ There is no written Stage 3 specification in the repository. The scope comes fro
 | FEATURE-PARAMS | APPROVED (2026-09-28) | indicator windows the diagram does not name are *conventional*; the registry marks them PROPOSED (their origin), and the user approved them |
 | FEATURE-SNAPSHOTS | APPROVED | two snapshots per trading session, PRE_SESSION and PRE_OPEN |
 | FEATURE-NO-SOURCE | APPROVED | diagram items with no data source are registered UNSUPPORTED, naming the missing source; nothing is approximated |
+| FII-DII-STALENESS | APPROVED (2026-09-28), implemented in 580f587 | FII/DII use the snapshot's previous trading session; otherwise MISSING_INPUT. Registry version 2 of the four features |
+
+Operational decisions (SCHEDULE PENDING_APPROVAL, BACKFILL DEFERRED) and FEATURE-NEWS-V2 (PENDING, separate track) are listed in `docs/STAGE_3_DECISIONS.md`.
 
 ## 2. Registry (`app/features/registry.py`, version `features-v1`)
 
@@ -155,10 +158,12 @@ The production-run conditions are:
 - The kill switch (`prajna stage3 kill on|off`) is also checked between instruments during a run.
 - Stage 3 has no vendor call. A test and criterion J assert that `app.features` imports no vendor, network or fetch module; the only `app.ingest` import is the run ledger.
 - Stage 3 never starts a Stage 1 warm-up or backfill.
-- **No cron entry** exists for Stage 3.
+- **No cron entry is installed** for Stage 3. A runbook (`ops/runbooks/stage3_snapshot.sh`) and commented cron lines are prepared; decision SCHEDULE is PENDING_APPROVAL (`docs/STAGE_3_PRODUCTION_SCHEDULE.md`).
 
 **Run mechanics:**
 - One `IngestRunner` run per snapshot: source `PRAJNA_STAGE3`, stream `features.<snapshot>`. `ops status` has a `stage3` family.
+- After the run row is committed, compute, the determinism check and persistence share **one REPEATABLE READ transaction** (`engine.consistent_read`), and end in one COMMIT. A canon job committing mid-run is not observed, and a session that cannot provide the snapshot is refused. The dry-run `compute` uses the same isolation, READ ONLY.
+- Rows are inserted in batches sized from a bind-parameter budget: 15 parameters per row, 2,000 rows = 30,000 per statement, under asyncpg's 32,767. The original 5,000-row batches (75,000 parameters) failed on the full universe; this was fixed in 037a17f (BUG-STAGE3-PERSIST-PARAM-LIMIT).
 - Rows are inserted with `on conflict do nothing`, and every existing row must equal the recompute: a rerun inserts 0 rows, and a disagreement fails the run with `DeterminismMismatch`. It is never an overwrite.
 - A compute exception rolls the run back (FAILED, RUN_FAILED).
 - A crashed run is aborted by the orphan reaper, and the rerun completes.
@@ -175,7 +180,7 @@ The production-run conditions are:
   - `GET /v1/instruments/{key}/features?session=&snapshot=&as_of=`
 - **Web and frontend:** unchanged.
 
-## 8. Tests (`backend/tests/stage3/`, 84 tests)
+## 8. Tests (`backend/tests/stage3/`, 100 tests)
 
 | File | What it covers |
 |---|---|
@@ -197,7 +202,11 @@ The production-run conditions are:
 - crash recovery via the reaper, and restart;
 - the kill switch mid-run;
 - append-only storage and the PIT check;
-- each lock condition alone, the defaults, and the backfill flag.
+- each lock condition alone, the defaults, and the backfill flag;
+- FII/DII staleness: publication after as_of, and the holiday boundary;
+- one consistent snapshot: a concurrent commit mid-run is not observed; REPEATABLE READ is set by a plain session; a run at READ COMMITTED is refused;
+- adversarial point in time: a late bar revision, a previous-session bar first knowable after as_of, a corporate-action revision, a delayed statement, and India VIX with the previous session missing;
+- persistence at scale: the bind count from the compiled statement; 5,000 rows over 3 batches with rerun and determinism; a failure after a batch leaves no partial snapshot.
 
 ## 9. Dry-run on real data (2026-09-28)
 
@@ -217,15 +226,19 @@ The production-run conditions are:
   | INSUFFICIENT_HISTORY | 17 |
 
 - Most MISSING_INPUT rows are the corporate-action and news event features, where no event is known, and fundamentals the vendor has not supplied.
-- **Throughput** is about 1.3–1.5 s per instrument with sector members included. The full universe would take roughly 50–60 minutes per snapshot. That is acceptable for a pre-open window only if PRE_SESSION starts well before 09:00, so this is a scheduling item for when production is unlocked. It is recorded here and not tuned yet.
+- **Throughput (corrected).** The earlier "50–60 min per snapshot" was extrapolated from small samples, where loading sector members dominated.
+  - Measured on the full universe (3,547 instruments, 2026-09-28): compute is 140–143 s for PRE_SESSION (180,919 rows) and 156–159 s for PRE_OPEN (195,107 rows).
+  - Persistence, with real commits into an isolated schema of `prajna_test`, is 72.6 s and 76.8 s.
+  - Evidence: `audit/evidence/STAGE_3_PERSISTENCE_VERIFICATION.md`; the schedule is in `docs/STAGE_3_PRODUCTION_SCHEDULE.md`.
 
 ## 10. Remaining blockers and UNKNOWNs
 
-**Blockers before production (all outside the code):**
-1. **Stage 1 is not COMPLETE.** X (B2 timing) waits for today's session.
-2. ~~FEATURE-PARAMS~~: approved by the user on 2026-09-28.
-3. The operator must set `PRAJNA_STAGE3_ENABLED=true`.
-4. A schedule must be designed, given the throughput above (UNKNOWN: start time and cadence).
+**Remaining before production (all human decisions; no code blocker is known):**
+1. ~~Stage 1 COMPLETE~~: COMPLETE on 2026-09-28, with identical results from any working directory after 69a3a94.
+2. ~~FEATURE-PARAMS~~ and ~~FII-DII-STALENESS~~: approved and implemented.
+3. ~~Full-universe persistence~~: fixed (037a17f) and verified (42570c0).
+4. **SCHEDULE: PENDING_APPROVAL**, including the PRE_OPEN option A or B.
+5. **Explicit authorisation of the first production run** (`PRAJNA_STAGE3_ENABLED=true` plus a supplied token).
 
 **UNKNOWN:**
 - whether the feature backfill is required for Stage 3 COMPLETE; it is currently reported as a separate level only (decision BACKFILL-DEFER);
