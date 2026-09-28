@@ -85,7 +85,16 @@ PRAJNA_API_CORS_ORIGINS=http://localhost:5173 .venv/bin/python -m app.readapi
 Other changes:
 - `GET /v1/instruments` accepts `sector=` and returns `meta.total`. An empty filter value, or `ANY` for `lifecycle_status`, means no filter.
 - News items carry `publisher`, which is null on every article so far: the vendor supplies none.
-- `GET /v1/acceptance` includes `stage3: {status: "LOCKED", reason}`.
+- `GET /v1/acceptance` includes `stage3: {status: "LOCKED", reason}` and, once
+  `prajna acceptance stage3` has run, `stage3.report` (overall, levels, criteria).
+
+### Stage 3 features (stored values only; nothing is computed on request)
+
+| Endpoint | PIT | Notes |
+|---|---|---|
+| `GET /v1/stage3/status` | no | production execution LOCKED / UNLOCKED (from the flags, the kill switch, the decisions, the latest Stage 1 report and the Stage 2 report), the registry summary, stored counts, the last runs and `stage3_event` rows. Execution itself re-checks every lock fresh (Stage 1 evaluated at that moment) |
+| `GET /v1/stage3/registry` | no | every feature definition (group, parameters, `param_status` SPECIFIED / PROPOSED, inputs, snapshots, version), every diagram item with IMPLEMENTED / PARTIAL / UNSUPPORTED / UNKNOWN and its reason, the decisions and `registry_sha256` |
+| `GET /v1/instruments/{key}/features?session=&snapshot=PRE_SESSION\|PRE_OPEN&as_of=` | yes (`computed_at < as_of`) | the stored feature values of one instrument or context key (an index, a global instrument, or `MARKET`) at one snapshot. Each row has `value` XOR `reason` (MISSING_INPUT / INSUFFICIENT_HISTORY / MALFORMED_INPUT / DIVISION_UNDEFINED / ...), `snapshot_as_of`, `input_max_knowable_at` (< snapshot_as_of), `feature_version`, `registry_sha256`. **Empty while Stage 3 production execution is locked** (`meta.notes` says so) |
 
 ### Not available (backend capabilities a client must show as unavailable)
 

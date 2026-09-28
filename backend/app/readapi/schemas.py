@@ -235,3 +235,20 @@ class GlobalLabel(BaseModel):
     first_fetched_at: _dt.datetime
     confirmed_at: _dt.datetime | None
     revised_at: _dt.datetime | None
+
+
+class FeatureValue(BaseModel):
+    instrument_key: str = Field(description="instrument, or the context key (an index, a "
+                                            "global instrument, or MARKET)")
+    scope: str = Field(description="INSTRUMENT | CONTEXT")
+    session_date: _dt.date
+    snapshot: str = Field(description="PRE_SESSION | PRE_OPEN")
+    snapshot_as_of: _dt.datetime = Field(description="the snapshot instant every input predates")
+    feature_id: str
+    feature_version: int
+    value: float | None = Field(description="null exactly when `reason` is set")
+    reason: str | None = Field(description="why the value is null (MISSING_INPUT, "
+                                           "INSUFFICIENT_HISTORY, MALFORMED_INPUT, ...)")
+    input_max_knowable_at: _dt.datetime | None
+    computed_at: _dt.datetime = Field(description="when Prajna stored it (its knowable_at)")
+    registry_sha256: str

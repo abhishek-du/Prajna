@@ -1338,5 +1338,249 @@ def acceptance_stage2(
     typer.echo(f"STAGE 2: {rep['overall']}")
     raise typer.Exit(0 if rep["overall"] == "PASS" else 1)
 
+
+stage3_app = typer.Typer(help="Stage 3 feature engineering (reads the Stage 2 PIT API only; no "
+                              "vendor calls; writes LOCKED)")
+app.add_typer(stage3_app, name="stage3")
+
+
+def _date(v: str):
+    import datetime as _dt
+    return _dt.date.fromisoformat(v)
+
+
+def _lock_lines(conditions) -> None:
+    for c in conditions:
+        typer.echo(f"{'PASS' if c['ok'] else 'FAIL':5} {c['name']:20} {c['detail']}")
+
+
+@stage3_app.command("registry")
+def stage3_registry(as_json: bool = typer.Option(False, "--json")):
+    """The feature registry and the diagram coverage (no database)."""
+    import json as _json
+
+    from app.features import registry as R
+
+    if as_json:
+        typer.echo(_json.dumps({"summary": R.summary(), "registry": R.registry_document()},
+                               indent=2, default=str))
+        return
+    for f in R.FEATURES:
+        typer.echo(f"{f.group:17} {f.id:28} {f.status:12} {f.param_status:9} "
+                   f"{','.join(f.snapshots)}")
+    typer.echo("")
+    for d in R.DIAGRAM:
+        typer.echo(f"{R.diagram_status(d):12} {d['group']:17} {d['item']}")
+    typer.echo(_json.dumps(R.summary(), default=str))
+
+
+@stage3_app.command("locks")
+def stage3_locks(
+    mode: str = typer.Option("RUN", "--mode", help="RUN | BACKFILL"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write token (prefer env PRAJNA_SUPPLIED_TOKEN)"),
+):
+    """Every execution-lock condition, PASS/FAIL. Read-only (records nothing)."""
+    from app.db.engine import get_sessionmaker
+    from app.features import locks
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await locks.check(s, mode=mode.upper(), token=token)
+
+    rep = asyncio.run(_go())
+    _lock_lines(rep.conditions)
+    typer.echo(f"STAGE 3 {rep.mode}: {'UNLOCKED' if rep.ok else 'LOCKED'}")
+    raise typer.Exit(0 if rep.ok else 1)
+
+
+@stage3_app.command("compute")
+def stage3_compute(
+    session: str = typer.Option(..., "--session", help="trading session date YYYY-MM-DD"),
+    snapshot: str = typer.Option("PRE_SESSION", "--snapshot", help="PRE_SESSION | PRE_OPEN"),
+    key: list[str] = typer.Option(None, "--key", help="instrument key (repeatable)"),
+    symbol: list[str] = typer.Option(None, "--symbol", help="NSE_EQ trading symbol (repeatable)"),
+    sample: int = typer.Option(0, "--sample", help="N deterministic canonical NSE_EQ instruments"),
+    context: bool = typer.Option(True, "--context/--no-context", help="market-context features"),
+    out: str = typer.Option(None, "--out", help="also write every row as JSON here"),
+    show: bool = typer.Option(True, "--show/--no-show", help="print each row"),
+):
+    """DRY-RUN: compute the features at a snapshot and print them. Read-only
+    transaction; writes nothing, needs no lock and no token."""
+    import dataclasses
+    import json as _json
+    import pathlib
+
+    from sqlalchemy import text as _t
+
+    from app.db.engine import get_sessionmaker
+    from app.features import engine as E
+    from app.features import snapshots as SN
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            await s.execute(_t("set transaction read only"))
+            keys = list(key or [])
+            for sym in symbol or []:
+                k = (await s.execute(_t("""select instrument_key from canon_instrument
+                    where segment = 'NSE_EQ' and trading_symbol = :t"""), {"t": sym})).scalar()
+                if k is None:
+                    raise typer.BadParameter(f"unknown NSE_EQ symbol {sym}")
+                keys.append(k)
+            if sample:
+                keys += list((await s.execute(_t("""select instrument_key from canon_instrument
+                    where included and lifecycle_status = 'ACTIVE' and segment = 'NSE_EQ'
+                    order by md5(instrument_key) limit :n"""), {"n": sample})).scalars())
+            snap = await SN.resolve(s, _date(session), snapshot.upper())
+            res = await E.compute_snapshot(s, snap, list(dict.fromkeys(keys)),
+                                           with_context=context)
+            await s.rollback()
+            return res
+
+    res = asyncio.run(_go())
+    if show:
+        for r in res.rows:
+            val = r.reason if r.value is None else f"{r.value:.12g}"
+            typer.echo(f"{r.instrument_key:34} {r.feature_id:28} {val}")
+    stats = {"mode": "DRY_RUN (read-only transaction; nothing written)",
+             "session": str(res.snapshot.session_date), "snapshot": res.snapshot.kind,
+             "as_of": res.snapshot.as_of.isoformat(), **res.stats()}
+    if out:
+        pathlib.Path(out).parent.mkdir(parents=True, exist_ok=True)
+        pathlib.Path(out).write_text(_json.dumps(
+            {**stats, "rows": [dataclasses.asdict(r) for r in res.rows]}, indent=2, default=str))
+    typer.echo(_json.dumps(stats, indent=2, default=str))
+
+
+def _stage3_commit(mode: str, sessions, snapshots: list[str], keys: list[str] | None,
+                   token: str | None) -> None:
+    """The locked write path shared by run/backfill: refused (exit 3) unless every
+    lock condition holds; the refusal is audited in stage3_event."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.features import engine as E
+    from app.features import locks
+    from app.features import snapshots as SN
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            await locks.require(s, mode=mode, token=token, operator="cli")
+            days = await sessions(s) if callable(sessions) else sessions
+            out = []
+            for d in days:
+                for k in snapshots:
+                    try:
+                        snap = await SN.resolve(s, d, k)
+                    except SN.NoSnapshot as e:
+                        out.append({"session": str(d), "snapshot": k, "skipped": str(e)})
+                        continue
+                    out.append(await E.run_snapshot(s, snap, keys=keys, mode=mode, token=token))
+            return out
+
+    try:
+        rep = asyncio.run(_go())
+    except locks.LockRefused as e:
+        _lock_lines(e.report.conditions)
+        typer.echo(f"REFUSED: Stage 3 {mode} is locked (audited in stage3_event); nothing written")
+        raise typer.Exit(3)
+    typer.echo(_json.dumps(rep, indent=2, default=str))
+
+
+@stage3_app.command("run")
+def stage3_run(
+    session: str = typer.Option(..., "--session"),
+    snapshot: str = typer.Option("BOTH", "--snapshot", help="PRE_SESSION | PRE_OPEN | BOTH"),
+    key: list[str] = typer.Option(None, "--key", help="restrict to these keys (default: universe)"),
+    commit: bool = typer.Option(False, "--commit", help="required: write feature_value (LOCKED)"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN"),
+):
+    """PRODUCTION: compute and store one session's features. LOCKED: refused unless
+    every condition of `prajna stage3 locks` holds."""
+    if not commit:
+        typer.echo("stage3 run writes: pass --commit (lock-checked). "
+                   "Read-only preview: prajna stage3 compute")
+        raise typer.Exit(2)
+    snaps = ["PRE_SESSION", "PRE_OPEN"] if snapshot.upper() == "BOTH" else [snapshot.upper()]
+    _stage3_commit("RUN", [_date(session)], snaps, list(key) if key else None, token)
+
+
+@stage3_app.command("backfill")
+def stage3_backfill(
+    start: str = typer.Option(..., "--from"),
+    end: str = typer.Option(..., "--to"),
+    commit: bool = typer.Option(False, "--commit", help="required (LOCKED)"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN"),
+):
+    """PRODUCTION feature backfill over past sessions. LOCKED: every RUN condition
+    plus PRAJNA_STAGE3_BACKFILL_ENABLED. Never runs the Stage 1 (vendor) backfill."""
+    if not commit:
+        typer.echo("stage3 backfill writes: pass --commit (lock-checked)")
+        raise typer.Exit(2)
+    from app.features import snapshots as SN
+
+    async def _sessions(s):                  # resolved only AFTER the lock check passed
+        return await SN.sessions_between(s, _date(start), _date(end))
+
+    _stage3_commit("BACKFILL", _sessions, ["PRE_SESSION", "PRE_OPEN"], None, token)
+
+
+@stage3_app.command("kill")
+def stage3_kill(
+    state: str = typer.Argument(..., help="on | off"),
+    reason: str = typer.Option("", "--reason"),
+):
+    """Engage / release the Stage 3 kill switch (var/run/stage3.kill); audited."""
+    from app.db.engine import get_sessionmaker
+    from app.features import locks
+
+    if state.lower() not in ("on", "off"):
+        raise typer.BadParameter("on | off")
+    on = state.lower() == "on"
+    locks.set_kill_switch(on, reason)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            await locks.record_event(s, "KILL_ON" if on else "KILL_OFF", "RUN", "cli",
+                                     {"reason": reason, "file": str(locks.KILL_FILE)})
+            await s.commit()
+
+    asyncio.run(_go())
+    typer.echo(f"Stage 3 kill switch {'ENGAGED' if on else 'released'}")
+
+
+@acceptance_app.command("stage3")
+def acceptance_stage3(
+    run_tests: bool = typer.Option(False, "--run-tests", help="also run the full test suite"),
+    out: str = typer.Option("var/acceptance/stage3.json", "--out"),
+    md: str = typer.Option("../docs/STAGE_3_ACCEPTANCE.md", "--md", help="'' = do not write"),
+):
+    """Stage 3 gate: criteria A-O and the readiness levels. Read-only. Never
+    declares Stage 3 COMPLETE unless every prerequisite and production evidence hold."""
+    import json as _json
+    import pathlib
+
+    from app.acceptance import stage3 as S3
+    from app.db.engine import get_sessionmaker
+
+    tests = S3.run_tests() if run_tests else None
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await S3.evaluate(s, tests)
+
+    rep = asyncio.run(_go())
+    pathlib.Path(out).parent.mkdir(parents=True, exist_ok=True)
+    pathlib.Path(out).write_text(_json.dumps(rep, indent=2, default=str))
+    if md:
+        pathlib.Path(md).write_text(S3.to_markdown(rep))
+    for c in rep["criteria"]:
+        typer.echo(f"{c['id']}  {c['status']:8} {c['question']}")
+    for lv in rep["levels"]:
+        typer.echo(f"{'YES' if lv['reached'] else 'no':4} {lv['level']}")
+    typer.echo(f"STAGE 3: {rep['overall']}")
+    raise typer.Exit(0 if rep["overall"] == "COMPLETE" else 1)
+
+
 if __name__ == "__main__":
     app()

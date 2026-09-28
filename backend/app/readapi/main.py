@@ -5,8 +5,9 @@ endpoint. Every data read goes through app.canon.pit (knowable_at < as_of,
 re-checked row by row) or a canonical view with the same rule, so a client
 cannot see a value earlier than Prajna knew it. `as_of` defaults to now: for
 live use that is "everything knowable so far"; for research pass a past
-instant. Nothing here computes features, signals or decisions (Stage 3 is
-LOCKED) and nothing is shaped for one particular frontend.
+instant. Nothing here computes features, signals or decisions: Stage 3
+feature endpoints serve STORED values only (empty while Stage 3 production
+execution is locked), and nothing is shaped for one particular frontend.
 
 Serve (localhost by default; expose beyond it only behind an authenticating
 reverse proxy):  .venv/bin/python -m app.readapi  [--host 127.0.0.1 --port 8090]
@@ -419,9 +420,17 @@ async def acceptance():
                       if k in d}
         out[stage]["criteria"] = [{"id": c["id"], "name": c.get("name") or c.get("question"),
                                    "status": c["status"]} for c in d.get("criteria", [])]
-    out["stage3"] = {"status": "LOCKED", "reason": "unlocked only after Stage 1 is COMPLETE "
-                     "(no FAIL/BLOCKED, R and X resolved), Stage 2 resolved, security checks, "
-                     "migrations at head, clean repository and the final Stage 1 report"}
+    out["stage3"] = {"status": "LOCKED", "reason": "production execution is unlocked only "
+                     "when every condition of GET /v1/stage3/status holds (Stage 1 COMPLETE, "
+                     "Stage 2 PASS, decisions approved, flag on, kill switch off)"}
+    p3 = BASE / "var" / "acceptance" / "stage3.json"
+    if p3.exists():
+        d = json.loads(p3.read_text())
+        out["stage3"]["report"] = {"generated_at": d.get("generated_at"),
+                                   "overall": d.get("overall"), "levels": d.get("levels"),
+                                   "criteria": [{"id": c["id"], "name": c.get("question"),
+                                                 "status": c["status"]}
+                                                for c in d.get("criteria", [])]}
     return S.Envelope(data=out, meta=_meta(now(), False))
 
 
@@ -522,3 +531,77 @@ async def global_finality(s: DB, instrument_key: str,
         first_fetched_at=r["fetched_at"], confirmed_at=r["confirmed_at"],
         revised_at=r["revised_at"]) for r in rows],
         meta=_meta(now(), False, "labels are the vendor's, not trading dates"))
+
+
+# ── Stage 3 features (stored values only; nothing is computed on request) ───
+@api.get("/v1/stage3/status", response_model=S.Envelope[dict[str, Any]], tags=["stage 3"])
+async def stage3_status(s: DB):
+    """Stage 3 execution state from cheap sources: flags, kill switch, decisions,
+    registry, the latest Stage 1/2/3 reports and the last runs. The authoritative
+    lock check (Stage 1 evaluated fresh) runs only at execution time
+    (`prajna stage3 locks`)."""
+    from app.core.config import get_settings
+    from app.features import locks
+    from app.features.decisions import DECISIONS
+    from app.features.registry import summary
+
+    st = get_settings()
+    rep1 = BASE / "var" / "acceptance" / "stage1.json"
+    s1 = json.loads(rep1.read_text()).get("overall") if rep1.exists() else None
+    ok2, d2 = locks.stage2_status()
+    runs = [dict(r) for r in (await s.execute(text("""select run_id::text, stream, status,
+        started_at, finished_at, rows_written from ingest_run where stream like 'features.%'
+        order by started_at desc limit 10"""))).mappings()]
+    events = [dict(r) for r in (await s.execute(text("""select at, event, mode, operator,
+        run_id::text from stage3_event order by at desc limit 10"""))).mappings()]
+    stored = (await s.execute(text("""select count(*), max(session_date) from feature_value"""
+                                   ))).one()
+    data = {
+        "production_execution": "UNLOCKED" if (st.PRAJNA_STAGE3_ENABLED and s1 == "COMPLETE"
+                                               and ok2 and not locks.kill_switch_engaged()
+                                               and all(v["status"] == "APPROVED"
+                                                       for v in DECISIONS.values()))
+        else "LOCKED",
+        "flags": {"PRAJNA_STAGE3_ENABLED": st.PRAJNA_STAGE3_ENABLED,
+                  "PRAJNA_STAGE3_BACKFILL_ENABLED": st.PRAJNA_STAGE3_BACKFILL_ENABLED},
+        "kill_switch_engaged": locks.kill_switch_engaged(),
+        "prerequisites": {"stage1_latest_report": s1,
+                          "stage2": {"ok": ok2, "detail": d2}},
+        "decisions": {k: v["status"] for k, v in DECISIONS.items()},
+        "registry": summary(),
+        "stored": {"feature_values": stored[0], "latest_session": stored[1]},
+        "recent_runs": runs, "recent_events": events,
+    }
+    return S.Envelope(data=data, meta=_meta(now(), False, "execution locks are re-checked "
+                                            "fresh (Stage 1 evaluated now) at execution time"))
+
+
+@api.get("/v1/stage3/registry", response_model=S.Envelope[dict[str, Any]], tags=["stage 3"])
+async def stage3_registry():
+    """Every feature definition and every diagram item with its status
+    (IMPLEMENTED / PARTIAL / UNSUPPORTED / UNKNOWN) and parameter status."""
+    from app.features.decisions import DECISIONS
+    from app.features.registry import registry_document, summary
+    return S.Envelope(data={"summary": summary(), "decisions": DECISIONS, **registry_document()},
+                      meta=_meta(now(), False))
+
+
+@api.get("/v1/instruments/{instrument_key}/features",
+         response_model=S.Envelope[list[S.FeatureValue]], tags=["stage 3"])
+async def instrument_features(s: DB, instrument_key: str, session: _dt.date,
+                              snapshot: Annotated[str, Query(pattern="^(PRE_SESSION|PRE_OPEN)$")]
+                              = "PRE_SESSION", as_of: AsOf = None):
+    """STORED feature values of one instrument (or context key) at one snapshot,
+    as known at `as_of` (computed_at < as_of). Empty while Stage 3 production
+    execution is locked; never computed on request."""
+    at = _as_of(as_of)
+    rows = (await s.execute(text("""select instrument_key, scope, session_date, snapshot,
+        as_of as snapshot_as_of, feature_id, feature_version, value, reason,
+        input_max_knowable_at, computed_at, registry_sha256 from feature_value
+        where instrument_key = :k and session_date = :d and snapshot = :n and computed_at < :a
+        order by feature_id, feature_version"""),
+        {"k": instrument_key, "d": session, "n": snapshot, "a": at})).mappings().all()
+    data = [S.FeatureValue(**{**r, "value": _f(r["value"])}) for r in rows]
+    notes = [] if data else ["no stored values (Stage 3 production execution is locked or "
+                             "this snapshot was not run)"]
+    return S.Envelope(data=data, meta=_meta(at, True, *notes))
