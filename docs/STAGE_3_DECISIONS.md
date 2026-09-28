@@ -24,7 +24,7 @@ Status on 2026-09-28. Two kinds of decision are kept apart:
 
 | Id | Status | Decision | Gate |
 |---|---|---|---|
-| SCHEDULE | **PENDING_APPROVAL** | The proposed daily times are in [STAGE_3_PRODUCTION_SCHEDULE.md](STAGE_3_PRODUCTION_SCHEDULE.md). PRE_SESSION starts at 09:00:30. **PRE_OPEN needs a choice**: pre-open ticks reach the database only after the 09:20 replay, so start at 09:08:30 with the four `preopen_*` features MISSING_INPUT (option A), or start after the replay (option B, available after the open). | The runbook `ops/runbooks/stage3_snapshot.sh` is prepared. The cron lines in `ops/cron/prajna.cron` are commented out (`PENDING_APPROVAL:`). Nothing is installed. |
+| SCHEDULE | **APPROVED**, with PRE_OPEN **option B** (user 2026-09-28: "Approve schedule with PRE_OPEN option B") | PRE_SESSION starts at 09:00:30 IST. PRE_OPEN starts at 09:22 IST and waits for the pre-open replay, so its `preopen_*` features are populated; it is available after the open, ≈ 09:37. A failed replay means no PRE_OPEN snapshot that day. Details: [STAGE_3_PRODUCTION_SCHEDULE.md](STAGE_3_PRODUCTION_SCHEDULE.md). | **Approved, not installed.** The runbook `ops/runbooks/stage3_snapshot.sh` is prepared, and the two cron lines stay commented (`APPROVED_NOT_INSTALLED:`) until the first production run is authorised. |
 | PRODUCTION-UNLOCK | **NOT GRANTED** | The first production run (`prajna stage3 run --commit`) needs the user's explicit authorisation. | `PRAJNA_STAGE3_ENABLED=false`; no write token supplied. |
 | BACKFILL | **DEFERRED** | No historical feature backfill (`prajna stage3 backfill`). The Stage 1 vendor backfill (~293k requests) stays deferred as well. | `PRAJNA_STAGE3_BACKFILL_ENABLED=false`, which is an additional lock condition for BACKFILL. |
 

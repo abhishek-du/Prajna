@@ -1,10 +1,9 @@
-# Stage 3 production schedule (proposed)
+# Stage 3 production schedule
 
-> **Decision SCHEDULE: PENDING_APPROVAL.**
-> - **NO SCHEDULE IS ENABLED.**
-> - **NO CRON ENTRY IS INSTALLED.** The lines in `backend/ops/cron/prajna.cron` are commented out, marked `PENDING_APPROVAL:`; `crontab -l` has no Stage 3 entry.
-> - **USER APPROVAL IS STILL REQUIRED.** That covers the schedule, and **the choice between PRE_OPEN option A and option B (§4), which is not made here.**
-> - Production execution is also locked independently of any schedule: `PRAJNA_STAGE3_ENABLED=false`, and no write token is supplied.
+> **Decision SCHEDULE: APPROVED by the user on 2026-09-28, with PRE_OPEN option B** ("Approve schedule with PRE_OPEN option B").
+> - **The schedule is approved but NOT INSTALLED.** The two lines in `backend/ops/cron/prajna.cron` stay commented, prefixed `APPROVED_NOT_INSTALLED:`, and `crontab -l` has no Stage 3 entry.
+> - **Installing them belongs with the explicit authorisation of the first production run.** Until then `PRAJNA_STAGE3_ENABLED=false` and no write token is supplied, so an installed entry would only record a REFUSED audit event every morning.
+> - **Production execution remains NOT AUTHORISED.**
 
 Status as of 2026-09-28. Every number below is measured, and the evidence is named.
 
@@ -23,13 +22,15 @@ A snapshot is the feature set as it was **knowable** at a fixed instant, `as_of`
 
 A special session (for example 2026-09-19, which has no pre-open window) gets PRE_SESSION at open − 1 s and no PRE_OPEN. A non-trading day gets no snapshot; the command reports "skipped".
 
-## 2. Proposed schedule (commented out; see the heading)
+## 2. Approved schedule (not installed; see the heading)
 
-| Job | Proposed start | Command |
+| Job | Start | Command |
 |---|---|---|
-| PRE_SESSION | 09:00:30 IST, Mon–Fri | `ops/runbooks/stage3_snapshot.sh PRE_SESSION --token-from-dotenv` |
-| PRE_OPEN, option A | 09:08:30 IST | `ops/runbooks/stage3_snapshot.sh PRE_OPEN --token-from-dotenv` |
-| PRE_OPEN, option B | 09:21 IST; waits for the pre-open replay | `ops/runbooks/stage3_snapshot.sh PRE_OPEN --after-replay --token-from-dotenv` |
+| PRE_SESSION (**approved**) | 09:00:30 IST, Mon–Fri | `ops/runbooks/stage3_snapshot.sh PRE_SESSION --token-from-dotenv` |
+| PRE_OPEN, option B (**approved**) | 09:22 IST, Mon–Fri; waits for the pre-open replay | `ops/runbooks/stage3_snapshot.sh PRE_OPEN --after-replay --token-from-dotenv` |
+| PRE_OPEN, option A (not chosen) | 09:08:30 IST | not prepared in the cron file |
+
+Option B is at 09:22 rather than 09:21 only because 09:21 is `timing_monitor.sh`'s cron slot, and the cron file keeps one job per slot (a test enforces this). The run waits for the replay, which finishes at 09:31 or later, so the minute changes nothing.
 
 **Upstream jobs a run depends on** (installed today; measured):
 
@@ -55,14 +56,14 @@ Notes:
 - Run start-up (Stage 1 fresh evaluation in the lock check, about 30 s measured for `prajna acceptance stage1`; universe load) comes on top.
 - The earlier estimate of 50–60 min per snapshot is **withdrawn**. It came from 20–50-instrument samples, where sector members dominated the time.
 
-## 4. PRE_OPEN: option A or option B (**PENDING_APPROVAL, not chosen here**)
+## 4. PRE_OPEN: option A or option B (**decided: option B**, user, 2026-09-28)
 
 **The fact behind the choice** (measured on 2026-09-24, 09-25 and 09-28): the pre-open capture keeps ticks in its archive until 09:20, then `preopen_day.sh` replays them into `preopen_tick`, committing between 09:20 and 09:33 IST.
 
 - About 188,000 ticks per day are *knowable* before 09:08:00 (their `knowable_at` is the receipt time, which is point-in-time correct).
 - But at 09:08:30 **none of them is in the database yet**.
 
-| | Option A: start 09:08:30 | Option B: start 09:21, wait for "replay exit 0" |
+| | Option A: start 09:08:30 (not chosen) | Option B: start 09:22, wait for "replay exit 0" (**chosen**) |
 |---|---|---|
 | as_of | 09:08:00 | 09:08:00 (identical) |
 | `preopen_gap_pct`, `preopen_imbalance`, `preopen_ieq`, `preopen_ieq_to_avg_volume` | **MISSING_INPUT for every instrument** (no tick stored yet) | computed from the ticks knowable before 09:08:00 |
@@ -76,13 +77,14 @@ Notes:
 
 A third possibility, **committing pre-open ticks in real time** during the capture, would give both. It is a Stage 1 change and is not proposed here.
 
-**Decision needed:** A, B, or neither.
+**Decision (2026-09-28): option B.** The PRE_OPEN snapshot keeps as_of 09:08:00 and includes the pre-open book, available about 20 minutes into the session (≈ 09:37 on the measured days). If the replay fails or is missing, that day has no PRE_OPEN snapshot (`STAGE3_SKIP`), rather than one with the pre-open features missing.
 
 ## 5. Late runs
 
 - A snapshot started or finished late is **still point-in-time correct**: `as_of` does not move, and inputs recorded after `as_of` are invisible, however late the run.
 - The runbook marks completion after 09:15 IST as `STAGE3_LATE` in `var/logs/daily/stage3_<day>.log`. Each stored row carries `computed_at`.
 - Lateness never changes a value. It only makes the snapshot available later.
+- With option B, every PRE_OPEN run completes after 09:15, so it is marked `STAGE3_LATE` each day. That is expected, not an incident.
 
 ## 6. Retry
 
@@ -149,6 +151,11 @@ The runbook takes `flock` on `var/run/stage3.lock`:
 - A second start waits up to 300 s (`STAGE3_LOCK_WAIT`), so PRE_OPEN is not lost behind a slow PRE_SESSION.
 - It then gives up with `STAGE3_SKIP`, writing nothing.
 
-## 13. What approval would change
+## 13. Installing the approved schedule
 
-The only change is uncommenting the chosen `PENDING_APPROVAL:` lines in `backend/ops/cron/prajna.cron` and installing the file with `crontab`, **after** production is separately authorised (`PRAJNA_STAGE3_ENABLED=true`). Until then, an installed entry would only produce audited REFUSED events.
+Do this only **after** the first production run is explicitly authorised (`PRAJNA_STAGE3_ENABLED=true`, token supplied):
+
+1. Remove the `APPROVED_NOT_INSTALLED: ` prefix from the two lines in `backend/ops/cron/prajna.cron`.
+2. Install the file with `crontab ops/cron/prajna.cron`.
+
+`tests/unit/test_stage3_schedule.py` checks the prepared lines: PRE_SESSION at 09:00(+30 s), PRE_OPEN option B at 09:22 with `--after-replay`, the token taken from the environment only, and no collision with an installed slot. It also checks that neither line is active today.

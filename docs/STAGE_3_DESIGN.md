@@ -32,7 +32,7 @@ There is no written Stage 3 specification in the repository. The scope comes fro
 | FEATURE-NO-SOURCE | APPROVED | diagram items with no data source are registered UNSUPPORTED, naming the missing source; nothing is approximated |
 | FII-DII-STALENESS | APPROVED (2026-09-28), implemented in 580f587 | FII/DII use the snapshot's previous trading session; otherwise MISSING_INPUT. Registry version 2 of the four features |
 
-Operational decisions (SCHEDULE PENDING_APPROVAL, BACKFILL DEFERRED) and FEATURE-NEWS-V2 (PENDING, separate track) are listed in `docs/STAGE_3_DECISIONS.md`.
+Operational decisions (SCHEDULE APPROVED with PRE_OPEN option B, not installed; BACKFILL DEFERRED) and FEATURE-NEWS-V2 (PENDING, separate track) are listed in `docs/STAGE_3_DECISIONS.md`.
 
 ## 2. Registry (`app/features/registry.py`, version `features-v1`)
 
@@ -158,7 +158,7 @@ The production-run conditions are:
 - The kill switch (`prajna stage3 kill on|off`) is also checked between instruments during a run.
 - Stage 3 has no vendor call. A test and criterion J assert that `app.features` imports no vendor, network or fetch module; the only `app.ingest` import is the run ledger.
 - Stage 3 never starts a Stage 1 warm-up or backfill.
-- **No cron entry is installed** for Stage 3. A runbook (`ops/runbooks/stage3_snapshot.sh`) and commented cron lines are prepared; decision SCHEDULE is PENDING_APPROVAL (`docs/STAGE_3_PRODUCTION_SCHEDULE.md`).
+- **No cron entry is installed** for Stage 3. A runbook (`ops/runbooks/stage3_snapshot.sh`) and commented cron lines are prepared. Decision SCHEDULE is APPROVED with PRE_OPEN option B, and the lines stay uninstalled until production is authorised (`docs/STAGE_3_PRODUCTION_SCHEDULE.md`).
 
 **Run mechanics:**
 - One `IngestRunner` run per snapshot: source `PRAJNA_STAGE3`, stream `features.<snapshot>`. `ops status` has a `stage3` family.
@@ -237,7 +237,7 @@ The production-run conditions are:
 1. ~~Stage 1 COMPLETE~~: COMPLETE on 2026-09-28, with identical results from any working directory after 69a3a94.
 2. ~~FEATURE-PARAMS~~ and ~~FII-DII-STALENESS~~: approved and implemented.
 3. ~~Full-universe persistence~~: fixed (037a17f) and verified (42570c0).
-4. **SCHEDULE: PENDING_APPROVAL**, including the PRE_OPEN option A or B.
+4. ~~SCHEDULE~~: APPROVED on 2026-09-28 with PRE_OPEN option B (not installed).
 5. **Explicit authorisation of the first production run** (`PRAJNA_STAGE3_ENABLED=true` plus a supplied token).
 
 **UNKNOWN:**

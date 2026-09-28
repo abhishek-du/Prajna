@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Stage 3 feature snapshot for TODAY's session (IST). PREPARED, NOT SCHEDULED:
-# the cron entry in ops/cron/prajna.cron is commented out, decision SCHEDULE is
-# PENDING_APPROVAL (docs/STAGE_3_PRODUCTION_SCHEDULE.md).
+# Stage 3 feature snapshot for TODAY's session (IST). Decision SCHEDULE is
+# APPROVED (2026-09-28, PRE_OPEN option B: --after-replay); the cron lines in
+# ops/cron/prajna.cron stay commented (APPROVED_NOT_INSTALLED) until the first
+# production run is authorised (docs/STAGE_3_PRODUCTION_SCHEDULE.md).
 #
 #   ops/runbooks/stage3_snapshot.sh PRE_SESSION|PRE_OPEN [--token-from-dotenv] [--after-replay]
 #

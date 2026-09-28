@@ -42,7 +42,8 @@ Criterion O (production evidence) stays PENDING by design. It needs the first au
 | 037a17f | **BUG-STAGE3-PERSIST-PARAM-LIMIT fixed**: INSERT batches are sized from a bind-parameter budget (2,000 rows = 30,000 parameters < 32,767). Before, 5,000 rows = 75,000 parameters, and **every full-universe production run would have failed** at persistence |
 | 42570c0 | full-universe persistence verification tool and evidence |
 | 69a3a94 | **BUG-STAGE1-CLI-CWD-RELATIVE-PATHS fixed**: the Stage 1 gate's files and default outputs are anchored to the project |
-| 2274c40 | production schedule documented; runbook and commented cron prepared; **SCHEDULE PENDING_APPROVAL** |
+| 2274c40 | production schedule documented; runbook and commented cron prepared |
+| (this commit) | **SCHEDULE APPROVED with PRE_OPEN option B** (user, 2026-09-28); cron lines approved, not installed |
 
 ## 3. Point in time (tests, all passing)
 
@@ -77,8 +78,8 @@ Criterion O (production evidence) stays PENDING by design. It needs the first au
 
 ## 5. Exact next human decisions
 
-1. **SCHEDULE**: approve or reject the proposed times, and **choose PRE_OPEN option A or B** (`docs/STAGE_3_PRODUCTION_SCHEDULE.md` §4). Until then, no cron entry is installed.
-2. **Later, explicitly authorise the first production run.** For one session, with the flag given per invocation and nothing persisted, run this from `backend/`:
+1. ~~SCHEDULE~~: **APPROVED on 2026-09-28 with PRE_OPEN option B.** The cron lines are ready but not installed.
+2. **Explicitly authorise the first production run.** This is the only remaining decision. Installing the approved cron lines goes with it (schedule §13). For one session, with the flag given per invocation and nothing persisted, run this from `backend/`:
 
    ```bash
    export PRAJNA_SUPPLIED_TOKEN="$(grep '^PRAJNA_WRITE_TOKEN=' .env | cut -d= -f2-)"
@@ -103,6 +104,6 @@ A feature backfill stays DEFERRED. FEATURE-NEWS-V2 stays PENDING, on a separate 
   - `ck_feature_pit` and `ck_feature_value_or_reason`;
   - idempotent inserts, and a determinism check that fails instead of overwriting;
   - one REPEATABLE READ transaction and one COMMIT per snapshot.
-- **No cron entry installed**; the schedule is PENDING_APPROVAL.
+- **No cron entry installed.** The schedule is approved (option B), but its lines stay commented until production is authorised.
 - **No vendor import** in `app.features` (criterion J).
 - **Tests are refused on any non-test database** (conftest guard).
