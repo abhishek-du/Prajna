@@ -322,8 +322,9 @@ async def global_candles(s: DB, instrument_key: str, as_of: AsOf = None,
 async def news(s: DB, as_of: AsOf = None, instrument_key: str | None = None,
                since: _dt.datetime | None = None,
                limit: Annotated[int, Query(ge=1, le=1000)] = 100):
-    """News knowable before as_of (the article AND its instrument link), newest
-    first. published_at = vendor time; received_at = Prajna's fetch."""
+    """Upstox news knowable before as_of (the article AND its instrument link), newest
+    first. published_at = vendor time; received_at = Prajna's fetch. The
+    multi-source layer (sources, stories, derived fields) is /v1/news/articles."""
     at = _as_of(as_of)
     rows = await pit.news(s, at, instrument_key, since)
     rows = sorted(rows, key=lambda r: (r["published_at"] or r["fetched_at"]), reverse=True)
@@ -335,6 +336,210 @@ async def news(s: DB, as_of: AsOf = None, instrument_key: str | None = None,
         received_at=r["fetched_at"],
         knowable_at=r["knowable_at"]) for r in rows[:limit]],
         meta=_meta(at, True, "the vendor serves 7 days of news; history starts 2026-09-24"))
+
+
+# ── 10b. multi-source news (point in time; read only; derived != fact) ──────
+NEWS_NOTES = ("knowable_at = Prajna's first observation (never the publication time); "
+              "enrichments are visible only from their own knowable_at",
+              "multi-source rows are visible only when written in PRODUCTION mode (currently "
+              "locked: DRY_RUN only), so these lists are empty until a source is enabled",
+              "derived fields are rule-based routing aids, not truth and not predictions; "
+              "ai_enrichment is never a source fact")
+
+
+def _article(r: dict, at: _dt.datetime) -> S.NewsArticle:
+    lat = ((r["discovered_at"] - r["published_at"]).total_seconds()
+           if r["published_at"] and not r["backlog"] and r["backlog"] is not None else None)
+    return S.NewsArticle(
+        id=r["id"], source=r["source"],
+        source_fact={"title": r["title"], "summary": r["summary"], "publisher": r["publisher"],
+                     "author": r["author"], "url": r["url"], "published_at": r["published_at"],
+                     "published_at_raw": r["published_at_raw"],
+                     "updated_at": r["source_updated_at"], "category_raw": r["category_raw"]},
+        observation={"first_seen_at": r["discovered_at"], "knowable_at": r["knowable_at"],
+                     "processed_at": r["processed_at"], "backlog": r["backlog"],
+                     "edited": r["edited"],
+                     "latency_class": None if r["backlog"] is None else
+                     ("BACKLOG" if r["backlog"] else "LIVE_DISCOVERY"),
+                     "discovery_latency_s": lat,
+                     "seconds_since_first_observation": (at - r["knowable_at"]).total_seconds(),
+                     "source_priority": r["source_priority"], "terms_status": r["terms_status"],
+                     "content_fetch_status": r["content_fetch_status"]},
+        derived={"category": r["category"], "category_method": r["category_method"],
+                 "category_confidence": _f(r["category_confidence"]),
+                 "market_scope": r["market_scope"], "potential_impact": r["potential_impact"],
+                 "impact_direction": r["impact_direction"], "is_breaking": r["is_breaking"],
+                 "breaking_reason": r["breaking_reason"],
+                 "assessment_version": r["assessment_version"],
+                 "event_group": (r["assessment_evidence"] or {}).get("event_group"),
+                 "instruments": r["instruments"] or [], "entities": r["entities"] or [],
+                 "story": None if r["story_id"] is None else {
+                     "story_id": r["story_id"], "method": r["story_method"],
+                     "score": _f(r["story_score"]), "evidence": r["story_evidence"]}},
+        ai_enrichment=None if r["ai_output"] is None else {
+            "output": r["ai_output"], "model_id": r["ai_model_id"],
+            "prompt_version": r["ai_prompt_version"], "generated_at": r["ai_generated_at"],
+            "label": "AI ENRICHMENT - not a source fact"})
+
+
+def _upstox_on() -> bool:
+    from app.core.config import get_settings
+    return get_settings().PRAJNA_NEWS_UPSTOX_ENABLED
+
+
+@api.get("/v1/news/articles", response_model=S.Envelope[list[S.NewsArticle]], tags=["news"])
+async def news_articles(
+        s: DB, as_of: AsOf = None, source: str | None = None, publisher: str | None = None,
+        instrument_key: str | None = None, entity: str | None = None,
+        category: str | None = None, market_scope: str | None = None,
+        potential_impact: str | None = None, impact_direction: str | None = None,
+        breaking: bool | None = None, story_id: int | None = None,
+        since: _dt.datetime | None = None, include_upstox: bool = False,
+        limit: Annotated[int, Query(ge=1, le=1000)] = 100,
+        offset: Annotated[int, Query(ge=0)] = 0):
+    """Multi-source news visible at as_of, newest knowable first, with filters
+    (entity e.g. SECTOR:BANKING, INDEX:NIFTY_50, CENTRAL_BANK:RBI). include_upstox
+    projects Stage 1 Upstox news (knowable at first fetch) when enabled."""
+    from app.canon import news_pit as NP
+    at = _as_of(as_of)
+    rows = await NP.items(s, at, include_upstox=include_upstox and _upstox_on(), limit=limit,
+                          offset=offset, source=source, publisher=publisher,
+                          instrument_key=instrument_key, entity=entity, category=category,
+                          market_scope=market_scope, potential_impact=potential_impact,
+                          impact_direction=impact_direction, breaking=breaking,
+                          story_id=story_id, since=since)
+    return S.Envelope(data=[_article(r, at) for r in rows], meta=_meta(at, True, *NEWS_NOTES))
+
+
+@api.get("/v1/news/breaking", response_model=S.Envelope[list[S.NewsArticle]], tags=["news"])
+async def news_breaking(s: DB, as_of: AsOf = None,
+                        hours: Annotated[float, Query(gt=0, le=72)] = 6,
+                        limit: Annotated[int, Query(ge=1, le=500)] = 100):
+    """Items flagged breaking by OBSERVABLE rules (a source label; a live HIGH item
+    within 15 min of publication; a second publisher within 30 min)."""
+    from app.canon import news_pit as NP
+    at = _as_of(as_of)
+    rows = await NP.items(s, at, breaking=True, since=at - _dt.timedelta(hours=hours),
+                          limit=limit)
+    return S.Envelope(data=[_article(r, at) for r in rows], meta=_meta(at, True, *NEWS_NOTES))
+
+
+@api.get("/v1/news/sources", response_model=S.Envelope[list[dict[str, Any]]], tags=["news"])
+async def news_sources():
+    """Every source: status, terms, per-source write flag and lock state, cadence,
+    and dry-run health (not point in time: the current state)."""
+    from app.core.config import get_settings
+    from app.news import locks as NL
+    from app.news.collector import DRYRUN_DIR
+    from app.news.report import health, load
+    from app.news.sources import SOURCES
+    st = get_settings()
+    out = []
+    for k, src in SOURCES.items():
+        polls = load(DRYRUN_DIR / k)[0] if (DRYRUN_DIR / k).exists() else []
+        lock = NL.check(k, mode="SHADOW", token=None)
+        out.append({"source": k, "name": src.name, "kind": src.kind, "status": src.status,
+                    "terms_status": src.compliance, "content_policy": src.content_policy,
+                    "priority": src.priority, "write_flag": src.flag,
+                    "write_flag_enabled": bool(src.flag and getattr(st, src.flag, False)),
+                    "db_write": "UNLOCKED" if lock.ok else "LOCKED",
+                    "db_write_failing": lock.summary()["failing"],
+                    "cadence_s": {"market": src.market_interval_s, "off": src.off_interval_s,
+                                  "weekend": src.weekend_interval_s},
+                    "dry_run_health": health(polls, max(src.off_interval_s, 300))
+                    if polls else ("UNSUPPORTED" if src.status == "UNSUPPORTED" else "DISABLED"),
+                    "dry_run_polls": len(polls), "note": src.note})
+    return S.Envelope(data=out, meta=_meta(now(), False, "current state, not point in time"))
+
+
+def _dry_reports(day: str | None):
+    from app.news.collector import DRYRUN_DIR
+    from app.news.report import summarise
+    from app.news.sources import SOURCES
+    return {k: summarise(DRYRUN_DIR / k, day, expected_interval_s=max(v.off_interval_s, 300))
+            for k, v in SOURCES.items() if (DRYRUN_DIR / k).exists()}
+
+
+@api.get("/v1/news/latency", response_model=S.Envelope[dict[str, Any]], tags=["news"])
+async def news_latency(day: _dt.date | None = None):
+    """Publication -> first observation latency per source (p50/p90/p95/p99/max;
+    market vs off hours; backlog excluded), processing and end-to-end latency,
+    from the DRY_RUN evidence. Frontend latency is not observable here."""
+    reps = _dry_reports(str(day) if day else None)
+    return S.Envelope(data={k: {"latency": r.get("latency"), "live_items": r.get("live_items"),
+                                "backlog_items": r.get("backlog_items")}
+                            for k, r in reps.items()},
+                      meta=_meta(now(), False, "DRY_RUN evidence (files), not point in time"))
+
+
+@api.get("/v1/news/freshness", response_model=S.Envelope[dict[str, Any]], tags=["news"])
+async def news_freshness():
+    """Per source: last successful poll, last discovered item, health (a source that
+    stops responding becomes STALE; it never looks healthy)."""
+    reps = _dry_reports(None)
+    return S.Envelope(data={k: {x: r.get(x) for x in (
+        "health", "last_success", "last_item_discovered", "last_poll", "polls", "errors",
+        "rate_limit_events", "http_status", "actual_interval_s")} for k, r in reps.items()},
+        meta=_meta(now(), False, "DRY_RUN evidence (files), current state"))
+
+
+@api.get("/v1/news/stats", response_model=S.Envelope[dict[str, Any]], tags=["news"])
+async def news_stats(s: DB, as_of: AsOf = None,
+                     hours: Annotated[float, Query(gt=0, le=168)] = 24):
+    """Counts of visible news in the window by source, category, scope, impact,
+    direction and breaking (point in time)."""
+    from collections import Counter
+
+    from app.canon import news_pit as NP
+    at = _as_of(as_of)
+    rows = await NP.items(s, at, since=at - _dt.timedelta(hours=hours), limit=5000)
+    data = {"items": len(rows), **{k: dict(Counter(r[k] for r in rows)) for k in (
+        "source", "category", "market_scope", "potential_impact", "impact_direction",
+        "is_breaking")}, "stories": len({r["story_id"] for r in rows if r["story_id"]})}
+    return S.Envelope(data=data, meta=_meta(at, True, *NEWS_NOTES))
+
+
+@api.get("/v1/news/{item_id}", response_model=S.Envelope[S.NewsArticle], tags=["news"])
+async def news_item(s: DB, item_id: int, as_of: AsOf = None):
+    """One item as known at as_of (404 if not yet knowable then)."""
+    from app.canon import news_pit as NP
+    at = _as_of(as_of)
+    r = await NP.item(s, at, item_id, include_upstox=_upstox_on())
+    if r is None:
+        raise HTTPException(404, f"news item {item_id} is not known at {at.isoformat()}")
+    return S.Envelope(data=_article(r, at), meta=_meta(at, True, *NEWS_NOTES))
+
+
+@api.get("/v1/stories", response_model=S.Envelope[list[S.NewsStory]], tags=["news"])
+async def news_stories(s: DB, as_of: AsOf = None, instrument_key: str | None = None,
+                       limit: Annotated[int, Query(ge=1, le=500)] = 100):
+    """Story groups as known at as_of: an article that joined later is absent."""
+    from app.canon import news_pit as NP
+    at = _as_of(as_of)
+    rows = await NP.stories(s, at, limit=limit, instrument_key=instrument_key)
+    return S.Envelope(data=[S.NewsStory(**r) for r in rows], meta=_meta(at, True, *NEWS_NOTES))
+
+
+@api.get("/v1/stories/{story_id}", response_model=S.Envelope[S.NewsStory], tags=["news"])
+async def news_story(s: DB, story_id: int, as_of: AsOf = None):
+    from app.canon import news_pit as NP
+    at = _as_of(as_of)
+    rows = await NP.stories(s, at, story_id=story_id, limit=1)
+    if not rows:
+        raise HTTPException(404, f"story {story_id} is not known at {at.isoformat()}")
+    return S.Envelope(data=S.NewsStory(**rows[0]), meta=_meta(at, True, *NEWS_NOTES))
+
+
+@api.get("/v1/instruments/{instrument_key}/news", response_model=S.Envelope[list[S.NewsArticle]],
+         tags=["news"])
+async def instrument_news(s: DB, instrument_key: str, as_of: AsOf = None,
+                          limit: Annotated[int, Query(ge=1, le=1000)] = 100):
+    """Multi-source news linked to the instrument at as_of (+ Upstox when enabled)."""
+    from app.canon import news_pit as NP
+    at = _as_of(as_of)
+    rows = await NP.items(s, at, instrument_key=instrument_key, limit=limit,
+                          include_upstox=_upstox_on())
+    return S.Envelope(data=[_article(r, at) for r in rows], meta=_meta(at, True, *NEWS_NOTES))
 
 
 # ── 11. freshness ───────────────────────────────────────────────────────────

@@ -252,3 +252,37 @@ class FeatureValue(BaseModel):
     input_max_knowable_at: _dt.datetime | None
     computed_at: _dt.datetime = Field(description="when Prajna stored it (its knowable_at)")
     registry_sha256: str
+
+
+class NewsArticle(BaseModel):
+    """One multi-source news item at as_of. Sections keep provenance explicit:
+    source_fact (what the publisher said) / observation (what Prajna saw, when) /
+    derived (Prajna's versioned rules: routing aids, not truth) / ai_enrichment
+    (optional AI output: never a fact)."""
+    id: int = Field(description="negative ids are Upstox articles (news_article.id)")
+    source: str
+    source_fact: dict[str, Any] = Field(description="title, summary, publisher, url, "
+                                        "published_at, updated_at, category_raw")
+    observation: dict[str, Any] = Field(description="first_seen_at, knowable_at, processed_at, "
+                                        "backlog, edited, latency_class, discovery_latency_s, "
+                                        "seconds_since_first_observation")
+    derived: dict[str, Any] = Field(description="category, market_scope, potential_impact, "
+                                    "impact_direction, is_breaking, breaking_reason, "
+                                    "instruments, entities, story - with rule versions")
+    ai_enrichment: dict[str, Any] | None = Field(None, description="AI output with model_id "
+                                                  "and prompt_version; NOT a source fact")
+
+
+class NewsStory(BaseModel):
+    story_id: int
+    title: str = Field(description="the first member's title")
+    article_count: int
+    publishers: list[str]
+    sources: list[str]
+    instruments: list[str]
+    entities: list[str]
+    first_knowable_at: _dt.datetime
+    last_knowable_at: _dt.datetime
+    is_breaking: bool
+    members: list[dict[str, Any]] = Field(description="each member with the method, score and "
+                                          "evidence of its grouping")
