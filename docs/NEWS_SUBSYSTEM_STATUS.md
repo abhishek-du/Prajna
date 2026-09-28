@@ -119,7 +119,7 @@ Visibility to Stage 2/3/API additionally needs `PRAJNA_NEWS_MULTI_SOURCE_ENABLED
 1. Your **terms review** for each source (NEWS-COMPLIANCE).
 2. A **full market session** of dry-run evidence: 2026-09-29.
 3. A **human mapping review** for each source (`review-sample`).
-4. **Migration 0014 on production** (backup first). Until it is applied, the new `/v1/news/*` endpoints cannot run against production.
+4. ~~Migration 0014 on production~~: **done** at 17:14 IST, after verified backup `prajna_20260928T1712_news_pre_0014.dump`. The news tables are empty, with 12 append-only triggers.
 5. **Decision FEATURE-NEWS-V2** before any news feature enters Stage 3.
 6. **AI:** add `boto3`, then set the model id and AWS credentials via the environment (from the V1 `.env`, never printed).
 7. **A runtime** for a permanent collector (systemd or supervised); there is no cron entry.
@@ -154,15 +154,15 @@ cd backend
 |---|---|---|---|
 | Source adapters (8) | implemented, dry-run running | terms review | you review terms per source |
 | Politeness / rate limits | implemented, restart-safe | — | re-check the POLITENESS criterion on 2026-09-29 |
-| Normalisation (0014) | implemented and tested | migration not on production | back up, then apply 0014 |
+| Normalisation (0014) | implemented, tested, applied to production (empty) | — | — |
 | Story grouping | implemented and tested | no human accuracy check | review groupings from the 09-29 evidence |
 | Entity mapping + aliases | implemented, fail-closed | no human false-positive rate | `review-sample` for each source |
 | Assessment / breaking | implemented (rules) | no validation against outcomes | review on 09-29 evidence |
 | Latency | implemented | no full session yet | report after 15:45 on 09-29 |
 | Content fetch | implemented, blocked by terms | terms + `body_allowed` | per-source decision |
 | AI enrichment | implemented, off | boto3, model, credentials | your go-ahead |
-| Stage 2 point-in-time layer | implemented and tested | 0014 on production; no PRODUCTION rows | after enablement |
+| Stage 2 point-in-time layer | implemented and tested | no PRODUCTION rows yet (locked) | after enablement |
 | Stage 3 news features | proposed, dry-run | FEATURE-NEWS-V2 | your decision |
-| Read API | implemented and tested | 0014 on production | back up, then apply 0014 |
+| Read API | implemented and tested; the schema is on production | empty until a source is enabled | — |
 | Acceptance gate | implemented; NOT PASSED | evidence, terms, review | run after 09-29 |
 | Production writes | LOCKED (per source) | all of the above | explicit per-source enablement |
