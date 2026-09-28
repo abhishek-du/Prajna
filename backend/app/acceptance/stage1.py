@@ -432,10 +432,6 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
                (select count(*) from global_bar_finality f
                  where f.instrument_key = i.instrument_key
                    and f.finality in ('REVISED', 'PLACEHOLDER')) as withheld,
-               (select count(*) from canon_global_bar g join global_bar_finality f
-                  on f.instrument_id = g.instrument_id and f.bar_start_utc = g.bar_start_utc
-                 where g.instrument_key = i.instrument_key
-                   and f.finality in ('REVISED', 'PLACEHOLDER')) as leaked,
                (select count(*) from canon_global_vendor_absent v
                  where v.instrument_key = i.instrument_key) as vendor_absent
         from instrument i
@@ -445,7 +441,19 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
     per: dict[str, Any] = {}
     fails, waits = [], []
     at = now()
-    for k, p99, wshare, last_fetch, last_final, pending, withheld, leaked, absent in gq:
+    for k, p99, wshare, last_fetch, last_final, pending, withheld, absent in gq:
+        # exposed bars whose finality is REVISED / PLACEHOLDER (must be 0). Each view
+        # is evaluated once per instrument (materialized): joining the two views
+        # directly re-evaluated the finality view per row (> 120 s per instrument
+        # once the observation history grew; the gate stalled on 2026-09-28)
+        leaked = (await _one(s, """
+            with f as materialized (
+                   select instrument_id, bar_start_utc from global_bar_finality
+                   where instrument_key = :k and finality in ('REVISED', 'PLACEHOLDER')),
+                 g as materialized (
+                   select instrument_id, bar_start_utc from canon_global_bar
+                   where instrument_key = :k)
+            select count(*) from g join f using (instrument_id, bar_start_utc)""", k=k))[0]
         fetched = last_fetch is not None and at - last_fetch <= _dt.timedelta(hours=36)
         limit = (p99 or 4) + 3
         age = (today - last_final).days if last_final else None

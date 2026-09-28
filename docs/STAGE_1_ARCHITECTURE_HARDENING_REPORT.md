@@ -102,6 +102,7 @@ an evidence file, or a commit.
 | 07:00 Mon–Fri | morning: previous session 1D, FII/DII, news |
 | 08:25 Mon–Fri | real pre-open capture |
 | 09:30–15:30 every 30 min Mon–Fri | `news_poll.sh` (own lock, fraction 0.2, no login) |
+| 09:10 Mon–Fri (and in the 06:40 `all`) | `maintenance.sh canon`: Stage 2 canonical layer (added 2026-09-28) |
 | 11:00 and 19:00 Sat–Sun | `news_poll.sh` weekend sweep (added 2026-09-28: without it the weekend went ~55 h without a news sweep and criterion N failed; the longest gap is now 16 h) |
 | 12:40 and 21:10 daily | `global_refresh.sh` (13 requests, fraction 0.1) |
 | 16:05 Mon–Fri | `close_then_backfill.sh --no-backfill`: close, then the same-day rerun check; hard stop 06:40 |
@@ -530,6 +531,25 @@ flock -w 3600 var/run/candles.lock ops/runbooks/close_then_backfill.sh --no-back
 - **Token:** rotation is one-way. A new token is issued by editing `.env` `PRAJNA_WRITE_TOKEN` (fingerprints only, never printed).
 
 ## O. Known limitations
+
+**Post-report findings (2026-09-28, morning).**
+
+1. **AASTHA SPINTEX (`NSE_EQ|INE2FMX01012`)** was the only failure of the 07:00 1D job. Its 5 re-served bars were exactly factor 2 (prices halved half-even, volume doubled), but no event was recorded, so the classifier failed closed as UNEXPLAINED, as designed.
+   - **Cause:** a 1:1 BONUS, ex-date 2026-09-28, announced 2026-07-23. It first appeared in the vendor feed that morning.
+   - **Remedy:**
+     - a targeted corporate-action fetch recorded the event;
+     - `derive ca-factors` produced EXACT factor 2;
+     - a re-fetch classified the revisions CA_ADJUSTMENT;
+     - vendor treatment is now APPLIED.
+2. **My own error during the remedy.** The first re-fetch used a narrow window with `--no-resume`, which starts a fresh checkpoint. That dropped AASTHA's recorded coverage to 09-18..09-25 and made criterion F FAIL.
+   - **Fix:** a full-window re-fetch (2020-01-01..2026-09-25). The checkpoint again covers 2020-01-01..2026-09-25, and all 58 re-served pre-bonus bars are CA_ADJUSTMENT. Stored bars were never modified.
+   - **Rule:** targeted repairs must use the instrument's full window.
+3. **Stage 2 processing was never scheduled.** `stage2 process` had only been run by hand, most recently on 2026-09-25 at 23:44. The canonical views read live data, but `canon_instrument` and `canon_coverage` went stale over the weekend.
+   - **Fix:** a `maintenance.sh canon` step, run in `all` at 06:40 and at 09:10 Mon–Fri. It is incremental, makes no vendor calls, and takes 0.6 s when nothing is new.
+   - **Tests:** a schedule test.
+   - **Result:** brought current on 2026-09-28 (FULL mode, 3,548 included); `acceptance stage2 --run-tests` gives 16/16 PASS.
+4. **Acceptance-gate performance.** Criterion Q's `leaked` check joined two evaluations of the finality view; once the observations grew, the planner re-evaluated the view per row (> 120 s per instrument), and the gate stalled for 30 min.
+   - **Fix:** one materialized evaluation per instrument, about 0.2 s. The check's meaning and results are unchanged (0 leaked). The whole gate now runs in about 34 s.
 
 **Post-report finding (2026-09-27/28).** Over the first weekend, criterion N (News: a sweep within 36 h) failed:
 - **Cause:** every news job was scheduled Mon–Fri, so there was no sweep from Fri 23:36 to Mon 07:00. That is a scheduling gap, not data loss, since the vendor keeps 7 days of news.
