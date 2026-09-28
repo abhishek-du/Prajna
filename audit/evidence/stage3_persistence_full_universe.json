@@ -1,0 +1,187 @@
+{
+ "generated_at": "2026-09-28T15:18:40.637828+00:00",
+ "production_writes": 0,
+ "compute_database": "prajna (READ ONLY, REPEATABLE READ)",
+ "persist_database": "prajna_test, isolated schema stage3_verify_2396614 (dropped afterwards)",
+ "registry_sha256": "9061d85b3696ab70e566d8257ecb13466930792a74f9b1d8308f232331e47188",
+ "session": "2026-09-28",
+ "asyncpg_max_bind_params": 32767,
+ "param_budget": 30000,
+ "steps": {
+  "A_pre_session_first_persist": {
+   "rows_offered": 180919,
+   "isolation": "repeatable read",
+   "persist_s": 72.6,
+   "visible_to_other_connection_before_commit": 0,
+   "commit_s": 0.0,
+   "outcome": "COMMITTED",
+   "inserted": 180919,
+   "already_present": 0,
+   "insert_statements": 91,
+   "params_per_statement": [
+    13785,
+    30000
+   ],
+   "max_params_in_one_statement": 30000,
+   "rows_per_batch_max": 2000,
+   "committed_rows_for_snapshot": 180919
+  },
+  "B_rerun_same_rows": {
+   "rows_offered": 180919,
+   "isolation": "repeatable read",
+   "persist_s": 69.3,
+   "visible_to_other_connection_before_commit": 180919,
+   "commit_s": 0.0,
+   "outcome": "COMMITTED",
+   "inserted": 0,
+   "already_present": 180919,
+   "insert_statements": 91,
+   "params_per_statement": [
+    13785,
+    30000
+   ],
+   "max_params_in_one_statement": 30000,
+   "rows_per_batch_max": 2000,
+   "committed_rows_for_snapshot": 180919
+  },
+  "C_independent_recompute_persisted": {
+   "compute_s": 140.2,
+   "rows_offered": 180919,
+   "isolation": "repeatable read",
+   "persist_s": 70.7,
+   "visible_to_other_connection_before_commit": 180919,
+   "commit_s": 0.0,
+   "outcome": "COMMITTED",
+   "inserted": 0,
+   "already_present": 180919,
+   "insert_statements": 91,
+   "params_per_statement": [
+    13785,
+    30000
+   ],
+   "max_params_in_one_statement": 30000,
+   "rows_per_batch_max": 2000,
+   "committed_rows_for_snapshot": 180919
+  },
+  "D_determinism_mismatch": {
+   "rows_offered": 180919,
+   "isolation": "repeatable read",
+   "outcome": "ROLLED_BACK",
+   "error": "DeterminismMismatch: 1 stored feature values differ from a recompute (first: ['NSE_EQ|IN9175A01010:ret_1d']); nothing overwritten",
+   "insert_statements_before_failure": 91,
+   "row": "NSE_EQ|IN9175A01010:ret_1d",
+   "original": -0.0143992055611,
+   "offered": 0.9712015888778,
+   "stored_after": -0.0143992055611,
+   "rows_after": 180919
+  },
+  "E_failure_after_first_batch": {
+   "rows_offered": 195107,
+   "isolation": "repeatable read",
+   "outcome": "ROLLED_BACK",
+   "error": "InjectedFailure: injected after INSERT batch 1",
+   "insert_statements_before_failure": 1,
+   "pre_open_rows_after_rollback": 0
+  },
+  "F_pre_open_persist": {
+   "rows_offered": 195107,
+   "isolation": "repeatable read",
+   "persist_s": 76.8,
+   "visible_to_other_connection_before_commit": 0,
+   "commit_s": 0.0,
+   "outcome": "COMMITTED",
+   "inserted": 195107,
+   "already_present": 0,
+   "insert_statements": 98,
+   "params_per_statement": [
+    16605,
+    30000
+   ],
+   "max_params_in_one_statement": 30000,
+   "rows_per_batch_max": 2000,
+   "committed_rows_for_snapshot": 195107
+  }
+ },
+ "compute_PRE_SESSION": {
+  "as_of": "2026-09-28T03:29:59+00:00",
+  "seconds": 140.27,
+  "rows": 180919,
+  "values": 128944,
+  "nulls_by_reason": {
+   "DIVISION_UNDEFINED": 1149,
+   "INSUFFICIENT_HISTORY": 3480,
+   "MALFORMED_INPUT": 4567,
+   "MISSING_INPUT": 42779
+  },
+  "refused_bars": {
+   "reconstructed": 0,
+   "low_confidence": 154618
+  },
+  "instruments": 3547
+ },
+ "compute_PRE_OPEN": {
+  "as_of": "2026-09-28T03:38:00+00:00",
+  "seconds": 156.09,
+  "rows": 195107,
+  "values": 141867,
+  "nulls_by_reason": {
+   "DIVISION_UNDEFINED": 1429,
+   "INSUFFICIENT_HISTORY": 3480,
+   "MALFORMED_INPUT": 4567,
+   "MISSING_INPUT": 43764
+  },
+  "refused_bars": {
+   "reconstructed": 0,
+   "low_confidence": 154618
+  },
+  "instruments": 3547
+ },
+ "public_feature_value_before": 0,
+ "replicated_ddl": [
+  "create schema stage3_verify_2396614",
+  "set search_path to stage3_verify_2396614, public",
+  "create table stage3_verify_2396614.ingest_run (like public.ingest_run including defaults including generated including identity)",
+  "alter table stage3_verify_2396614.ingest_run add constraint ck_run_commit_requires_authz CHECK ((((mode)::text <> 'COMMIT'::text) OR (authz_token_sha256 IS NOT NULL)))",
+  "alter table stage3_verify_2396614.ingest_run add constraint ck_run_complete_has_finish CHECK ((((status)::text <> 'COMPLETE'::text) OR (finished_at IS NOT NULL)))",
+  "alter table stage3_verify_2396614.ingest_run add constraint ck_run_dryrun_writes_nothing CHECK ((((mode)::text <> 'DRY_RUN'::text) OR (rows_written = 0)))",
+  "alter table stage3_verify_2396614.ingest_run add constraint ck_run_mode CHECK (((mode)::text = ANY ((ARRAY['DRY_RUN'::character varying, 'COMMIT'::character varying])::text[])))",
+  "alter table stage3_verify_2396614.ingest_run add constraint ck_run_status CHECK (((status)::text = ANY ((ARRAY['RUNNING'::character varying, 'COMPLETE'::character varying, 'FAILED'::character varying, 'ABORTED'::character varying])::text[])))",
+  "alter table stage3_verify_2396614.ingest_run add constraint ingest_run_pkey PRIMARY KEY (run_id)",
+  "CREATE INDEX ix_run_source_status ON stage3_verify_2396614.ingest_run USING btree (source, status)",
+  "CREATE INDEX ix_run_stream_logical ON stage3_verify_2396614.ingest_run USING btree (stream, logical_date)",
+  "create table stage3_verify_2396614.feature_value (like public.feature_value including defaults including generated including identity)",
+  "create sequence stage3_verify_2396614.feature_value_id_seq",
+  "alter table stage3_verify_2396614.feature_value alter column id set default nextval('stage3_verify_2396614.feature_value_id_seq')",
+  "alter table stage3_verify_2396614.feature_value add constraint ck_feature_pit CHECK (((input_max_knowable_at IS NULL) OR (input_max_knowable_at < as_of)))",
+  "alter table stage3_verify_2396614.feature_value add constraint ck_feature_scope CHECK (((scope)::text = ANY ((ARRAY['INSTRUMENT'::character varying, 'CONTEXT'::character varying])::text[])))",
+  "alter table stage3_verify_2396614.feature_value add constraint ck_feature_snapshot CHECK (((snapshot)::text = ANY ((ARRAY['PRE_SESSION'::character varying, 'PRE_OPEN'::character varying])::text[])))",
+  "alter table stage3_verify_2396614.feature_value add constraint ck_feature_value_or_reason CHECK (((value IS NULL) <> (reason IS NULL)))",
+  "alter table stage3_verify_2396614.feature_value add constraint feature_value_pkey PRIMARY KEY (id)",
+  "alter table stage3_verify_2396614.feature_value add constraint uq_feature_value UNIQUE (instrument_key, session_date, snapshot, feature_id, feature_version)",
+  "alter table stage3_verify_2396614.feature_value add constraint feature_value_instrument_id_fkey FOREIGN KEY (instrument_id) REFERENCES instrument(instrument_id) ON DELETE RESTRICT",
+  "alter table stage3_verify_2396614.feature_value add constraint feature_value_run_id_fkey FOREIGN KEY (run_id) REFERENCES ingest_run(run_id) ON DELETE RESTRICT",
+  "CREATE INDEX ix_feature_value_session ON stage3_verify_2396614.feature_value USING btree (session_date, snapshot)",
+  "CREATE INDEX ix_feature_value_run ON stage3_verify_2396614.feature_value USING btree (run_id)",
+  "CREATE TRIGGER tr_feature_value_append_only BEFORE DELETE OR UPDATE ON stage3_verify_2396614.feature_value FOR EACH ROW EXECUTE FUNCTION stage3_append_only()"
+ ],
+ "final": {
+  "rows_total": 376026,
+  "duplicate_keys": 0,
+  "by_snapshot_values_and_reasons": {
+   "PRE_OPEN/DIVISION_UNDEFINED": 1429,
+   "PRE_OPEN/INSUFFICIENT_HISTORY": 3480,
+   "PRE_OPEN/MALFORMED_INPUT": 4567,
+   "PRE_OPEN/MISSING_INPUT": 43764,
+   "PRE_OPEN/VALUE": 141867,
+   "PRE_SESSION/DIVISION_UNDEFINED": 1149,
+   "PRE_SESSION/INSUFFICIENT_HISTORY": 3480,
+   "PRE_SESSION/MALFORMED_INPUT": 4567,
+   "PRE_SESSION/MISSING_INPUT": 42779,
+   "PRE_SESSION/VALUE": 128944
+  },
+  "pit_violations": 0,
+  "append_only_update_refused": "DBAPIError"
+ },
+ "schema_dropped": true,
+ "public_feature_value_after": 0
+}
