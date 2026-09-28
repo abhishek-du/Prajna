@@ -429,3 +429,22 @@ At each step: tests, `git diff --check`, and a commit. Nothing reaches PRODUCTIO
 6. The Stage 2 views and `pit` functions, Stage 3 FEATURE-NEWS-V2, the read API and the `web/` screens.
 7. The news acceptance gate.
 8. The runtime daemon.
+
+## 12. Media adapters (2026-09-28, commit 4156d84)
+
+ET stocks RSS, Business Standard markets RSS, BusinessLine markets RSS, Livemint markets RSS and the CNBC-TV18 Google-News sitemap are implemented (`app/news/sources/rss.py`).
+
+| Aspect | Rule |
+|---|---|
+| Stored | metadata, URL and a short description (≤ 500 characters, HTML stripped) |
+| Entity links | `headline-entity-v1`: a whole company-name phrase in the headline. Generic names and one-word names that start another company's name are skipped |
+| Classification | `media-keywords-v1`: a heuristic with confidence 0.6, or 0.3 for OTHER |
+| Cadence | each feed's `<ttl>` is honoured (BusinessLine: 60 min) |
+
+**Collector:** one detached DRY_RUN process polls all six sources until 2026-09-29 15:45 IST. It writes evidence files only.
+
+**Coverage check against a user-supplied market summary (2026-09-28):**
+- Most items were found: the index fall, crude and US-Iran, US yields, FII selling, BSE and NSE shares, gold and silver ETFs, Hero Motors, Chinese stocks, the Shah Investor's Home and Tonbo IPOs, the UPI MDR case, and Fitch.
+- Found in part: the rupee (direction only, not the 95.50–96.50 range), Runwal (named in an IPO roundup only), and an Axis/Asian Paints/Max Healthcare gainers-and-losers story (September 25, not today).
+- **Not found:** the Adani–SEBI settlement, SEBI's settlement/advertising-code change, and brokerage Nifty-target cuts. The likely reasons are that these were published by sources Prajna does not poll (Moneycontrol, Indian Express), or before the feeds were first read.
+- **Timing:** media items first read today are backlog (discovered 15:59 IST, when polling started), so they carry no latency. Only Upstox and NSE were collected during market hours.
