@@ -34,6 +34,9 @@ class Source:
     enrich: str = "HEADLINE"
     flag: str | None = None           # the per-source write flag (Settings attribute)
     priority: int = 3                 # 1 = primary (exchange/regulator) .. 3 = media
+    # article bodies may be fetched (app.news.content) only when this is True AND the
+    # terms review is APPROVED; False for every source until that review exists
+    body_allowed: bool = False
 
 
 _FLAGS = {  # source -> (per-source write flag, priority)

@@ -178,7 +178,8 @@ async def test_production_mode_also_needs_the_visibility_flag(db_session, unlock
 
 def test_every_source_flag_defaults_false():
     from app.core.config import Settings
-    news_flags = [n for n in Settings.model_fields if n.startswith("PRAJNA_NEWS_")]
+    news_flags = [n for n in Settings.model_fields
+                  if n.startswith("PRAJNA_NEWS_") and n.endswith("_ENABLED")]
     assert len(news_flags) >= 11
     assert all(Settings.model_fields[n].default is False for n in news_flags)
     assert "PRAJNA_NEWS_CRAWLER_ENABLED" not in news_flags       # no global switch

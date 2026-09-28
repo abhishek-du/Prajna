@@ -94,6 +94,11 @@ class Settings(BaseSettings):
     PRAJNA_NEWS_CNBC_ENABLED: bool = Field(default=False)
     PRAJNA_NEWS_IE_ENABLED: bool = Field(default=False)
     PRAJNA_NEWS_SEBI_ENABLED: bool = Field(default=False)
+    # optional AI enrichment of news (app.news.ai): off unless enabled AND a model id
+    # is set; AWS credentials come only from the process's standard AWS chain
+    PRAJNA_NEWS_AI_ENABLED: bool = Field(default=False)
+    PRAJNA_NEWS_AI_MODEL_ID: str | None = Field(default=None)
+    PRAJNA_NEWS_AI_REGION: str | None = Field(default=None)
     PRAJNA_NEWS_MULTI_SOURCE_ENABLED: bool = Field(default=False)
     PRAJNA_NEWS_LIVE_STREAM_ENABLED: bool = Field(default=False)
 
