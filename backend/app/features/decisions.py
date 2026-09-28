@@ -20,6 +20,16 @@ DECISIONS: dict[str, dict[str, str]] = {
                     "is a new feature version",
         "ref": "user 2026-09-28 ('Conventional, pending approval'; then 'approve the "
                "proposed feature params')"},
+    "FII-DII-STALENESS": {
+        "status": "APPROVED",
+        "decision": "FII/DII features use the snapshot's PREVIOUS TRADING SESSION: if the latest "
+                    "observation knowable before as_of is not that session (late or missing "
+                    "publication), the value is MISSING_INPUT; an older day is never relabelled "
+                    "as the current one. The 5-day sum must end at the previous session. "
+                    "Implemented as feature version 2 (0 stored values existed under version 1)",
+        "ref": "user 2026-09-28 ('MISSING_INPUT if stale'; restated: 'If the latest FII/DII "
+               "observation does not belong to the snapshot's previous trading session, return "
+               "MISSING_INPUT')"},
     "FEATURE-SNAPSHOTS": {
         "status": "APPROVED",
         "decision": "Two snapshots per trading session: PRE_SESSION as_of pre-open start - 1 s "

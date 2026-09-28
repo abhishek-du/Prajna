@@ -2,8 +2,11 @@
 
   index trend      NIFTY 50 / NIFTY BANK: ret_1d, ret_5d, close_to_sma_50 (PROPOSED window)
   india_vix        level (last close) and 5-session change in points (PROPOSED window)
-  fii/dii flows    net cash-market flow (buy - sell, INR crore) of the latest day
-                   and the sum of the last 5 days (PROPOSED window)
+  fii/dii flows    net cash-market flow (buy - sell, INR crore) of the snapshot's
+                   PREVIOUS TRADING SESSION, and the sum of the last 5 observed days
+                   ending at that session (decision FII-DII-STALENESS: if the latest
+                   observation is not the previous session, MISSING_INPUT - an older
+                   day is never relabelled as the current one)
   global           return between the two latest CONFIRMED labels of each global
                    instrument (revised/placeholder/unconfirmed labels never reach here)
   sector_rs_20     stock ret_20 - median ret_20 of its point-in-time sector (>= 3 members)
@@ -57,11 +60,15 @@ def net_flows(rows: list[dict[str, Any]], who: str) -> dict[date, float] | None:
     return out
 
 
-def flow(rows: list[dict[str, Any]], who: str, n: int) -> Result:
+def flow(rows: list[dict[str, Any]], who: str, n: int, previous_session: date | None) -> Result:
+    """Net flow of the previous trading session (n=1) or the sum of the last n observed
+    days ending AT the previous session. `rows` are already point in time (knowable
+    before as_of); a latest observation that is not the previous session - late or
+    missing publication - is MISSING_INPUT, never an older day relabelled."""
     f = net_flows(rows, who)
     if f is None:
         return miss(MALFORMED_INPUT)
-    if not f:
+    if not f or previous_session is None or max(f) != previous_session:
         return miss(MISSING_INPUT)
     days = sorted(f)[-n:]
     if len(days) < n:

@@ -40,10 +40,10 @@ class FeatureSpec:
 
 
 def _p(id, group, definition, *, params=None, proposed=True, inputs=("daily_bars",),
-       lookback=0, scope="INSTRUMENT", snapshots=BOTH):
+       lookback=0, scope="INSTRUMENT", snapshots=BOTH, version=1):
     return FeatureSpec(id, group, definition, "IMPLEMENTED",
                        "PROPOSED" if proposed else "SPECIFIED", params or {}, tuple(inputs),
-                       lookback, scope, snapshots)
+                       lookback, scope, snapshots, version)
 
 
 CA_KINDS = ("any", "dividend", "split", "bonus")
@@ -133,14 +133,20 @@ FEATURES: tuple[FeatureSpec, ...] = (
     _p("india_vix_level", CTX, "India VIX last close", proposed=False, scope="CONTEXT", lookback=1),
     _p("india_vix_change_5d", CTX, "India VIX close - close 5 sessions earlier (points)",
        params={"n": 5}, scope="CONTEXT", lookback=6),
-    _p("fii_net_cash_1d", CTX, "FII NSE cash buy - sell, latest day (INR crore)", proposed=False,
-       inputs=("fii_dii",), scope="CONTEXT"),
-    _p("fii_net_cash_5d", CTX, "FII NSE cash net, sum of the last 5 days", params={"n": 5},
-       inputs=("fii_dii",), scope="CONTEXT"),
-    _p("dii_net_cash_1d", CTX, "DII NSE cash buy - sell, latest day (INR crore)", proposed=False,
-       inputs=("fii_dii",), scope="CONTEXT"),
-    _p("dii_net_cash_5d", CTX, "DII NSE cash net, sum of the last 5 days", params={"n": 5},
-       inputs=("fii_dii",), scope="CONTEXT"),
+    # version 2 (decision FII-DII-STALENESS): the observation must be the snapshot's
+    # previous trading session, else MISSING_INPUT (v1 took the latest published day)
+    _p("fii_net_cash_1d", CTX, "FII NSE cash buy - sell of the previous trading session (INR "
+       "crore); MISSING_INPUT if that session is not the latest observation", proposed=False,
+       inputs=("fii_dii",), scope="CONTEXT", version=2),
+    _p("fii_net_cash_5d", CTX, "FII NSE cash net, sum of the last 5 observed days ending at the "
+       "previous trading session; MISSING_INPUT otherwise", params={"n": 5},
+       inputs=("fii_dii",), scope="CONTEXT", version=2),
+    _p("dii_net_cash_1d", CTX, "DII NSE cash buy - sell of the previous trading session (INR "
+       "crore); MISSING_INPUT if that session is not the latest observation", proposed=False,
+       inputs=("fii_dii",), scope="CONTEXT", version=2),
+    _p("dii_net_cash_5d", CTX, "DII NSE cash net, sum of the last 5 observed days ending at the "
+       "previous trading session; MISSING_INPUT otherwise", params={"n": 5},
+       inputs=("fii_dii",), scope="CONTEXT", version=2),
     _p("global_ret_1d", CTX, "return between the two latest CONFIRMED labels (per global "
        "instrument)", proposed=False, inputs=("global_bars",), scope="CONTEXT"),
     _p("sector_rs_20", CTX, "ret_20d - median ret_20d of the stock's point-in-time sector "

@@ -473,3 +473,45 @@ class TestLocks:
     async def test_dry_run_needs_no_lock_and_writes_nothing(self, world):
         res = await E.compute_snapshot(world, await snap(world), [W.A])
         assert res.rows and await stored(world) == 0 and await events(world) == 0
+
+
+# ── FII/DII staleness (decision FII-DII-STALENESS) ──────────────────────────────
+async def _fii(s, day, buy, sell, knowable):
+    rid = await _run(s, f"macro.{uuid.uuid4().hex[:6]}", source="UPSTOX_REST_V2")
+    sha = await _payload(s, rid, "UPSTOX_REST_V2")
+    for side, v in (("buy_amt", buy), ("sell_amt", sell)):
+        await s.execute(text("""
+            insert into macro_observation (series_code, observation_date, value, unit,
+              vendor_payload, source, run_id, payload_sha256, fetched_at, knowable_at,
+              knowable_at_verified, knowable_at_basis)
+            values (:c, :d, :v, 'INR_vendor', '{}', 'UPSTOX_REST_V2', :r, :h, :k, :k, false,
+                    'fetched')"""),
+            {"c": f"FII|NSE_EQ|CASH|1D|{side}", "d": day, "v": v, "r": rid, "h": sha,
+             "k": knowable})
+
+
+class TestFiiDiiStaleness:
+    async def test_publication_after_as_of_is_not_used_and_no_older_day_is_relabelled(
+            self, world):
+        """09-22 knowable 09-23 08:30; 09-23 knowable 09-24 09:05 IST - after PRE_SESSION
+        (08:59:59) and before PRE_OPEN (09:08:00). Previous session of 09-24 is 09-23."""
+        await _fii(world, _dt.date(2026, 9, 22), 100, 40, W.ist(2026, 9, 23, 8, 30))
+        await _fii(world, _dt.date(2026, 9, 23), 50, 80, W.ist(2026, 9, 24, 9, 5))
+        await world.commit()
+        ps, po = await snap(world), await snap(world, "PRE_OPEN")
+        assert ps.previous_session == _dt.date(2026, 9, 23)
+        a = by(await E.compute_snapshot(world, ps, [W.A]))
+        assert a[("MARKET", "fii_net_cash_1d")] == (None, "MISSING_INPUT")   # not 09-22's 60
+        b = by(await E.compute_snapshot(world, po, [W.A]))
+        assert b[("MARKET", "fii_net_cash_1d")] == (-30.0, None)             # 09-23 visible
+        assert b[("MARKET", "fii_net_cash_5d")] == (None, "INSUFFICIENT_HISTORY")
+
+    async def test_holiday_boundary_uses_the_calendar_previous_session(self, world):
+        """Snapshot Monday 2026-09-14: previous session Friday 09-11 (weekend between)."""
+        clock.freeze(W.ist(2026, 9, 14, 12))
+        await _fii(world, _dt.date(2026, 9, 11), 70, 20, W.ist(2026, 9, 12, 9, 0))
+        await world.commit()
+        sn = await snap(world, day=_dt.date(2026, 9, 14))
+        assert sn.previous_session == _dt.date(2026, 9, 11)
+        v = by(await E.compute_snapshot(world, sn, [W.A]))
+        assert v[("MARKET", "fii_net_cash_1d")] == (50.0, None)

@@ -215,13 +215,34 @@ class TestContext:
                      "value": s}]
         return out
 
-    def test_flows(self):
-        r = self.rows("FII", {_dt.date(2026, 9, 22): (10, 4), _dt.date(2026, 9, 23): (5, 8)})
-        assert CX.flow(r, "FII", 1) == (-3.0, None)
-        assert CX.flow(r, "FII", 2) == (3.0, None)
-        assert CX.flow(r, "FII", 5) == (None, INSUFFICIENT_HISTORY)
-        assert CX.flow(r, "DII", 1) == (None, MISSING_INPUT)
-        assert CX.flow(r[:1], "FII", 1) == (None, MALFORMED_INPUT)        # one side only
+    # decision FII-DII-STALENESS (2026-09-28): flow() now takes the snapshot's previous
+    # trading session; the former latest-published-day expectations were replaced
+    D22, D23, D24 = _dt.date(2026, 9, 22), _dt.date(2026, 9, 23), _dt.date(2026, 9, 24)
+
+    def two_days(self):
+        return self.rows("FII", {self.D22: (10, 4), self.D23: (5, 8)})
+
+    def test_valid_previous_session_observation(self):
+        r = self.two_days()
+        assert CX.flow(r, "FII", 1, self.D23) == (-3.0, None)
+        assert CX.flow(r, "FII", 2, self.D23) == (3.0, None)
+
+    def test_stale_latest_day_is_missing_not_relabelled(self):
+        """Previous session 09-24, but the latest published day is 09-23."""
+        assert CX.flow(self.two_days(), "FII", 1, self.D24) == (None, MISSING_INPUT)
+
+    def test_five_day_window_ending_before_the_previous_session_is_missing(self):
+        days = {self.D22 - _dt.timedelta(days=k): (10, 4) for k in range(6)}
+        r = self.rows("FII", days)                       # ends 09-22, previous session 09-23
+        assert CX.flow(r, "FII", 5, self.D23) == (None, MISSING_INPUT)
+        assert CX.flow(r, "FII", 5, self.D22) == (30.0, None)
+
+    def test_insufficient_history_malformed_and_missing_are_kept(self):
+        r = self.two_days()
+        assert CX.flow(r, "FII", 5, self.D23) == (None, INSUFFICIENT_HISTORY)
+        assert CX.flow(r, "DII", 1, self.D23) == (None, MISSING_INPUT)
+        assert CX.flow(r[:1], "FII", 1, self.D22) == (None, MALFORMED_INPUT)   # one side only
+        assert CX.flow(r, "FII", 1, None) == (None, MISSING_INPUT)             # no calendar
 
     def test_vix_global_sector(self):
         assert CX.vix_change([10, 11, 12, 13, 14, 15.5], 5) == (5.5, None)

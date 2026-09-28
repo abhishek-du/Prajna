@@ -194,7 +194,8 @@ async def context_rows(s: AsyncSession, snap: Snapshot) -> list[FeatureRow]:
     for who in ("FII", "DII"):
         for n in (1, 5):
             rows.append(FeatureRow("CONTEXT", MARKET_KEY, f"{who.lower()}_net_cash_{n}d",
-                                   *CX.flow(macro, who, n), tr.sha256, tr.max_knowable_at))
+                                   *CX.flow(macro, who, n, snap.previous_session),
+                                   tr.sha256, tr.max_knowable_at))
     gkeys = (await s.execute(text("""select instrument_key from instrument where valid_to =
         'infinity' and segment in ('GLOBAL_INDEX','GLOBAL_INDICATOR') order by 1"""))).scalars()
     for key in list(gkeys):
