@@ -48,3 +48,15 @@ LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 # Saturday 10:00  corporate actions; 1st of month 11:00 calendar +60d and fundamentals
 0 10 * * 6    cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.3 ops/runbooks/daily.sh --login weekly >> var/logs/cron.log 2>&1
 0 11 1 * *    cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.3 ops/runbooks/daily.sh --login monthly >> var/logs/cron.log 2>&1
+# Stage 3 feature snapshots: PENDING_APPROVAL (decision SCHEDULE; docs/STAGE_3_PRODUCTION_SCHEDULE.md).
+# NOT INSTALLED, NOT ENABLED. Even uncommented, every run is refused (exit 3, audited, nothing
+# written) until PRAJNA_STAGE3_ENABLED=true and every `prajna stage3 locks` condition holds.
+# PRE_SESSION  as_of 08:59:59 IST, start 09:00:30 (after the 07:00 morning job, measured end ~08:32)
+# PENDING_APPROVAL: 0 9 * * 1-5   cd $B && sleep 30 && ops/runbooks/stage3_snapshot.sh PRE_SESSION --token-from-dotenv >> var/logs/cron.log 2>&1
+# PRE_OPEN     as_of 09:08:00 IST. Pre-open ticks reach the database only when preopen_day.sh
+#              replays its capture (measured 09:20-09:33 on 09-24/25/28), so choose ONE:
+#   OPTION A   start 09:08:30: the 4 preopen_* features are MISSING_INPUT for every instrument
+# PENDING_APPROVAL: 8 9 * * 1-5   cd $B && sleep 30 && ops/runbooks/stage3_snapshot.sh PRE_OPEN --token-from-dotenv >> var/logs/cron.log 2>&1
+#   OPTION B   start 09:21 and wait for "replay exit 0" (skip if the replay fails): same as_of,
+#              preopen_* populated, available after the 09:15 open (~09:36 on the measured days)
+# PENDING_APPROVAL: 21 9 * * 1-5  cd $B && ops/runbooks/stage3_snapshot.sh PRE_OPEN --after-replay --token-from-dotenv >> var/logs/cron.log 2>&1
