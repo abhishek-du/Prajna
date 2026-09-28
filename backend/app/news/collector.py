@@ -31,8 +31,11 @@ from typing import Any
 
 from app.core.clock import IST, now
 from app.core.logging import get_logger
+from app.news import assess as AS
 from app.news import enrich as EN
+from app.news import entities as X
 from app.news import http as H
+from app.news import stories as ST
 from app.news.model import ItemObs, canonical_url, title_hash
 from app.news.sources import SOURCES, Source
 
@@ -59,6 +62,14 @@ class Discovery:
     backlog: bool
     classification: EN.Classification
     links: list[EN.Link]
+    mentions: list[X.Mention] = field(default_factory=list)
+    story_id: str | None = None
+    story: ST.Assignment | None = None
+    assessment: AS.Assessment | None = None
+
+    @property
+    def latency_class(self) -> str:
+        return "BACKLOG" if self.backlog else "LIVE_DISCOVERY"
 
     @property
     def link(self) -> EN.Link:
@@ -101,7 +112,7 @@ def _iso(d: _dt.datetime | None) -> str | None:
 
 def process(src: Source, fetch: H.FetchResult, seen: dict[str, Seen], *,
             universe: EN.Universe | None, aliases: EN.Aliases,
-            first_success: bool) -> PollOutcome:
+            first_success: bool, stories: ST.StoryIndex | None = None) -> PollOutcome:
     """Pure w.r.t. I/O: parse a response and split it into new / changed items.
     `seen` and `aliases` are updated in place."""
     out = PollOutcome(src.key, fetch)
@@ -128,7 +139,11 @@ def process(src: Source, fetch: H.FetchResult, seen: dict[str, Seen], *,
                 cls = (EN.classify_regulator(it) if src.enrich == "REGULATOR"
                        else EN.classify_keywords(it))
                 links = EN.resolve_headline(it, universe, index)
-            d = Discovery(it, at, first_success, cls, links)
+                known = {ln.instrument_key for ln in links}
+                extra = [ln for ln in X.alias_links(it, universe) if ln.instrument_key not in known]
+                links = [ln for ln in links if ln.instrument_key] + extra or links
+            d = Discovery(it, at, first_success, cls, links, X.mentions(it))
+            _enrich_story_and_assess(d, src, stories)
             out.new.append(d)
             seen[it.source_article_id] = Seen(_iso(at), it.title, it.summary,
                                               _iso(it.published_at), _iso(it.source_updated_at))
@@ -145,6 +160,62 @@ def process(src: Source, fetch: H.FetchResult, seen: dict[str, Seen], *,
 
 class SourceBusy(RuntimeError):
     """Another process is already dry-running this source (its state is not shared)."""
+
+
+def _enrich_story_and_assess(d: Discovery, src: Source, stories: ST.StoryIndex | None) -> None:
+    """Story membership (point in time: only members knowable at discovery) and the
+    rule-based assessment; a second publisher within 30 min confirms (breaking c)."""
+    it = d.item
+    companies = sorted({ln.instrument_key for ln in d.links if ln.instrument_key})
+    ments = [(m.entity_type, m.entity_id) for m in d.mentions]
+    confirmed: list[str] = []
+    if stories is not None:
+        m = ST.Member(f"{src.key}|{it.source_article_id}", "", src.key, ST.words(it.title),
+                      canonical_url(it.url), title_hash(it.title), frozenset(companies),
+                      frozenset(f"{t}:{e}" for t, e in ments), d.classification.category,
+                      it.published_at or d.discovered_at, d.discovered_at,
+                      strict=src.enrich in ("EXCHANGE", "REGULATOR"))
+        a = stories.assign(m, d.discovered_at)
+        m.story_id = a.story_id or stories.new_id()
+        stories.add(m)
+        d.story_id, d.story = m.story_id, a
+        if a.story_id is not None:
+            first = min(c.knowable_at for c in stories.members if c.story_id == a.story_id)
+            confirmed = sorted({c.source for c in stories.members if c.story_id == a.story_id
+                                and c.source != src.key
+                                and d.discovered_at - first <= _dt.timedelta(minutes=30)})
+    d.assessment = AS.assess(it.title, d.classification.category, companies=companies,
+                             mentions=ments, backlog=d.backlog, published_at=it.published_at,
+                             discovered_at=d.discovered_at,
+                             confirmed_by=None if d.backlog else confirmed)
+
+
+def load_stories(root: pathlib.Path) -> ST.StoryIndex:
+    p = root / "stories.json"
+    if not p.exists():
+        return ST.StoryIndex()
+    d = json.loads(p.read_text())
+    ix = ST.StoryIndex(next_id=d["next_id"])
+    for m in d["members"]:
+        ix.add(ST.Member(m["item_key"], m["story_id"], m["source"], frozenset(m["words"]),
+                         m["canonical_url"], m["title_hash"], frozenset(m["companies"]),
+                         frozenset(m["entities"]), m["category"],
+                         _dt.datetime.fromisoformat(m["t"]),
+                         _dt.datetime.fromisoformat(m["knowable_at"]), m.get("strict", False)))
+    return ix
+
+
+def save_stories(root: pathlib.Path, ix: ST.StoryIndex) -> None:
+    ix.prune(now())
+    root.mkdir(parents=True, exist_ok=True)
+    tmp = root / "stories.json.part"
+    tmp.write_text(json.dumps({"next_id": ix.next_id, "members": [
+        {**{k: getattr(m, k) for k in ("item_key", "story_id", "source", "canonical_url",
+                                       "title_hash", "category", "strict")},
+         "words": sorted(m.words), "companies": sorted(m.companies),
+         "entities": sorted(m.entities), "t": m.t.isoformat(),
+         "knowable_at": m.knowable_at.isoformat()} for m in ix.members]}))
+    tmp.replace(root / "stories.json")
 
 
 class DryRunRecorder:
@@ -209,12 +280,22 @@ class DryRunRecorder:
                           "published_at_raw": it.published_at_raw,
                           "discovered_at": _iso(d.discovered_at),
                           "knowable_at": _iso(d.discovered_at), "backlog": d.backlog,
-                          "latency_s": d.latency_s, "classification": asdict(d.classification),
-                          "link": asdict(d.link), "links": [asdict(x) for x in d.links]})
+                          "latency_s": d.latency_s, "latency_class": d.latency_class,
+                          "classification": asdict(d.classification),
+                          "link": asdict(d.link), "links": [asdict(x) for x in d.links],
+                          "mentions": [asdict(x) for x in d.mentions],
+                          "story_id": d.story_id,
+                          "story": asdict(d.story) if d.story else None,
+                          "assessment": asdict(d.assessment) if d.assessment else None,
+                          "source_priority": self.src.priority,
+                          "terms_status": self.src.compliance,
+                          "content_fetch_status": "NOT_AVAILABLE",
+                          "processed_at": _iso(now())})
         for it, ch in o.changed:
             lines.append({"type": "change", "source": o.source, "id": it.source_article_id,
                           "observed_at": _iso(f.finished_at), "changed": ch, "title": it.title,
-                          "published_at": _iso(it.published_at)})
+                          "published_at": _iso(it.published_at),
+                          "latency_class": "UPDATED_ITEM"})
         with open(self.dir / f"events_{day}.jsonl", "a") as fh:
             for ln in lines:
                 fh.write(json.dumps(ln, default=str) + "\n")
@@ -244,7 +325,8 @@ async def load_universe() -> EN.Universe | None:
 
 async def dry_run(source_key: str, *, polls: int = 1, until: _dt.datetime | None = None,
                   transport=None, root: pathlib.Path = DRYRUN_DIR,
-                  sleep=asyncio.sleep, rng: random.Random | None = None) -> list[dict]:
+                  sleep=asyncio.sleep, rng: random.Random | None = None,
+                  stories: ST.StoryIndex | None = None) -> list[dict]:
     """DRY_RUN: poll `polls` times (or until `until`), spacing polls by the
     source's interval (never below the feed ttl). Files only."""
     src = SOURCES[source_key]
@@ -261,8 +343,10 @@ async def dry_run(source_key: str, *, polls: int = 1, until: _dt.datetime | None
             break
         log.info("news_poll_started", source=source_key, mode="DRY_RUN")
         f = await H.fetch(src.url, rec.http, transport=transport)
+        shared = stories if stories is not None else load_stories(root)
         o = process(src, f, rec.seen, universe=universe, aliases=rec.aliases,
-                    first_success=rec.first_success)
+                    first_success=rec.first_success, stories=shared)
+        save_stories(root, shared)
         if f.outcome == "OK" and o.fetch.outcome == "OK":
             feed_ttl = src.parse(f.body).ttl_minutes
             rec.http.ttl_s = feed_ttl * 60 if feed_ttl else None
@@ -286,6 +370,9 @@ async def dry_run(source_key: str, *, polls: int = 1, until: _dt.datetime | None
 
 async def dry_run_many(keys: list[str], **kw) -> dict[str, list[dict] | str]:
     """Several sources concurrently; one source's failure never affects another."""
-    res = await asyncio.gather(*(dry_run(k, **kw) for k in keys), return_exceptions=True)
+    root = kw.get("root", DRYRUN_DIR)
+    shared = load_stories(root)              # one story index across all sources
+    res = await asyncio.gather(*(dry_run(k, stories=shared, **kw) for k in keys),
+                               return_exceptions=True)
     return {k: (r if not isinstance(r, BaseException) else f"{type(r).__name__}: {r}")
             for k, r in zip(keys, res, strict=True)}
