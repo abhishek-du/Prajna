@@ -32,6 +32,57 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clock import IST, now
+from app.core.config import BACKEND_ROOT
+
+# Every file the gate reads is anchored to the backend directory, never to the
+# process's working directory: run from the repository root, the relative
+# "var/..." paths found no pre-open report, close log or B1/B2 file and the gate
+# reported NOT COMPLETE (BUG-STAGE1-CLI-CWD-RELATIVE-PATHS, 2026-09-28).
+ACCEPTANCE_DIR = pathlib.Path("var/acceptance")
+DAILY_LOG_DIR = pathlib.Path("var/logs/daily")
+
+
+def anchored(path: str | pathlib.Path) -> pathlib.Path:
+    """A relative path is relative to the backend directory (BACKEND_ROOT)."""
+    p = pathlib.Path(path)
+    return p if p.is_absolute() else BACKEND_ROOT / p
+
+
+def shown(path: pathlib.Path) -> str:
+    """The path as evidence has always shown it: relative to the backend directory."""
+    try:
+        return str(path.relative_to(BACKEND_ROOT))
+    except ValueError:
+        return str(path)
+
+
+def preopen_report() -> tuple[str, dict[str, Any]]:
+    """Criterion K's file evidence: the latest pre-open acceptance report."""
+    reps = sorted(glob.glob(str(anchored(ACCEPTANCE_DIR) / "preopen_*.json")))
+    if not reps:
+        return FAIL, {}
+    rep = json.loads(pathlib.Path(reps[-1]).read_text())
+    ev = {"report": shown(pathlib.Path(reps[-1])), "verdict": rep["verdict"],
+          "real_market_data": rep["real_market_data"],
+          "non_pass": {c["id"]: c["status"] for c in rep["checks"] if c["status"] != "PASS"},
+          "B7": rep["B7"]["status"], "B8": rep["B8"]["status"]}
+    return (PASS if rep["verdict"] == "PASS" and rep["real_market_data"] else FAIL), ev
+
+
+def rerun_checks() -> list[str]:
+    """Criterion R's file evidence: every CLOSE_RERUN_CHECK line of the close logs."""
+    out = []
+    for f in sorted(anchored(DAILY_LOG_DIR).glob("close_then_backfill_*.log")):
+        for line in f.read_text(errors="replace").splitlines():
+            if "CLOSE_RERUN_CHECK" in line and "inserted=" in line:
+                out.append(line.split("] ", 1)[-1])
+    return out
+
+
+def load_b1b2() -> dict[str, Any]:
+    """Criterion X's timing evidence (ops/measure/analyze_timing.py output)."""
+    bp = anchored(ACCEPTANCE_DIR / "b1b2.json")
+    return json.loads(bp.read_text()) if bp.exists() else {}
 
 PASS, FAIL, BLOCKED, OUT = "PASS", "FAIL", "BLOCKED", "OUT_OF_SCOPE"
 # hardening: evidence that can only come from future sessions/refreshes, and
@@ -341,16 +392,7 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
                          [] if h_status == OUT else ["D2-5m"]))
 
     # K. pre-open
-    reps = sorted(glob.glob(str(pathlib.Path("var/acceptance") / "preopen_*.json")))
-    k_ev = {}
-    k_status = FAIL
-    if reps:
-        rep = json.loads(pathlib.Path(reps[-1]).read_text())
-        k_ev = {"report": reps[-1], "verdict": rep["verdict"],
-                "real_market_data": rep["real_market_data"],
-                "non_pass": {c["id"]: c["status"] for c in rep["checks"] if c["status"] != "PASS"},
-                "B7": rep["B7"]["status"], "B8": rep["B8"]["status"]}
-        k_status = PASS if rep["verdict"] == "PASS" and rep["real_market_data"] else FAIL
+    k_status, k_ev = preopen_report()
     pre = await _one(s, """select count(*), count(distinct session_date), min(session_date),
                                   max(session_date) from preopen_tick""")
     missed = (await _one(s, """select count(*) from trading_session t where t.is_trading_day
@@ -514,11 +556,7 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
     sessions = sorted({d for v in live.values() for d in v}, reverse=True)
     full = [d for d in sessions if all(live[tf].get(d, 0) >= 0.99 * active
                                        for tf in ("1m", "15m", "1h"))]
-    reruns = []
-    for f in sorted(pathlib.Path("var/logs/daily").glob("close_then_backfill_*.log")):
-        for line in f.read_text(errors="replace").splitlines():
-            if "CLOSE_RERUN_CHECK" in line and "inserted=" in line:
-                reruns.append(line.split("] ", 1)[-1])
+    reruns = rerun_checks()
     idem = [r for r in reruns if "idempotent=True" in r]
     r_status = FAIL if not full else (PASS if idem and not [r for r in reruns
                                                            if "idempotent=False" in r]
@@ -608,8 +646,7 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
     }
     # B1/B2 (timing contracts): measured by ops/measure/analyze_timing.py from the
     # archived poller responses; VERIFIED needs >= 3 agreeing sessions.
-    bp = pathlib.Path("var/acceptance/b1b2.json")
-    b1b2 = json.loads(bp.read_text()) if bp.exists() else {}
+    b1b2 = load_b1b2()
     timing = {k: {"status": b1b2.get(k, {}).get("status", "UNMEASURED"),
                   "sessions_observed": b1b2.get(k, {}).get("sessions_observed", []),
                   "sessions_agreeing": b1b2.get(k, {}).get("sessions_agreeing", []),
@@ -681,7 +718,7 @@ async def replay_sample(s: AsyncSession, per_family: int = 25, seed: int | None 
     async def payload(sha: str) -> tuple[bytes, int]:
         r = await _one(s, "select storage_uri, http_status from raw_payload where "
                           "payload_sha256=:h", h=sha)
-        return PayloadStore.read(r[0], sha), r[1]
+        return PayloadStore.read(anchored(r[0]), sha), r[1]
 
     # candles
     n = rows_cmp = 0
@@ -863,21 +900,21 @@ async def verify_archive(s: AsyncSession) -> dict:
             framed.setdefault(path, {})[int(seq)] = h
     ok = bad = missing = 0
     for h, u in files:
-        if not pathlib.Path(u).exists():
+        if not anchored(u).exists():
             missing += 1
             continue
         try:
-            PayloadStore.read(u, h)
+            PayloadStore.read(anchored(u), h)
             ok += 1
         except ValueError:
             bad += 1
     frames_ok = 0
     for path, want in framed.items():
-        if not pathlib.Path(path).exists():
+        if not anchored(path).exists():
             missing += len(want)
             continue
         seen = {}
-        for rec in FrameArchiveReader(pathlib.Path(path)):
+        for rec in FrameArchiveReader(anchored(path)):
             if rec.seq in want:
                 seen[rec.seq] = hashlib.sha256(rec.payload).hexdigest()
         for seq, h in want.items():

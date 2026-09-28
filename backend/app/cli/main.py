@@ -965,19 +965,25 @@ app.add_typer(acceptance_app, name="acceptance")
 
 @acceptance_app.command("stage1")
 def acceptance_stage1(
-    out: str = typer.Option("var/acceptance/stage1.json", "--out", help="JSON report"),
-    md: str = typer.Option("../docs/STAGE_1_FINAL_ACCEPTANCE.md", "--md",
-                           help="regenerate the acceptance document here ('' = no)"),
+    out: str = typer.Option(None, "--out", help="JSON report (default: backend/var/acceptance/"
+                            "stage1.json, whatever the working directory)"),
+    md: str = typer.Option(None, "--md", help="regenerate the acceptance document here "
+                           "(default: docs/STAGE_1_FINAL_ACCEPTANCE.md; '' = no)"),
 ):
     """Stage-1 final gate: criteria A-Y from the REAL database. Read-only.
 
-    Exit 0 only when the overall verdict is COMPLETE.
+    Exit 0 only when the overall verdict is COMPLETE. The gate's inputs and the
+    default outputs are anchored to the project, never to the working directory;
+    an explicit --out / --md is taken as given (relative to where you run it).
     """
     import json as _json
     import pathlib
 
-    from app.acceptance.stage1 import evaluate, to_markdown
+    from app.acceptance.stage1 import anchored, evaluate, to_markdown
     from app.db.engine import get_sessionmaker
+
+    out = out or str(anchored("var/acceptance/stage1.json"))
+    md = str(anchored("../docs/STAGE_1_FINAL_ACCEPTANCE.md").resolve()) if md is None else md
 
     async def _go():
         async with get_sessionmaker()() as s:

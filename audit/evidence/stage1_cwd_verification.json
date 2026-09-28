@@ -1,0 +1,203 @@
+{
+ "finding": "BUG-STAGE1-CLI-CWD-RELATIVE-PATHS",
+ "command": ".venv/bin/prajna acceptance stage1 --out <scratch> --md ''",
+ "before_fix": {
+  "repository root (independent audit)": {
+   "generated_at": "2026-09-28T13:12:38.624212+00:00",
+   "overall": "NOT COMPLETE",
+   "waiting": [
+    "R",
+    "X"
+   ],
+   "failing": [
+    "K"
+   ],
+   "K_evidence": {}
+  },
+  "backend/ (independent audit)": {
+   "generated_at": "2026-09-28T13:13:45.571079+00:00",
+   "overall": "COMPLETE",
+   "waiting": [],
+   "failing": [],
+   "K_evidence": {
+    "report": "var/acceptance/preopen_2026-09-28.json",
+    "verdict": "PASS",
+    "real_market_data": true,
+    "non_pass": {},
+    "B7": "OBSERVED",
+    "B8": "RESOLVED"
+   }
+  }
+ },
+ "after_fix": {
+  "/home/cis/windows/prajna/backend": {
+   "generated_at": "2026-09-28T15:16:45.912008+00:00",
+   "overall": "COMPLETE",
+   "live_readiness": "PASS",
+   "waiting": [],
+   "deferred": [
+    "G",
+    "I",
+    "J",
+    "S"
+   ],
+   "failing": [],
+   "statuses": {
+    "A": "PASS",
+    "B": "PASS",
+    "C": "PASS",
+    "D": "PASS",
+    "E": "PASS",
+    "F": "PASS",
+    "G": "DEFERRED",
+    "H": "OUT_OF_SCOPE",
+    "I": "DEFERRED",
+    "J": "DEFERRED",
+    "K": "PASS",
+    "L": "OUT_OF_SCOPE",
+    "M": "PASS",
+    "N": "PASS",
+    "O": "PASS",
+    "P": "PASS",
+    "Q": "PASS",
+    "R": "PASS",
+    "S": "DEFERRED",
+    "T": "PASS",
+    "U": "PASS",
+    "V": "PASS",
+    "W": "PASS",
+    "X": "PASS",
+    "Y": "PASS"
+   },
+   "K_evidence": {
+    "report": "var/acceptance/preopen_2026-09-28.json",
+    "verdict": "PASS",
+    "real_market_data": true,
+    "non_pass": {},
+    "B7": "OBSERVED",
+    "B8": "RESOLVED"
+   },
+   "R_rerun_checks": [
+    "CLOSE_RERUN_CHECK jobs=9 complete=9 inserted=0 failed=0 idempotent=True"
+   ],
+   "X_timing": {
+    "B1": "VERIFIED",
+    "B2": "VERIFIED",
+    "B2_original": "CONTRADICTED"
+   }
+  },
+  "/home/cis/windows/prajna": {
+   "generated_at": "2026-09-28T15:17:18.546217+00:00",
+   "overall": "COMPLETE",
+   "live_readiness": "PASS",
+   "waiting": [],
+   "deferred": [
+    "G",
+    "I",
+    "J",
+    "S"
+   ],
+   "failing": [],
+   "statuses": {
+    "A": "PASS",
+    "B": "PASS",
+    "C": "PASS",
+    "D": "PASS",
+    "E": "PASS",
+    "F": "PASS",
+    "G": "DEFERRED",
+    "H": "OUT_OF_SCOPE",
+    "I": "DEFERRED",
+    "J": "DEFERRED",
+    "K": "PASS",
+    "L": "OUT_OF_SCOPE",
+    "M": "PASS",
+    "N": "PASS",
+    "O": "PASS",
+    "P": "PASS",
+    "Q": "PASS",
+    "R": "PASS",
+    "S": "DEFERRED",
+    "T": "PASS",
+    "U": "PASS",
+    "V": "PASS",
+    "W": "PASS",
+    "X": "PASS",
+    "Y": "PASS"
+   },
+   "K_evidence": {
+    "report": "var/acceptance/preopen_2026-09-28.json",
+    "verdict": "PASS",
+    "real_market_data": true,
+    "non_pass": {},
+    "B7": "OBSERVED",
+    "B8": "RESOLVED"
+   },
+   "R_rerun_checks": [
+    "CLOSE_RERUN_CHECK jobs=9 complete=9 inserted=0 failed=0 idempotent=True"
+   ],
+   "X_timing": {
+    "B1": "VERIFIED",
+    "B2": "VERIFIED",
+    "B2_original": "CONTRADICTED"
+   }
+  },
+  "/tmp/claude-1000/-home-cis-windows-prajna/6c2c4592-f715-4930-a31c-5d11149b314d/scratchpad/cwd_other (unrelated directory)": {
+   "generated_at": "2026-09-28T15:17:52.102179+00:00",
+   "overall": "COMPLETE",
+   "live_readiness": "PASS",
+   "waiting": [],
+   "deferred": [
+    "G",
+    "I",
+    "J",
+    "S"
+   ],
+   "failing": [],
+   "statuses": {
+    "A": "PASS",
+    "B": "PASS",
+    "C": "PASS",
+    "D": "PASS",
+    "E": "PASS",
+    "F": "PASS",
+    "G": "DEFERRED",
+    "H": "OUT_OF_SCOPE",
+    "I": "DEFERRED",
+    "J": "DEFERRED",
+    "K": "PASS",
+    "L": "OUT_OF_SCOPE",
+    "M": "PASS",
+    "N": "PASS",
+    "O": "PASS",
+    "P": "PASS",
+    "Q": "PASS",
+    "R": "PASS",
+    "S": "DEFERRED",
+    "T": "PASS",
+    "U": "PASS",
+    "V": "PASS",
+    "W": "PASS",
+    "X": "PASS",
+    "Y": "PASS"
+   },
+   "K_evidence": {
+    "report": "var/acceptance/preopen_2026-09-28.json",
+    "verdict": "PASS",
+    "real_market_data": true,
+    "non_pass": {},
+    "B7": "OBSERVED",
+    "B8": "RESOLVED"
+   },
+   "R_rerun_checks": [
+    "CLOSE_RERUN_CHECK jobs=9 complete=9 inserted=0 failed=0 idempotent=True"
+   ],
+   "X_timing": {
+    "B1": "VERIFIED",
+    "B2": "VERIFIED",
+    "B2_original": "CONTRADICTED"
+   }
+  }
+ },
+ "after_fix_identical": true
+}
