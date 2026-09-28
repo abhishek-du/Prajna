@@ -63,7 +63,7 @@ class TestReadAPI:
     async def test_registry(self, client):
         d = (await client.get("/v1/stage3/registry")).json()["data"]
         assert d["summary"]["diagram_items"] == 31 and len(d["features"]) == 65
-        assert d["decisions"]["FEATURE-PARAMS"]["status"] == "PENDING"
+        assert d["decisions"]["FEATURE-PARAMS"]["status"] == "APPROVED"
 
     async def test_status_is_locked_by_default(self, client):
         d = (await client.get("/v1/stage3/status")).json()["data"]
@@ -98,7 +98,7 @@ class TestAcceptance:
         st = {c["id"]: c["status"] for c in rep["criteria"]}
         assert st["A"] == st["B"] == st["C"] == st["D"] == st["F"] == st["J"] == "PASS"
         assert st["K"] == st["G"] == "NOT_RUN"
-        assert st["M"] == "BLOCKED" and st["N"] == "PENDING" and st["O"] == "PENDING"
+        assert st["M"] == "BLOCKED" and st["N"] == "PASS" and st["O"] == "PENDING"
         reached = {lv["level"]: lv["reached"] for lv in rep["levels"]}
         assert reached["IMPLEMENTED"] and not reached["TESTED"]
         assert not reached["PRODUCTION READY"] and not reached["PRODUCTION UNLOCKED"]

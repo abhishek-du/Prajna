@@ -53,9 +53,9 @@ class TestRegistry:
             if f.group == "preopen":
                 assert f.snapshots == ("PRE_OPEN",)
 
-    def test_proposed_parameters_are_pending_approval(self):
+    def test_proposed_parameters_are_approved(self):
         assert any(f.param_status == "PROPOSED" for f in R.FEATURES)
-        assert DECISIONS["FEATURE-PARAMS"]["status"] == "PENDING"
+        assert all(d["status"] == "APPROVED" for d in DECISIONS.values())
 
     def test_registry_hash_is_stable_and_definition_sensitive(self):
         doc = R.registry_document()

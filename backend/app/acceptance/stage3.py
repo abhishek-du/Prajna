@@ -338,8 +338,7 @@ def to_markdown(rep: dict) -> str:
           "## What unlocks production", "",
           "1. Stage 1 COMPLETE, evaluated fresh at execution time (criterion M).",
           "2. Stage 2 report PASS, at most 7 days old, with its tests (M).",
-          "3. The user approves decision FEATURE-PARAMS: the PROPOSED indicator windows "
-          "(N; see `prajna stage3 registry`).",
+          "3. Every Stage 3 decision approved (N; FEATURE-PARAMS approved 2026-09-28).",
           "4. `PRAJNA_STAGE3_ENABLED=true`, the kill switch released, and a write token. "
           "A feature backfill additionally needs `PRAJNA_STAGE3_BACKFILL_ENABLED=true`.",
           "", "Until then `prajna stage3 run --commit` and `prajna stage3 backfill --commit` "

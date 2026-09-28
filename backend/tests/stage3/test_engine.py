@@ -456,11 +456,12 @@ class TestLocks:
         assert e.value.report.summary()["failing"] == ["write_token"]
 
     async def test_defaults_refuse_everything(self, world):
-        """No test overrides: the real defaults (flag off, FEATURE-PARAMS pending)."""
+        """No test overrides: the real defaults (flag off; Stage 1 not evaluated COMPLETE
+        on the seed world)."""
         with pytest.raises(locks.LockRefused) as e:
             await run(world)
         failing = e.value.report.summary()["failing"]
-        assert "stage3_enabled" in failing and "decisions_approved" in failing
+        assert "stage3_enabled" in failing and "decisions_approved" not in failing
 
     async def test_backfill_needs_its_own_flag(self, world, unlocked, monkeypatch):
         with pytest.raises(locks.LockRefused) as e:

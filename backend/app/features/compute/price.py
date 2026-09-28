@@ -1,7 +1,7 @@
 """Price & technical features (diagram group 1). Daily bars, oldest first.
 
-Definitions (parameters PROPOSED unless the diagram names them; decision
-FEATURE-PARAMS):
+Definitions (parameters PROPOSED unless the diagram names them; approved,
+decision FEATURE-PARAMS):
   ret_n            close[-1] / close[-1-n] - 1                (1, 5, 20: SPECIFIED)
   sma_n            mean of the last n closes; close_to_sma_n = close / sma - 1
   ema_n            alpha = 2/(n+1), seeded with the SMA of the first n closes

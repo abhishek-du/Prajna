@@ -7,8 +7,8 @@ every condition holds; each refusal names every unmet condition and is audited.
     stage1_complete       the Stage 1 gate, evaluated NOW, is COMPLETE (never a cached file)
     stage2_pass           the latest Stage 2 report is PASS, <= 7 days old, with its test
                           criterion (P) PASS
-    decisions_approved    every Stage 3 decision is APPROVED (FEATURE-PARAMS is PENDING
-                          until the user approves the proposed parameters)
+    decisions_approved    every Stage 3 decision is APPROVED (FEATURE-PARAMS: approved
+                          by the user 2026-09-28)
     registry_consistent   every IMPLEMENTED feature has a group, inputs and a definition
     write_token           the write token is authorised
   BACKFILL  (write features for past sessions): all of RUN, plus

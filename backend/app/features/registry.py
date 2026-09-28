@@ -3,7 +3,8 @@ groups), what Prajna does with it, and the exact definition of each feature.
 
 status        IMPLEMENTED | UNSUPPORTED (no data source; source named) | UNKNOWN (no definition)
 param_status  SPECIFIED (named by the diagram or fully determined by it)
-              | PROPOSED (conventional; decision FEATURE-PARAMS pending approval)
+              | PROPOSED (conventional, not named by the diagram; approved by the user
+                2026-09-28, decision FEATURE-PARAMS)
 scope         INSTRUMENT (per stock/index) | CONTEXT (market-wide; stored under the
               context instrument key, e.g. an index, a global instrument, or MARKET)
 snapshots     which snapshots compute it (pre-open features: PRE_OPEN only)

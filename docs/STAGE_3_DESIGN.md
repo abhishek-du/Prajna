@@ -27,7 +27,7 @@ There is no written Stage 3 specification in the repository. The scope comes fro
 | Decision | Status | Content |
 |---|---|---|
 | FEATURE-SCOPE | APPROVED | the six diagram groups; Stages 4–8 out of scope |
-| **FEATURE-PARAMS** | **PENDING** | indicator windows the diagram does not name are *conventional* and recorded as PROPOSED (below). **This blocks production** |
+| FEATURE-PARAMS | APPROVED (2026-09-28) | indicator windows the diagram does not name are *conventional*; the registry marks them PROPOSED (their origin), and the user approved them |
 | FEATURE-SNAPSHOTS | APPROVED | two snapshots per trading session, PRE_SESSION and PRE_OPEN |
 | FEATURE-NO-SOURCE | APPROVED | diagram items with no data source are registered UNSUPPORTED, naming the missing source; nothing is approximated |
 
@@ -223,7 +223,7 @@ The production-run conditions are:
 
 **Blockers before production (all outside the code):**
 1. **Stage 1 is not COMPLETE.** X (B2 timing) waits for today's session.
-2. **FEATURE-PARAMS** needs the user's approval of the PROPOSED windows.
+2. ~~FEATURE-PARAMS~~: approved by the user on 2026-09-28.
 3. The operator must set `PRAJNA_STAGE3_ENABLED=true`.
 4. A schedule must be designed, given the throughput above (UNKNOWN: start time and cadence).
 
