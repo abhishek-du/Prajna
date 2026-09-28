@@ -20,7 +20,8 @@ from app.readapi import main as M
 from tests.stage3.test_engine import unlocked  # noqa: F401  (fixture)
 from tests.support import stage3_seed as W
 
-pytestmark = [pytest.mark.db, pytest.mark.integration]
+pytestmark = [pytest.mark.db, pytest.mark.integration,
+              pytest.mark.isolation("REPEATABLE READ")]   # run_snapshot needs one snapshot
 TOKEN = os.environ["PRAJNA_WRITE_TOKEN"]
 KEY = up.quote(W.A, safe="")
 

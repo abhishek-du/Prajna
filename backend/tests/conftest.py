@@ -128,7 +128,7 @@ def pytest_collection_modifyitems(config, items):
 
 # ── session fixtures ────────────────────────────────────────────────────────
 @pytest.fixture
-async def db_session():
+async def db_session(request):
     """An AsyncSession bound to a transaction that is ALWAYS rolled back.
 
     Ported from V1's scripts/phase5_isolation.py, which got this right: bind the
@@ -136,11 +136,18 @@ async def db_session():
     so the code under test can call commit() and still leave nothing behind.
     Its predecessor patched commit() into a no-op, which silently invalidated
     every read-back and therefore the whole experiment.
+
+    @pytest.mark.isolation("REPEATABLE READ") runs the enclosing transaction at that
+    level, as code that begins its own consistent snapshot (Stage 3) needs: inside
+    a savepoint it cannot set the level itself.
     """
     from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
     engine = create_async_engine(TEST_DSN, poolclass=None)
     conn = await engine.connect()
+    level = request.node.get_closest_marker("isolation")
+    if level is not None:
+        await conn.execution_options(isolation_level=level.args[0])
     trans = await conn.begin()
     session = AsyncSession(bind=conn, join_transaction_mode="create_savepoint",
                            expire_on_commit=False)

@@ -1419,7 +1419,7 @@ def stage3_compute(
 
     async def _go():
         async with get_sessionmaker()() as s:
-            await s.execute(_t("set transaction read only"))
+            await E.consistent_read(s, read_only=True)    # the run's isolation, never a write
             keys = list(key or [])
             for sym in symbol or []:
                 k = (await s.execute(_t("""select instrument_key from canon_instrument

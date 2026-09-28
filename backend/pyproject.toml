@@ -61,6 +61,7 @@ markers = [
   "db: requires the test database",
   "integration: multi-component",
   "slow: long-running",
+  "isolation(level): db_session's enclosing transaction runs at this isolation level",
 ]
 filterwarnings = ["error::DeprecationWarning:app.*"]
 

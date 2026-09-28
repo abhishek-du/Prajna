@@ -30,7 +30,8 @@ from app.ops.reaper import reap_runs
 from tests.support import stage3_seed as W
 from tests.support.stage2_seed import _payload, _run
 
-pytestmark = [pytest.mark.db, pytest.mark.integration]
+pytestmark = [pytest.mark.db, pytest.mark.integration,
+              pytest.mark.isolation("REPEATABLE READ")]   # run_snapshot needs one snapshot
 TOKEN = os.environ["PRAJNA_WRITE_TOKEN"]
 PRE_SESSION_AT = W.ist(2026, 9, 24, 8, 59, 59)
 PRE_OPEN_AT = W.ist(2026, 9, 24, 9, 8)
@@ -515,3 +516,100 @@ class TestFiiDiiStaleness:
         assert sn.previous_session == _dt.date(2026, 9, 11)
         v = by(await E.compute_snapshot(world, sn, [W.A]))
         assert v[("MARKET", "fii_net_cash_1d")] == (50.0, None)
+
+
+# ── one consistent database snapshot per run ─────────────────────────────────
+class Concurrent:
+    """Another client on its own connection: what it commits is visible to every
+    new transaction at once. It removes exactly what it committed afterwards."""
+
+    def __init__(self):
+        from sqlalchemy.ext.asyncio import create_async_engine
+
+        from tests.conftest import TEST_DSN
+        self.engine = create_async_engine(TEST_DSN, poolclass=None)
+        self.runs: list[uuid.UUID] = []
+
+    async def commit_fii(self, day, buy, sell, knowable):
+        async with self.engine.begin() as c:
+            from sqlalchemy.ext.asyncio import AsyncSession
+            s = AsyncSession(bind=c)
+            await _fii(s, day, buy, sell, knowable)
+            self.runs += [r for (r,) in (await s.execute(text(
+                "select run_id from ingest_run where stream like 'macro.%'"))).all()
+                if r not in self.runs]
+            await s.flush()
+
+    async def visible(self, sql, **kw):
+        async with self.engine.connect() as c:          # a new READ COMMITTED transaction
+            return (await c.execute(text(sql), kw)).scalar()
+
+    async def close(self):
+        async with self.engine.begin() as c:
+            for r in self.runs:
+                await c.execute(text("delete from macro_observation where run_id = :r"), {"r": r})
+                await c.execute(text("delete from raw_payload where first_seen_run = :r"),
+                                {"r": r})
+                await c.execute(text("delete from ingest_run where run_id = :r"), {"r": r})
+        await self.engine.dispose()
+
+
+@pytest.fixture
+async def concurrent():
+    c = Concurrent()
+    try:
+        yield c
+    finally:
+        await c.close()
+
+
+class TestSnapshotConsistency:
+    async def test_a_commit_during_the_run_is_not_observed(self, world, unlocked, concurrent,
+                                                           monkeypatch):
+        """The run starts reading (the benchmark index, then the first instrument); a
+        concurrent transaction then commits the FII/DII figure of 09-23, knowable
+        09-24 08:00 IST - before PRE_SESSION as_of 08:59:59, so a fresh read would use
+        it. The run continues and must still see the state it started from: FII/DII
+        MISSING_INPUT, as when it began, with no mix of the two states."""
+        real, calls = I.instrument_inputs, {"n": 0}
+
+        async def mid_run(s, key, sn):
+            calls["n"] += 1
+            if calls["n"] == 2:                  # the run has read the index and W.A
+                await concurrent.commit_fii(_dt.date(2026, 9, 23), 100, 40,
+                                            W.ist(2026, 9, 24, 8))
+            return await real(s, key, sn)
+        monkeypatch.setattr(I, "instrument_inputs", mid_run)
+        r = await run(world)
+        assert calls["n"] > 2 and r["committed"] is True       # committed mid-run
+        assert await concurrent.visible(
+            "select count(*) from macro_observation where observation_date = '2026-09-23'") == 2
+        stored_fii = (await world.execute(text("""select value, reason from feature_value
+            where feature_id = 'fii_net_cash_1d'"""))).one()
+        assert tuple(stored_fii) == (None, "MISSING_INPUT")    # not 60.0 from the late commit
+
+    async def test_the_production_session_sets_repeatable_read_itself(self, concurrent):
+        """Outside the test harness (a plain session, as the CLI and cron use), the run's
+        transaction is REPEATABLE READ and keeps its first-read state across a
+        concurrent commit; the dry-run's is also READ ONLY."""
+        from sqlalchemy.ext.asyncio import AsyncSession
+        n_sql = "select count(*) from macro_observation where observation_date = '2026-09-23'"
+        async with concurrent.engine.connect() as conn:
+            s = AsyncSession(bind=conn)
+            assert await E.consistent_read(s, read_only=False) == "repeatable read"
+            before = (await s.execute(text(n_sql))).scalar()
+            await concurrent.commit_fii(_dt.date(2026, 9, 23), 100, 40, W.ist(2026, 9, 24, 8))
+            assert (await s.execute(text(n_sql))).scalar() == before       # same snapshot
+            assert await concurrent.visible(n_sql) == before + 2           # committed
+            await s.commit()
+            assert (await s.execute(text(n_sql))).scalar() == before + 2   # next transaction
+            await s.commit()
+            assert await E.consistent_read(s, read_only=True) == "repeatable read"
+            assert (await s.execute(text("show transaction_read_only"))).scalar() == "on"
+            await s.rollback()
+
+    @pytest.mark.isolation("READ COMMITTED")
+    async def test_a_run_refuses_without_a_consistent_snapshot(self, world, unlocked):
+        with pytest.raises(E.SnapshotIsolationError):
+            await run(world)
+        assert await stored(world) == 0 and await events(world, "RUN_FAILED") == 1

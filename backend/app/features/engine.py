@@ -10,6 +10,11 @@ run_snapshot()      a production run: locks are checked HERE (defence in depth, 
 A compute exception (a bug, a look-ahead) fails loud: the run is FAILED and its
 writes roll back. Missing or malformed inputs are not exceptions: they produce
 null values with a reason, and the run continues.
+
+Every input read, the determinism check and the persistence of one snapshot
+share ONE database snapshot (consistent_read: REPEATABLE READ), so a canon job
+committing mid-run (maintenance canon at 09:10, during PRE_OPEN) can never give
+one snapshot a mix of before and after states.
 """
 
 from __future__ import annotations
@@ -84,6 +89,33 @@ class DeterminismMismatch(RuntimeError):
 
 class KillSwitchEngaged(RuntimeError):
     """The Stage 3 kill switch was engaged while the run was in progress."""
+
+
+class SnapshotIsolationError(RuntimeError):
+    """The transaction cannot provide one consistent snapshot; nothing is computed."""
+
+
+CONSISTENT_LEVELS = ("repeatable read", "serializable")
+
+
+async def consistent_read(s: AsyncSession, *, read_only: bool) -> str:
+    """Begin the session's next transaction at REPEATABLE READ (optionally READ ONLY),
+    so every later statement in it sees the database as of its first query.
+
+    Must be called with no transaction in progress (after a commit). A session
+    joined to an enclosing transaction (the test harness: a savepoint) cannot set
+    the level itself; the enclosing transaction must already be REPEATABLE READ or
+    SERIALIZABLE, otherwise this refuses rather than run at READ COMMITTED."""
+    conn = await s.connection()
+    if conn.in_nested_transaction():
+        level = (await s.execute(text("show transaction_isolation"))).scalar()
+        if level not in CONSISTENT_LEVELS:
+            raise SnapshotIsolationError(f"enclosing transaction is {level!r}; one consistent "
+                                         "snapshot needs repeatable read")
+        return level
+    await s.execute(text("set transaction isolation level repeatable read"
+                         + (", read only" if read_only else "")))
+    return (await s.execute(text("show transaction_isolation"))).scalar()
 
 
 # ── per-instrument features ──────────────────────────────────────────────────
@@ -328,8 +360,9 @@ async def run_snapshot(s: AsyncSession, snap: Snapshot, *, keys: list[str] | Non
                                           "registry_sha256": REGISTRY_SHA256,
                                           "instruments": len(keys)},
                           operator=operator, logical_date=snap.session_date)
-    ctx = await runner.open(commit=True, token=token)
+    ctx = await runner.open(commit=True, token=token)      # the run row is committed first
     try:
+        await consistent_read(s, read_only=False)           # compute + persist: one snapshot
         res = await compute_snapshot(s, snap, keys, kill_check=True)
         inserted, present = await persist(s, res, ctx.run_id)
         outcome = {**res.stats(), "inserted": inserted, "already_present": present,
