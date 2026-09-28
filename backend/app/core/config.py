@@ -78,6 +78,13 @@ class Settings(BaseSettings):
     # decisions approved, no kill switch and a write token are also required).
     PRAJNA_STAGE3_ENABLED: bool = Field(default=False)
     PRAJNA_STAGE3_BACKFILL_ENABLED: bool = Field(default=False)
+    # Multi-source news (decisions NEWS-*). All false by default. CRAWLER: any
+    # database-writing (SHADOW) poll of an external source; MULTI_SOURCE: making
+    # the new news tables visible to Stage 2/3/API (not built yet); LIVE_STREAM:
+    # the SSE news stream (not built yet). DRY_RUN polling needs none of them.
+    PRAJNA_NEWS_CRAWLER_ENABLED: bool = Field(default=False)
+    PRAJNA_NEWS_MULTI_SOURCE_ENABLED: bool = Field(default=False)
+    PRAJNA_NEWS_LIVE_STREAM_ENABLED: bool = Field(default=False)
 
     # ── validators ──────────────────────────────────────────────────────────
     @field_validator("PRAJNA_DATABASE_URL", "PRAJNA_TEST_DATABASE_URL")

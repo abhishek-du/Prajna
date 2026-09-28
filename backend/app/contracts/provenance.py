@@ -57,6 +57,8 @@ class AnomalyKind(str, enum.Enum):
 
 # Source identifiers. Upstox-only by constraint #1; there is deliberately no
 # ZERODHA/KITE/YFINANCE member and a test asserts that stays true.
+# Amendment NEWS-SOURCES (user, 2026-09-28): FOR NEWS ONLY, the approved external
+# news sources are registered in app.news.sources (their own keys, not members here).
 class Source(str, enum.Enum):
     UPSTOX_WS_V3 = "UPSTOX_WS_V3"
     UPSTOX_REST_V2 = "UPSTOX_REST_V2"

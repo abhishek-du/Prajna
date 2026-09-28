@@ -1582,5 +1582,165 @@ def acceptance_stage3(
     raise typer.Exit(0 if rep["overall"] == "COMPLETE" else 1)
 
 
+
+news_app = typer.Typer(help="multi-source news (DRY_RUN files; SHADOW writes LOCKED)")
+app.add_typer(news_app, name="news")
+
+
+@news_app.command("sources")
+def news_sources():
+    """The source registry: status, compliance, cadence (no network, no database)."""
+    from app.news.decisions import DECISIONS
+    from app.news.sources import SOURCES
+
+    for s in SOURCES.values():
+        cad = (f"{s.market_interval_s}s/{s.off_interval_s}s/{s.weekend_interval_s}s"
+               if s.market_interval_s else "-")
+        typer.echo(f"{s.key:22} {s.status:11} compliance={s.compliance:8} tier={s.tier} "
+                   f"cadence(mkt/off/wkend)={cad:16} {s.note}")
+    typer.echo("")
+    for k, v in DECISIONS.items():
+        typer.echo(f"{k:16} {v['status']}")
+
+
+@news_app.command("health")
+def news_health():
+    """Per-source health from the DRY_RUN state files (no network)."""
+    import json as _json
+
+    from app.core.clock import now as _now
+    from app.news import http as H
+    from app.news.collector import DRYRUN_DIR, KILL_FILE, DryRunRecorder
+    from app.news.sources import SOURCES
+
+    typer.echo(f"kill switch: {'ENGAGED' if KILL_FILE.exists() else 'off'}")
+    for s in SOURCES.values():
+        if s.status == "UNSUPPORTED":
+            typer.echo(f"{s.key:22} UNSUPPORTED  {s.note}")
+            continue
+        if s.parse is None:
+            typer.echo(f"{s.key:22} DISABLED     adapter not implemented")
+            continue
+        if not (DRYRUN_DIR / s.key / "state.json").exists():
+            typer.echo(f"{s.key:22} DISABLED     never polled")
+            continue
+        r = DryRunRecorder(s)
+        h = H.health(r.http, last_ok=r.last_ok, stale_after_s=3 * max(s.off_interval_s, 300))
+        typer.echo(f"{s.key:22} {h:12} polls={r.polls} items={len(r.seen)} "
+                   f"last_ok={r.last_ok.isoformat() if r.last_ok else None} "
+                   f"recent={_json.dumps(r.http.history[-5:])} "
+                   f"age_s={int((_now() - r.last_ok).total_seconds()) if r.last_ok else None}")
+
+
+@news_app.command("dry-run")
+def news_dry_run(
+    source: str = typer.Option("NSE_ANNOUNCEMENTS", "--source"),
+    polls: int = typer.Option(1, "--polls", help="number of polls (spaced by the source cadence)"),
+    until: str = typer.Option(None, "--until", help="poll until HH:MM today or an ISO "
+                              "date-time with offset, e.g. 2026-09-29T15:45+05:30 "
+                              "(overrides --polls)"),
+):
+    """DRY_RUN: poll a source politely and write evidence files under
+    var/news/dryrun/<source>/. No database write; entity links read the
+    instrument universe read-only."""
+    import datetime as _dt
+
+    from app.core.clock import IST
+    from app.core.clock import now as _now
+    from app.features.locks import LockRefused
+    from app.news import collector as C
+    from app.news import locks as NL
+
+    rep = NL.check(source, mode="DRY_RUN", token=None)
+    if not rep.ok:
+        for c in rep.conditions:
+            typer.echo(f"{'PASS' if c['ok'] else 'FAIL':5} {c['name']:20} {c['detail']}")
+        raise typer.Exit(3)
+    end = None
+    if until and "T" in until:
+        end = _dt.datetime.fromisoformat(until)
+        if end.tzinfo is None:
+            raise typer.BadParameter("--until needs a UTC offset, e.g. +05:30")
+    elif until:
+        hh, mm = (int(x) for x in until.split(":"))
+        end = _dt.datetime.combine(_now().astimezone(IST).date(), _dt.time(hh, mm), tzinfo=IST)
+    try:
+        out = asyncio.run(C.dry_run(source, polls=polls, until=end))
+    except LockRefused as e:
+        typer.echo(str(e))
+        raise typer.Exit(3) from None
+    for p in out:
+        typer.echo(f"{p['finished_at']} {p['outcome']:13} http={p['http_status']} "
+                   f"seen={p['items_seen']} new={p['items_new']} changed={p['items_changed']} "
+                   f"backlog={p['backlog']}" + (f" error={p['error']}" if p['error'] else ""))
+
+
+@news_app.command("report")
+def news_report(
+    source: str = typer.Option("NSE_ANNOUNCEMENTS", "--source"),
+    day: str = typer.Option(None, "--day", help="IST date (default today)"),
+):
+    """Summarise a DRY_RUN day: polls, items, latency, duplicates, mapping."""
+    import json as _json
+
+    from app.news.collector import DRYRUN_DIR
+    from app.news.report import summarise
+
+    typer.echo(_json.dumps(summarise(DRYRUN_DIR / source, day), indent=2, default=str))
+
+
+@news_app.command("poll")
+def news_poll(
+    source: str = typer.Option("NSE_ANNOUNCEMENTS", "--source"),
+    commit: bool = typer.Option(False, "--commit", help="required: SHADOW database write (LOCKED)"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN"),
+):
+    """SHADOW: one poll written to the news_* tables. LOCKED: needs
+    PRAJNA_NEWS_CRAWLER_ENABLED, kill switch off, source compliance APPROVED and a
+    write token; refusals exit 3 and are audited."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.features.locks import LockRefused
+    from app.news.store import poll_shadow
+
+    if not commit:
+        typer.echo("news poll writes: pass --commit (lock-checked). Read-only: prajna news dry-run")
+        raise typer.Exit(2)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await poll_shadow(s, source, token=token)
+
+    try:
+        typer.echo(_json.dumps(asyncio.run(_go()), indent=2, default=str))
+    except LockRefused as e:
+        for c in e.report.conditions:
+            typer.echo(f"{'PASS' if c['ok'] else 'FAIL':5} {c['name']:20} {c['detail']}")
+        typer.echo("REFUSED: news SHADOW polling is locked (audited in news_audit); nothing written")
+        raise typer.Exit(3) from None
+
+
+@news_app.command("kill")
+def news_kill(state: str = typer.Argument(..., help="on | off"),
+              reason: str = typer.Option("", "--reason")):
+    """Engage / release the news kill switch (stops DRY_RUN and SHADOW polling); audited."""
+    from app.db.engine import get_sessionmaker
+    from app.news import locks as NL
+
+    if state.lower() not in ("on", "off"):
+        raise typer.BadParameter("on | off")
+    on = state.lower() == "on"
+    NL.set_kill(on, reason)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            await NL.audit(s, "KILL_ON" if on else "KILL_OFF", None, "cli", {"reason": reason})
+            await s.commit()
+
+    asyncio.run(_go())
+    typer.echo(f"news kill switch {'ENGAGED' if on else 'released'}")
+
+
 if __name__ == "__main__":
     app()

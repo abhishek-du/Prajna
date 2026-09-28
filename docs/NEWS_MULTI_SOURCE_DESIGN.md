@@ -1,6 +1,6 @@
 # Multi-source news: audit, feasibility and proposed design
 
-**Status:** PROPOSAL (2026-09-28). Nothing described here has been implemented, scheduled or enabled. There are no new tables, no crawling and no production writes. Implementation needs the decisions in §9.
+**Status (2026-09-28, 16:00 IST):** decisions recorded (§9). The **pilot (NSE corporate announcements) is implemented and tested, and ran one real DRY_RUN poll** (evidence files only). SHADOW database writes are **LOCKED**. Nothing is scheduled. No other source is implemented. See §11 for the pilot's state.
 
 ---
 
@@ -347,16 +347,17 @@ Budget at these values: about **1,000 requests per source per market day** for T
   - per item: publisher time, discovery time, knowable_at and latency;
   - source health and latency pages.
 
-### 9. Decisions needed before implementation
+### 9. Decisions (recorded in `app/news/decisions.py`)
 
-| ID | Question | Proposal |
+| ID | Status | Decision |
 |---|---|---|
-| **NEWS-SOURCES** | Amend constraint #1 ("Upstox-only") so that external news sources are allowed? Which ones? | allow the **feasible** set: NSE announcements, ET, Business Standard, BusinessLine, Livemint, CNBC-TV18 |
-| **NEWS-COMPLIANCE** | Terms-of-use review per source (I cannot give a legal opinion). Store metadata only? | metadata + URL only for every media source; no bodies or excerpts |
-| **NEWS-PILOT** | Which adapter first? | **NSE announcements** (official, symbol-tagged, conditional GET); alternatively ET RSS if NSE stays excluded |
-| NEWS-KNOWABLE | `knowable_at = discovered_at` for all new data; existing `news_article` rows untouched and projected with `fetched_at` | as stated |
-| NEWS-CADENCE | Starting cadences (§5) instead of 15 s | as stated, revised after the dry-run |
-| NEWS-RUNTIME | A long-running collector daemon (systemd user service or supervised runbook) instead of cron | daemon, separate lock and connection pool |
+| **NEWS-SOURCES** | **APPROVED** (user, 2026-09-28: "All feasible") | Constraint #1 (Upstox-only) is **amended for news only**. Allowed: NSE announcements, ET, Business Standard, BusinessLine, Livemint, CNBC-TV18. Moneycontrol, Zee Business and Reuters are UNSUPPORTED (blocked or disallowed; no bypass) |
+| **NEWS-CONTENT** | **APPROVED** (user) | Store metadata, URL and the feed's short description. Store the article **body where a source's pages are publicly accessible and allowed by robots.txt** (never behind a paywall, login or bot protection). An **AI description via AWS Bedrock** is a versioned enrichment (knowable when generated), never fact and never a Stage 3 feature without its own spec. The Bedrock credentials are to be read from `auto-trade-pro/.env` (V1) at the time that step is built: never printed, and V1 never modified. **Body collection and AI descriptions are not built yet** |
+| **NEWS-PILOT** | **APPROVED** (user) | NSE corporate announcements RSS first |
+| NEWS-KNOWABLE | APPROVED (your Phase 1 rule) | `knowable_at = discovered_at`; existing Upstox rows untouched |
+| NEWS-CADENCE | PROPOSED | The NSE feed declares `<ttl>5</ttl>`, so the pilot polls every 5 min in market hours (15 min off-hours, 30 min at weekends) and never faster than the ttl, instead of the 60 s proposed earlier |
+| NEWS-COMPLIANCE | **PENDING** | Per-source terms-of-use review, by the user. Until APPROVED for a source, only DRY_RUN is possible for it: the SHADOW lock checks this |
+| NEWS-RUNTIME | PROPOSED | A long-running collector daemon; not yet decided or built |
 
 **Flags, all default false:**
 - `PRAJNA_NEWS_MULTI_SOURCE_ENABLED` (enrichment and visibility);
@@ -382,3 +383,49 @@ There is also a kill file `var/run/news.kill`. **PRODUCTION requires** Stage 1 C
 13. SHADOW run, then the production-readiness report.
 
 At each step: tests, `git diff --check`, and a commit. Nothing reaches PRODUCTION without the §9 decisions and the flags.
+
+---
+
+## 11. Pilot state (NSE corporate announcements)
+
+**Built:**
+- `app/news/`:
+  - `sources/nse_announcements.py`: pure parser;
+  - `http.py`: conditional GET, ttl floor, jitter, backoff, 403 stops the source, and no bypass;
+  - `enrich.py`: `EXCHANGE_SUBJECT` classification and entity links;
+  - `collector.py`: timing, backlog, and the DRY_RUN recorder;
+  - `store.py`: locked SHADOW writes;
+  - `locks.py`;
+  - `report.py`.
+- Migration **0013**: `news_poll`, `news_item`, `news_item_observation`, `news_classification`, `news_entity_link` and `news_audit`, all append-only (trigger), with `knowable_at >= discovered_at` checked. It was applied to production after backup `prajna_20260928T1543_news_pre_0013.dump` (verified). The tables are empty.
+- CLI: `prajna news sources | health | dry-run | report | poll --commit (LOCKED) | kill on|off`.
+- Flags, all false: `PRAJNA_NEWS_CRAWLER_ENABLED`, `PRAJNA_NEWS_MULTI_SOURCE_ENABLED`, `PRAJNA_NEWS_LIVE_STREAM_ENABLED`.
+- Tests: `tests/news/`, 47 tests covering parsing, malformed and hostile XML, timing and backlog, knowable = discovery, edits as observations, entity links, classification, 304/403/429/5xx, backoff, ttl, the kill switch, database-down isolation, restart, the SHADOW lock, idempotency, append-only storage and the PIT check.
+
+**Entity links: the file-name symbol is the uploader's code.**
+- A debenture trustee files for its issuer; a filing agent files under its own code. So `EXACT_SYMBOL` requires the filer name to agree with the instrument name.
+- Name-only matches (`COMPANY_NAME`) are strict: an unmatched filer word must be a filler, parenthesised, or trail a truncated vendor name.
+- Fund and ETF scheme filings are never mapped by name.
+- Measured false positives, now prevented and covered by tests:
+  - "Kotak Mahindra Mutual Fund - Kotak Nifty MNC ETF" was matched to "KOTAK NIFTY ETF";
+  - "SUNDARAM HOME FINANCE" was matched to "SUNDARAM FINANCE LTD".
+
+**First real DRY_RUN poll (2026-09-28 15:45 IST), one request:**
+
+| Measure | Result |
+|---|---|
+| Response | HTTP 200, 506 KB |
+| Items | 1,228, all backlog (the first response), so no latency is claimed |
+| Same link repeated in the feed | 62 |
+| Mapping, final rules (re-evaluated offline on the archived response) | 335 EXACT_SYMBOL, 578 COMPANY_NAME, 1 ALIAS, 314 UNRESOLVED (**74.4%**); most unresolved filers are unlisted debt issuers (NABARD, NIIF…) or fund schemes |
+| Classification | 1,133 OTHER (trading-window, NAV and routine filings), then MANAGEMENT_CHANGE 38, DEBT 24, ORDER_CONTRACT 12, … |
+
+**Not yet done:**
+1. A **full market-session DRY_RUN** to measure latency; the first response is backlog by definition.
+2. `docs/NEWS_MULTI_SOURCE_DRY_RUN.md`.
+3. Event clustering (L3/L4).
+4. The other adapters.
+5. Body fetching and Bedrock descriptions.
+6. The Stage 2 views and `pit` functions, Stage 3 FEATURE-NEWS-V2, the read API and the `web/` screens.
+7. The news acceptance gate.
+8. The runtime daemon.

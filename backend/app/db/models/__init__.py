@@ -12,6 +12,14 @@ from app.db.models.contracts import (
 )
 from app.db.models.control import IngestAnomaly, IngestRun, IngestWatermark, RawPayload
 from app.db.models.features import FeatureValue, Stage3Event
+from app.db.models.news import (
+    NewsAudit,
+    NewsClassification,
+    NewsEntityLink,
+    NewsItem,
+    NewsItemObservation,
+    NewsPoll,
+)
 from app.db.models.market import (
     GlobalInstrumentContract,
     OhlcvBar,
@@ -38,6 +46,8 @@ __all__ = [
     "OhlcvBar", "TickArchive", "OhlcvPayloadBasis", "OhlcvObservation", "CaFactor",
     "GlobalInstrumentContract",
     "FeatureValue", "Stage3Event",
+    "NewsPoll", "NewsItem", "NewsItemObservation", "NewsClassification", "NewsEntityLink",
+    "NewsAudit",
     "CorporateAction", "FundamentalSnapshot", "MacroObservation", "NewsArticle",
     "NewsInstrument", "CanonInstrument", "CanonCoverage",
 ]

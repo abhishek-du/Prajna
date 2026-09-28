@@ -1,0 +1,4 @@
+# NSE announcements RSS response validators, measured 2026-09-28 (conditional GET works)
+etag: W/"481283-1790589708471"
+last-modified: Mon, 28 Sep 2026 10:01:48 GMT
+content-type: application/xml
