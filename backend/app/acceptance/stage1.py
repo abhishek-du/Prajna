@@ -3,12 +3,16 @@
 READ-ONLY. Every status is derived from rows, runs, archives and the decision
 register below; nothing is asserted from memory. Statuses:
 
-  PASS          the criterion holds on the current data
-  FAIL          it does not (data missing, incomplete, or wrong)
-  BLOCKED       it cannot pass until a named human decision is taken
-  OUT_OF_SCOPE  excluded by an APPROVED decision (the register names it)
+  PASS                  the criterion holds on the current data
+  FAIL                  it does not (data missing, incomplete, or wrong)
+  BLOCKED               it cannot pass until a named human decision is taken
+  OUT_OF_SCOPE          excluded by an APPROVED decision (the register names it)
+  DEFERRED              postponed by an APPROVED decision (e.g. BACKFILL-DEFER)
+  WAITING_FOR_EVIDENCE  the evidence can only come from a future session/refresh
 
-Overall = COMPLETE only if every criterion is PASS or OUT_OF_SCOPE.
+Overall = COMPLETE only if every criterion is PASS, approved OUT_OF_SCOPE or
+approved DEFERRED (WAITING_FOR_EVIDENCE, FAIL and BLOCKED are never settled).
+LIVE_READY = nothing FAIL or BLOCKED.
 
 DECISION REGISTER. A decision is APPROVED only with a dated reference to the
 user's approval; everything else is PENDING and blocks what depends on it.
