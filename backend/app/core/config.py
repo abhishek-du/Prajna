@@ -71,6 +71,13 @@ class Settings(BaseSettings):
     # False by default and until explicitly approved: Stage 2 then only runs as
     # batch processing, and nothing in it can reach signals, orders or brokers.
     STAGE2_LIVE_ENABLED: bool = Field(default=False)
+    # Stage 3 (feature engineering) production execution and feature backfill.
+    # False by default and until explicitly approved: Stage 3 then only computes
+    # in dry-run (read-only); app.features.locks refuses every write. Enabling a
+    # flag is necessary, never sufficient (Stage 1 COMPLETE, Stage 2 PASS,
+    # decisions approved, no kill switch and a write token are also required).
+    PRAJNA_STAGE3_ENABLED: bool = Field(default=False)
+    PRAJNA_STAGE3_BACKFILL_ENABLED: bool = Field(default=False)
 
     # ── validators ──────────────────────────────────────────────────────────
     @field_validator("PRAJNA_DATABASE_URL", "PRAJNA_TEST_DATABASE_URL")

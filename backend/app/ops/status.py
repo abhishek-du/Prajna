@@ -27,7 +27,7 @@ FAMILIES = {
     "candles_1h": "ohlcv.1h.%", "news": "news.%", "fii_dii": "macro.%",
     "corporate_actions": "corporate_action.%", "fundamentals": "fundamentals.%",
     "calendar": "calendar.%", "preopen": "preopen%", "stage2": "canon.process",
-    "maintenance": "maint.%",
+    "maintenance": "maint.%", "stage3": "features.%",
 }
 MARKERS = re.compile(r"(CLOSE_\w+|BACKFILL_\w+|GLOBAL_\w+|CLOSE_RERUN_CHECK|done: \w+.*fail=\d+"
                      r"|ABORT:.*|SKIP:.*)")
