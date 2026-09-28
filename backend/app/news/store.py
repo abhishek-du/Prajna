@@ -117,11 +117,11 @@ async def poll_shadow(s: AsyncSession, source_key: str, *, token: str | None,
             await s.execute(insert(NewsClassification).values(
                 item_id=iid, category=c.category, confidence=c.confidence, method=c.method,
                 version=c.version, classified_at=t, knowable_at=t))
-            ln = d.link
-            await s.execute(insert(NewsEntityLink).values(
-                item_id=iid, instrument_key=ln.instrument_key, method=ln.method,
-                confidence=ln.confidence, matched_text=ln.matched_text, reason=ln.reason,
-                version=ln.version, mapped_at=t, knowable_at=t))
+            for ln in d.links:
+                await s.execute(insert(NewsEntityLink).values(
+                    item_id=iid, instrument_key=ln.instrument_key, method=ln.method,
+                    confidence=ln.confidence, matched_text=ln.matched_text, reason=ln.reason,
+                    version=ln.version, mapped_at=t, knowable_at=t))
         if o.changed:
             ids = dict((await s.execute(select(NewsItem.source_article_id, NewsItem.id).where(
                 NewsItem.source == src.key, NewsItem.source_article_id.in_(

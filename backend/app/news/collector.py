@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime as _dt
+import fcntl
 import gzip
 import json
 import pathlib
@@ -57,7 +58,12 @@ class Discovery:
     discovered_at: _dt.datetime
     backlog: bool
     classification: EN.Classification
-    link: EN.Link
+    links: list[EN.Link]
+
+    @property
+    def link(self) -> EN.Link:
+        """The most confident link (UNRESOLVED only when there is nothing else)."""
+        return max(self.links, key=lambda ln: ln.confidence)
 
     @property
     def latency_s(self) -> float | None:
@@ -109,13 +115,18 @@ def process(src: Source, fetch: H.FetchResult, seen: dict[str, Seen], *,
     out.issues = [{"kind": i.kind, "detail": i.detail} for i in feed.issues]
     out.seen, out.backlog = len(feed.items), first_success
     at = fetch.finished_at
+    exchange = src.enrich == "EXCHANGE"
+    index = EN.HeadlineIndex(universe) if (universe is not None and not exchange) else None
     # symbol-bearing items first, so a filer name learned in this response can
     # map the same filer's symbol-less items of the same response
     for it in sorted(feed.items, key=lambda i: i.symbol_raw is None):
         prev = seen.get(it.source_article_id)
         if prev is None:
-            d = Discovery(it, at, first_success, EN.classify(it),
-                          EN.resolve(it, universe, aliases))
+            if exchange:
+                cls, links = EN.classify(it), [EN.resolve(it, universe, aliases)]
+            else:
+                cls, links = EN.classify_keywords(it), EN.resolve_headline(it, universe, index)
+            d = Discovery(it, at, first_success, cls, links)
             out.new.append(d)
             seen[it.source_article_id] = Seen(_iso(at), it.title, it.summary,
                                               _iso(it.published_at), _iso(it.source_updated_at))
@@ -130,12 +141,24 @@ def process(src: Source, fetch: H.FetchResult, seen: dict[str, Seen], *,
     return out
 
 
+class SourceBusy(RuntimeError):
+    """Another process is already dry-running this source (its state is not shared)."""
+
+
 class DryRunRecorder:
     """Evidence files only. Never opens a write transaction."""
 
-    def __init__(self, src: Source, root: pathlib.Path = DRYRUN_DIR):
+    def __init__(self, src: Source, root: pathlib.Path = DRYRUN_DIR, *, lock: bool = False):
         self.src, self.dir = src, root / src.key
         self.dir.mkdir(parents=True, exist_ok=True)
+        self._lock = None
+        if lock:
+            self._lock = open(self.dir / ".lock", "a")  # held for the run (released at exit)
+            try:
+                fcntl.flock(self._lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                self._lock.close()
+                raise SourceBusy(f"{src.key}: already being dry-run by another process") from None
         self.state_file = self.dir / "state.json"
         st = json.loads(self.state_file.read_text()) if self.state_file.exists() else {}
         self.seen = {k: Seen(**v) for k, v in st.get("seen", {}).items()}
@@ -185,7 +208,7 @@ class DryRunRecorder:
                           "discovered_at": _iso(d.discovered_at),
                           "knowable_at": _iso(d.discovered_at), "backlog": d.backlog,
                           "latency_s": d.latency_s, "classification": asdict(d.classification),
-                          "link": asdict(d.link)})
+                          "link": asdict(d.link), "links": [asdict(x) for x in d.links]})
         for it, ch in o.changed:
             lines.append({"type": "change", "source": o.source, "id": it.source_article_id,
                           "observed_at": _iso(f.finished_at), "changed": ch, "title": it.title,
@@ -226,7 +249,7 @@ async def dry_run(source_key: str, *, polls: int = 1, until: _dt.datetime | None
     if src.parse is None or src.status == "UNSUPPORTED":
         raise ValueError(f"{source_key}: no adapter ({src.status})")
     rng = rng or random.Random()  # noqa: S311 - poll jitter, not cryptography
-    rec = DryRunRecorder(src, root)
+    rec = DryRunRecorder(src, root, lock=True)
     universe = await load_universe()
     out: list[dict] = []
     n = 0
@@ -257,3 +280,10 @@ async def dry_run(source_key: str, *, polls: int = 1, until: _dt.datetime | None
             break
         await sleep(H.next_delay(interval_for(src, now()), rec.http, rng))
     return out
+
+
+async def dry_run_many(keys: list[str], **kw) -> dict[str, list[dict] | str]:
+    """Several sources concurrently; one source's failure never affects another."""
+    res = await asyncio.gather(*(dry_run(k, **kw) for k in keys), return_exceptions=True)
+    return {k: (r if not isinstance(r, BaseException) else f"{type(r).__name__}: {r}")
+            for k, r in zip(keys, res, strict=True)}

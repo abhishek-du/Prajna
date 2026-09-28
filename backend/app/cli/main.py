@@ -1634,7 +1634,9 @@ def news_health():
 
 @news_app.command("dry-run")
 def news_dry_run(
-    source: str = typer.Option("NSE_ANNOUNCEMENTS", "--source"),
+    source: str = typer.Option("NSE_ANNOUNCEMENTS", "--source",
+                               help="a source key, a comma-separated list, or MEDIA "
+                                    "(every implemented media adapter)"),
     polls: int = typer.Option(1, "--polls", help="number of polls (spaced by the source cadence)"),
     until: str = typer.Option(None, "--until", help="poll until HH:MM today or an ISO "
                               "date-time with offset, e.g. 2026-09-29T15:45+05:30 "
@@ -1651,11 +1653,17 @@ def news_dry_run(
     from app.news import collector as C
     from app.news import locks as NL
 
-    rep = NL.check(source, mode="DRY_RUN", token=None)
-    if not rep.ok:
-        for c in rep.conditions:
-            typer.echo(f"{'PASS' if c['ok'] else 'FAIL':5} {c['name']:20} {c['detail']}")
-        raise typer.Exit(3)
+    from app.news.sources import SOURCES
+
+    keys = ([k for k, s in SOURCES.items() if s.enrich == "HEADLINE" and s.parse
+             and s.status != "UNSUPPORTED"] if source.upper() == "MEDIA"
+            else [k.strip() for k in source.split(",") if k.strip()])
+    for k in keys:
+        rep = NL.check(k, mode="DRY_RUN", token=None)
+        if not rep.ok:
+            for c in rep.conditions:
+                typer.echo(f"{k}: {'PASS' if c['ok'] else 'FAIL':5} {c['name']:20} {c['detail']}")
+            raise typer.Exit(3)
     end = None
     if until and "T" in until:
         end = _dt.datetime.fromisoformat(until)
@@ -1665,14 +1673,19 @@ def news_dry_run(
         hh, mm = (int(x) for x in until.split(":"))
         end = _dt.datetime.combine(_now().astimezone(IST).date(), _dt.time(hh, mm), tzinfo=IST)
     try:
-        out = asyncio.run(C.dry_run(source, polls=polls, until=end))
+        res = asyncio.run(C.dry_run_many(keys, polls=polls, until=end))
     except LockRefused as e:
         typer.echo(str(e))
         raise typer.Exit(3) from None
-    for p in out:
-        typer.echo(f"{p['finished_at']} {p['outcome']:13} http={p['http_status']} "
-                   f"seen={p['items_seen']} new={p['items_new']} changed={p['items_changed']} "
-                   f"backlog={p['backlog']}" + (f" error={p['error']}" if p['error'] else ""))
+    for k, out in res.items():
+        if isinstance(out, str):
+            typer.echo(f"{k:22} FAILED {out}")
+            continue
+        for p in out:
+            typer.echo(f"{k:22} {p['finished_at']} {p['outcome']:13} http={p['http_status']} "
+                       f"seen={p['items_seen']} new={p['items_new']} "
+                       f"changed={p['items_changed']} backlog={p['backlog']}"
+                       + (f" error={p['error']}" if p['error'] else ""))
 
 
 @news_app.command("report")

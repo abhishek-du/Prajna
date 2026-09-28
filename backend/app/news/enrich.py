@@ -225,3 +225,117 @@ def resolve(item: ItemObs, universe: Universe | None, aliases: Aliases) -> Link:
         return Link(universe.by_symbol[sym][0], "ALIAS", 0.95, item.title,
                     "filer name previously filed under this symbol", ENTITY_VERSION)
     return un(why or note or "no symbol in the filing link and no name match", item.title)
+
+
+# ── media headlines (headline-entity-v1, media-keywords-v1) ─────────────────
+HEADLINE_VERSION = "headline-entity-v1"
+KEYWORD_VERSION = "media-keywords-v1"
+# words that cannot identify a company on their own (a name made only of these,
+# e.g. "Indian Bank", is never matched from a headline: too easy to misread)
+COMMON = frozenset("""india indian bank banks gold silver power energy oil gas capital finance
+financial market markets global national international general united first new steel cement
+auto motors motor tech technologies technology infra infrastructure housing industries industry
+services holdings investment investments share shares stock stocks fund funds life insurance
+city union central federal state royal star prime future sun hindustan bharat asian america
+american world home health care pharma pharmaceuticals chemicals textiles sugar paper metals
+realty developers engineering systems solutions software digital media green water gujarat
+maharashtra tamil nadu kerala karnataka punjab bengal delhi mumbai rajasthan and of the""".split())
+_SUFFIX = frozenset({"ltd", "limited", "l", "co", "corp", "corporation", "company", "inc", "plc"})
+
+
+def name_core(name: str) -> tuple[str, ...]:
+    toks = name_tokens(name)
+    while toks and toks[-1] in _SUFFIX:
+        toks.pop()
+    return tuple(toks)
+
+
+class HeadlineIndex:
+    """Company-name cores found as whole phrases in headlines."""
+
+    def __init__(self, universe: Universe):
+        by_core: dict[tuple[str, ...], list[tuple[str, str, str]]] = {}
+        for sym, (key, name) in universe.by_symbol.items():
+            core = name_core(name or "")
+            if not core or all(t in COMMON for t in core):
+                continue
+            if len(core) == 1 and len(core[0]) < 5:
+                continue
+            by_core.setdefault(core, []).append((sym, key, name))
+        self.cores = {c: v[0] for c, v in by_core.items() if len(v) == 1}   # unique only
+        # a one-word name that starts another company's name is ambiguous in a
+        # headline ("Kalpataru Projects ..." is not Kalpataru Ltd): not used
+        firsts = {c[0] for c in by_core if len(c) > 1}
+        self.cores = {c: v for c, v in self.cores.items() if len(c) > 1 or c[0] not in firsts}
+        self.max_len = max((len(c) for c in self.cores), default=1)
+
+    def find(self, text: str) -> list[tuple[tuple[str, ...], tuple[str, str, str]]]:
+        toks = name_tokens(text)
+        out, i = [], 0
+        while i < len(toks):
+            for n in range(min(self.max_len, len(toks) - i), 0, -1):   # longest first
+                c = tuple(toks[i:i + n])
+                if c in self.cores:
+                    out.append((c, self.cores[c]))
+                    i += n
+                    break
+            else:
+                i += 1
+        return out
+
+
+def resolve_headline(item: ItemObs, universe: Universe | None, index: HeadlineIndex | None
+                     ) -> list[Link]:
+    """Every uniquely named company whose name core appears in the headline.
+    Multi-word names 0.8, single distinctive words 0.6; none -> one UNRESOLVED."""
+    if universe is None or index is None:
+        return [Link(None, "UNRESOLVED", 0.0, item.title,
+                     "instrument universe unavailable (database not reachable)",
+                     HEADLINE_VERSION)]
+    links, keys = [], set()
+    for core, (_sym, key, name) in index.find(item.title):
+        if key in keys:
+            continue
+        keys.add(key)
+        links.append(Link(key, "COMPANY_NAME", 0.8 if len(core) > 1 else 0.6, " ".join(core),
+                          f"headline names {name!r}", HEADLINE_VERSION))
+    return links or [Link(None, "UNRESOLVED", 0.0, item.title,
+                          "no uniquely named company in the headline", HEADLINE_VERSION)]
+
+
+_KEYWORDS: tuple[tuple[str, str], ...] = (
+    (r"\bq[1-4]\b.*\b(result|profit|loss|revenue)|\bresults?\b|net profit|quarterly", "RESULTS"),
+    (r"\bguidance\b|\boutlook\b.*\bfy", "GUIDANCE"),
+    (r"\bipos?\b|\bqips?\b|fund ?rais|rights issue|\bofs\b", "FUNDRAISING"),
+    (r"\bbuyback\b", "BUYBACK"), (r"\bbonus\b", "BONUS"), (r"stock split|\bsplit\b", "SPLIT"),
+    (r"\bdividend\b", "DIVIDEND"), (r"demerger", "DEMERGER"),
+    (r"acqui|merger|takeover|\bstake\b.*\bbuy", "MERGER_ACQUISITION"),
+    (r"block deal|bulk deal", "BLOCK_DEAL"), (r"stake sale|sells? stake|offload", "STAKE_SALE"),
+    (r"promoter", "PROMOTER_CHANGE"),
+    (r"\border\b|\bcontract\b|bags?\b|wins?\b.*\bdeal", "ORDER_CONTRACT"),
+    (r"target price|upgrade|downgrade|\bbuy\b|\bsell\b rating|brokerage|initiates coverage",
+     "BROKERAGE_ACTION"),
+    (r"credit rating|moody|fitch|\bs&p\b|crisil|icra", "RATING_CHANGE"),
+    (r"insolvency|bankrupt|\bnclt\b", "BANKRUPTCY"), (r"default", "DEFAULT"),
+    (r"fraud|scam|money laundering", "FRAUD_ALLEGATION"),
+    (r"\bed\b raid|\bcbi\b|probe|investigat|raid", "INVESTIGATION"),
+    (r"court|litigation|lawsuit|\bnclat\b|arbitration", "LITIGATION"),
+    (r"\bceo\b|\bmd\b|chairman|resign|appoint", "MANAGEMENT_CHANGE"),
+    (r"repo rate|rate cut|rate hike|\bmpc\b|monetary policy|\bfed\b|fomc", "INTEREST_RATE"),
+    (r"inflation|\bcpi\b|\bwpi\b", "INFLATION"), (r"\bgdp\b", "GDP"),
+    (r"\bfiis?\b|\bfpis?\b|\bdiis?\b|foreign invest", "FII_DII"),
+    (r"crude|brent|\boil\b|\bgold\b|\bsilver\b|copper|commodit", "COMMODITIES"),
+    (r"\bwar\b|iran|israel|russia|ukraine|china|tariff|sanction|geopolit", "GEOPOLITICAL"),
+    (r"\bsebi\b|\brbi\b|regulat|irdai|circular", "REGULATORY"),
+    (r"budget|government|ministry|\bgst\b|policy", "GOVERNMENT_POLICY"),
+    (r"sensex|nifty|market (crash|rally|fall|close)|dalal street|stock market", "MARKET_WIDE"),
+)
+_KW = tuple((re.compile(p, re.I), c) for p, c in _KEYWORDS)
+
+
+def classify_keywords(item: ItemObs) -> Classification:
+    """First matching keyword rule on the headline; a heuristic (confidence 0.6)."""
+    for rx, cat in _KW:
+        if rx.search(item.title):
+            return Classification(cat, 0.6, "KEYWORD_RULES", KEYWORD_VERSION)
+    return Classification("OTHER", 0.3, "KEYWORD_RULES", KEYWORD_VERSION)
