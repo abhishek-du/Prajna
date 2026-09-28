@@ -26,13 +26,24 @@ TOKEN = os.environ["PRAJNA_WRITE_TOKEN"]
 KEY = "NSE_ANNOUNCEMENTS"
 
 
+def accept(tmp_path, statuses):
+    import json
+    p = tmp_path / "news.json"
+    p.write_text(json.dumps({"generated_at": "t", "sources": {
+        k: {"status": v} for k, v in statuses.items()}}))
+    return p
+
+
 @pytest.fixture
 def unlocked(monkeypatch, tmp_path):
+    """Every write condition satisfied for NSE only (tests break one at a time)."""
     st = get_settings()
-    monkeypatch.setattr(st, "PRAJNA_NEWS_CRAWLER_ENABLED", True)
+    monkeypatch.setattr(st, "PRAJNA_NEWS_NSE_ENABLED", True)
     monkeypatch.setattr(st, "PRAJNA_ARCHIVE_DIR", str(tmp_path / "archive"))
     monkeypatch.setattr(C, "KILL_FILE", tmp_path / "news.kill")
     monkeypatch.setattr(NL, "KILL_FILE", tmp_path / "news.kill")
+    monkeypatch.setattr(NL, "NEWS_REPORT", accept(tmp_path, {KEY: "PASS"}))
+    monkeypatch.setattr(NL, "stage2_status", lambda *a, **k: (True, "PASS (test)"))
     src = S.SOURCES[KEY]
     fields = {f: getattr(src, f) for f in src.__slots__}
     monkeypatch.setitem(S.SOURCES, KEY, type(src)(**{**fields, "compliance": "APPROVED"}))
@@ -59,7 +70,7 @@ async def test_locked_by_default_and_refusal_is_audited(db_session):
     with pytest.raises(LockRefused) as e:
         await poll_shadow(db_session, KEY, token=TOKEN, transport=feed())
     failing = e.value.report.summary()["failing"]
-    assert {"crawler_enabled", "compliance_approved"} <= set(failing)
+    assert {"source_flag", "compliance_approved", "source_acceptance"} <= set(failing)
     assert (await q(db_session, "select count(*) from news_item"))[0][0] == 0
     assert (await q(db_session, "select event from news_audit"))[0][0] == "REFUSED"
 
@@ -134,3 +145,40 @@ async def test_storage_is_append_only_and_knowable_checked(db_session, unlocked)
                 select source, 'probe', 't', title_norm_hash, publisher, discovered_at,
                   discovered_at - interval '1 second', false, false, first_poll_id,
                   payload_sha256 from news_item limit 1"""))
+
+
+@pytest.mark.parametrize("breaker,name", [
+    (lambda mp, st, tp: mp.setattr(st, "PRAJNA_NEWS_NSE_ENABLED", False), "source_flag"),
+    (lambda mp, st, tp: mp.setattr(NL, "NEWS_REPORT", accept(tp, {KEY: "FAIL"})),
+     "source_acceptance"),
+    (lambda mp, st, tp: mp.setattr(NL, "NEWS_REPORT", tp / "missing.json"), "source_acceptance"),
+    (lambda mp, st, tp: mp.setattr(NL, "stage2_status", lambda *a, **k: (False, "FAIL")),
+     "stage2_pass")])
+async def test_each_write_condition_alone_refuses(db_session, unlocked, monkeypatch, tmp_path,
+                                                  breaker, name):
+    breaker(monkeypatch, unlocked, tmp_path)
+    with pytest.raises(LockRefused) as e:
+        await poll_shadow(db_session, KEY, token=TOKEN, transport=feed())
+    assert e.value.report.summary()["failing"] == [name]
+
+
+def test_one_source_flag_never_enables_another(unlocked):
+    """NSE is fully unlocked; ET's own flag is still false."""
+    r = NL.check("ET_STOCKS_RSS", mode="SHADOW", token=TOKEN)
+    assert "source_flag" in r.summary()["failing"]
+    assert all(s.flag is None or getattr(unlocked, s.flag) is False
+               for k, s in S.SOURCES.items() if k != KEY)
+
+
+async def test_production_mode_also_needs_the_visibility_flag(db_session, unlocked):
+    with pytest.raises(LockRefused) as e:
+        await poll_shadow(db_session, KEY, token=TOKEN, transport=feed(), mode="PRODUCTION")
+    assert e.value.report.summary()["failing"] == ["multi_source_enabled"]
+
+
+def test_every_source_flag_defaults_false():
+    from app.core.config import Settings
+    news_flags = [n for n in Settings.model_fields if n.startswith("PRAJNA_NEWS_")]
+    assert len(news_flags) >= 11
+    assert all(Settings.model_fields[n].default is False for n in news_flags)
+    assert "PRAJNA_NEWS_CRAWLER_ENABLED" not in news_flags       # no global switch

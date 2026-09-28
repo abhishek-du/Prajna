@@ -78,11 +78,22 @@ class Settings(BaseSettings):
     # decisions approved, no kill switch and a write token are also required).
     PRAJNA_STAGE3_ENABLED: bool = Field(default=False)
     PRAJNA_STAGE3_BACKFILL_ENABLED: bool = Field(default=False)
-    # Multi-source news (decisions NEWS-*). All false by default. CRAWLER: any
-    # database-writing (SHADOW) poll of an external source; MULTI_SOURCE: making
-    # the new news tables visible to Stage 2/3/API (not built yet); LIVE_STREAM:
-    # the SSE news stream (not built yet). DRY_RUN polling needs none of them.
-    PRAJNA_NEWS_CRAWLER_ENABLED: bool = Field(default=False)
+    # Multi-source news (decisions NEWS-*). All false by default; DRY_RUN polling
+    # needs none of them. One flag PER SOURCE enables database writes for that
+    # source only (there is deliberately no switch that enables every source), and
+    # a flag is necessary, never sufficient (app.news.locks). MULTI_SOURCE: rows
+    # written in PRODUCTION mode become visible to Stage 2/3/API. LIVE_STREAM: the
+    # news stream (not built). Upstox's Stage 1 ingestion is NOT governed here;
+    # PRAJNA_NEWS_UPSTOX_ENABLED only concerns its projection into the new layer.
+    PRAJNA_NEWS_UPSTOX_ENABLED: bool = Field(default=False)
+    PRAJNA_NEWS_NSE_ENABLED: bool = Field(default=False)
+    PRAJNA_NEWS_ET_ENABLED: bool = Field(default=False)
+    PRAJNA_NEWS_BS_ENABLED: bool = Field(default=False)
+    PRAJNA_NEWS_BL_ENABLED: bool = Field(default=False)
+    PRAJNA_NEWS_MINT_ENABLED: bool = Field(default=False)
+    PRAJNA_NEWS_CNBC_ENABLED: bool = Field(default=False)
+    PRAJNA_NEWS_IE_ENABLED: bool = Field(default=False)
+    PRAJNA_NEWS_SEBI_ENABLED: bool = Field(default=False)
     PRAJNA_NEWS_MULTI_SOURCE_ENABLED: bool = Field(default=False)
     PRAJNA_NEWS_LIVE_STREAM_ENABLED: bool = Field(default=False)
 

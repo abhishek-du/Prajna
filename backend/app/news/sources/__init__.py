@@ -32,9 +32,22 @@ class Source:
     note: str = ""
     # EXCHANGE (filings: subject + filer) / HEADLINE (media) / REGULATOR (SEBI)
     enrich: str = "HEADLINE"
+    flag: str | None = None           # the per-source write flag (Settings attribute)
+    priority: int = 3                 # 1 = primary (exchange/regulator) .. 3 = media
 
 
-SOURCES: dict[str, Source] = {s.key: s for s in (
+_FLAGS = {  # source -> (per-source write flag, priority)
+    "NSE_ANNOUNCEMENTS": ("PRAJNA_NEWS_NSE_ENABLED", 1),
+    "ET_STOCKS_RSS": ("PRAJNA_NEWS_ET_ENABLED", 3),
+    "BS_MARKETS_RSS": ("PRAJNA_NEWS_BS_ENABLED", 3),
+    "BL_MARKETS_RSS": ("PRAJNA_NEWS_BL_ENABLED", 3),
+    "MINT_MARKETS_RSS": ("PRAJNA_NEWS_MINT_ENABLED", 3),
+    "CNBCTV18_NEWS_SITEMAP": ("PRAJNA_NEWS_CNBC_ENABLED", 3),
+    "INDIANEXPRESS_BUSINESS_RSS": ("PRAJNA_NEWS_IE_ENABLED", 3),
+    "SEBI_RSS": ("PRAJNA_NEWS_SEBI_ENABLED", 1),
+}
+
+_BASE: tuple[Source, ...] = (
     Source(nse_announcements.KEY, "NSE corporate announcements", "RSS", nse_announcements.URL,
            "A", nse_announcements.parse, 300, 900, 1800, "PILOT", "PENDING",
            "metadata + URL + feed description; PDF attachment not fetched",
@@ -79,4 +92,15 @@ SOURCES: dict[str, Source] = {s.key: s for s in (
     Source("REUTERS", "Reuters", "-", "https://www.reuters.com/",
            "-", None, 0, 0, 0, "UNSUPPORTED", "REJECTED", "none",
            "robots.txt Disallow: / for all agents; only a licensed feed would do"),
-)}
+)
+
+
+def _with_flags(s: Source) -> Source:
+    f = _FLAGS.get(s.key)
+    if not f:
+        return s
+    fields = {k: getattr(s, k) for k in s.__slots__}
+    return Source(**{**fields, "flag": f[0], "priority": f[1]})
+
+
+SOURCES: dict[str, Source] = {s.key: _with_flags(s) for s in _BASE}

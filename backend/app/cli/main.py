@@ -1708,9 +1708,10 @@ def news_poll(
     commit: bool = typer.Option(False, "--commit", help="required: SHADOW database write (LOCKED)"),
     token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN"),
 ):
-    """SHADOW: one poll written to the news_* tables. LOCKED: needs
-    PRAJNA_NEWS_CRAWLER_ENABLED, kill switch off, source compliance APPROVED and a
-    write token; refusals exit 3 and are audited."""
+    """SHADOW: one poll written to the news_* tables (invisible to Stage 2/3/API).
+    LOCKED: needs the source's own flag PRAJNA_NEWS_<SRC>_ENABLED, kill switch off,
+    source compliance APPROVED, the source PASSING `prajna acceptance news`,
+    Stage 2 PASS and a write token; refusals exit 3 and are audited."""
     import json as _json
 
     from app.db.engine import get_sessionmaker

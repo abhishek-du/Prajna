@@ -65,11 +65,13 @@ async def _aliases(s: AsyncSession, source: str, at: _dt.datetime) -> EN.Aliases
 
 async def poll_shadow(s: AsyncSession, source_key: str, *, token: str | None,
                       operator: str = "cli", transport=None,
-                      http_state: H.SourceState | None = None) -> dict[str, Any]:
-    await locks.require(s, source_key, mode="SHADOW", token=token, operator=operator)
+                      http_state: H.SourceState | None = None,
+                      mode: str = "SHADOW") -> dict[str, Any]:
+    """One committed poll in SHADOW (invisible) or PRODUCTION (visible) mode."""
+    await locks.require(s, source_key, mode=mode, token=token, operator=operator)
     src = SOURCES[source_key]
     runner = IngestRunner(s, source=src.key[:32], stream=f"news.{src.key}"[:64],
-                          vendor_endpoint=src.url, request_params={"mode": "SHADOW"},
+                          vendor_endpoint=src.url, request_params={"mode": mode},
                           operator=operator)
     ctx = await runner.open(commit=True, token=token)
     try:
@@ -89,7 +91,7 @@ async def poll_shadow(s: AsyncSession, source_key: str, *, token: str | None,
         o = process(src, f, seen, universe=await load_universe(),
                     aliases=await _aliases(s, src.key, f.finished_at), first_success=first)
         poll_id = (await s.execute(insert(NewsPoll).values(
-            source=src.key, mode="SHADOW", run_id=ctx.run_id, started_at=f.started_at,
+            source=src.key, mode=mode, run_id=ctx.run_id, started_at=f.started_at,
             finished_at=f.finished_at, outcome=o.fetch.outcome, http_status=f.http_status,
             bytes=len(f.body), items_seen=o.seen, items_new=len(o.new),
             items_changed=len(o.changed), backlog=o.backlog, etag=f.etag,
