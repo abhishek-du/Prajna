@@ -172,6 +172,21 @@ async def _candle_depth(s, tf: str, since: _dt.date, last: _dt.date) -> dict[str
             "required_through": str(last), "sample_missing": sorted(none)[:5]}
 
 
+def x_decision(violations: dict[str, int], timing: dict[str, dict]) -> tuple[str, list[str]]:
+    """Criterion X: any look-ahead violation FAILs; a CONTRADICTED B1/B2 is BLOCKED
+    (it cannot verify by waiting: it needs a decision); PASS needs B1 and the
+    revised B2 VERIFIED; otherwise WAITING. Only B1 and B2 decide: B2_original is
+    the contract superseded by decision TIMING-B2, kept in the evidence for the
+    record and never re-evaluated."""
+    contradicted = [k for k in ("B1", "B2") if timing[k]["status"] == "CONTRADICTED"]
+    if any(violations.values()):
+        return FAIL, contradicted
+    if contradicted:
+        return BLOCKED, contradicted
+    return (PASS if all(timing[k]["status"] == "VERIFIED" for k in ("B1", "B2"))
+            else WAITING), contradicted
+
+
 async def evaluate(s: AsyncSession) -> dict[str, Any]:
     today = now().astimezone(IST).date()
     last = await _latest_session(s)
@@ -606,12 +621,7 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
         timing["B2"]["evidence_sufficiency"] = b1b2["B2"].get("evidence_sufficiency")
         timing["B2_original"] = {"status": b1b2.get("B2_original", {}).get("status"),
                                  "superseded_by": "TIMING-B2"}
-    violations = any(la.values())
-    verified = all(v["status"] == "VERIFIED" for v in timing.values())
-    # a contradicted timing contract cannot verify by waiting: it needs a decision
-    contradicted = [k for k in ("B1", "B2") if timing[k]["status"] == "CONTRADICTED"]
-    x_status = FAIL if violations else (
-        BLOCKED if contradicted else (PASS if verified else WAITING))
+    x_status, contradicted = x_decision(la, timing)
     out.append(Criterion("X", "No look-ahead (incl. B1/B2 verified over >= 3 sessions)",
                          x_status, {"violations": la, "timing": timing},
                          notes="0 violations required (FAIL otherwise); B1 and the revised "
