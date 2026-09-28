@@ -12,6 +12,8 @@ Idempotent: a rerun of the same response inserts nothing new.
 from __future__ import annotations
 
 import datetime as _dt
+import hashlib
+import json
 from typing import Any
 
 from sqlalchemy import insert, select, text
@@ -21,16 +23,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.clock import now
 from app.core.config import get_settings
 from app.db.models import (
+    NewsAssessment,
     NewsClassification,
     NewsEntityLink,
+    NewsEntityMention,
     NewsItem,
     NewsItemObservation,
     NewsPoll,
+    NewsStory,
+    NewsStoryMember,
 )
 from app.ingest.runner import IngestRunner
 from app.news import enrich as EN
 from app.news import http as H
 from app.news import locks
+from app.news import stories as ST
 from app.news.collector import Seen, _iso, load_universe, process
 from app.news.model import canonical_url, title_hash
 from app.news.sources import SOURCES
@@ -63,6 +70,36 @@ async def _aliases(s: AsyncSession, source: str, at: _dt.datetime) -> EN.Aliases
     return a
 
 
+async def _stories(s: AsyncSession, at: _dt.datetime) -> ST.StoryIndex:
+    """Story members KNOWABLE before `at` within the grouping window (point in time)."""
+    ix = ST.StoryIndex()
+    rows = (await s.execute(text("""
+        select m.story_id, i.source, i.source_article_id, i.title, i.canonical_url,
+               i.title_norm_hash, coalesce(i.published_at, i.discovered_at) as t_ref, m.knowable_at,
+               (select c.category from news_classification c where c.item_id = i.id
+                  and c.knowable_at < :at order by c.knowable_at desc, c.id desc limit 1) as cat,
+               array(select l.instrument_key from news_entity_link l where l.item_id = i.id
+                  and l.instrument_key is not null and l.knowable_at < :at) as cos,
+               array(select e.entity_type || ':' || e.entity_id from news_entity_mention e
+                  where e.item_id = i.id and e.knowable_at < :at) as ents
+        from news_story_member m join news_item i on i.id = m.item_id
+        where m.knowable_at < :at and m.rule_version = :v
+          and coalesce(i.published_at, i.discovered_at) > :since"""),
+        {"at": at, "v": ST.VERSION, "since": at - 2 * ST.WINDOW})).all()
+    for r in rows:
+        ix.add(ST.Member(f"{r.source}|{r.source_article_id}", f"db:{r.story_id}", r.source,
+                         ST.words(r.title), r.canonical_url, r.title_norm_hash,
+                         frozenset(r.cos), frozenset(r.ents), r.cat or "OTHER", r.t_ref,
+                         r.knowable_at, SOURCES[r.source].enrich in ("EXCHANGE", "REGULATOR")
+                         if r.source in SOURCES else False))
+    return ix
+
+
+def _metadata_sha(it) -> str:
+    return hashlib.sha256(json.dumps(
+        {k: str(getattr(it, k)) for k in it.__slots__}, sort_keys=True).encode()).hexdigest()
+
+
 async def poll_shadow(s: AsyncSession, source_key: str, *, token: str | None,
                       operator: str = "cli", transport=None,
                       http_state: H.SourceState | None = None,
@@ -88,8 +125,10 @@ async def poll_shadow(s: AsyncSession, source_key: str, *, token: str | None,
         first = not seen and not (await s.execute(text(
             "select 1 from news_poll where source = :s and outcome = 'OK' limit 1"),
             {"s": src.key})).first()
+        story_ix = await _stories(s, f.finished_at)
         o = process(src, f, seen, universe=await load_universe(),
-                    aliases=await _aliases(s, src.key, f.finished_at), first_success=first)
+                    aliases=await _aliases(s, src.key, f.finished_at), first_success=first,
+                    stories=story_ix)
         poll_id = (await s.execute(insert(NewsPoll).values(
             source=src.key, mode=mode, run_id=ctx.run_id, started_at=f.started_at,
             finished_at=f.finished_at, outcome=o.fetch.outcome, http_status=f.http_status,
@@ -98,6 +137,7 @@ async def poll_shadow(s: AsyncSession, source_key: str, *, token: str | None,
             last_modified=f.last_modified, payload_sha256=sha, error=o.fetch.error,
         ).returning(NewsPoll.id))).scalar()
         inserted = 0
+        db_story: dict[str, int] = {}          # in-memory story id -> news_story.id
         for d in o.new:
             it, t = d.item, now()
             iid = (await s.execute(pg_insert(NewsItem).values(
@@ -110,6 +150,11 @@ async def poll_shadow(s: AsyncSession, source_key: str, *, token: str | None,
                 published_at_raw=it.published_at_raw, source_updated_at=it.source_updated_at,
                 discovered_at=d.discovered_at, knowable_at=d.discovered_at, backlog=d.backlog,
                 content_available=False, first_poll_id=poll_id, payload_sha256=sha,
+                source_priority=src.priority, terms_status=src.compliance, robots_allowed=None,
+                content_fetch_status="NOT_AVAILABLE", metadata_sha256=_metadata_sha(it),
+                content_sha256=hashlib.sha256(
+                    f"{it.title}\x1f{it.summary or ''}".encode()).hexdigest(),
+                processed_at=t,
             ).on_conflict_do_nothing(constraint="uq_news_item_source_id")
                 .returning(NewsItem.id))).scalar()
             if iid is None:
@@ -124,6 +169,34 @@ async def poll_shadow(s: AsyncSession, source_key: str, *, token: str | None,
                     item_id=iid, instrument_key=ln.instrument_key, method=ln.method,
                     confidence=ln.confidence, matched_text=ln.matched_text, reason=ln.reason,
                     version=ln.version, mapped_at=t, knowable_at=t))
+            for m in d.mentions:
+                await s.execute(insert(NewsEntityMention).values(
+                    item_id=iid, entity_type=m.entity_type, entity_id=m.entity_id,
+                    method="PATTERN", confidence=m.confidence, evidence=m.evidence,
+                    version=m.version, mapped_at=t, knowable_at=t))
+            if d.story is not None and d.story_id is not None:
+                sid = d.story_id
+                if sid.startswith("db:"):
+                    story_pk = int(sid[3:])
+                elif sid in db_story:
+                    story_pk = db_story[sid]
+                else:
+                    story_pk = (await s.execute(insert(NewsStory).values(
+                        first_item_id=iid, rule_version=ST.VERSION, created_at=t, knowable_at=t
+                    ).returning(NewsStory.id))).scalar()
+                    db_story[sid] = story_pk
+                await s.execute(insert(NewsStoryMember).values(
+                    story_id=story_pk, item_id=iid, method=d.story.method,
+                    score=d.story.score, evidence=d.story.evidence, rule_version=ST.VERSION,
+                    joined_at=t, knowable_at=t))
+            if d.assessment is not None:
+                a = d.assessment
+                await s.execute(insert(NewsAssessment).values(
+                    item_id=iid, basis=a.basis, market_scope=a.market_scope,
+                    potential_impact=a.potential_impact, impact_direction=a.impact_direction,
+                    is_breaking=a.is_breaking, breaking_reason=a.breaking_reason,
+                    evidence={**a.evidence, "event_group": a.event_group},
+                    rule_version=a.version, assessed_at=t, knowable_at=t))
         if o.changed:
             ids = dict((await s.execute(select(NewsItem.source_article_id, NewsItem.id).where(
                 NewsItem.source == src.key, NewsItem.source_article_id.in_(
