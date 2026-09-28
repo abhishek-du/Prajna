@@ -17,6 +17,8 @@ LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 # 06:40 daily   maintenance: reap orphaned RUNNING runs, derive price basis / corporate-
 #               action factors / global contracts, write the status snapshot
 40 6 * * *    cd $B && ops/runbooks/maintenance.sh all >> var/logs/cron.log 2>&1
+# 09:10 Mon-Fri  Stage 2 canonical layer after the 07:00 morning job (also runs in `all` at 06:40)
+10 9 * * 1-5  cd $B && ops/runbooks/maintenance.sh canon >> var/logs/cron.log 2>&1
 # 12:40, 21:10 daily  global 1D refresh (13 requests, fraction 0.1, no candles lock): the
 #               second fetch re-observes the first -> labels become final (phase 5)
 40 12 * * *   cd $B && ops/runbooks/global_refresh.sh >> var/logs/cron.log 2>&1

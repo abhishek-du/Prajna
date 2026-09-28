@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Daily operations maintenance (hardening phase 4). No vendor calls.
 #
-#   ops/runbooks/maintenance.sh [reap|derive|status|all]     # default all
+#   ops/runbooks/maintenance.sh [reap|derive|canon|status|all]     # default all
 #
 # reap    `prajna ops reap-runs --commit`: RUNNING ingest runs whose process
 #         is provably gone (pid dead, machine rebooted, or no identity and
@@ -9,6 +9,11 @@
 # derive  price basis for any payload lacking one, corporate-action factors
 #         (+ the vendor's observed treatment), global instrument contracts
 #         (MAINT_DERIVE marker); all idempotent, no vendor calls
+# canon   `prajna stage2 process --commit`: bring the Stage 2 canonical layer
+#         (canon_instrument, canon_coverage) up to the latest Stage 1 data;
+#         incremental, idempotent, no vendor calls (MAINT_CANON marker). Cron: in
+#         `all` at 06:40 (after the overnight close) and 09:10 Mon-Fri (after the
+#         07:00 morning job). Added 2026-09-28: nothing scheduled it before.
 # status  `prajna ops status --write`: var/status/ops_status_<stamp>.json -
 #         last run per job family, RUNNING runs, candles lock, token age,
 #         disk, recent runbook markers (MAINT_STATUS marker, with a summary)
@@ -30,6 +35,10 @@ summ() {  # summ <kind> <json>: one-line summary of a command's JSON output
   "$P" - "$1" "$2" <<'EOF' 2>/dev/null || echo "FAILED (unreadable output)"
 import json, sys
 kind, d = sys.argv[1], json.loads(sys.argv[2])
+if kind == "canon":
+    print(f"consumed_through={d.get('consumed_through')} seconds={d.get('seconds')} "
+          f"error={d.get('error')}")
+    raise SystemExit(0)
 if kind == "reap":
     print(f"running={d['running']} reaped={len(d['orphans'])} "
           f"left_alone={len(d['left_alone'])} run={d['run_id']}")
@@ -50,6 +59,13 @@ if [[ "$WHAT" == derive || "$WHAT" == all ]]; then
     if "${CLI[@]}" derive "$d" --commit > "var/logs/daily/maintenance_${TODAY}_${d}.json" 2>/dev/null
     then say "MAINT_DERIVE ${d} OK"; else say "MAINT_DERIVE ${d} FAILED"; rc=1; fi
   done
+fi
+if [[ "$WHAT" == canon || "$WHAT" == all ]]; then
+  if out="$("${CLI[@]}" stage2 process --commit 2>/dev/null)"; then
+    say "MAINT_CANON OK $(summ canon "$out")"
+  else
+    say "MAINT_CANON FAILED $(summ canon "$out")"; rc=1
+  fi
 fi
 if [[ "$WHAT" == status || "$WHAT" == all ]]; then
   out="$("${CLI[@]}" ops status --write 2>/dev/null)" || rc=1

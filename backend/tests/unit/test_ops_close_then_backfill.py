@@ -336,6 +336,19 @@ class TestStaticGuards:
         assert "TIMING_LATE_REVISION_DETECTED" in body and "analyze_timing.py" in body
 
 
+    def test_stage2_canonical_layer_is_kept_current_by_cron(self):
+        """Stage 2 was only ever run by hand until 2026-09-28: its materialized
+        tables went stale over a weekend. It now runs after the overnight close
+        (06:40, maintenance `all`) and after the morning job (09:10 Mon-Fri)."""
+        body = (RUNBOOKS / "maintenance.sh").read_text()
+        assert "stage2 process --commit" in body and "MAINT_CANON" in body
+        assert 'if [[ "$WHAT" == canon || "$WHAT" == all ]]' in body
+        text = (BACKEND / "ops" / "cron" / "prajna.cron").read_text()
+        jobs = [ln for ln in text.splitlines() if ln.strip() and not ln.startswith("#")]
+        assert any(ln.split()[:5] == ["40", "6", "*", "*", "*"] and "maintenance.sh all" in ln for ln in jobs)
+        assert any(ln.split()[:5] == ["10", "9", "*", "*", "1-5"] and "maintenance.sh canon" in ln for ln in jobs)
+
+
 class TestInterruptedClose:
     """A close killed by its hard stop (or any interruption) leaves no, an
     empty, or a truncated intraday report: never 'completed', never a backfill."""

@@ -1,6 +1,6 @@
 # Stage 2 acceptance
 
-**Generated:** 2026-09-25T18:18:50.507159+00:00 by `prajna acceptance stage2` (read-only; regenerate, do not edit).
+**Generated:** 2026-09-28T07:38:11.946300+00:00 by `prajna acceptance stage2` (read-only; regenerate, do not edit).
 
 ## Overall: **PASS**
 
@@ -8,22 +8,22 @@ Stage 3 stays locked until this is PASS.
 
 | # | Question | Status | Evidence | Notes |
 |---|---|---|---|---|
-| A | Can Stage 2 process Stage 1 data? | **PASS** | {"latest_commit_run": "3bcb7bef-5c86-4fef-9550-141cd1c19db7", "mode": "INCREMENTAL", "seconds": 14.62, "instruments_current/decided/included": [3545, 3545, 3532], "coverage_pairs": 14128, "coverage_ranges": 109490} |  |
+| A | Can Stage 2 process Stage 1 data? | **PASS** | {"latest_commit_run": "d9dfb6ac-429b-40ca-b379-058cb57e310d", "mode": "NOOP", "seconds": 0.59, "instruments_current/decided/included": [3561, 3561, 3548], "coverage_pairs": 14192, "coverage_ranges": 113517} |  |
 | B | Is data normalized consistently? | **PASS** | {"duplicate_bars": 0, "invalid_timeframe": 0, "null_required_bar_fields": 0, "coverage_contradicts_bars": 0, "non_session_bars_exposed": 0} |  |
 | C | Are timestamps correct? | **PASS** | {"bar_knowable_before_event_end": 0, "daily_bar_fetched_same_session": 0, "daily_label_not_0000_ist": 0, "daily_event_not_session_hours": 0, "intraday_outside_session": 0, "market_date_not_label_date": 0} | D4: daily label 00:00 IST; event = the session's own hours (Muhurat sessions included); knowable after it |
 | D | Is knowable_at preserved? | **PASS** | {"canonical_vs_stage1_mismatches": 0, "knowable_after_fetched": 0} |  |
-| E | Is future leakage impossible? | **PASS** | {"real_db_probes": {"seed": 1506444788, "instruments_probed": 40, "rows_returned_after_boundary": 45778, "boundary_behaviour_correct": 40, "coverage_point_in_time": 40}, "tests": ["TestPointInTime", "test_knowable_is_strictly_before"]} | every read requires as_of (coverage too); rows with knowable_at >= as_of are never returned |
+| E | Is future leakage impossible? | **PASS** | {"real_db_probes": {"seed": 1727206295, "instruments_probed": 40, "rows_returned_after_boundary": 38754, "boundary_behaviour_correct": 40, "coverage_point_in_time": 40}, "tests": ["TestPointInTime", "test_knowable_is_strictly_before"]} | every read requires as_of (coverage too); rows with knowable_at >= as_of are never returned |
 | F | Is NSE filtering correct? | **PASS** | {"non_nse_included": 0, "eligible_equity_excluded": 0, "global_included": 0, "stale_rules": 0, "missing_reason": 0, "rules_sha256": "911fa7abf926ed38736e815cdfb69aac4cba63bf654e345b8ceb2392515df5f6"} |  |
 | G | Is instrument mapping correct? | **PASS** | {"mapping_mismatches": 0, "orphans": 0, "missing_identifiers": 0} |  |
-| H | Is data enrichment traceable? | **PASS** | {"instruments_with_sector": 3176, "sector_not_traceable_to_snapshot": 0} | sector coverage grows with the Stage 1 fundamentals sweep; PIT sector via pit.sector() |
-| I | Is missing data represented correctly? | **PASS** | {"sessions_by_state": {"QUARANTINED": 2, "EMPTY": 2260696, "DATA": 3658921, "VENDOR_ERROR": 5, "PENDING_BACKFILL": 8709920}, "out_of_scope": "5m via pit.coverage/pit.bars (OutOfScope)"} | nothing is filled: no zero, no forward fill, no interpolation |
-| J | Is bad data quarantined? | **PASS** | {"stage1_quarantined_bars_nse": 2, "coverage_quarantined_sessions": 2, "invalid_ohlc_visible": 0, "non_session_placeholder_bars_excluded": 68} |  |
-| K | Is processing idempotent? | **PASS** | {"real_noop_reruns": ["3ed76c44-49b7-4105-be3e-b093f850c37f", "d0d449e5-ab3b-4b07-90d4-cf9243c1aca1", "1a48ab3a-c905-4b1e-a612-988dd3a20249"], "tests": ["test_idempotent_three_runs", "test_stage1_ingest_is_processed_and_served_point_in_time"]} |  |
+| H | Is data enrichment traceable? | **PASS** | {"instruments_with_sector": 3192, "sector_not_traceable_to_snapshot": 0} | sector coverage grows with the Stage 1 fundamentals sweep; PIT sector via pit.sector() |
+| I | Is missing data represented correctly? | **PASS** | {"sessions_by_state": {"QUARANTINED": 2, "EMPTY": 2275744, "DATA": 3684781, "VENDOR_ERROR": 5, "PENDING_BACKFILL": 8745924}, "out_of_scope": "5m via pit.coverage/pit.bars (OutOfScope)"} | nothing is filled: no zero, no forward fill, no interpolation |
+| J | Is bad data quarantined? | **PASS** | {"stage1_quarantined_bars_nse": 2, "coverage_quarantined_sessions": 2, "invalid_ohlc_visible": 0, "non_session_placeholder_bars_excluded": 69} |  |
+| K | Is processing idempotent? | **PASS** | {"real_noop_reruns": ["d0d449e5-ab3b-4b07-90d4-cf9243c1aca1", "1a48ab3a-c905-4b1e-a612-988dd3a20249", "d9dfb6ac-429b-40ca-b379-058cb57e310d"], "tests": ["test_idempotent_three_runs", "test_stage1_ingest_is_processed_and_served_point_in_time"]} |  |
 | L | Can processing resume after failure? | **PASS** | {"tests": ["test_crash_rolls_back_and_the_rerun_resumes"], "failed_canon_runs": 0, "note": "rows and checkpoint commit in one transaction"} |  |
 | M | Can Stage 2 process incremental Stage 1 updates? | **PASS** | {"real_incremental_runs": ["caf0abb0-acc1-4d61-b9a0-ec4a30989b3b", "3c60d7c9-8915-4c6b-94cc-61cfde058da6", "3bcb7bef-5c86-4fef-9550-141cd1c19db7"], "tests": ["test_incremental_update_touches_only_the_new_pair"]} | real evidence needs a Stage 1 run finishing after a Stage 2 checkpoint |
 | N | Are database constraints enforced? | **PASS** | {"missing_constraints": [], "tests": ["test_db_constraints"]} |  |
-| O | Can Stage 3 consume the canonical data safely? | **PASS** | {"seed": 1506450574, "probed": 10, "ok": 10, "probes": {"NSE_EQ\|INE002A01018": {"daily_bars": 250, "corporate_actions": 1, "news": 2, "fundamentals": 12, "sector": "Refineries", "coverage_ranges": 1}, "NSE_INDEX\|Nifty 50": {"daily_bars": 250, "corporate_actions": 0, "news": 0, "fundamentals": 0, "sector": null, "coverage_ranges": 1}, "NSE_EQ\|INE977Y01011": {"daily_bars": 250, "corporate_actions": 0, "news": 0, "fundamentals": 12, "sector": "Trading", "coverage_ranges": 136}, "NSE_EQ\|INE305C01029": {"daily_bars": 250, "corporate_actions": 1, "news": 0, "fundamentals": 12, "sector": "Lubricants", "coverage_ranges": 1}, "NSE_EQ\|INE306R01017": {"daily_bars": 250, "corporate_actions": 2, "ne |  |
-| P | Are all existing Stage 1 tests still passing? | **PASS** | {"exit": 0, "summary": "854 passed, 2 skipped in 226.86s (0:03:46)"} |  |
+| O | Can Stage 3 consume the canonical data safely? | **PASS** | {"seed": 1727212017, "probed": 10, "ok": 10, "probes": {"NSE_EQ\|INE002A01018": {"daily_bars": 250, "corporate_actions": 1, "news": 2, "fundamentals": 12, "sector": "Refineries", "coverage_ranges": 1}, "NSE_INDEX\|Nifty 50": {"daily_bars": 250, "corporate_actions": 0, "news": 0, "fundamentals": 0, "sector": null, "coverage_ranges": 1}, "NSE_EQ\|INE625X01026": {"daily_bars": 250, "corporate_actions": 3, "news": 0, "fundamentals": 12, "sector": "DVR", "coverage_ranges": 216}, "NSE_EQ\|INE482J01021": {"daily_bars": 250, "corporate_actions": 1, "news": 0, "fundamentals": 12, "sector": "Steel & Iron Products", "coverage_ranges": 1}, "NSE_EQ\|INE310C01029": {"daily_bars": 250, "corporate_actions": |  |
+| P | Are all existing Stage 1 tests still passing? | **PASS** | {"exit": 0, "summary": "855 passed, 2 skipped in 228.03s (0:03:48)"} |  |
 
 ## Quality gates
 
@@ -48,13 +48,13 @@ Stage 3 stays locked until this is PASS.
 | calendar_gaps_in_depth | PASS | 0 |
 | coverage_contradicts_bars | PASS | 0 |
 
-Informational: `{"sector_null_rate_nse_eq": 0.1, "bars_excluded_non_session (canon_excluded_bar)": 68, "fundamentals_period_label_after_fetch": 49}`
+Informational: `{"sector_null_rate_nse_eq": 0.0996, "bars_excluded_non_session (canon_excluded_bar)": 69, "fundamentals_period_label_after_fetch": 49}`
 
 ## Dependence on Stage 1 (not yet complete)
 
-- 15m PENDING_BACKFILL: 4,139,508 sessions pending
-- 1h PENDING_BACKFILL: 4,139,508 sessions pending
-- 1m PENDING_BACKFILL: 430,904 sessions pending
+- 15m PENDING_BACKFILL: 4,158,292 sessions pending
+- 1h PENDING_BACKFILL: 4,158,292 sessions pending
+- 1m PENDING_BACKFILL: 429,340 sessions pending
 - sector: grows with the fundamentals sweep (Stage 1 criterion D/O)
 
 ## Known limitations
