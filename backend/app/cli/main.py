@@ -1698,8 +1698,22 @@ def news_report(
 
     from app.news.collector import DRYRUN_DIR
     from app.news.report import summarise
+    from app.news.sources import SOURCES
 
-    typer.echo(_json.dumps(summarise(DRYRUN_DIR / source, day), indent=2, default=str))
+    src = SOURCES[source]
+    typer.echo(_json.dumps(summarise(DRYRUN_DIR / source, day,
+                                     expected_interval_s=max(src.off_interval_s, 300)),
+                           indent=2, default=str))
+
+
+@news_app.command("review-sample")
+def news_review_sample(source: str = typer.Option(..., "--source"),
+                       n: int = typer.Option(50, "--n")):
+    """Write a sample of MAPPED items to var/news/review/<SOURCE>.json for a human to
+    judge (the mapping criterion of `prajna acceptance news`). Never overwrites."""
+    from app.acceptance.news import review_sample
+
+    typer.echo(str(review_sample(source, n)))
 
 
 @news_app.command("poll")
@@ -1755,6 +1769,30 @@ def news_kill(state: str = typer.Argument(..., help="on | off"),
     asyncio.run(_go())
     typer.echo(f"news kill switch {'ENGAGED' if on else 'released'}")
 
+
+
+@acceptance_app.command("news")
+def acceptance_news(
+    run_tests: bool = typer.Option(False, "--run-tests", help="also run the news tests"),
+    out: str = typer.Option("var/acceptance/news.json", "--out"),
+    md: str = typer.Option("../docs/NEWS_MULTI_SOURCE_ACCEPTANCE.md", "--md"),
+):
+    """Per-source news acceptance (read-only). A PASS unlocks nothing by itself."""
+    import json as _json
+    import pathlib
+
+    from app.acceptance import news as NA
+
+    rep = NA.evaluate(NA.run_tests() if run_tests else None)
+    pathlib.Path(out).parent.mkdir(parents=True, exist_ok=True)
+    pathlib.Path(out).write_text(_json.dumps(rep, indent=2, default=str))
+    if md:
+        pathlib.Path(md).write_text(NA.to_markdown(rep))
+    for k, v in rep["sources"].items():
+        typer.echo(f"{k:28} {v['status']:8} " + " ".join(
+            f"{c}={x['status']}" for c, x in v["criteria"].items()))
+    typer.echo(f"NEWS: {rep['overall']}")
+    raise typer.Exit(0 if rep["overall"] == "PASS" else 1)
 
 if __name__ == "__main__":
     app()

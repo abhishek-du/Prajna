@@ -238,6 +238,8 @@ class DryRunRecorder:
         self.aliases = EN.Aliases.from_json(st.get("aliases", {}))
         self.http = H.SourceState(**st.get("http", {}))
         self.last_ok = _dt.datetime.fromisoformat(st["last_ok"]) if st.get("last_ok") else None
+        self.last_poll_at = (_dt.datetime.fromisoformat(st["last_poll_at"])
+                             if st.get("last_poll_at") else None)
         self.polls = st.get("polls", 0)
 
     @property
@@ -249,7 +251,8 @@ class DryRunRecorder:
         tmp.write_text(json.dumps({
             "seen": {k: asdict(v) for k, v in self.seen.items()},
             "aliases": self.aliases.to_json(), "http": asdict(self.http),
-            "last_ok": _iso(self.last_ok), "polls": self.polls}, default=str))
+            "last_ok": _iso(self.last_ok), "last_poll_at": _iso(self.last_poll_at),
+            "polls": self.polls}, default=str))
         tmp.replace(self.state_file)
 
     def record(self, o: PollOutcome) -> dict[str, Any]:
@@ -300,6 +303,7 @@ class DryRunRecorder:
             for ln in lines:
                 fh.write(json.dumps(ln, default=str) + "\n")
         self.polls += 1
+        self.last_poll_at = f.started_at
         if f.outcome in ("OK", "NOT_MODIFIED"):
             self.last_ok = f.finished_at
         self.save()
@@ -337,6 +341,14 @@ async def dry_run(source_key: str, *, polls: int = 1, until: _dt.datetime | None
     universe = await load_universe()
     out: list[dict] = []
     n = 0
+    # politeness across restarts: the minimum interval (never below the feed ttl)
+    # also separates the first poll of this process from the last poll of the previous one
+    if rec.last_poll_at is not None:
+        floor = max(interval_for(src, now()), rec.http.ttl_s or 0)
+        wait = floor - (now() - rec.last_poll_at).total_seconds()
+        if wait > 0:
+            log.info("news_poll_deferred", source=source_key, wait_s=round(wait, 1))
+            await sleep(wait)
     while True:
         if KILL_FILE.exists():
             log.warning("news_kill_switch", source=source_key)

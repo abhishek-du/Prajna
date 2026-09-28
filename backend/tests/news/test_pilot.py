@@ -330,6 +330,19 @@ class TestDryRun:
                               transport=transport(httpx.Response(200, content=BODY)))
         assert out[0]["items_new"] == 0 and out[0]["backlog"] is False
 
+    async def test_a_restart_waits_out_the_interval_since_the_last_poll(self, env):
+        slept = []
+
+        async def sleep(s):
+            slept.append(s)
+        await C.dry_run("NSE_ANNOUNCEMENTS", polls=1, root=env, sleep=sleep,
+                        transport=transport(OK))
+        assert slept == []                                        # first ever poll: no wait
+        clock.freeze(T0 + _dt.timedelta(seconds=17))              # "restarted" 17 s later
+        await C.dry_run("NSE_ANNOUNCEMENTS", polls=1, root=env, sleep=sleep,
+                        transport=transport(httpx.Response(304)))
+        assert slept and slept[0] >= 300 - 17 - 0.01              # ttl 5 min honoured
+
     async def test_kill_switch_stops_before_any_request(self, env):
         (env / "news.kill").write_text("{}")
         t = transport(OK)
