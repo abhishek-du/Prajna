@@ -145,3 +145,55 @@ def news_sitemap_parser(publisher: str) -> Callable[[bytes], ParsedFeed]:
                           or "en"), region="IN"))
         return out
     return parse
+
+
+_SEBI_DATE = re.compile(r"^\s*(\d{1,2}) ([A-Za-z]{3}), (\d{4})")
+
+
+def sebi_date(raw: str | None) -> _dt.date | None:
+    """'24 Sep, 2026 +0530' -> 2026-09-24. SEBI gives a DATE only."""
+    m = _SEBI_DATE.match(raw or "")
+    if not m:
+        return None
+    try:
+        return _dt.datetime.strptime(" ".join(m.groups()), "%d %b %Y").date()
+    except ValueError:
+        return None
+
+
+def sebi_parser() -> Callable[[bytes], ParsedFeed]:
+    """SEBI's RSS (https://www.sebi.gov.in/sebirss.xml; <ttl>60</ttl>, ~30 items):
+    press releases, circulars, orders. pubDate is a DATE without a time
+    ("24 Sep, 2026 +0530"): published_at stays None (a time is never invented;
+    no latency can be claimed) and the raw date is kept. category_raw is the
+    site section from the URL (e.g. "enforcement/orders")."""
+    def parse(body: bytes) -> ParsedFeed:
+        ch = _root(body, "rss").find("channel")
+        if ch is None:
+            raise FeedDecodeError("RSS without <channel>")
+        out = ParsedFeed()
+        ttl = (ch.findtext("ttl") or "").strip()
+        out.ttl_minutes = int(ttl) if ttl.isdigit() else None
+        seen: set[str] = set()
+        for it in ch.findall("item"):
+            title = clean(it.findtext("title"), 1000)
+            link = (it.findtext("link") or "").strip() or None
+            if not title or not link:
+                out.issues.append(ParseIssue("MALFORMED_ITEM", f"item without title/link ({link})"))
+                continue
+            if link in seen:
+                out.issues.append(ParseIssue("DUPLICATE_IN_FEED", link[:200]))
+                continue
+            seen.add(link)
+            raw = (it.findtext("pubDate") or "").strip() or None
+            if raw and sebi_date(raw) is None:
+                out.issues.append(ParseIssue("BAD_TIMESTAMP", f"unparseable pubDate {raw!r}"))
+            path = [p for p in link.split("sebi.gov.in/", 1)[-1].split("/") if p][:2]
+            desc = clean(it.findtext("description"))
+            out.items.append(ItemObs(
+                source_article_id=link, title=title, url=link, publisher="SEBI",
+                published_at=None, published_at_raw=raw,
+                summary=desc if desc != title else None,
+                category_raw="/".join(path) or None, language="en", region="IN"))
+        return out
+    return parse

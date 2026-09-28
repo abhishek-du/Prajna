@@ -147,3 +147,34 @@ class TestMultiLink:
         assert [ln.instrument_key for ln in d.links] == ["k:axis", "k:asian"]
         assert d.link.confidence == 0.8 and d.classification.method == "KEYWORD_RULES"
         assert d.latency_s == 300.0 and d.discovered_at == at
+
+
+class TestIndianExpressAndSebi:
+    def test_indian_express_business_feed(self):
+        f = SOURCES["INDIANEXPRESS_BUSINESS_RSS"].parse(body("INDIANEXPRESS_BUSINESS_RSS"))
+        assert len(f.items) == 5 and not f.issues
+        adani = next(i for i in f.items if i.title.startswith("Five Adani firms"))
+        assert adani.published_at == _dt.datetime(2026, 9, 22, 14, 0, 16, tzinfo=UTC)
+        assert adani.url.startswith("https://indianexpress.com/article/")
+        assert adani.summary is None and adani.author        # the feed has no description
+
+    def test_sebi_dates_are_dates_not_invented_times(self):
+        f = SOURCES["SEBI_RSS"].parse(body("SEBI_RSS"))
+        assert f.ttl_minutes == 60 and len(f.items) == 4 and not f.issues
+        s = next(i for i in f.items if "Adani Group Companies" in i.title)
+        assert s.published_at is None and s.published_at_raw == "22 Sep, 2026 +0530"
+        assert s.publisher == "SEBI" and s.category_raw == "enforcement/orders"
+        from app.news.sources.rss import sebi_date
+        assert sebi_date(s.published_at_raw) == _dt.date(2026, 9, 22)
+        assert sebi_date("yesterday") is None
+
+    def test_sebi_is_regulatory_by_source_not_a_business_order(self):
+        src = SOURCES["SEBI_RSS"]
+        at = _dt.datetime(2026, 9, 28, 16, 0, tzinfo=IST)
+        o = C.process(src, H.FetchResult("OK", at, at, 200, body("SEBI_RSS")), {}, universe=UNI,
+                      aliases=EN.Aliases(), first_success=False)
+        assert {d.classification.category for d in o.new} == {"REGULATORY"}
+        assert all(d.latency_s is None for d in o.new)          # date-only: no latency claimed
+        media = EN.classify_keywords(ItemObs(
+            "x", "Settlement Order in the matter of Adani Group Companies", None, "p", None, None))
+        assert media.category != "ORDER_CONTRACT"

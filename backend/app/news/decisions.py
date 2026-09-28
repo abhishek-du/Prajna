@@ -10,7 +10,8 @@ DECISIONS: dict[str, dict[str, str]] = {
                     "Economic Times, Business Standard, BusinessLine, Livemint, CNBC-TV18. "
                     "Moneycontrol and Zee Business (HTTP 403, bot protection) and Reuters "
                     "(robots.txt Disallow /) are UNSUPPORTED; nothing bypasses a block",
-        "ref": "user 2026-09-28 ('All feasible')"},
+        "ref": "user 2026-09-28 ('All feasible'); extended the same day: 'add Indian "
+               "Express and SEBI press release feeds' (robots.txt allows both; probed)"},
     "NEWS-CONTENT": {
         "status": "APPROVED",
         "decision": "Store metadata, URL, the feed's short description, and the article body "

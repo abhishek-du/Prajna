@@ -125,7 +125,9 @@ def process(src: Source, fetch: H.FetchResult, seen: dict[str, Seen], *,
             if exchange:
                 cls, links = EN.classify(it), [EN.resolve(it, universe, aliases)]
             else:
-                cls, links = EN.classify_keywords(it), EN.resolve_headline(it, universe, index)
+                cls = (EN.classify_regulator(it) if src.enrich == "REGULATOR"
+                       else EN.classify_keywords(it))
+                links = EN.resolve_headline(it, universe, index)
             d = Discovery(it, at, first_success, cls, links)
             out.new.append(d)
             seen[it.source_article_id] = Seen(_iso(at), it.title, it.summary,

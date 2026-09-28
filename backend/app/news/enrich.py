@@ -312,7 +312,8 @@ _KEYWORDS: tuple[tuple[str, str], ...] = (
     (r"acqui|merger|takeover|\bstake\b.*\bbuy", "MERGER_ACQUISITION"),
     (r"block deal|bulk deal", "BLOCK_DEAL"), (r"stake sale|sells? stake|offload", "STAKE_SALE"),
     (r"promoter", "PROMOTER_CHANGE"),
-    (r"\border\b|\bcontract\b|bags?\b|wins?\b.*\bdeal", "ORDER_CONTRACT"),
+    (r"\b(bags?|bagged|wins?|won|receives?|received|secures?|secured)\b.*\b(order|contract|deal)"
+     r"|\border (worth|from|win|inflow|book)", "ORDER_CONTRACT"),
     (r"target price|upgrade|downgrade|\bbuy\b|\bsell\b rating|brokerage|initiates coverage",
      "BROKERAGE_ACTION"),
     (r"credit rating|moody|fitch|\bs&p\b|crisil|icra", "RATING_CHANGE"),
@@ -331,6 +332,16 @@ _KEYWORDS: tuple[tuple[str, str], ...] = (
     (r"sensex|nifty|market (crash|rally|fall|close)|dalal street|stock market", "MARKET_WIDE"),
 )
 _KW = tuple((re.compile(p, re.I), c) for p, c in _KEYWORDS)
+
+
+REGULATOR_VERSION = "regulator-source-v1"
+
+
+def classify_regulator(item: ItemObs) -> Classification:
+    """A regulator's own publication is REGULATORY by source (the section - orders,
+    circulars, press releases - is kept in category_raw); keywords are not used,
+    so "Settlement Order" is never read as a business order."""
+    return Classification("REGULATORY", 0.9, "SOURCE_SECTION", REGULATOR_VERSION)
 
 
 def classify_keywords(item: ItemObs) -> Classification:

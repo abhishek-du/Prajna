@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from app.news.model import ParsedFeed
 from app.news.sources import nse_announcements
-from app.news.sources.rss import news_sitemap_parser, rss_parser
+from app.news.sources.rss import news_sitemap_parser, rss_parser, sebi_parser
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,7 +30,8 @@ class Source:
     compliance: str                   # PENDING / APPROVED / REJECTED
     content_policy: str
     note: str = ""
-    enrich: str = "HEADLINE"          # EXCHANGE (filings: subject + filer) / HEADLINE (media)
+    # EXCHANGE (filings: subject + filer) / HEADLINE (media) / REGULATOR (SEBI)
+    enrich: str = "HEADLINE"
 
 
 SOURCES: dict[str, Source] = {s.key: s for s in (
@@ -57,6 +58,18 @@ SOURCES: dict[str, Source] = {s.key: s for s in (
            "https://www.cnbctv18.com/commonfeeds/v1/cne/sitemap/google-news.xml",
            "C", news_sitemap_parser("CNBC-TV18"), 300, 900, 3600, "ADAPTER", "PENDING",
            "metadata + URL + keywords", "~270 KB per poll, no conditional GET: slow cadence"),
+    Source("INDIANEXPRESS_BUSINESS_RSS", "Indian Express - business", "RSS",
+           "https://indianexpress.com/section/business/feed/",
+           "B", rss_parser("Indian Express"), 180, 900, 1800, "ADAPTER", "PENDING",
+           "metadata + URL (the feed carries no description)",
+           "~200 KB, 200 items; conditional GET (ETag). The market-section feed is stale "
+           "(newest item 2026-09-21), so the business feed is used"),
+    Source("SEBI_RSS", "SEBI - press releases, circulars, orders", "RSS",
+           "https://www.sebi.gov.in/sebirss.xml",
+           "A", sebi_parser(), 3600, 3600, 3600, "ADAPTER", "PENDING",
+           "metadata + URL (public regulatory publications)",
+           "<ttl>60</ttl>: hourly; pubDate is a DATE only, so no publication time or "
+           "latency is claimed", "REGULATOR"),
     Source("MONEYCONTROL", "Moneycontrol", "RSS", "https://www.moneycontrol.com/rss/",
            "-", None, 0, 0, 0, "UNSUPPORTED", "REJECTED", "none",
            "HTTP 403 on robots.txt and RSS (bot protection); no bypass"),

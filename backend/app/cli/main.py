@@ -1655,7 +1655,7 @@ def news_dry_run(
 
     from app.news.sources import SOURCES
 
-    keys = ([k for k, s in SOURCES.items() if s.enrich == "HEADLINE" and s.parse
+    keys = ([k for k, s in SOURCES.items() if s.enrich in ("HEADLINE", "REGULATOR") and s.parse
              and s.status != "UNSUPPORTED"] if source.upper() == "MEDIA"
             else [k.strip() for k in source.split(",") if k.strip()])
     for k in keys:
