@@ -32,7 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.canon import pit
 from app.core.clock import now
-from app.core.config import get_settings
+from app.core.config import BACKEND_ROOT, get_settings
 from app.features import engine as E
 from app.features import inputs as I
 from app.features import locks
@@ -52,6 +52,7 @@ LEVELS = ("IMPLEMENTED", "TESTED", "DRY-RUN READY", "PRODUCTION READY", "PRODUCT
 def run_tests() -> dict[str, Any]:
     """The full suite (Stage 1 + 2 + 3), test database only."""
     p = subprocess.run([sys.executable, "-m", "pytest", "-p", "no:randomly"],
+                       cwd=str(BACKEND_ROOT),
                        capture_output=True, text=True, timeout=3600)
     tail = [ln for ln in p.stdout.splitlines() if " passed" in ln or " failed" in ln]
     return {"exit": p.returncode, "summary": tail[-1] if tail else p.stdout[-300:]}

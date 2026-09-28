@@ -1,6 +1,6 @@
 # Multi-source news acceptance
 
-**Generated:** 2026-09-28T11:41:55.048792+00:00 by `prajna acceptance news` (read-only; regenerate, do not edit).
+**Generated:** 2026-09-28T14:51:52.776224+00:00 by `prajna acceptance news` (read-only; regenerate, do not edit).
 
 ## Overall: **NOT PASSED**
 
@@ -8,14 +8,14 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
 
 | Source | Status | EVIDENCE | LATENCY | HEALTH | POLITENESS | MAPPING | TERMS | PIT |
 |---|---|---|---|---|---|---|---|---|
-| NSE_ANNOUNCEMENTS | **PENDING** | PENDING | PASS | PASS | PENDING | PENDING | PENDING | PASS |
-| ET_STOCKS_RSS | **PENDING** | PENDING | PENDING | PASS | PENDING | PENDING | PENDING | PASS |
-| BS_MARKETS_RSS | **PENDING** | PENDING | PASS | PASS | PENDING | PENDING | PENDING | PASS |
-| BL_MARKETS_RSS | **PENDING** | PENDING | PASS | PASS | PENDING | PENDING | PENDING | PASS |
-| MINT_MARKETS_RSS | **PENDING** | PENDING | PENDING | PASS | PENDING | PENDING | PENDING | PASS |
-| CNBCTV18_NEWS_SITEMAP | **PENDING** | PENDING | PASS | PASS | PENDING | PENDING | PENDING | PASS |
-| INDIANEXPRESS_BUSINESS_RSS | **PENDING** | PENDING | PENDING | PASS | PENDING | PENDING | PENDING | PASS |
-| SEBI_RSS | **PENDING** | PENDING | NOT_MEASURABLE | PASS | PENDING | PENDING | PENDING | PASS |
+| NSE_ANNOUNCEMENTS | **PENDING** | PENDING | PASS | PASS | PENDING | PENDING | PENDING | PENDING |
+| ET_STOCKS_RSS | **PENDING** | PENDING | PASS | PASS | PENDING | PENDING | PENDING | PENDING |
+| BS_MARKETS_RSS | **PENDING** | PENDING | PASS | PASS | PENDING | PENDING | PENDING | PENDING |
+| BL_MARKETS_RSS | **PENDING** | PENDING | PASS | PASS | PENDING | PENDING | PENDING | PENDING |
+| MINT_MARKETS_RSS | **PENDING** | PENDING | PASS | PASS | PENDING | PENDING | PENDING | PENDING |
+| CNBCTV18_NEWS_SITEMAP | **PENDING** | PENDING | PASS | PASS | PENDING | PENDING | PENDING | PENDING |
+| INDIANEXPRESS_BUSINESS_RSS | **PENDING** | PENDING | PENDING | PASS | PENDING | PENDING | PENDING | PENDING |
+| SEBI_RSS | **PENDING** | PENDING | NOT_MEASURABLE | PASS | PENDING | PENDING | PENDING | PENDING |
 
 ## Per source
 
@@ -28,19 +28,19 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    "status": "PENDING",
    "evidence": {
     "full_market_sessions": [],
-    "polls": 9
+    "polls": 21
    }
   },
   "LATENCY": {
    "status": "PASS",
    "evidence": {
     "discovery_s": {
-     "n": 461,
-     "p50": 416.1,
-     "p90": 855.0,
-     "p95": 1078.3,
-     "p99": 1221.7,
-     "max": 1301.3
+     "n": 1483,
+     "p50": 525.3,
+     "p90": 1278.0,
+     "p95": 1602.4,
+     "p99": 2005.4,
+     "max": 2075.4
     },
     "market_hours": {
      "n": 0,
@@ -56,8 +56,8 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    "status": "PASS",
    "evidence": {
     "blocked": 0,
-    "failed": 1,
-    "polls": 9,
+    "failed": 3,
+    "polls": 21,
     "health_now": "HEALTHY"
    }
   },
@@ -82,45 +82,47 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    }
   },
   "PIT": {
-   "status": "PASS",
+   "status": "PENDING",
    "evidence": {
-    "exit": 0,
-    "summary": "149 passed in 7.04s"
+    "note": "run with --run-tests"
    }
   }
  },
  "summary": {
-  "items": 1691,
-  "live_items": 463,
+  "items": 2713,
+  "live_items": 1485,
   "backlog_items": 1228,
-  "mapping_rate": 0.823,
-  "unresolved": 300,
+  "mapping_rate": 0.851,
+  "unresolved": 403,
   "stories": {
-   "items_with_story": 82,
-   "joined_existing": 23,
+   "items_with_story": 1104,
+   "joined_existing": 504,
    "by_method": {
-    "FOUNDER": 59,
-    "SAME_TITLE": 23
+    "FOUNDER": 600,
+    "SAME_TITLE": 504
    }
   },
   "assessment": {
-   "breaking": 1,
+   "breaking": 12,
    "impact": {
-    "LOW": 66,
-    "MEDIUM": 14,
-    "UNKNOWN": 1,
-    "HIGH": 1
+    "LOW": 865,
+    "MEDIUM": 142,
+    "UNKNOWN": 82,
+    "HIGH": 15
    },
    "scope": {
-    "STOCK": 80,
-    "UNKNOWN": 2
+    "STOCK": 999,
+    "UNKNOWN": 69,
+    "SECTOR": 21,
+    "INDEX": 13,
+    "MACRO": 2
    }
   },
   "content_fetch_status": {
-   "NOT_AVAILABLE": 1691
+   "NOT_AVAILABLE": 2713
   },
   "rate_limit_events": 0,
-  "errors": 1
+  "errors": 3
  }
 }
 ```
@@ -134,19 +136,19 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    "status": "PENDING",
    "evidence": {
     "full_market_sessions": [],
-    "polls": 9
+    "polls": 28
    }
   },
   "LATENCY": {
-   "status": "PENDING",
+   "status": "PASS",
    "evidence": {
     "discovery_s": {
-     "n": 2,
-     "p50": 1178.3,
-     "p90": 1194.0,
-     "p95": 1195.9,
-     "p99": 1197.5,
-     "max": 1197.9
+     "n": 6,
+     "p50": 1250.0,
+     "p90": 1778.9,
+     "p95": 1954.8,
+     "p99": 2095.5,
+     "max": 2130.7
     },
     "market_hours": {
      "n": 0,
@@ -163,7 +165,7 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    "evidence": {
     "blocked": 0,
     "failed": 0,
-    "polls": 9,
+    "polls": 28,
     "health_now": "HEALTHY"
    }
   },
@@ -188,31 +190,39 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    }
   },
   "PIT": {
-   "status": "PASS",
+   "status": "PENDING",
    "evidence": {
-    "exit": 0,
-    "summary": "149 passed in 7.04s"
+    "note": "run with --run-tests"
    }
   }
  },
  "summary": {
-  "items": 52,
-  "live_items": 2,
+  "items": 56,
+  "live_items": 6,
   "backlog_items": 50,
-  "mapping_rate": 0.442,
-  "unresolved": 29,
+  "mapping_rate": 0.446,
+  "unresolved": 31,
   "stories": {
-   "items_with_story": 0,
+   "items_with_story": 4,
    "joined_existing": 0,
-   "by_method": {}
+   "by_method": {
+    "FOUNDER": 4
+   }
   },
   "assessment": {
    "breaking": 0,
-   "impact": {},
-   "scope": {}
+   "impact": {
+    "MEDIUM": 3,
+    "HIGH": 1
+   },
+   "scope": {
+    "UNKNOWN": 1,
+    "MACRO": 1,
+    "STOCK": 2
+   }
   },
   "content_fetch_status": {
-   "NOT_AVAILABLE": 52
+   "NOT_AVAILABLE": 56
   },
   "rate_limit_events": 0,
   "errors": 0
@@ -229,19 +239,19 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    "status": "PENDING",
    "evidence": {
     "full_market_sessions": [],
-    "polls": 7
+    "polls": 19
    }
   },
   "LATENCY": {
    "status": "PASS",
    "evidence": {
     "discovery_s": {
-     "n": 6,
-     "p50": 711.3,
-     "p90": 851.3,
-     "p95": 853.3,
-     "p99": 854.9,
-     "max": 855.3
+     "n": 23,
+     "p50": 847.3,
+     "p90": 1151.9,
+     "p95": 1158.0,
+     "p99": 1185.4,
+     "max": 1192.9
     },
     "market_hours": {
      "n": 0,
@@ -258,7 +268,7 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    "evidence": {
     "blocked": 0,
     "failed": 0,
-    "polls": 7,
+    "polls": 19,
     "health_now": "HEALTHY"
    }
   },
@@ -283,37 +293,42 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    }
   },
   "PIT": {
-   "status": "PASS",
+   "status": "PENDING",
    "evidence": {
-    "exit": 0,
-    "summary": "149 passed in 7.04s"
+    "note": "run with --run-tests"
    }
   }
  },
  "summary": {
-  "items": 41,
-  "live_items": 6,
+  "items": 58,
+  "live_items": 23,
   "backlog_items": 35,
-  "mapping_rate": 0.341,
-  "unresolved": 27,
+  "mapping_rate": 0.31,
+  "unresolved": 40,
   "stories": {
-   "items_with_story": 1,
+   "items_with_story": 18,
    "joined_existing": 0,
    "by_method": {
-    "FOUNDER": 1
+    "FOUNDER": 18
    }
   },
   "assessment": {
    "breaking": 0,
    "impact": {
-    "UNKNOWN": 1
+    "UNKNOWN": 7,
+    "MEDIUM": 10,
+    "LOW": 1
    },
    "scope": {
-    "MACRO": 1
+    "MACRO": 5,
+    "INDEX": 1,
+    "SECTOR": 1,
+    "UNKNOWN": 7,
+    "STOCK": 4
    }
   },
   "content_fetch_status": {
-   "NOT_AVAILABLE": 41
+   "NOT_AVAILABLE": 58
   },
   "rate_limit_events": 0,
   "errors": 0
@@ -330,19 +345,19 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    "status": "PENDING",
    "evidence": {
     "full_market_sessions": [],
-    "polls": 5
+    "polls": 8
    }
   },
   "LATENCY": {
    "status": "PASS",
    "evidence": {
     "discovery_s": {
-     "n": 7,
-     "p50": 598.9,
-     "p90": 1036.3,
-     "p95": 1224.1,
-     "p99": 1374.2,
-     "max": 1411.8
+     "n": 15,
+     "p50": 636.0,
+     "p90": 2068.4,
+     "p95": 2416.3,
+     "p99": 2974.6,
+     "max": 3114.2
     },
     "market_hours": {
      "n": 0,
@@ -359,7 +374,7 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    "evidence": {
     "blocked": 0,
     "failed": 0,
-    "polls": 5,
+    "polls": 8,
     "health_now": "HEALTHY"
    }
   },
@@ -384,41 +399,43 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    }
   },
   "PIT": {
-   "status": "PASS",
+   "status": "PENDING",
    "evidence": {
-    "exit": 0,
-    "summary": "149 passed in 7.04s"
+    "note": "run with --run-tests"
    }
   }
  },
  "summary": {
-  "items": 67,
-  "live_items": 7,
+  "items": 75,
+  "live_items": 15,
   "backlog_items": 60,
-  "mapping_rate": 0.104,
-  "unresolved": 60,
+  "mapping_rate": 0.12,
+  "unresolved": 66,
   "stories": {
-   "items_with_story": 4,
+   "items_with_story": 12,
    "joined_existing": 0,
    "by_method": {
-    "FOUNDER": 4
+    "FOUNDER": 12
    }
   },
   "assessment": {
    "breaking": 2,
    "impact": {
     "HIGH": 2,
-    "MEDIUM": 1,
-    "UNKNOWN": 1
+    "MEDIUM": 7,
+    "UNKNOWN": 2,
+    "LOW": 1
    },
    "scope": {
-    "UNKNOWN": 2,
+    "UNKNOWN": 5,
     "SECTOR": 1,
-    "MACRO": 1
+    "MACRO": 3,
+    "INDEX": 1,
+    "STOCK": 2
    }
   },
   "content_fetch_status": {
-   "NOT_AVAILABLE": 67
+   "NOT_AVAILABLE": 75
   },
   "rate_limit_events": 0,
   "errors": 0
@@ -435,18 +452,18 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    "status": "PENDING",
    "evidence": {
     "full_market_sessions": [],
-    "polls": 8
+    "polls": 21
    }
   },
   "LATENCY": {
-   "status": "PENDING",
+   "status": "PASS",
    "evidence": {
     "discovery_s": {
-     "n": 4,
-     "p50": 255.6,
-     "p90": 747.1,
-     "p95": 823.2,
-     "p99": 884.0,
+     "n": 10,
+     "p50": 372.3,
+     "p90": 767.7,
+     "p95": 833.5,
+     "p99": 886.1,
      "max": 899.2
     },
     "market_hours": {
@@ -464,7 +481,7 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    "evidence": {
     "blocked": 0,
     "failed": 0,
-    "polls": 8,
+    "polls": 21,
     "health_now": "HEALTHY"
    }
   },
@@ -489,31 +506,39 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    }
   },
   "PIT": {
-   "status": "PASS",
+   "status": "PENDING",
    "evidence": {
-    "exit": 0,
-    "summary": "149 passed in 7.04s"
+    "note": "run with --run-tests"
    }
   }
  },
  "summary": {
-  "items": 39,
-  "live_items": 4,
+  "items": 45,
+  "live_items": 10,
   "backlog_items": 35,
-  "mapping_rate": 0.282,
-  "unresolved": 28,
+  "mapping_rate": 0.289,
+  "unresolved": 32,
   "stories": {
-   "items_with_story": 0,
+   "items_with_story": 6,
    "joined_existing": 0,
-   "by_method": {}
+   "by_method": {
+    "FOUNDER": 6
+   }
   },
   "assessment": {
    "breaking": 0,
-   "impact": {},
-   "scope": {}
+   "impact": {
+    "MEDIUM": 4,
+    "UNKNOWN": 2
+   },
+   "scope": {
+    "STOCK": 2,
+    "UNKNOWN": 3,
+    "MARKET": 1
+   }
   },
   "content_fetch_status": {
-   "NOT_AVAILABLE": 39
+   "NOT_AVAILABLE": 45
   },
   "rate_limit_events": 0,
   "errors": 0
@@ -530,18 +555,18 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    "status": "PENDING",
    "evidence": {
     "full_market_sessions": [],
-    "polls": 8
+    "polls": 20
    }
   },
   "LATENCY": {
    "status": "PASS",
    "evidence": {
     "discovery_s": {
-     "n": 24,
-     "p50": 816.4,
-     "p90": 1278.3,
-     "p95": 1341.6,
-     "p99": 1446.3,
+     "n": 55,
+     "p50": 773.0,
+     "p90": 1201.5,
+     "p95": 1293.3,
+     "p99": 1408.5,
      "max": 1474.4
     },
     "market_hours": {
@@ -559,7 +584,7 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    "evidence": {
     "blocked": 0,
     "failed": 0,
-    "polls": 8,
+    "polls": 20,
     "health_now": "HEALTHY"
    }
   },
@@ -584,38 +609,44 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    }
   },
   "PIT": {
-   "status": "PASS",
+   "status": "PENDING",
    "evidence": {
-    "exit": 0,
-    "summary": "149 passed in 7.04s"
+    "note": "run with --run-tests"
    }
   }
  },
  "summary": {
-  "items": 300,
-  "live_items": 24,
+  "items": 331,
+  "live_items": 55,
   "backlog_items": 276,
-  "mapping_rate": 0.087,
-  "unresolved": 274,
+  "mapping_rate": 0.097,
+  "unresolved": 299,
   "stories": {
-   "items_with_story": 4,
+   "items_with_story": 35,
    "joined_existing": 0,
    "by_method": {
-    "FOUNDER": 4
+    "FOUNDER": 35
    }
   },
   "assessment": {
-   "breaking": 1,
+   "breaking": 2,
    "impact": {
-    "HIGH": 1,
-    "UNKNOWN": 3
+    "HIGH": 4,
+    "UNKNOWN": 17,
+    "MEDIUM": 12,
+    "LOW": 2
    },
    "scope": {
-    "UNKNOWN": 4
+    "UNKNOWN": 20,
+    "SECTOR": 1,
+    "STOCK": 6,
+    "MACRO": 6,
+    "INDEX": 1,
+    "MARKET": 1
    }
   },
   "content_fetch_status": {
-   "NOT_AVAILABLE": 300
+   "NOT_AVAILABLE": 331
   },
   "rate_limit_events": 0,
   "errors": 0
@@ -632,19 +663,19 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    "status": "PENDING",
    "evidence": {
     "full_market_sessions": [],
-    "polls": 4
+    "polls": 16
    }
   },
   "LATENCY": {
    "status": "PENDING",
    "evidence": {
     "discovery_s": {
-     "n": 0,
-     "p50": null,
-     "p90": null,
-     "p95": null,
-     "p99": null,
-     "max": null
+     "n": 4,
+     "p50": 269.7,
+     "p90": 807.4,
+     "p95": 920.0,
+     "p99": 1010.1,
+     "max": 1032.6
     },
     "market_hours": {
      "n": 0,
@@ -661,7 +692,7 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    "evidence": {
     "blocked": 0,
     "failed": 0,
-    "polls": 4,
+    "polls": 16,
     "health_now": "HEALTHY"
    }
   },
@@ -686,31 +717,38 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    }
   },
   "PIT": {
-   "status": "PASS",
+   "status": "PENDING",
    "evidence": {
-    "exit": 0,
-    "summary": "149 passed in 7.04s"
+    "note": "run with --run-tests"
    }
   }
  },
  "summary": {
-  "items": 200,
-  "live_items": 0,
+  "items": 204,
+  "live_items": 4,
   "backlog_items": 200,
-  "mapping_rate": 0.035,
-  "unresolved": 193,
+  "mapping_rate": 0.034,
+  "unresolved": 197,
   "stories": {
-   "items_with_story": 0,
+   "items_with_story": 4,
    "joined_existing": 0,
-   "by_method": {}
+   "by_method": {
+    "FOUNDER": 4
+   }
   },
   "assessment": {
    "breaking": 0,
-   "impact": {},
-   "scope": {}
+   "impact": {
+    "UNKNOWN": 2,
+    "MEDIUM": 2
+   },
+   "scope": {
+    "UNKNOWN": 3,
+    "MACRO": 1
+   }
   },
   "content_fetch_status": {
-   "NOT_AVAILABLE": 200
+   "NOT_AVAILABLE": 204
   },
   "rate_limit_events": 0,
   "errors": 0
@@ -727,7 +765,7 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    "status": "PENDING",
    "evidence": {
     "full_market_sessions": [],
-    "polls": 3
+    "polls": 6
    }
   },
   "LATENCY": {
@@ -756,7 +794,7 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    "evidence": {
     "blocked": 0,
     "failed": 0,
-    "polls": 3,
+    "polls": 6,
     "health_now": "HEALTHY"
    }
   },
@@ -781,31 +819,38 @@ a PASS unlocks nothing by itself: writes also need the per-source flag, terms AP
    }
   },
   "PIT": {
-   "status": "PASS",
+   "status": "PENDING",
    "evidence": {
-    "exit": 0,
-    "summary": "149 passed in 7.04s"
+    "note": "run with --run-tests"
    }
   }
  },
  "summary": {
-  "items": 30,
-  "live_items": 0,
+  "items": 50,
+  "live_items": 20,
   "backlog_items": 30,
-  "mapping_rate": 0.167,
-  "unresolved": 25,
+  "mapping_rate": 0.14,
+  "unresolved": 43,
   "stories": {
-   "items_with_story": 0,
-   "joined_existing": 0,
-   "by_method": {}
+   "items_with_story": 20,
+   "joined_existing": 8,
+   "by_method": {
+    "FOUNDER": 12,
+    "SAME_TITLE": 8
+   }
   },
   "assessment": {
    "breaking": 0,
-   "impact": {},
-   "scope": {}
+   "impact": {
+    "MEDIUM": 20
+   },
+   "scope": {
+    "UNKNOWN": 18,
+    "STOCK": 2
+   }
   },
   "content_fetch_status": {
-   "NOT_AVAILABLE": 30
+   "NOT_AVAILABLE": 50
   },
   "rate_limit_events": 0,
   "errors": 0

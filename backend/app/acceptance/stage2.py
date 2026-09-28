@@ -23,6 +23,7 @@ from app.canon.quality import run_gates
 from app.canon.time import LookAheadViolation, market_date
 from app.canon.universe import RULES_SHA256
 from app.core.clock import now
+from app.core.config import BACKEND_ROOT
 
 PASS, FAIL, PENDING = "PASS", "FAIL", "PENDING"
 EXPECTED_CONSTRAINTS = (
@@ -51,6 +52,7 @@ async def _all(s, sql, **kw):
 def run_tests() -> dict[str, Any]:
     """The full suite (Stage 1 + Stage 2): P, and test evidence for E/K/L/M/N."""
     p = subprocess.run([sys.executable, "-m", "pytest", "-p", "no:randomly"],
+                       cwd=str(BACKEND_ROOT),
                        capture_output=True, text=True, timeout=3600)
     tail = [ln for ln in p.stdout.splitlines() if " passed" in ln or " failed" in ln]
     return {"exit": p.returncode, "summary": tail[-1] if tail else p.stdout[-300:]}
