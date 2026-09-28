@@ -1310,8 +1310,10 @@ def stage2_quality(out: str = typer.Option(None, "--out", help="also write the J
 @acceptance_app.command("stage2")
 def acceptance_stage2(
     run_tests: bool = typer.Option(False, "--run-tests", help="also run the full test suite"),
-    out: str = typer.Option("var/acceptance/stage2.json", "--out"),
-    md: str = typer.Option("../docs/STAGE_2_ACCEPTANCE.md", "--md", help="'' = do not write"),
+    out: str = typer.Option(None, "--out", help="JSON report (default: backend/var/acceptance/"
+                            "stage2.json, whatever the working directory)"),
+    md: str = typer.Option(None, "--md", help="regenerate the acceptance document here "
+                           "(default: docs/STAGE_2_ACCEPTANCE.md; '' = no)"),
     seed: int = typer.Option(None, "--seed", help="reproduce the E/O samples of a report"),
 ):
     """Stage 2 gate: criteria A-P from the real database (+ the test suite)."""
@@ -1321,7 +1323,11 @@ def acceptance_stage2(
     from sqlalchemy import text as _t
 
     from app.acceptance import stage2 as S2
+    from app.acceptance.stage1 import anchored
     from app.db.engine import get_sessionmaker
+
+    out = out or str(anchored("var/acceptance/stage2.json"))
+    md = str(anchored("../docs/STAGE_2_ACCEPTANCE.md").resolve()) if md is None else md
 
     tests = S2.run_tests() if run_tests else None
 
@@ -1338,6 +1344,7 @@ def acceptance_stage2(
     pathlib.Path(out).parent.mkdir(parents=True, exist_ok=True)
     pathlib.Path(out).write_text(_json.dumps(rep, indent=2, default=str))
     if md:
+        pathlib.Path(md).parent.mkdir(parents=True, exist_ok=True)
         pathlib.Path(md).write_text(S2.to_markdown(rep, dep))
     for c in rep["criteria"]:
         typer.echo(f"{c['id']}  {c['status']:8} {c['question']}")
@@ -1558,8 +1565,10 @@ def stage3_kill(
 @acceptance_app.command("stage3")
 def acceptance_stage3(
     run_tests: bool = typer.Option(False, "--run-tests", help="also run the full test suite"),
-    out: str = typer.Option("var/acceptance/stage3.json", "--out"),
-    md: str = typer.Option("../docs/STAGE_3_ACCEPTANCE.md", "--md", help="'' = do not write"),
+    out: str = typer.Option(None, "--out", help="JSON report (default: backend/var/acceptance/"
+                            "stage3.json, whatever the working directory)"),
+    md: str = typer.Option(None, "--md", help="regenerate the acceptance document here "
+                           "(default: docs/STAGE_3_ACCEPTANCE.md; '' = no)"),
 ):
     """Stage 3 gate: criteria A-O and the readiness levels. Read-only. Never
     declares Stage 3 COMPLETE unless every prerequisite and production evidence hold."""
@@ -1567,7 +1576,11 @@ def acceptance_stage3(
     import pathlib
 
     from app.acceptance import stage3 as S3
+    from app.acceptance.stage1 import anchored
     from app.db.engine import get_sessionmaker
+
+    out = out or str(anchored("var/acceptance/stage3.json"))
+    md = str(anchored("../docs/STAGE_3_ACCEPTANCE.md").resolve()) if md is None else md
 
     tests = S3.run_tests() if run_tests else None
 
@@ -1579,6 +1592,7 @@ def acceptance_stage3(
     pathlib.Path(out).parent.mkdir(parents=True, exist_ok=True)
     pathlib.Path(out).write_text(_json.dumps(rep, indent=2, default=str))
     if md:
+        pathlib.Path(md).parent.mkdir(parents=True, exist_ok=True)
         pathlib.Path(md).write_text(S3.to_markdown(rep))
     for c in rep["criteria"]:
         typer.echo(f"{c['id']}  {c['status']:8} {c['question']}")
@@ -1780,19 +1794,26 @@ def news_kill(state: str = typer.Argument(..., help="on | off"),
 @acceptance_app.command("news")
 def acceptance_news(
     run_tests: bool = typer.Option(False, "--run-tests", help="also run the news tests"),
-    out: str = typer.Option("var/acceptance/news.json", "--out"),
-    md: str = typer.Option("../docs/NEWS_MULTI_SOURCE_ACCEPTANCE.md", "--md"),
+    out: str = typer.Option(None, "--out", help="JSON report (default: backend/var/acceptance/"
+                            "news.json, whatever the working directory)"),
+    md: str = typer.Option(None, "--md", help="regenerate the acceptance document here "
+                           "(default: docs/NEWS_MULTI_SOURCE_ACCEPTANCE.md; '' = no)"),
 ):
     """Per-source news acceptance (read-only). A PASS unlocks nothing by itself."""
     import json as _json
     import pathlib
 
     from app.acceptance import news as NA
+    from app.acceptance.stage1 import anchored
+
+    out = out or str(anchored("var/acceptance/news.json"))
+    md = str(anchored("../docs/NEWS_MULTI_SOURCE_ACCEPTANCE.md").resolve()) if md is None else md
 
     rep = NA.evaluate(NA.run_tests() if run_tests else None)
     pathlib.Path(out).parent.mkdir(parents=True, exist_ok=True)
     pathlib.Path(out).write_text(_json.dumps(rep, indent=2, default=str))
     if md:
+        pathlib.Path(md).parent.mkdir(parents=True, exist_ok=True)
         pathlib.Path(md).write_text(NA.to_markdown(rep))
     for k, v in rep["sources"].items():
         typer.echo(f"{k:28} {v['status']:8} " + " ".join(
