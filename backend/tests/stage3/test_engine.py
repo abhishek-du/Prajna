@@ -613,3 +613,140 @@ class TestSnapshotConsistency:
         with pytest.raises(E.SnapshotIsolationError):
             await run(world)
         assert await stored(world) == 0 and await events(world, "RUN_FAILED") == 1
+
+
+# ── adversarial point in time: each input knowable just after as_of ──────────
+# (already covered elsewhere, not repeated: the snapshot session's own bar -
+# TestPointInTime._late_facts; FII/DII published after as_of - TestFiiDiiStaleness;
+# a NEW split knowable after as_of - TestPriceBasis)
+LATE = W.ist(2026, 9, 24, 9, 5)          # after PRE_SESSION 08:59:59, before PRE_OPEN 09:08
+
+
+async def _facts(s, stream):
+    rid = await _run(s, stream, source="UPSTOX_REST_V2")
+    return rid, await _payload(s, rid, "UPSTOX_REST_V2")
+
+
+class TestAdversarialPointInTime:
+    async def test_late_bar_revision_is_never_used(self, world):
+        """A's 09-23 bar (close 100 + n, knowable 09-23 16:00 IST) is re-served with close
+        999: once observed at 09-24 08:00 (before as_of) and once at 09:30 (after). The
+        first observation wins (Stage 1 D3): revisions live in ohlcv_observation, which
+        no Stage 3 input reads, so ret_1d stays the first observation's at both as_of."""
+        n = len(W.history()) - 1
+        rid, sha = await _facts(world, "bars.revision")
+        for fetched in (W.ist(2026, 9, 24, 8), W.ist(2026, 9, 24, 9, 30)):
+            await world.execute(text("""
+                insert into ohlcv_observation (instrument_id, timeframe, session_date,
+                  bar_start_utc, source, instrument_key, open, high, low, close, volume,
+                  run_id, payload_sha256, fetched_at, classification, reason, method_version)
+                values (:i, '1d', '2026-09-23', :b, 'UPSTOX_REST_V3', :k, 998, 1000, 997, 999,
+                        1, :r, :h, :f, 'ROUNDING', 'adversarial test', 'revision-v1')"""),
+                {"i": world.info["ids"][W.A], "b": W.ist(2026, 9, 23), "k": W.A, "r": rid,
+                 "h": sha, "f": fetched})
+        await world.commit()
+        want = (ok((100 + n) / (99 + n) - 1)[0], None)
+        for kind, at in (("PRE_SESSION", PRE_SESSION_AT), ("PRE_OPEN", PRE_OPEN_AT)):
+            sn = await snap(world, kind)
+            assert sn.as_of == at
+            res = await E.compute_snapshot(world, sn, [W.A], with_context=False)
+            assert by(res)[(W.A, "ret_1d")] == want, kind
+            row = next(r for r in res.rows if r.feature_id == "ret_1d")
+            assert row.input_max_knowable_at == W.ist(2026, 9, 23, 16)   # the stored bar
+
+    async def test_previous_session_bar_first_observed_after_as_of(self, world):
+        """Snapshot 2026-09-25 (previous session 09-24). A's 09-24 bar is first knowable
+        09-25 09:05: invisible at PRE_SESSION 08:59:59 -> MISSING_INPUT (never 09-23
+        relabelled); visible at PRE_OPEN 09:08:00 -> ret_1d from it."""
+        clock.freeze(W.ist(2026, 9, 25, 12))
+        n = len(W.history())
+        rid, sha = await _facts(world, "bars.late")
+        await W.insert_basis(world, sha)
+        kn = W.ist(2026, 9, 25, 9, 5)
+        await W.insert_bar(world, world.info["ids"], W.A, W.SESSION, W.close_of(W.A, n),
+                           rid=rid, sha=sha, knowable=kn, i=n)
+        await world.commit()
+        day = _dt.date(2026, 9, 25)
+        ps, po = await snap(world, day=day), await snap(world, "PRE_OPEN", day)
+        assert ps.as_of == W.ist(2026, 9, 25, 8, 59, 59) and po.as_of == W.ist(2026, 9, 25, 9, 8)
+        assert ps.previous_session == W.SESSION
+        a = by(await E.compute_snapshot(world, ps, [W.A], with_context=False))
+        assert a[(W.A, "ret_1d")] == (None, "MISSING_INPUT")
+        res = await E.compute_snapshot(world, po, [W.A], with_context=False)
+        assert by(res)[(W.A, "ret_1d")] == (ok((100 + n) / (99 + n) - 1)[0], None)
+        row = next(r for r in res.rows if r.feature_id == "ret_1d")
+        assert row.input_max_knowable_at == kn
+
+    async def test_revised_corporate_action_known_after_as_of(self, world):
+        """B's 1:1 bonus (ex 09-10, factor 2, knowable 08-20) is revised by the vendor to
+        2:1 (factor 3), the revision knowable 09-24 09:05. At PRE_SESSION 08:59:59 only
+        the original is known: B's adjusted prices still equal A's feature for feature,
+        and the revision is not among the events used."""
+        sn = await snap(world)
+        base = by(await E.compute_snapshot(world, sn, [W.A, W.B], with_context=False))
+        rid, sha = await _facts(world, "facts.ca_revision")
+        ca = (await world.execute(text("""
+            insert into corporate_action (isin, instrument_key, trading_symbol, action_type,
+              ex_date, announcement_date, ratio_from, ratio_to, content_sha256, vendor_payload,
+              source, run_id, payload_sha256, fetched_at, knowable_at, knowable_at_verified,
+              knowable_at_basis)
+            values ('INE000B00001', :k, 'X', 'BONUS', :x, '2026-08-20', 2, 1, :c, '{}',
+                    'UPSTOX_REST_V2', :r, :h, :kn, :kn, false, 'KN-CA') returning id"""),
+            {"k": W.B, "x": W.BONUS_EX, "c": uuid.uuid4().hex * 2, "r": rid, "h": sha,
+             "kn": LATE})).scalar()
+        await world.execute(text("""
+            insert into ca_factor (ca_id, instrument_key, action_type, ex_date, status, method,
+              factor_price, factor_volume, knowable_at, vendor_applied, reason, method_version,
+              derived_at, run_id) values (:c, :k, 'BONUS', :x, 'EXACT', 'BONUS_RATIO', 3, 3,
+              :kn, 'NOT_APPLIED', 'revision', 'cafactor-v1', now(), :r)"""),
+            {"c": ca, "k": W.B, "x": W.BONUS_EX, "kn": LATE, "r": rid})
+        await world.commit()
+        v = by(await E.compute_snapshot(world, sn, [W.A, W.B], with_context=False))
+        assert v == base
+        for f in ("ret_20d", "sma_20", "sma_50", "volatility_20"):
+            assert v[(W.B, f)] == v[(W.A, f)], f
+        adj = await pit.bars_adjusted(world, W.B, "1d", sn.as_of)
+        assert adj["events_known"] == [world.info["ids"]["bonus_ca"]]         # not `ca`
+        po = await snap(world, "PRE_OPEN")                   # 09:08:00: the revision is known
+        assert ca in (await pit.bars_adjusted(world, W.B, "1d", po.as_of))["events_known"]
+
+    async def test_delayed_financial_statement(self, world):
+        """A's quarterly income statement with Jun 2026 (130 vs Jun 2025 100) arrives late:
+        knowable 09-24 09:05. PRE_SESSION uses the statement stored on 09-01 (quarterly
+        figures labelled a year apart: MALFORMED_INPUT); PRE_OPEN uses the new one (0.3)."""
+        rid, sha = await _facts(world, "facts.statement")
+        await world.execute(text("""
+            insert into fundamental_snapshot (instrument_key, isin, statement_type, payload,
+              source, run_id, payload_sha256, fetched_at, knowable_at, knowable_at_verified,
+              knowable_at_basis) values (:k, 'INE000A00001', 'income:consolidated:quarterly',
+              cast(:p as jsonb), 'UPSTOX_REST_V2', :r, :h, :t, :t, false, 'fetched')"""),
+            {"k": W.A, "p": json.dumps(W._stmt({"Revenue": {
+                "Jun 2026": 130, "Mar 2026": 120, "Jun 2025": 100}}, "quarterly")),
+             "r": rid, "h": sha, "t": LATE})
+        await world.commit()
+        ps, po = await snap(world), await snap(world, "PRE_OPEN")
+        a = by(await E.compute_snapshot(world, ps, [W.A], with_context=False))
+        assert a[(W.A, "revenue_yoy_q")] == (None, "MALFORMED_INPUT")
+        assert a[(W.A, "revenue_yoy")] == (0.2, None)              # yearly: unchanged
+        b = by(await E.compute_snapshot(world, po, [W.A], with_context=False))
+        assert b[(W.A, "revenue_yoy_q")] == (ok(130 / 100 - 1)[0], None)
+
+    async def test_india_vix_previous_session_missing(self, world):
+        """Snapshot 2026-09-25: VIX's last stored bar is 09-23. Its 09-24 bar is first
+        knowable 09-25 09:05. PRE_SESSION: MISSING_INPUT (09-23's level is not
+        relabelled); PRE_OPEN: the 09-24 level."""
+        clock.freeze(W.ist(2026, 9, 25, 12))
+        day, n = _dt.date(2026, 9, 25), len(W.history())
+        ps = await snap(world, day=day)
+        v = by(await E.compute_snapshot(world, ps, [W.A]))
+        assert v[(W.VIX, "india_vix_level")] == (None, "MISSING_INPUT")
+        assert v[(W.VIX, "india_vix_change_5d")] == (None, "MISSING_INPUT")
+        rid, sha = await _facts(world, "bars.vix")
+        await W.insert_basis(world, sha)
+        await W.insert_bar(world, world.info["ids"], W.VIX, W.SESSION, W.close_of(W.VIX, n),
+                           rid=rid, sha=sha, knowable=W.ist(2026, 9, 25, 9, 5), i=n)
+        await world.commit()
+        v = by(await E.compute_snapshot(world, ps, [W.A]))
+        assert v[(W.VIX, "india_vix_level")] == (None, "MISSING_INPUT")
+        po = by(await E.compute_snapshot(world, await snap(world, "PRE_OPEN", day), [W.A]))
+        assert po[(W.VIX, "india_vix_level")] == (ok(W.close_of(W.VIX, n))[0], None)
