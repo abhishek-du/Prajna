@@ -271,7 +271,7 @@ class DryRunRecorder:
                 "http_status": f.http_status, "bytes": len(f.body), "items_seen": o.seen,
                 "items_new": len(o.new), "items_changed": len(o.changed), "backlog": o.backlog,
                 "payload_sha256": raw, "error": f.error, "retry_after_s": f.retry_after_s,
-                "issues": o.issues}
+                "ttl_s": self.http.ttl_s, "issues": o.issues}
         lines = [poll]
         for d in o.new:
             it = d.item

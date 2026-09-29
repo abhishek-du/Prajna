@@ -75,3 +75,26 @@ def test_blocked_or_impolite_polling_fails(evidence):
     assert NA.evaluate_source("ET_STOCKS_RSS", None)["criteria"]["HEALTH"]["status"] == "FAIL"
     write(evidence, session(step=1))                       # every minute: below the 120 s floor
     assert NA.evaluate_source("ET_STOCKS_RSS", None)["criteria"]["POLITENESS"]["status"] == "FAIL"
+
+
+def test_feed_ttl_sets_the_expected_interval(evidence):
+    """Regression (2026-09-29): BusinessLine declares <ttl>60</ttl>, so it is polled
+    hourly; judged against its configured 180 s it never had a 'full session'."""
+    bl = evidence.parent / "BL_MARKETS_RSS"
+    bl.mkdir()
+    hourly = [{**poll(9 + h, 5 + h), "ttl_s": 3600} for h in range(7)]
+    write(bl, hourly)
+    v = NA.evaluate_source("BL_MARKETS_RSS", None)["criteria"]
+    assert v["EVIDENCE"]["status"] == "PASS"
+    assert v["EVIDENCE"]["evidence"]["expected_interval_s"] == 3600
+    assert v["POLITENESS"]["status"] == "PASS"
+    # without the ttl the same hourly polls are not coverage for a 180 s source
+    write(bl, [{k: x for k, x in p.items() if k != "ttl_s"} for p in hourly])
+    assert NA.evaluate_source("BL_MARKETS_RSS", None)["criteria"]["EVIDENCE"]["status"] == "PENDING"
+
+
+def test_polling_faster_than_the_feed_ttl_is_impolite(evidence):
+    bl = evidence.parent / "BL_MARKETS_RSS"
+    bl.mkdir()
+    write(bl, [{**p, "ttl_s": 3600} for p in session(step=5)])
+    assert NA.evaluate_source("BL_MARKETS_RSS", None)["criteria"]["POLITENESS"]["status"] == "FAIL"

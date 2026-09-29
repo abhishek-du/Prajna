@@ -6,7 +6,8 @@ needs the source's own flag, terms APPROVED, Stage 2 PASS and a token
 (app.news.locks).
 
   EVIDENCE   DRY_RUN polls cover >= 1 full market session (weekday, 09:15-15:30 IST,
-             no gap > 3x the expected interval)
+             no gap > 3x the expected interval; the expected interval is
+             the configured one or the feed's own <ttl>, whichever is longer)
   LATENCY    >= 5 live discoveries with a publication time measured (latency is
              REPORTED, no threshold is invented); sources that publish a DATE only
              (SEBI) are NOT_MEASURABLE, which does not block
@@ -68,6 +69,18 @@ def market_sessions(polls: list[dict], interval_s: float) -> list[str]:
     return out
 
 
+def feed_ttl_s(polls: list[dict], d: pathlib.Path) -> int:
+    """The feed's declared <ttl> in seconds: from the newest poll that recorded it,
+    else the collector's saved state; 0 when the feed declares none."""
+    for p in reversed(polls):
+        if p.get("ttl_s"):
+            return int(p["ttl_s"])
+    try:
+        return int(json.loads((d / "state.json").read_text()).get("http", {}).get("ttl_s") or 0)
+    except (OSError, ValueError):
+        return 0
+
+
 def review(key: str) -> tuple[str, dict[str, Any]]:
     p = REVIEW_DIR / f"{key}.json"
     if not p.exists():
@@ -87,13 +100,17 @@ def evaluate_source(key: str, tests: dict | None, at: _dt.datetime | None = None
                     ) -> dict[str, Any]:
     src = SOURCES[key]
     d = DRYRUN_DIR / key
-    interval = max(src.market_interval_s, 60)
     polls, items, _ = load(d) if d.exists() else ([], [], [])
+    # the collector never polls faster than the feed's <ttl> (BusinessLine: 60 min), so
+    # coverage is judged against the interval actually allowed, not the configured one
+    ttl = feed_ttl_s(polls, d) if d.exists() else 0
+    interval = max(src.market_interval_s, ttl, 60)
     rep = summarise(d, expected_interval_s=max(src.off_interval_s, 300), at=at) if polls else {}
     crit: dict[str, dict[str, Any]] = {}
     sessions = market_sessions(polls, interval)
     crit["EVIDENCE"] = {"status": PASS if sessions else PENDING,
-                        "evidence": {"full_market_sessions": sessions, "polls": len(polls)}}
+                        "evidence": {"full_market_sessions": sessions, "polls": len(polls),
+                                     "expected_interval_s": interval, "feed_ttl_s": ttl or None}}
     disc = (rep.get("latency") or {}).get("discovery_s", {}).get("all", {"n": 0})
     live_with_time = disc["n"]
     date_only = bool(items) and all(i["published_at"] is None for i in items)
@@ -111,7 +128,7 @@ def evaluate_source(key: str, tests: dict | None, at: _dt.datetime | None = None
     starts = sorted(_ts(p["started_at"]) for p in polls
                     if day and str(_ts(p["started_at"]).astimezone(IST).date()) == day)
     min_gap = min(((b - a).total_seconds() for a, b in pairwise(starts)), default=None)
-    floor = 0.8 * min(src.market_interval_s, src.off_interval_s)
+    floor = 0.8 * max(min(src.market_interval_s, src.off_interval_s), ttl)
     crit["POLITENESS"] = {"status": PENDING if min_gap is None else (
         PASS if min_gap >= floor else FAIL),
         "evidence": {"session_day": day, "min_gap_s": min_gap, "floor_s": floor}}
