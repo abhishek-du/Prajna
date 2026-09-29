@@ -192,8 +192,70 @@ async def macro(s: AsyncSession, as_of: _dt.datetime, series_prefix: str = "") -
 
 
 async def global_bars(s: AsyncSession, instrument_key: str, as_of: _dt.datetime) -> list[dict]:
+    """The global labels that were FINAL at as_of, oldest first - the rules of the
+    global_bar_finality view (migration 0010), each evaluated with only what was
+    observed before as_of (F-GLOBAL-FINALITY, 2026-09-29):
+
+      bar          first observation knowable before as_of
+      REVISED      a GLOBAL_REVISION observation fetched before as_of -> withheld
+                   (a revision seen later does not rewrite what as_of saw)
+      PLACEHOLDER  flat and equal to the previous label's close with no volume,
+                   the previous label among those knowable before as_of -> withheld
+      CONFIRMED    an unchanged re-observation >= confirm_hours after the first,
+                   fetched before as_of; knowable from that re-observation
+      CONFIRMED_BY_AGE  first observed >= 4 days after the label date
+
+    canon_global_bar is the same rules evaluated NOW (current state, for live use);
+    it must not be filtered by knowable_at for a past as_of: a label revised after
+    as_of would vanish from a past view (measured: DJI 2026-09-25, revised at
+    2026-09-29 12:40 IST, changed a recompute of that morning's snapshot)."""
     return await _rows(s, """
-        select * from canon_global_bar where instrument_key = :k and knowable_at < :as_of
+        with g as (
+          select b.instrument_id, i.instrument_key, i.trading_symbol, i.name, i.segment,
+                 b.timeframe, b.session_date, b.bar_start_utc, b.open, b.high, b.low, b.close,
+                 b.volume, b.knowable_at, b.knowable_at_verified, b.knowable_at_basis,
+                 b.fetched_at, b.source, b.run_id, b.payload_sha256,
+                 coalesce(c.confirm_hours, 6) as confirm_hours,
+                 lag(b.close) over (partition by b.instrument_id order by b.session_date)
+                   as prev_close
+          from ohlcv_bar b
+          join instrument i on i.instrument_id = b.instrument_id
+          left join global_instrument_contract c on c.instrument_key = i.instrument_key
+          where i.instrument_key = :k and i.segment in ('GLOBAL_INDEX', 'GLOBAL_INDICATOR')
+            and i.valid_to = 'infinity' and b.timeframe = '1d' and b.knowable_at < :as_of),
+        f as (
+          select g.*,
+            exists (select 1 from ohlcv_observation o
+                    where o.instrument_id = g.instrument_id and o.timeframe = '1d'
+                      and o.bar_start_utc = g.bar_start_utc
+                      and o.classification = 'GLOBAL_REVISION' and o.fetched_at < :as_of)
+              as revised,
+            (select min(o.fetched_at) from ohlcv_observation o
+             where o.instrument_id = g.instrument_id and o.timeframe = '1d'
+               and o.bar_start_utc = g.bar_start_utc and o.classification = 'REOBSERVED'
+               and o.fetched_at >= g.fetched_at + make_interval(hours => g.confirm_hours)
+               and o.fetched_at < :as_of) as conf_at,
+            g.fetched_at >= ((g.session_date + 4)::timestamp at time zone 'Asia/Kolkata')
+              as by_age,
+            (g.open = g.high and g.high = g.low and g.low = g.close
+             and g.close = g.prev_close and g.volume = 0) as placeholder
+          from g)
+        select instrument_id, instrument_key, trading_symbol, name, segment, timeframe,
+               session_date as label_date, bar_start_utc, open, high, low, close, volume,
+               greatest(knowable_at, coalesce(conf_at, fetched_at)) as knowable_at,
+               knowable_at_verified,
+               case when conf_at is not null
+                    then 'confirmed by an unchanged re-observation; ' || knowable_at_basis
+                    else knowable_at_basis end as knowable_at_basis,
+               greatest(fetched_at, coalesce(conf_at, fetched_at)) as fetched_at,
+               source, run_id, payload_sha256,
+               case when conf_at is not null then 'CONFIRMED' else 'CONFIRMED_BY_AGE' end
+                 as finality,
+               coalesce(conf_at, fetched_at) as confirmed_at, fetched_at as first_fetched_at
+        from f
+        where not revised and not coalesce(placeholder, false)
+          and (conf_at is not null or by_age)
+          and greatest(knowable_at, coalesce(conf_at, fetched_at)) < :as_of
         order by bar_start_utc""", "global bar", as_of, k=instrument_key)
 
 

@@ -291,11 +291,12 @@ async def global_markets(s: DB, as_of: AsOf = None):
         order by i.instrument_key"""))).mappings().all()
     out = []
     for r in rows:
-        last = (await s.execute(text("""
-            select label_date, close, finality, knowable_at from canon_global_bar
-            where instrument_key = :k and knowable_at < :a order by label_date desc limit 1"""),
-            {"k": r["instrument_key"], "a": at})).mappings().first()
-        out.append(S.GlobalInstrument(**r, latest=dict(last) if last else None))
+        # finality as of `at` (pit.global_bars), not today's (canon_global_bar)
+        bars = sorted(await pit.global_bars(s, r["instrument_key"], at),
+                      key=lambda b: b["label_date"])
+        last = ({k: bars[-1][k] for k in ("label_date", "close", "finality", "knowable_at")}
+                if bars else None)
+        out.append(S.GlobalInstrument(**r, latest=last))
     return S.Envelope(data=out, meta=_meta(at, True, "labels are not trading dates (see "
                                                      "label_semantics)"))
 

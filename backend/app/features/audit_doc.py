@@ -89,8 +89,10 @@ INPUTS: dict[str, tuple[str, str, str, str, str, str]] = {
         "v2 (FII-DII-STALENESS): latest observation != previous session -> MISSING_INPUT; one "
         "side only -> MALFORMED_INPUT; < n days -> INSUFFICIENT_HISTORY", "not applicable"),
     "global_bars": (
-        "ohlcv_bar -> canon_global_bar -> pit.global_bars (CONFIRMED labels only; the 2 "
-        "latest)", "1d label", "label date", "knowable_at < as_of",
+        "ohlcv_bar + ohlcv_observation -> pit.global_bars: finality evaluated AS OF as_of "
+        "(confirmed by a re-observation or by age before as_of, not revised before as_of; "
+        "the 2 latest)", "1d label", "label date",
+        "greatest(first observation, confirmation) < as_of",
         "< 2 labels -> INSUFFICIENT_HISTORY; base <= 0 -> DIVISION_UNDEFINED",
         "not applicable"),
     "sector": (
