@@ -29,28 +29,30 @@ def test_installed_jobs_match_canonical_repository_jobs():
     assert _jobs(installed) == _jobs(repo_text)
 
 
-def test_canonical_repository_cron_has_stage3_prepared_but_not_installed():
-    """Stage 3 schedule is approved in docs and prepared in repo cron, but NOT installed.
-    The lines MUST be commented with 'APPROVED_NOT_INSTALLED:' until production is authorized."""
-    repo_text = REPO.read_text()
-    s3_lines = _stage3_lines(repo_text)
-    assert len(s3_lines) == 2, f"Expected 2 prepared Stage 3 entries in repo, got {len(s3_lines)}"
-    assert all(ln.startswith("# APPROVED_NOT_INSTALLED:") for ln in s3_lines), (
-        "Stage 3 entries in ops/cron/prajna.cron must remain prefixed with "
-        "'APPROVED_NOT_INSTALLED:' until production authorization"
-    )
-    # verify approved schedule slots (Option B: 09:00:30 and 09:22:00)
-    assert any("0 9 * * 1-5" in ln and "PRE_SESSION" in ln for ln in s3_lines)
-    assert any("22 9 * * 1-5" in ln and "PRE_OPEN" in ln and "--after-replay" in ln for ln in s3_lines)
+APPROVED_STAGE3 = (
+    ("0 9 * * 1-5", "stage3_snapshot.sh PRE_SESSION --token-from-dotenv"),
+    ("22 9 * * 1-5", "stage3_snapshot.sh PRE_OPEN --after-replay --token-from-dotenv"),
+)
 
 
-def test_installed_crontab_has_zero_stage3_jobs():
-    """Host crontab MUST NOT contain active or installed Stage 3 jobs."""
+def test_installed_crontab_has_exactly_the_approved_stage3_jobs():
+    """Go-live 2026-09-29: the two approved Stage 3 jobs (decision SCHEDULE, PRE_OPEN
+    option B) are installed, each exactly once, and no other Stage 3 job."""
     installed = subprocess.run(["crontab", "-l"], capture_output=True, text=True,
                                check=True).stdout
-    active_jobs = _jobs(installed)
-    assert not any("stage3" in j for j in active_jobs), "Found active Stage 3 job in crontab!"
-    assert "stage3_snapshot.sh" not in installed, "Stage 3 script referenced in installed crontab!"
+    s3 = [j for j in _jobs(installed) if "stage3" in j]
+    assert len(s3) == 2, f"expected exactly 2 installed Stage 3 jobs, got {len(s3)}"
+    for (slot, cmd), job in zip(APPROVED_STAGE3, s3, strict=True):
+        assert " ".join(job.split()[:5]) == slot and cmd in job
+    assert "sleep 30" in s3[0]                                      # 09:00:30
+    assert not any("stage3 backfill" in j for j in _jobs(installed))
+
+
+def test_no_token_is_embedded_in_the_installed_crontab():
+    installed = subprocess.run(["crontab", "-l"], capture_output=True, text=True,
+                               check=True).stdout
+    assert "PRAJNA_WRITE_TOKEN" not in installed and "PRAJNA_SUPPLIED_TOKEN=" not in installed
+    assert not any("--token " in j for j in _jobs(installed))
 
 
 def test_installed_schedule_is_safe():
@@ -60,7 +62,8 @@ def test_installed_schedule_is_safe():
     slots = [" ".join(j.split()[:5]) for j in jobs]
     assert len(slots) == len(set(slots))                            # no duplicate slot
     assert not any("runbooks/backfill.sh" in j for j in jobs)       # backfill DEFERRED
-    assert not any("stage3" in j for j in jobs)                     # Stage 3 uninstalled
+    assert [j for j in jobs if "stage3" in j] == [                  # exactly the approved two
+        j for j in jobs if "stage3_snapshot.sh" in j]
     close = [j for j in jobs if "close_then_backfill.sh" in j]
     assert len(close) == 1 and "--no-backfill" in close[0]          # live close enabled
     assert close[0].split()[:5] == ["5", "16", "*", "*", "1-5"]
