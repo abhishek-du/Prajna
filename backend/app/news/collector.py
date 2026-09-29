@@ -35,9 +35,10 @@ from app.news import assess as AS
 from app.news import enrich as EN
 from app.news import entities as X
 from app.news import http as H
+from app.news import sanitise as SAN
 from app.news import scope as SC
 from app.news import stories as ST
-from app.news.model import ItemObs, canonical_url, title_hash
+from app.news.model import ItemObs, ParseIssue, canonical_url, title_hash
 from app.news.sources import SOURCES, Source
 
 log = get_logger("news")
@@ -125,6 +126,13 @@ def process(src: Source, fetch: H.FetchResult, seen: dict[str, Seen], *,
     except ValueError as e:
         out.fetch.outcome, out.fetch.error = "MALFORMED", str(e)[:300]
         return out
+    safe: list[ItemObs] = []
+    for raw in feed.items:                  # untrusted text and links, made safe once
+        it, iss = SAN.item(raw)
+        feed.issues += [ParseIssue(k, d) for k, d in iss]
+        if it is not None:
+            safe.append(it)
+    feed.items = safe
     out.issues = [{"kind": i.kind, "detail": i.detail} for i in feed.issues]
     out.seen, out.backlog = len(feed.items), first_success
     at = fetch.finished_at

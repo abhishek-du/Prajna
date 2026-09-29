@@ -26,6 +26,7 @@ from app.core.clock import now
 USER_AGENT = "PrajnaResearch/0.1 (market-data research; polite RSS polling)"
 BACKOFF_CAP_S = 1800
 TIMEOUT_S = 20.0
+MAX_BYTES = 8 * 1024 * 1024          # NSE, the largest feed, reached 375 KB on 2026-09-29
 
 
 @dataclass(slots=True)
@@ -88,10 +89,17 @@ async def fetch(url: str, state: SourceState, *,
     if state.last_modified:
         headers["If-Modified-Since"] = state.last_modified
     t0 = now()
+    body, too_large = bytearray(), False
     try:
         async with httpx.AsyncClient(transport=transport, timeout=TIMEOUT_S,
-                                     follow_redirects=False) as c:
-            r = await c.get(url, headers=headers)
+                                     follow_redirects=False) as c, \
+                c.stream("GET", url, headers=headers) as r:
+            if r.status_code == 200:          # read at most MAX_BYTES (+ one chunk)
+                async for chunk in r.aiter_bytes():
+                    body += chunk
+                    if len(body) > MAX_BYTES:
+                        too_large = True
+                        break
     except httpx.HTTPError as e:
         state.failures += 1
         state.note("ERROR")
@@ -99,8 +107,11 @@ async def fetch(url: str, state: SourceState, *,
     t1 = now()
     res = FetchResult("ERROR", t0, t1, http_status=r.status_code,
                       etag=r.headers.get("etag"), last_modified=r.headers.get("last-modified"))
-    if r.status_code == 200:
-        res.outcome, res.body = "OK", r.content
+    if r.status_code == 200 and too_large:
+        state.failures += 1
+        res.error = f"payload over {MAX_BYTES} bytes: not read further, not parsed"
+    elif r.status_code == 200:
+        res.outcome, res.body = "OK", bytes(body)
         state.etag, state.last_modified = res.etag, res.last_modified
         state.failures, state.rate_limited_until = 0, None
     elif r.status_code == 304:
