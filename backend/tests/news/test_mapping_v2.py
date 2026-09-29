@@ -21,7 +21,8 @@ UNI = EN.Universe({
     "ANGELONE": ("AO", "ANGEL ONE LIMITED"), "ICICIBANK": ("IB", "ICICI BANK LTD."),
     "ICICIAMC": ("IA", "ICICI PRUDENTIAL AMC LTD"), "BHEL": ("BH", "BHEL"),
     "CYIENT": ("CY", "CYIENT LIMITED"), "CYIENTDLM": ("CD", "CYIENT DLM LIMITED"),
-    "TCS": ("TC", "TATA CONSULTANCY SERV LT"), "TITAN": ("TI", "TITAN COMPANY LIMITED"),
+    "TCS": ("TC", "TATA CONSULTANCY SERV LT"),
+    "LICI": ("LI", "LIFE INSURA CORP OF INDIA"), "TITAN": ("TI", "TITAN COMPANY LIMITED"),
     "HDFCBANK": ("HB", "HDFC BANK LTD"), "CRISIL": ("CS", "CRISIL LTD"),
     "URBANCO": ("UC", "URBAN COMPANY LIMITED"), "BIRLACORPN": ("BC", "BIRLA CORPORATION LTD"),
     "SBIN": ("SB", "STATE BANK OF INDIA"), "JMFINANCIL": ("JM", "JM FINANCIAL LIMITED"),
@@ -58,6 +59,7 @@ def keys(title):
     "PM Awas Yojana Urban 2.0: Over 18 lakh houses sanctioned so far",
     "Which SBI Card Can Help If I Have a Low Credit Score?",
     "SBI Conclave 2026: RBI DG sees case for rupee recovery",
+    "LIC, New India Assurance veterans appointed as IRDAI members",     # IE (review)
 ])
 def test_judged_wrong_links_are_not_made(title):
     assert keys(title) == []
@@ -81,6 +83,7 @@ def test_the_rejection_is_recorded_as_the_unresolved_reason():
     ("Stocks to buy: JM Financial expects soft Q2 season; targets for Infosys", ["IN"]),
     ("Equirus likes LG Electronics, Blue Star, Voltas", ["VO"]),
     ("Why Voltas Shares Fell Today", ["VO"]),                     # title case, generic words
+    ("SBI names veteran banker as CFO", ["SB"]),                  # 'veteran' after a verb
 ])
 def test_genuine_links_stay(title, expected):
     assert keys(title) == expected

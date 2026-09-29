@@ -318,6 +318,8 @@ AMBIGUOUS = frozenset({("tata", "motors")})
 INTERMEDIARY = re.compile(r"rating|securities|broking|\bamc\b|asset manag|angel one|motilal|"
                           r"crisil|icra|capital market|jm financial|iifl|nuvama|anand rathi|"
                           r"geojit|emkay|equirus|prabhudas|sharekhan|5paisa", re.I)
+AFFILIATION = re.compile(r"\b(veterans?|alumni|old-timers|ex-employees|former employees)\b",
+                         re.I)
 ROLE_VERBS = frozenset("""sees expects reaffirms reaffirmed upgrades downgrades maintains
 initiates retains assigns explains prefers rates recommends""".split())
 
@@ -341,6 +343,13 @@ def context_reject(title: str, start: int, end: int, name: str) -> str | None:
         return "named as the customer of an order"
     if INTERMEDIARY.search(name) and (nxt in ROLE_VERBS or prev in ("of", "by")):
         return "an intermediary speaking / rating / recommending"
+    # people described by a past employer ("LIC, New India Assurance veterans appointed
+    # as IRDAI members"): the company is an affiliation in that clause, not the subject
+    for w in after[:6]:                  # only other names may stand in between
+        if AFFILIATION.fullmatch(w.rstrip(".,")):
+            return "a person's (past) employer, not the subject"
+        if not w[0].isupper() and w.lower() not in ("and", "&"):
+            break
     return None
 
 
