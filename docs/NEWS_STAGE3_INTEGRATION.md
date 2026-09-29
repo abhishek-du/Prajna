@@ -1,86 +1,90 @@
 # News in Stage 3: integration (FEATURE-NEWS-V2)
 
-**Decision FEATURE-NEWS-V2:** APPROVED by the user on 2026-09-29, with **activation only after a production canary day**, meaning PIT, de-duplication and coverage are evidenced on real PRODUCTION rows.
+**Decision FEATURE-NEWS-V2:** APPROVED by the user on 2026-09-29, with activation only after a canary on a **real scheduled snapshot**.
 
-**Current state: built and tested; NOT registered.**
+**State (2026-09-29 21:30 IST): built, tested, rehearsed on production data; NOT active.**
 
-- The Stage 3 registry is still `features-v1` (65 features, `REGISTRY_SHA256 9061d85b…`), and the Stage 3 locks are unchanged.
-- The test `tests/news/test_news_features.py::test_not_in_the_approved_stage3_registry` asserts that no `mnews_*` id is registered.
+- `app/features/registry.py`: `NEWS_V2_ACTIVE = False`. The active registry is `features-v1`, 65 features, `REGISTRY_SHA256 9061d85b3696ab70e566d8257ecb13466930792a74f9b1d8308f232331e47188`.
+- The engine's news step (`engine.news_rows`) emits rows only for news specs present in the active registry, so today it emits none.
 
-## What Stage 3 has today
+## How it works
 
-`features-v1` includes **Upstox** news only:
+1. **One point-in-time read per snapshot:** `news_features.snapshot_inputs` reads `app.canon.news_pit` for PRODUCTION rows with `knowable_at < as_of` over 3 days, plus the coverage state at `as_of`.
+2. **Market-wide:** 32 features, CONTEXT, stored under the instrument key `MARKET`.
+3. **Per company:** 7 features, INSTRUMENT, computed from the same rows grouped by the company links knowable at `as_of`. There are no per-instrument queries.
+4. **Provenance:** `inputs_sha256` = SHA-256 of the coverage state and every input row's (id, `knowable_at`, current dedup decision, scope, edited). `input_max_knowable_at` = the latest `knowable_at` among them. The engine refuses any input knowable at or after `as_of` (LookAhead).
 
-- `news_count_24h`, `news_count_7d`, `news_hours_since_last`;
-- stock-tagged articles, about 27 a day.
+**Counting rules (all features):**
 
-The multi-source layer is not read by Stage 3 until activation.
-
-## The v2 candidate (`app/features/news_features.py`, `news-features-v2-candidate`)
-
-**How they are computed:**
-
-- **Market-wide:** instrument_key None.
-- **Per company:** an instrument's own news, via the resolved entity links knowable at `as_of`.
-- **Inputs:** `app.canon.news_pit` only, PRODUCTION rows with `knowable_at < as_of` (see `docs/NEWS_PIT_SPEC.md`).
-- **Windows** are measured back from `as_of` by `knowable_at`, never by publisher time.
-- **Duplicates** (dedup-v1 DUPLICATE_ARTICLE) are never counted.
-
-| Feature | Definition (window by `knowable_at`) | Missing / undefined |
-|---|---|---|
-| `mnews_news_count_1h` / `_4h` / `_24h` / `_3d` | de-duplicated articles | quality ≠ NORMAL → MISSING_INPUT |
-| `mnews_unique_publishers_1h` / `_24h`, `mnews_unique_sources_24h` | distinct publishers / Prajna sources | ″ |
-| `mnews_breaking_news_count_24h` | assess-v1 `is_breaking` (observable rules only) | ″ |
-| `mnews_high_relevance_news_count_24h` | assess-v1 `potential_impact = HIGH` | ″ |
-| `mnews_negative` / `positive` / `mixed_news_count_24h` | explicit direction words in the headline (assess-v1) | ″ |
-| `mnews_regulatory` / `corporate` / `macro_news_count_24h` | assess-v1 event group | ″ |
-| `mnews_market_wide` / `macro_scope` / `geopolitical` / `commodity` / `currency` / `global_market_news_count_24h` | scope-v1 primary scope | ″ |
-| `mnews_news_velocity_1h` | last hour ÷ the mean hourly count of the prior 23 h | no prior news → DIVISION_UNDEFINED |
-| `mnews_news_velocity_24h` | last 24 h ÷ the mean daily count of the prior 48 h | ″ |
-| `mnews_publisher_diversity_24h` | distinct publishers ÷ articles | no articles → DIVISION_UNDEFINED |
-| `mnews_story_group_count_24h`, `mnews_new_story_count_24h`, `mnews_updated_story_count_24h` | story-v1 stories, founders, stories joined by a later article | ″ |
-| `mnews_correction_count_24h` | dedup-v1 STORY_CORRECTION articles | ″ |
-| `mnews_edited_news_count_24h` | articles with an edit observed before `as_of` | ″ |
-| `mnews_duplicate_count_24h` | articles marked DUPLICATE_ARTICLE (information only) | ″ |
-| `mnews_time_since_last_news_s` | `as_of` − the latest `knowable_at` (3-day lookback) | none → MISSING_INPUT |
-| `mnews_time_since_last_high_relevance_news_s` | ″ for HIGH | ″ |
+| Rule | Detail |
+|---|---|
+| Windows | by `knowable_at` (Prajna's first observation), **never** publication time |
+| Duplicates | DUPLICATE_ARTICLE articles are never counted (reported once as `mnews_duplicate_count_24h`) |
+| Backlog | articles in a source's first successful poll (arrival time unknown) are never counted as arrivals. Found in the rehearsal: the 2,002 go-live backlog articles created a one-time spike |
+| Edits | only real edits count (a changed title or summary, or a new non-null time); a feed flapping a field is not an edit |
+| Corrections | dedup STORY_CORRECTION, including regulator corrigenda (dedup-v3) |
 
 **Quality state per snapshot:**
 
 | State | Condition | Values |
 |---|---|---|
 | NORMAL | a PRODUCTION poll succeeded within 2 h before `as_of` | 0 is a real zero |
-| MISSING | no PRODUCTION poll before `as_of` at all | MISSING_INPUT |
-| STALE | PRODUCTION polls exist, but none succeeded within 2 h | MISSING_INPUT |
-| INVALID | a row not knowable before `as_of`, or the reader's 50,000-row limit reached | MALFORMED_INPUT (fail closed) |
+| MISSING | no PRODUCTION poll before `as_of` at all | every feature MISSING_INPUT |
+| STALE | polls exist, but none succeeded within 2 h | every feature MISSING_INPUT |
+| INVALID | an input knowable at or after `as_of`, or the 50,000-row reader limit hit | every feature MALFORMED_INPUT |
 
-**A missing input is never 0.**
+**A missing input is never converted to 0.**
 
-**Snapshot timing** (PRE_SESSION 08:59:59, PRE_OPEN 09:08:00):
+## Features
 
-- The 2 h coverage window requires the collector to run **before 07:00 IST**. The proposed schedule starts at 06:00.
-- The overnight gap means items published overnight are knowable only from the first morning poll, never back-dated.
+**Market-wide (CONTEXT, key `MARKET`; exact definitions in `registry._MNEWS_CONTEXT`):**
 
-## Tests
+- `mnews_news_count_1h` / `_4h` / `_24h` / `_3d`, `mnews_unique_publishers_1h` / `_24h`, `mnews_unique_sources_24h`, `mnews_publisher_diversity_24h`;
+- `mnews_news_velocity_1h` / `_24h`;
+- `mnews_breaking_news_count_24h`, `mnews_high_relevance_news_count_24h`, `mnews_negative` / `positive` / `mixed_news_count_24h` (assess-v1: observable rules and headline words, not predictions);
+- `mnews_regulatory` / `corporate` / `macro_news_count_24h` (event group);
+- `mnews_market_wide` / `macro_scope` / `geopolitical` / `commodity` / `currency` / `global_market_news_count_24h` (scope-v1);
+- `mnews_story_group_count_24h`, `mnews_new_story_count_24h`, `mnews_updated_story_count_24h` (story-v2);
+- `mnews_correction_count_24h`, `mnews_edited_news_count_24h`, `mnews_duplicate_count_24h`;
+- `mnews_time_since_last_news_s`, `mnews_time_since_last_high_relevance_news_s`.
 
-| Test | What it proves |
+**Per company (INSTRUMENT; `registry._MNEWS_COMPANY`):**
+
+- `mnews_company_count_1h` / `_4h` / `_24h` / `_3d`;
+- `mnews_company_story_count_24h`, `mnews_company_correction_count_24h`;
+- `mnews_company_time_since_last_s`.
+
+With coverage, a company without linked news has counts of 0 and time-since MISSING_INPUT. Sector-level news is available through scope-v1 and mentions, but it has **no per-sector feature** in v2; that is a limitation.
+
+## Evidence
+
+| Test / tool | What it proves |
 |---|---|
-| `tests/news/test_news_features.py` | the pure definitions: windows, dedup exclusion, scopes, corrections, edits, quality states, the truncation guard, not registered |
-| `tests/news/test_pit_replay.py` | the features on a replayed PRODUCTION day (5 counted + 1 duplicate at 12:00, STALE at 15:00, MISSING before the first poll), and the reader at 8 instants |
+| `tests/news/test_news_features.py` | pure definitions: windows, dedup, backlog, scopes, corrections, edits, quality states, the truncation guard, not in the active registry |
+| `tests/news/test_pit_replay.py` | a PRODUCTION day replayed through the store and `news_pit` at 8 instants, and the engine news step with the specs enabled in the test only: 32 + 7 rows, duplicate and backlog excluded, real zero vs MISSING, deterministic, STALE → MISSING_INPUT, nothing while inactive |
+| `ops/measure/news_canary.py` (read-only) | on production data: coverage, point in time, **market-wide and per-company counts equal an independent raw-SQL recount**, real zeros, determinism, **non-news features identical with and without the news specs** |
 
-## Activation checklist (all needed; none done yet)
+**Rehearsal of the canary tool on production data** (as_of 2026-09-29 21:20 IST, not a scheduled snapshot):
 
-1. The user's mapping review → `prajna acceptance news` PASS per source.
-2. SHADOW for at least 1 full trading day; reconciliation invariants OK; compared with Upstox.
-3. Canary PRODUCTION (NSE, SEBI, ET, BS) for 1 trading day:
-   - invariants OK;
-   - 0 PIT violations (a recompute of the canary day's `mnews_*` at 08:59:59 / 09:08:00 matches);
-   - STALE / MISSING behaviour observed.
-4. **Registry change as a new version:**
-   - add the `mnews_*` definitions to `app/features/registry.py` (a new registry id and hash);
-   - update the Stage 3 decisions (FEATURE-NEWS-V2: ACTIVATED, with the canary evidence);
-   - update the feature audit document;
-   - the Stage 3 gate (tests K) must stay PASS.
-5. The first scheduled Stage 3 run after activation is verified: rows, reasons, determinism.
+| Check | Result |
+|---|---|
+| Coverage | NORMAL |
+| Point in time | 0 of 24,749 rows with an input knowable at or after as_of |
+| Market-wide vs SQL | 1h 66 = 66; 24h 859 = 859; duplicates 0 = 0; corrections 1 = 1 |
+| Top 25 companies vs SQL | all equal at 1h / 24h / 3d |
+| Companies without news | 2,644, all with a real 0 and time-since MISSING |
+| Determinism | identical |
+| Non-news features | 525 rows identical |
 
-**No step may use a weakened lock.** Stage 3 production stays governed by its own locks and schedule.
+## Activation plan (steps with a timestamp are not done yet)
+
+1. **Canary** on the real scheduled snapshot: `python ops/measure/news_canary.py --session 2026-09-30 --kind PRE_SESSION` (as_of 08:59:59 IST), after the collector has run from 06:00. Evidence goes to `audit/evidence/news_stage3_canary_2026-09-30_PRE_SESSION.json`. Every check must PASS, and the values are inspected.
+2. **Activation at a session boundary:** after the 2026-09-30 PRE_OPEN run completes, never between the two snapshots of one session.
+   - Set `NEWS_V2_ACTIVE = True`. That gives registry `features-v2`, 104 features and a new hash.
+   - Record FEATURE-NEWS-V2 as ACTIVATED, with the canary evidence.
+   - Regenerate the feature audit.
+   - Run the Stage 3 tests and gate.
+3. **Verification** on the next scheduled runs (2026-10-01 PRE_SESSION 09:00:30 and PRE_OPEN 09:22):
+   - `mnews_*` rows persisted under the new hash;
+   - the determinism compare passes;
+   - the non-news values have the same definitions (v1 specs unchanged).
