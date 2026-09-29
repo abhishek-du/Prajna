@@ -74,6 +74,11 @@ def _install_database_guard() -> None:
     # PRAJNA_STAGE3_ENABLED=true in .env the "defaults refuse" tests failed.
     os.environ["PRAJNA_STAGE3_ENABLED"] = "false"
     os.environ["PRAJNA_STAGE3_BACKFILL_ENABLED"] = "false"
+    # the same for the multi-source news write switches (enabled in .env 2026-09-29):
+    # tests opt in per test (the `unlocked` fixtures), never from the production file
+    for _flag in ("NSE", "ET", "BS", "BL", "MINT", "CNBC", "IE", "SEBI", "UPSTOX", "AI",
+                  "MULTI_SOURCE"):
+        os.environ[f"PRAJNA_NEWS_{_flag}_ENABLED"] = "false"
 
 
 _install_database_guard()
