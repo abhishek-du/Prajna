@@ -37,8 +37,22 @@ DECISIONS: dict[str, dict[str, str]] = {
                     "min is honoured); revised after dry-run measurements",
         "ref": "docs/NEWS_MULTI_SOURCE_DESIGN.md section 5"},
     "NEWS-COMPLIANCE": {
-        "status": "PENDING",
-        "decision": "Per-source terms-of-use review (not a legal opinion by Claude). Until "
-                    "APPROVED for a source, only DRY_RUN is allowed for it",
-        "ref": "docs/NEWS_MULTI_SOURCE_DESIGN.md section 9"},
+        "status": "APPROVED",
+        "decision": "Terms review decided by the user (not a legal opinion by Claude): the 8 "
+                    "adapters NSE_ANNOUNCEMENTS, SEBI_RSS, ET_STOCKS_RSS, BS_MARKETS_RSS, "
+                    "BL_MARKETS_RSS, MINT_MARKETS_RSS, CNBCTV18_NEWS_SITEMAP and "
+                    "INDIANEXPRESS_BUSINESS_RSS are APPROVED for production storage of "
+                    "headline, feed summary, URL and timestamps ONLY. Article bodies are not "
+                    "approved (body_allowed stays False; content stays TERMS_BLOCKED). "
+                    "Moneycontrol, Zee Business and Reuters stay REJECTED (403 / robots). "
+                    "Approval does not bypass the other locks (per-source flag, acceptance "
+                    "gate incl. the human mapping review, Stage 2, token)",
+        "ref": "user 2026-09-29 ('all', for headline + summary + URL + timestamps, no bodies)"},
+    "FEATURE-NEWS-V2": {
+        "status": "APPROVED",
+        "decision": "Multi-source news features join the Stage 3 registry as a new version, "
+                    "ACTIVATED only after a production canary day shows correct PIT, "
+                    "de-duplication and coverage; until activation they are computed in "
+                    "dry-run only",
+        "ref": "user 2026-09-29 ('After canary evidence')"},
 }

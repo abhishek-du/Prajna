@@ -70,7 +70,10 @@ async def test_locked_by_default_and_refusal_is_audited(db_session):
     with pytest.raises(LockRefused) as e:
         await poll_shadow(db_session, KEY, token=TOKEN, transport=feed())
     failing = e.value.report.summary()["failing"]
-    assert {"source_flag", "compliance_approved", "source_acceptance"} <= set(failing)
+    # terms APPROVED 2026-09-29: still locked by the per-source flag and the acceptance
+    # gate (which includes the human mapping review)
+    assert {"source_flag", "source_acceptance"} <= set(failing)
+    assert "compliance_approved" not in failing
     assert (await q(db_session, "select count(*) from news_item"))[0][0] == 0
     assert (await q(db_session, "select event from news_audit"))[0][0] == "REFUSED"
 

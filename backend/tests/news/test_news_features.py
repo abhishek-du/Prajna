@@ -76,4 +76,6 @@ def test_not_in_the_approved_stage3_registry():
     from app.features.registry import BY_ID
 
     assert not set(NF.FEATURES) & set(BY_ID)
-    assert NF.DECISION["FEATURE-NEWS-V2"]["status"] == "PENDING"
+    # APPROVED 2026-09-29 with activation only after a production canary day: until
+    # then no mnews_* feature is in the registry
+    assert NF.DECISION["FEATURE-NEWS-V2"]["status"] == "APPROVED"

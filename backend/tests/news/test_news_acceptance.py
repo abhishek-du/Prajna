@@ -64,7 +64,9 @@ def test_passing_tests_alone_never_pass_a_source(evidence):
                            at=_dt.datetime.combine(D, _dt.time(15, 40), tzinfo=IST))
     c = {k: x["status"] for k, x in v["criteria"].items()}
     assert c["EVIDENCE"] == "PASS" and c["PIT"] == "PASS" and c["HEALTH"] == "PASS"
-    assert c["TERMS"] == "PENDING" and c["MAPPING"] == "PENDING" and c["LATENCY"] == "PENDING"
+    # TERMS: APPROVED by the user 2026-09-29 (NEWS-COMPLIANCE); the source still cannot
+    # pass without the human mapping review and measured latency
+    assert c["TERMS"] == "PASS" and c["MAPPING"] == "PENDING" and c["LATENCY"] == "PENDING"
     assert v["status"] == "PENDING"
 
 

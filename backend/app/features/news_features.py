@@ -6,8 +6,9 @@ name must never mean two definitions.
 
 Not part of the approved Stage 3 registry (features-v1): adding them there would
 change the approved feature set and re-block Stage 3 production. They are
-computed in DRY-RUN only (`prajna stage3 news-features`) until decision
-FEATURE-NEWS-V2 is approved and they join the registry as a new version.
+computed in DRY-RUN only. Decision FEATURE-NEWS-V2 is APPROVED (2026-09-29) with
+activation after a production canary day; they then join the registry as a new
+version.
 
 Every input comes from app.canon.news_pit at the snapshot instant (knowable_at
 < as_of; enrichments by their own knowable_at). MISSING_INPUT - never 0 - when
@@ -29,10 +30,11 @@ from app.features.compute import MISSING_INPUT, Result, miss, ok
 VERSION = "news-features-v0-proposed"
 DECISION = {
     "FEATURE-NEWS-V2": {
-        "status": "PENDING",
-        "decision": "Add these point-in-time news features to the Stage 3 registry as a new "
-        "version (windows 1h/4h/24h/3d as listed); until approved they are dry-run only",
-        "ref": "news programme phase 11 (2026-09-28)",
+        "status": "APPROVED",
+        "decision": "These point-in-time news features join the Stage 3 registry as a new "
+        "version, ACTIVATED only after a production canary day (PIT, de-duplication and "
+        "coverage evidenced); until activation they are computed in dry-run only",
+        "ref": "user 2026-09-29 ('After canary evidence'); see app/news/decisions.py",
     }
 }
 COVERAGE_WINDOW = _dt.timedelta(hours=2)
