@@ -20,11 +20,11 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from app.news.enrich import Link, Universe, name_tokens
+from app.news.enrich import Link, Universe, context_reject, name_tokens
 from app.news.model import ItemObs
 
 MENTION_VERSION = "mentions-v1"
-ALIAS_VERSION = "alias-v1"
+ALIAS_VERSION = "alias-v2"
 
 # (entity_type, entity_id, pattern) - case-insensitive, word-bounded
 _MENTIONS: tuple[tuple[str, str, str], ...] = (
@@ -126,7 +126,7 @@ def mentions(item: ItemObs) -> list[Mention]:
 def _token_spans(title: str):
     """Upper-case-bearing tokens of the ORIGINAL title with the rest of the title."""
     for m in re.finditer(r"[A-Za-z][A-Za-z&]*", title):
-        yield m.group(0), title[m.end():]
+        yield m.group(0), title[m.end():], m.start(), m.end()
 
 
 def alias_links(item: ItemObs, universe: Universe | None) -> list[Link]:
@@ -136,7 +136,7 @@ def alias_links(item: ItemObs, universe: Universe | None) -> list[Link]:
         return []
     firsts = {tuple(name_tokens(n or ""))[:4] for _k, n in universe.by_symbol.values()}
     out, keys = [], set()
-    for tok, rest in _token_spans(item.title):
+    for tok, rest, start, end in _token_spans(item.title):
         sym = ALIASES.get(tok)
         if not sym or sym not in universe.by_symbol:
             continue
@@ -148,6 +148,8 @@ def alias_links(item: ItemObs, universe: Universe | None) -> list[Link]:
                 f[:len(longer)] == longer and f[:len(longer)] != own[:len(longer)]
                 for f in firsts)):
             continue                       # "SBI Life", "L&T Finance", "M&M Financial"
+        if context_reject(item.title, start, end, name or ""):
+            continue                       # "... order from BHEL", "wins BHEL order"
         if key not in keys:
             keys.add(key)
             out.append(Link(key, "ALIAS", 0.85, tok, f"reviewed alias {tok} -> {sym} ({name})",

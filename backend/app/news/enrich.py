@@ -228,7 +228,7 @@ def resolve(item: ItemObs, universe: Universe | None, aliases: Aliases) -> Link:
 
 
 # ── media headlines (headline-entity-v1, media-keywords-v1) ─────────────────
-HEADLINE_VERSION = "headline-entity-v1"
+HEADLINE_VERSION = "headline-entity-v2"
 KEYWORD_VERSION = "media-keywords-v1"
 # words that cannot identify a company on their own (a name made only of these,
 # e.g. "Indian Bank", is never matched from a headline: too easy to misread)
@@ -263,10 +263,14 @@ class HeadlineIndex:
                 continue
             by_core.setdefault(core, []).append((sym, key, name))
         self.cores = {c: v[0] for c, v in by_core.items() if len(v) == 1}   # unique only
-        # a one-word name that starts another company's name is ambiguous in a
-        # headline ("Kalpataru Projects ..." is not Kalpataru Ltd): not used
-        firsts = {c[0] for c in by_core if len(c) > 1}
-        self.cores = {c: v for c, v in self.cores.items() if len(c) > 1 or c[0] not in firsts}
+        # a one-word name that starts another company's name ("Kalpataru" / "Kalpataru
+        # Project Int") is used only when the headline's next word does not continue
+        # that other name ("Kalpataru Projects ..." is not Kalpataru Ltd; v2: checked
+        # per headline instead of dropping the name everywhere)
+        self.seconds: dict[str, set[str]] = {}
+        for c in by_core:
+            if len(c) > 1:
+                self.seconds.setdefault(c[0], set()).add(c[1])
         self.max_len = max((len(c) for c in self.cores), default=1)
 
     def find(self, text: str) -> list[tuple[tuple[str, ...], tuple[str, str, str]]]:
@@ -275,6 +279,11 @@ class HeadlineIndex:
         while i < len(toks):
             for n in range(min(self.max_len, len(toks) - i), 0, -1):   # longest first
                 c = tuple(toks[i:i + n])
+                nxt = toks[i + n] if i + n < len(toks) else ""
+                if n == 1 and nxt and any(
+                        nxt == w or nxt.rstrip("s") == w.rstrip("s") or w.startswith(nxt)
+                        or nxt.startswith(w) for w in self.seconds.get(c[0], ())):
+                    continue                   # continues another company's name
                 if c in self.cores:
                     out.append((c, self.cores[c]))
                     i += n
@@ -282,6 +291,54 @@ class HeadlineIndex:
             else:
                 i += 1
         return out
+
+
+# headline-entity-v2 context guards (from the 2026-09-29 mapping review: a link is
+# kept only when the headline is ABOUT that company)
+# a word after the name that makes it ANOTHER entity ("Kalpataru Projects",
+# "Suraj Estate", "Alankit Assignments", "Premier League", "M&M Financial",
+# "Tata Motors PV")
+CONTINUATION = frozenset("""projects project estate estates assignments league passenger
+vehicles pv cv international industries ventures holdings capital securities finance
+financial fin services life general insurance housing power energy green renewables ports
+airports logistics foods consumer chemicals realty developers infra infrastructure trust
+amc prudential""".split())
+# a name that has meant two listed companies since a demerger
+AMBIGUOUS = frozenset({("tata", "motors")})
+# an intermediary named as the speaker, rater or broker is not the subject
+# ("CARE Ratings reaffirms ratings of ...", "Angel One sees 25% upside in ...")
+INTERMEDIARY = re.compile(r"rating|securities|broking|\bamc\b|asset manag|angel one|motilal|"
+                          r"crisil|icra|capital market", re.I)
+ROLE_VERBS = frozenset("""sees expects reaffirms reaffirmed upgrades downgrades maintains
+initiates retains assigns explains prefers rates recommends""".split())
+
+
+def _words(s: str) -> list[str]:
+    return re.findall(r"[A-Za-z0-9][A-Za-z0-9&'\u2019.]*", s)
+
+
+def context_reject(title: str, start: int, end: int, name: str) -> str | None:
+    """Why a name found at title[start:end] must NOT be linked, else None."""
+    before, after = _words(title[:start]), _words(title[end:])
+    nxt = re.sub(r"['\u2019]s?$", "", after[0].lower().rstrip(".")) if after else ""
+    prev = before[-1].lower() if before else ""
+    if nxt in CONTINUATION:
+        return f"followed by {after[0]!r}: another entity"
+    if not after and title[:start].rstrip().endswith(":"):
+        return "named after a colon at the end: an attribution"
+    ordered = re.search(r"\b(orders?|contracts?|deals?)\b", title[:start], re.I)
+    if (prev == "from" and ordered) or (before and nxt in ("order", "orders", "contract",
+                                                             "contracts")):
+        return "named as the customer of an order"
+    if INTERMEDIARY.search(name) and (nxt in ROLE_VERBS or prev in ("of", "by")):
+        return "an intermediary speaking / rating / recommending"
+    return None
+
+
+def _span(title: str, core: tuple[str, ...]) -> tuple[int, int] | None:
+    pat = r"[^A-Za-z0-9]+".join(r"(?:and|&)" if t == "and" else re.escape(t) for t in core)
+    m = re.search(rf"(?<![A-Za-z0-9]){pat}(?![A-Za-z0-9])", title, re.I)
+    return (m.start(), m.end()) if m else None
 
 
 def resolve_headline(item: ItemObs, universe: Universe | None, index: HeadlineIndex | None
@@ -292,15 +349,24 @@ def resolve_headline(item: ItemObs, universe: Universe | None, index: HeadlineIn
         return [Link(None, "UNRESOLVED", 0.0, item.title,
                      "instrument universe unavailable (database not reachable)",
                      HEADLINE_VERSION)]
-    links, keys = [], set()
+    links, keys, rejected = [], set(), []
     for core, (_sym, key, name) in index.find(item.title):
         if key in keys:
+            continue
+        span = _span(item.title, core)
+        why = ("a name shared by two listed companies" if core in AMBIGUOUS else
+               "matched only as a lower-case word" if span and len(core) == 1
+               and item.title[span[0]].islower() else
+               context_reject(item.title, *span, name) if span else None)
+        if why:
+            rejected.append(f"{' '.join(core)}: {why}")
             continue
         keys.add(key)
         links.append(Link(key, "COMPANY_NAME", 0.8 if len(core) > 1 else 0.6, " ".join(core),
                           f"headline names {name!r}", HEADLINE_VERSION))
     return links or [Link(None, "UNRESOLVED", 0.0, item.title,
-                          "no uniquely named company in the headline", HEADLINE_VERSION)]
+                          "; ".join(rejected) or "no uniquely named company in the headline",
+                          HEADLINE_VERSION)]
 
 
 _KEYWORDS: tuple[tuple[str, str], ...] = (
