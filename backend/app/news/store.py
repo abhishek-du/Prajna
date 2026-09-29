@@ -7,6 +7,13 @@ summary / times is stored as a news_item_observation (the item row is never
 updated). Classification and entity links are inserted with the item, stamped
 with their version and knowable_at = the moment they were computed.
 Idempotent: a rerun of the same response inserts nothing new.
+
+Concurrency: the database part of a poll (after the HTTP fetch) runs under two
+transaction-scoped advisory locks, always taken in the same order - the
+source's own, then one shared story lock - so two writers of one source (an
+overlapping cron run, a manual poll) never both treat an item or an edit as new,
+and two sources never both found a story for the same event. The unique key
+(source, source_article_id) with ON CONFLICT DO NOTHING stays as the last guard.
 """
 
 from __future__ import annotations
@@ -42,6 +49,20 @@ from app.news.collector import Seen, _iso, load_universe, process
 from app.news.model import canonical_url, title_hash
 from app.news.sources import SOURCES
 from app.storage.payload_store import PayloadStore
+
+
+STORY_LOCK = "news:stories"
+
+
+def lock_key(name: str) -> int:
+    """A stable signed 64-bit key for pg_advisory_xact_lock."""
+    return int.from_bytes(hashlib.sha256(name.encode()).digest()[:8], "big", signed=True)
+
+
+async def serialise(s: AsyncSession, source: str) -> None:
+    """Held until the poll's transaction ends (commit or rollback); source first."""
+    for name in (f"news:source:{source}", STORY_LOCK):
+        await s.execute(text("select pg_advisory_xact_lock(:k)"), {"k": lock_key(name)})
 
 
 async def _seen(s: AsyncSession, source: str) -> dict[str, Seen]:
@@ -115,6 +136,9 @@ async def poll_shadow(s: AsyncSession, source_key: str, *, token: str | None,
         state = http_state or H.SourceState()
         f = await H.fetch(src.url, state, transport=transport)
         sha = None
+        # serialised from here (after the HTTP fetch): two writers that fetched the same
+        # bytes would otherwise race on raw_payload's key as well as on the items
+        await serialise(s, src.key)
         if f.body:
             stored = PayloadStore(get_settings().archive_dir).put(
                 f.body, source=src.key[:32], content_type="application/xml", ext="xml",
