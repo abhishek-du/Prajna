@@ -1,0 +1,904 @@
+{
+  "generated_at": "2026-09-29T11:59:05.308443+00:00",
+  "sources": {
+    "NSE_ANNOUNCEMENTS": {
+      "source": "NSE_ANNOUNCEMENTS",
+      "status": "PASS",
+      "criteria": {
+        "EVIDENCE": {
+          "status": "PASS",
+          "evidence": {
+            "full_market_sessions": [
+              "2026-09-29"
+            ],
+            "polls": 151,
+            "expected_interval_s": 300,
+            "feed_ttl_s": 300
+          }
+        },
+        "LATENCY": {
+          "status": "PASS",
+          "evidence": {
+            "discovery_s": {
+              "n": 2669,
+              "p50": 355.2,
+              "p90": 969.4,
+              "p95": 1361.7,
+              "p99": 1963.8,
+              "max": 2075.4
+            },
+            "market_hours": {
+              "n": 788,
+              "p50": 251.4,
+              "p90": 449.2,
+              "p95": 588.3,
+              "p99": 616.0,
+              "max": 702.6
+            }
+          }
+        },
+        "HEALTH": {
+          "status": "PASS",
+          "evidence": {
+            "blocked": 0,
+            "failed": 14,
+            "polls": 151,
+            "health_now": "STALE"
+          }
+        },
+        "POLITENESS": {
+          "status": "PASS",
+          "evidence": {
+            "session_day": "2026-09-29",
+            "min_gap_s": 241.378142,
+            "floor_s": 240.0
+          }
+        },
+        "MAPPING": {
+          "status": "PASS",
+          "evidence": {
+            "rows": 80,
+            "false_positives": 0,
+            "rate": 0.0
+          }
+        },
+        "TERMS": {
+          "status": "PASS",
+          "evidence": {
+            "terms": "APPROVED"
+          }
+        },
+        "PIT": {
+          "status": "PASS",
+          "evidence": {
+            "exit": 0,
+            "summary": "296 passed in 19.91s"
+          }
+        }
+      },
+      "summary": {
+        "items": 3899,
+        "live_items": 2671,
+        "backlog_items": 1228,
+        "mapping_rate": 0.778,
+        "unresolved": 865,
+        "stories": {
+          "items_with_story": 2290,
+          "joined_existing": 827,
+          "by_method": {
+            "FOUNDER": 1463,
+            "SAME_TITLE": 827
+          }
+        },
+        "assessment": {
+          "breaking": 27,
+          "impact": {
+            "LOW": 1484,
+            "MEDIUM": 246,
+            "UNKNOWN": 529,
+            "HIGH": 31
+          },
+          "scope": {
+            "STOCK": 1723,
+            "UNKNOWN": 270,
+            "SECTOR": 52,
+            "INDEX": 196,
+            "MACRO": 49
+          }
+        },
+        "content_fetch_status": {
+          "NOT_AVAILABLE": 3899
+        },
+        "rate_limit_events": 0,
+        "errors": 14
+      }
+    },
+    "ET_STOCKS_RSS": {
+      "source": "ET_STOCKS_RSS",
+      "status": "PASS",
+      "criteria": {
+        "EVIDENCE": {
+          "status": "PASS",
+          "evidence": {
+            "full_market_sessions": [
+              "2026-09-29"
+            ],
+            "polls": 302,
+            "expected_interval_s": 120,
+            "feed_ttl_s": null
+          }
+        },
+        "LATENCY": {
+          "status": "PASS",
+          "evidence": {
+            "discovery_s": {
+              "n": 103,
+              "p50": 2130.7,
+              "p90": 8404.5,
+              "p95": 9513.8,
+              "p99": 15256.2,
+              "max": 16004.8
+            },
+            "market_hours": {
+              "n": 79,
+              "p50": 4230.3,
+              "p90": 9022.8,
+              "p95": 10578.0,
+              "p99": 15428.4,
+              "max": 16004.8
+            }
+          }
+        },
+        "HEALTH": {
+          "status": "PASS",
+          "evidence": {
+            "blocked": 0,
+            "failed": 2,
+            "polls": 302,
+            "health_now": "STALE"
+          }
+        },
+        "POLITENESS": {
+          "status": "PASS",
+          "evidence": {
+            "session_day": "2026-09-29",
+            "min_gap_s": 96.621992,
+            "floor_s": 96.0
+          }
+        },
+        "MAPPING": {
+          "status": "PASS",
+          "evidence": {
+            "rows": 76,
+            "false_positives": 0,
+            "rate": 0.0
+          }
+        },
+        "TERMS": {
+          "status": "PASS",
+          "evidence": {
+            "terms": "APPROVED"
+          }
+        },
+        "PIT": {
+          "status": "PASS",
+          "evidence": {
+            "exit": 0,
+            "summary": "296 passed in 19.91s"
+          }
+        }
+      },
+      "summary": {
+        "items": 153,
+        "live_items": 103,
+        "backlog_items": 50,
+        "mapping_rate": 0.49,
+        "unresolved": 78,
+        "stories": {
+          "items_with_story": 101,
+          "joined_existing": 2,
+          "by_method": {
+            "FOUNDER": 99,
+            "SIMILAR": 2
+          }
+        },
+        "assessment": {
+          "breaking": 1,
+          "impact": {
+            "MEDIUM": 29,
+            "HIGH": 6,
+            "UNKNOWN": 27,
+            "LOW": 39
+          },
+          "scope": {
+            "UNKNOWN": 33,
+            "MACRO": 2,
+            "STOCK": 52,
+            "MARKET": 7,
+            "GLOBAL": 1,
+            "SECTOR": 4,
+            "INDEX": 2
+          }
+        },
+        "content_fetch_status": {
+          "NOT_AVAILABLE": 153
+        },
+        "rate_limit_events": 0,
+        "errors": 2
+      }
+    },
+    "BS_MARKETS_RSS": {
+      "source": "BS_MARKETS_RSS",
+      "status": "PASS",
+      "criteria": {
+        "EVIDENCE": {
+          "status": "PASS",
+          "evidence": {
+            "full_market_sessions": [
+              "2026-09-29"
+            ],
+            "polls": 203,
+            "expected_interval_s": 180,
+            "feed_ttl_s": null
+          }
+        },
+        "LATENCY": {
+          "status": "PASS",
+          "evidence": {
+            "discovery_s": {
+              "n": 101,
+              "p50": 528.5,
+              "p90": 1131.0,
+              "p95": 1158.5,
+              "p99": 1844.0,
+              "max": 1893.5
+            },
+            "market_hours": {
+              "n": 69,
+              "p50": 444.0,
+              "p90": 933.7,
+              "p95": 1089.6,
+              "p99": 1136.6,
+              "max": 1137.9
+            }
+          }
+        },
+        "HEALTH": {
+          "status": "PASS",
+          "evidence": {
+            "blocked": 0,
+            "failed": 1,
+            "polls": 203,
+            "health_now": "STALE"
+          }
+        },
+        "POLITENESS": {
+          "status": "PASS",
+          "evidence": {
+            "session_day": "2026-09-29",
+            "min_gap_s": 145.132132,
+            "floor_s": 144.0
+          }
+        },
+        "MAPPING": {
+          "status": "PASS",
+          "evidence": {
+            "rows": 49,
+            "false_positives": 0,
+            "rate": 0.0
+          }
+        },
+        "TERMS": {
+          "status": "PASS",
+          "evidence": {
+            "terms": "APPROVED"
+          }
+        },
+        "PIT": {
+          "status": "PASS",
+          "evidence": {
+            "exit": 0,
+            "summary": "296 passed in 19.91s"
+          }
+        }
+      },
+      "summary": {
+        "items": 136,
+        "live_items": 101,
+        "backlog_items": 35,
+        "mapping_rate": 0.338,
+        "unresolved": 90,
+        "stories": {
+          "items_with_story": 96,
+          "joined_existing": 3,
+          "by_method": {
+            "FOUNDER": 93,
+            "SIMILAR": 2,
+            "SAME_TITLE": 1
+          }
+        },
+        "assessment": {
+          "breaking": 13,
+          "impact": {
+            "UNKNOWN": 27,
+            "MEDIUM": 37,
+            "LOW": 18,
+            "HIGH": 14
+          },
+          "scope": {
+            "MACRO": 12,
+            "INDEX": 5,
+            "SECTOR": 3,
+            "UNKNOWN": 41,
+            "STOCK": 32,
+            "MARKET": 2,
+            "GLOBAL": 1
+          }
+        },
+        "content_fetch_status": {
+          "NOT_AVAILABLE": 136
+        },
+        "rate_limit_events": 0,
+        "errors": 1
+      }
+    },
+    "BL_MARKETS_RSS": {
+      "source": "BL_MARKETS_RSS",
+      "status": "PASS",
+      "criteria": {
+        "EVIDENCE": {
+          "status": "PASS",
+          "evidence": {
+            "full_market_sessions": [
+              "2026-09-29"
+            ],
+            "polls": 28,
+            "expected_interval_s": 3600,
+            "feed_ttl_s": 3600
+          }
+        },
+        "LATENCY": {
+          "status": "PASS",
+          "evidence": {
+            "discovery_s": {
+              "n": 52,
+              "p50": 1741.2,
+              "p90": 3189.4,
+              "p95": 3468.5,
+              "p99": 3742.5,
+              "max": 3836.7
+            },
+            "market_hours": {
+              "n": 22,
+              "p50": 1936.4,
+              "p90": 3391.6,
+              "p95": 3510.7,
+              "p99": 3623.2,
+              "max": 3652.0
+            }
+          }
+        },
+        "HEALTH": {
+          "status": "PASS",
+          "evidence": {
+            "blocked": 0,
+            "failed": 0,
+            "polls": 28,
+            "health_now": "STALE"
+          }
+        },
+        "POLITENESS": {
+          "status": "PASS",
+          "evidence": {
+            "session_day": "2026-09-29",
+            "min_gap_s": 2967.195573,
+            "floor_s": 2880.0
+          }
+        },
+        "MAPPING": {
+          "status": "PASS",
+          "evidence": {
+            "rows": 16,
+            "false_positives": 0,
+            "rate": 0.0
+          }
+        },
+        "TERMS": {
+          "status": "PASS",
+          "evidence": {
+            "terms": "APPROVED"
+          }
+        },
+        "PIT": {
+          "status": "PASS",
+          "evidence": {
+            "exit": 0,
+            "summary": "296 passed in 19.91s"
+          }
+        }
+      },
+      "summary": {
+        "items": 112,
+        "live_items": 52,
+        "backlog_items": 60,
+        "mapping_rate": 0.125,
+        "unresolved": 98,
+        "stories": {
+          "items_with_story": 49,
+          "joined_existing": 2,
+          "by_method": {
+            "FOUNDER": 47,
+            "SAME_TITLE": 1,
+            "SIMILAR": 1
+          }
+        },
+        "assessment": {
+          "breaking": 3,
+          "impact": {
+            "HIGH": 5,
+            "MEDIUM": 32,
+            "UNKNOWN": 10,
+            "LOW": 2
+          },
+          "scope": {
+            "UNKNOWN": 22,
+            "SECTOR": 1,
+            "MACRO": 17,
+            "INDEX": 2,
+            "STOCK": 7
+          }
+        },
+        "content_fetch_status": {
+          "NOT_AVAILABLE": 112
+        },
+        "rate_limit_events": 0,
+        "errors": 0
+      }
+    },
+    "MINT_MARKETS_RSS": {
+      "source": "MINT_MARKETS_RSS",
+      "status": "PASS",
+      "criteria": {
+        "EVIDENCE": {
+          "status": "PASS",
+          "evidence": {
+            "full_market_sessions": [
+              "2026-09-29"
+            ],
+            "polls": 203,
+            "expected_interval_s": 180,
+            "feed_ttl_s": null
+          }
+        },
+        "LATENCY": {
+          "status": "PASS",
+          "evidence": {
+            "discovery_s": {
+              "n": 68,
+              "p50": 248.2,
+              "p90": 698.2,
+              "p95": 773.1,
+              "p99": 908.0,
+              "max": 925.6
+            },
+            "market_hours": {
+              "n": 38,
+              "p50": 230.9,
+              "p90": 350.6,
+              "p95": 365.4,
+              "p99": 373.2,
+              "max": 373.7
+            }
+          }
+        },
+        "HEALTH": {
+          "status": "PASS",
+          "evidence": {
+            "blocked": 0,
+            "failed": 1,
+            "polls": 203,
+            "health_now": "STALE"
+          }
+        },
+        "POLITENESS": {
+          "status": "PASS",
+          "evidence": {
+            "session_day": "2026-09-29",
+            "min_gap_s": 144.449572,
+            "floor_s": 144.0
+          }
+        },
+        "MAPPING": {
+          "status": "PASS",
+          "evidence": {
+            "rows": 31,
+            "false_positives": 0,
+            "rate": 0.0
+          }
+        },
+        "TERMS": {
+          "status": "PASS",
+          "evidence": {
+            "terms": "APPROVED"
+          }
+        },
+        "PIT": {
+          "status": "PASS",
+          "evidence": {
+            "exit": 0,
+            "summary": "296 passed in 19.91s"
+          }
+        }
+      },
+      "summary": {
+        "items": 104,
+        "live_items": 69,
+        "backlog_items": 35,
+        "mapping_rate": 0.288,
+        "unresolved": 74,
+        "stories": {
+          "items_with_story": 65,
+          "joined_existing": 2,
+          "by_method": {
+            "FOUNDER": 63,
+            "SIMILAR": 2
+          }
+        },
+        "assessment": {
+          "breaking": 12,
+          "impact": {
+            "MEDIUM": 37,
+            "UNKNOWN": 14,
+            "HIGH": 11,
+            "LOW": 3
+          },
+          "scope": {
+            "STOCK": 19,
+            "UNKNOWN": 25,
+            "MARKET": 14,
+            "INDEX": 2,
+            "MACRO": 5
+          }
+        },
+        "content_fetch_status": {
+          "NOT_AVAILABLE": 104
+        },
+        "rate_limit_events": 0,
+        "errors": 1
+      }
+    },
+    "CNBCTV18_NEWS_SITEMAP": {
+      "source": "CNBCTV18_NEWS_SITEMAP",
+      "status": "PASS",
+      "criteria": {
+        "EVIDENCE": {
+          "status": "PASS",
+          "evidence": {
+            "full_market_sessions": [
+              "2026-09-29"
+            ],
+            "polls": 150,
+            "expected_interval_s": 300,
+            "feed_ttl_s": null
+          }
+        },
+        "LATENCY": {
+          "status": "PASS",
+          "evidence": {
+            "discovery_s": {
+              "n": 215,
+              "p50": 594.1,
+              "p90": 1096.5,
+              "p95": 1291.9,
+              "p99": 1376.7,
+              "max": 1474.4
+            },
+            "market_hours": {
+              "n": 88,
+              "p50": 469.2,
+              "p90": 714.9,
+              "p95": 800.2,
+              "p99": 936.5,
+              "max": 1097.4
+            }
+          }
+        },
+        "HEALTH": {
+          "status": "PASS",
+          "evidence": {
+            "blocked": 0,
+            "failed": 0,
+            "polls": 150,
+            "health_now": "STALE"
+          }
+        },
+        "POLITENESS": {
+          "status": "PASS",
+          "evidence": {
+            "session_day": "2026-09-29",
+            "min_gap_s": 244.912473,
+            "floor_s": 240.0
+          }
+        },
+        "MAPPING": {
+          "status": "PASS",
+          "evidence": {
+            "rows": 57,
+            "false_positives": 0,
+            "rate": 0.0
+          }
+        },
+        "TERMS": {
+          "status": "PASS",
+          "evidence": {
+            "terms": "APPROVED"
+          }
+        },
+        "PIT": {
+          "status": "PASS",
+          "evidence": {
+            "exit": 0,
+            "summary": "296 passed in 19.91s"
+          }
+        }
+      },
+      "summary": {
+        "items": 491,
+        "live_items": 215,
+        "backlog_items": 276,
+        "mapping_rate": 0.11,
+        "unresolved": 437,
+        "stories": {
+          "items_with_story": 195,
+          "joined_existing": 1,
+          "by_method": {
+            "FOUNDER": 194,
+            "SIMILAR": 1
+          }
+        },
+        "assessment": {
+          "breaking": 8,
+          "impact": {
+            "HIGH": 11,
+            "UNKNOWN": 96,
+            "MEDIUM": 78,
+            "LOW": 10
+          },
+          "scope": {
+            "UNKNOWN": 122,
+            "SECTOR": 5,
+            "STOCK": 28,
+            "MACRO": 20,
+            "INDEX": 3,
+            "MARKET": 4,
+            "GLOBAL": 13
+          }
+        },
+        "content_fetch_status": {
+          "NOT_AVAILABLE": 491
+        },
+        "rate_limit_events": 0,
+        "errors": 0
+      }
+    },
+    "INDIANEXPRESS_BUSINESS_RSS": {
+      "source": "INDIANEXPRESS_BUSINESS_RSS",
+      "status": "FAIL",
+      "criteria": {
+        "EVIDENCE": {
+          "status": "PASS",
+          "evidence": {
+            "full_market_sessions": [
+              "2026-09-29"
+            ],
+            "polls": 200,
+            "expected_interval_s": 180,
+            "feed_ttl_s": null
+          }
+        },
+        "LATENCY": {
+          "status": "PENDING",
+          "evidence": {
+            "discovery_s": {
+              "n": 4,
+              "p50": 269.7,
+              "p90": 807.4,
+              "p95": 920.0,
+              "p99": 1010.1,
+              "max": 1032.6
+            },
+            "market_hours": {
+              "n": 0,
+              "p50": null,
+              "p90": null,
+              "p95": null,
+              "p99": null,
+              "max": null
+            }
+          }
+        },
+        "HEALTH": {
+          "status": "PASS",
+          "evidence": {
+            "blocked": 0,
+            "failed": 4,
+            "polls": 200,
+            "health_now": "STALE"
+          }
+        },
+        "POLITENESS": {
+          "status": "PASS",
+          "evidence": {
+            "session_day": "2026-09-29",
+            "min_gap_s": 144.729209,
+            "floor_s": 144.0
+          }
+        },
+        "MAPPING": {
+          "status": "FAIL",
+          "evidence": {
+            "rows": 11,
+            "false_positives": 1,
+            "rate": 0.0909
+          }
+        },
+        "TERMS": {
+          "status": "PASS",
+          "evidence": {
+            "terms": "APPROVED"
+          }
+        },
+        "PIT": {
+          "status": "PASS",
+          "evidence": {
+            "exit": 0,
+            "summary": "296 passed in 19.91s"
+          }
+        }
+      },
+      "summary": {
+        "items": 204,
+        "live_items": 4,
+        "backlog_items": 200,
+        "mapping_rate": 0.034,
+        "unresolved": 197,
+        "stories": {
+          "items_with_story": 4,
+          "joined_existing": 0,
+          "by_method": {
+            "FOUNDER": 4
+          }
+        },
+        "assessment": {
+          "breaking": 0,
+          "impact": {
+            "UNKNOWN": 2,
+            "MEDIUM": 2
+          },
+          "scope": {
+            "UNKNOWN": 3,
+            "MACRO": 1
+          }
+        },
+        "content_fetch_status": {
+          "NOT_AVAILABLE": 204
+        },
+        "rate_limit_events": 0,
+        "errors": 4
+      }
+    },
+    "SEBI_RSS": {
+      "source": "SEBI_RSS",
+      "status": "PASS",
+      "criteria": {
+        "EVIDENCE": {
+          "status": "PASS",
+          "evidence": {
+            "full_market_sessions": [
+              "2026-09-29"
+            ],
+            "polls": 26,
+            "expected_interval_s": 3600,
+            "feed_ttl_s": 3600
+          }
+        },
+        "LATENCY": {
+          "status": "NOT_MEASURABLE",
+          "evidence": {
+            "discovery_s": {
+              "n": 0,
+              "p50": null,
+              "p90": null,
+              "p95": null,
+              "p99": null,
+              "max": null
+            },
+            "market_hours": {
+              "n": 0,
+              "p50": null,
+              "p90": null,
+              "p95": null,
+              "p99": null,
+              "max": null
+            }
+          }
+        },
+        "HEALTH": {
+          "status": "PASS",
+          "evidence": {
+            "blocked": 0,
+            "failed": 0,
+            "polls": 26,
+            "health_now": "HEALTHY"
+          }
+        },
+        "POLITENESS": {
+          "status": "PASS",
+          "evidence": {
+            "session_day": "2026-09-29",
+            "min_gap_s": 2934.718834,
+            "floor_s": 2880.0
+          }
+        },
+        "MAPPING": {
+          "status": "PASS",
+          "evidence": {
+            "rows": 7,
+            "false_positives": 0,
+            "rate": 0.0
+          }
+        },
+        "TERMS": {
+          "status": "PASS",
+          "evidence": {
+            "terms": "APPROVED"
+          }
+        },
+        "PIT": {
+          "status": "PASS",
+          "evidence": {
+            "exit": 0,
+            "summary": "296 passed in 19.91s"
+          }
+        }
+      },
+      "summary": {
+        "items": 51,
+        "live_items": 21,
+        "backlog_items": 30,
+        "mapping_rate": 0.137,
+        "unresolved": 44,
+        "stories": {
+          "items_with_story": 21,
+          "joined_existing": 8,
+          "by_method": {
+            "FOUNDER": 13,
+            "SAME_TITLE": 8
+          }
+        },
+        "assessment": {
+          "breaking": 0,
+          "impact": {
+            "MEDIUM": 21
+          },
+          "scope": {
+            "UNKNOWN": 19,
+            "STOCK": 2
+          }
+        },
+        "content_fetch_status": {
+          "NOT_AVAILABLE": 51
+        },
+        "rate_limit_events": 0,
+        "errors": 0
+      }
+    }
+  },
+  "unsupported": {
+    "MONEYCONTROL": "HTTP 403 on robots.txt and RSS (bot protection); no bypass",
+    "ZEE_BUSINESS": "HTTP 403 on robots.txt and RSS (bot protection); no bypass",
+    "REUTERS": "robots.txt Disallow: / for all agents; only a licensed feed would do"
+  },
+  "overall": "NOT PASSED",
+  "note": "a PASS unlocks nothing by itself: writes also need the per-source flag, terms APPROVED, Stage 2 PASS and a token"
+}

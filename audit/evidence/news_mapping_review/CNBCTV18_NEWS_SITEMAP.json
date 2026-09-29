@@ -1,0 +1,931 @@
+{
+ "source": "CNBCTV18_NEWS_SITEMAP",
+ "instructions": "set correct=true when every link names the company the item is about, else false",
+ "rows": [
+  {
+   "id": "https://www.cnbctv18.com/market/godrej-properties-share-price-land-parcel-south-mumbai-marine-lines-6000-crore-gdv-pre-sales-fy27-guidance-19999584.htm",
+   "title": "Godrej Properties to add luxury project in South Mumbai's Marine Lines worth ₹6,000 crore GDV",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE484J01027",
+     "method": "COMPANY_NAME",
+     "matched": "godrej properties",
+     "reason": "headline names 'GODREJ PROPERTIES LTD'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/business/companies/parag-milk-foods-capacity-expansion-revenue-target-guidance-rs-10000-crore-alpha-article-19999856.htm",
+   "title": "Parag Milk Foods targets ₹10,000 crore revenue in three to four years, says executive director Akshali Shah",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE883N01014",
+     "method": "COMPANY_NAME",
+     "matched": "parag milk foods",
+     "reason": "headline names 'PARAG MILK FOODS LTD.'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/business/companies/aequs-warrant-issue-450-million-dollars-capex-growth-aerospace-hindustan-aeronautics-alpha-article-19999768.htm",
+   "title": "Aequs raises funds to accelerate aerospace business expansion, targets $450 million capex",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE947N01017",
+     "method": "COMPANY_NAME",
+     "matched": "aequs",
+     "reason": "headline names 'AEQUS LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/aegis-logistics-share-price-approves-fund-raise-of-up-to-6000-crore-stock-reaction-19999840.htm",
+   "title": "Aegis Logistics approves fund raise of up to ₹6,000 crore via various methods",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE208C01025",
+     "method": "COMPANY_NAME",
+     "matched": "aegis logistics",
+     "reason": "headline names 'AEGIS LOGISTICS LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/auto/tata-motors-aeris-launch-sales-cng-petrol-sedan-cars-electric-vehicles-auto-sector-launch-price-ex-showroom-alpha-article-19999785.htm",
+   "title": "Tata Motors launches Aeris at ₹5.29 lakh, targets 7.5 lakh-plus annual vehicle sales, EVs remain in focus",
+   "links": [
+    {
+     "instrument_key": null,
+     "method": "UNRESOLVED",
+     "matched": "Tata Motors launches Aeris at ₹5.29 lakh, targets 7.5 lakh-plus annual vehicle sales, EVs remain in focus",
+     "reason": "tata motors: a name shared by two listed companies",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/business/companies/welspun-corp-eyes-us-saudi-growth-data-centre-pipeline-opportunity-share-price-order-book-19999727.htm",
+   "title": "Welspun Corp bets on US, Saudi growth as overall order book rises to ₹45,000 crore",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE191B01025",
+     "method": "COMPANY_NAME",
+     "matched": "welspun",
+     "reason": "headline names 'WELSPUN CORP LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/borosil-share-price-gains-dgtr-recommends-anti-dumping-duty-chinese-glassware-investec-raises-target-19999792.htm",
+   "title": "Explained - Two key reasons why Borosil shares are up 6% in a weak market",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE02PY01013",
+     "method": "COMPANY_NAME",
+     "matched": "borosil",
+     "reason": "headline names 'BOROSIL LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/dilip-buildcon-share-price-two-project-wins-maharashtra-1840-crore-lane-transmission-scope-timeline-19999725.htm",
+   "title": "Dilip Buildcon bags two projects across business worth ₹1,840 crore; Stock falls 2%",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE917M01012",
+     "method": "COMPANY_NAME",
+     "matched": "dilip buildcon",
+     "reason": "headline names 'DILIP BUILDCON LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/kalpataru-projects-international-share-price-major-epc-order-oil-and-gas-business-4000-crore-value-19999651.htm",
+   "title": "Kalpataru Projects International secures 'major' EPC order in oil and gas business in UAE",
+   "links": [
+    {
+     "instrument_key": null,
+     "method": "UNRESOLVED",
+     "matched": "Kalpataru Projects International secures 'major' EPC order in oil and gas business in UAE",
+     "reason": "no uniquely named company in the headline",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/dhoot-transmission-share-price-falls-for-fourth-day-after-kotak-warns-of-decline-valuation-risks-19999700.htm",
+   "title": "Dhoot Transmission shares drop for fourth day after Kotak warns of 10% fall on valuation risks",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE01NH01023",
+     "method": "COMPANY_NAME",
+     "matched": "dhoot transmission",
+     "reason": "headline names 'DHOOT TRANSMISSION LTD'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/stocks/nifty-500-tata-teleservices-pb-fintech-allied-blenders-ifci-physicswallah-nuvama-market-open-share-price-19999602.htm",
+   "title": "Tata Teleservices surges 7%, Physicswallah falls up to 4% at Nifty 500 market open",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0LP301011",
+     "method": "COMPANY_NAME",
+     "matched": "physicswallah",
+     "reason": "headline names 'PHYSICSWALLAH LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/pb-fintech-share-price-target-kotak-investec-cut-bernstein-optimistic-should-you-buy-or-sell-irdai-impact-19999677.htm",
+   "title": "Should one buy the PB Fintech dip? Bernstein sees 91% upside but here's what others said",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE417T01026",
+     "method": "COMPANY_NAME",
+     "matched": "pb fintech",
+     "reason": "headline names 'PB FINTECH LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/pb-fintech-share-price-target-91-percent-upside-from-bernstein-irdai-guidelines-sell-off-impact-returns-listing-loss-19999611.htm",
+   "title": "PB Fintech share price can rise 91%, Bernstein projects in its bullish call; Here's why",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE417T01026",
+     "method": "COMPANY_NAME",
+     "matched": "pb fintech",
+     "reason": "headline names 'PB FINTECH LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/aastha-spintex-share-price-trades-ex-bonus-from-today-record-date-retail-shareholding-down-from-ipo-price-19999555.htm",
+   "title": "Aastha Spintex shares jump 7% after adjusting for 1:1 bonus - All you need to know",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE2FMX01012",
+     "method": "COMPANY_NAME",
+     "matched": "aastha spintex",
+     "reason": "headline names 'AASTHA SPINTEX LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/fortis-healthcare-share-price-sc-supreme-court-allows-forensic-audit-to-go-ahead-19999586.htm",
+   "title": "Fortis Healthcare shares fall after SC allows forensic audit to go ahead",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE061F01013",
+     "method": "COMPANY_NAME",
+     "matched": "fortis healthcare",
+     "reason": "headline names 'FORTIS HEALTHCARE LTD'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/access/exclusive/torrent-pharma-bharti-airtel-top-stock-picks-to-buy-sell-19999596.htm",
+   "title": "Top stock picks: Analysts recommend buying Cyient DLM; cautious on PNB, Godrej Properties, Canara Bank",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE055S01018",
+     "method": "COMPANY_NAME",
+     "matched": "cyient dlm",
+     "reason": "headline names 'CYIENT DLM LIMITED'",
+     "version": "headline-entity-v2"
+    },
+    {
+     "instrument_key": "NSE_EQ|INE484J01027",
+     "method": "COMPANY_NAME",
+     "matched": "godrej properties",
+     "reason": "headline names 'GODREJ PROPERTIES LTD'",
+     "version": "headline-entity-v2"
+    },
+    {
+     "instrument_key": "NSE_EQ|INE476A01022",
+     "method": "COMPANY_NAME",
+     "matched": "canara bank",
+     "reason": "headline names 'CANARA BANK'",
+     "version": "headline-entity-v2"
+    },
+    {
+     "instrument_key": "NSE_EQ|INE160A01022",
+     "method": "ALIAS",
+     "matched": "PNB",
+     "reason": "reviewed alias PNB -> PNB (PUNJAB NATIONAL BANK)",
+     "version": "alias-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/india/indusind-bank-ceo-rajiv-anand-says-voter-name-marked-unmapped-faces-hearing-notice-ecial-intentive-revision-election-commission-19999633.htm",
+   "title": "IndusInd Bank CEO Rajiv Anand says voter name marked ‘unmapped’ in SIR, faces hearing notice",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE095A01012",
+     "method": "COMPANY_NAME",
+     "matched": "indusind bank",
+     "reason": "headline names 'INDUSIND BANK LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/photos/market/stocks-to-watch-for-september-28-sail-adani-power-rashtriya-chemicals-and-more-19998897.htm",
+   "title": "Stocks to watch for September 28: SAIL, Adani Power, Rashtriya Chemicals and more",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE814H01029",
+     "method": "COMPANY_NAME",
+     "matched": "adani power",
+     "reason": "headline names 'ADANI POWER LTD'",
+     "version": "headline-entity-v2"
+    },
+    {
+     "instrument_key": "NSE_EQ|INE114A01011",
+     "method": "ALIAS",
+     "matched": "SAIL",
+     "reason": "reviewed alias SAIL -> SAIL (STEEL AUTHORITY OF INDIA)",
+     "version": "alias-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/pvr-inox-opens-five-screen-multiplex-in-kochi-expands-network-to-1797-screens-19999249.htm",
+   "title": "PVR INOX opens five-screen multiplex in Kochi, expands network to 1,797 screens",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE191H01014",
+     "method": "COMPANY_NAME",
+     "matched": "pvr inox",
+     "reason": "headline names 'PVR INOX LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/suraj-estate-subsidiary-completes-rs-82-crore-mahim-development-rights-acquisition-19999229.htm",
+   "title": "Suraj Estate subsidiary completes over ₹82 crore Mahim development rights acquisition",
+   "links": [
+    {
+     "instrument_key": null,
+     "method": "UNRESOLVED",
+     "matched": "Suraj Estate subsidiary completes over ₹82 crore Mahim development rights acquisition",
+     "reason": "no uniquely named company in the headline",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/lemon-tree-hotels-opens-71-room-resort-in-nashik-second-property-in-city-19999124.htm",
+   "title": "Lemon Tree Hotels opens 71-room resort in Nashik; second property in city",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE970X01018",
+     "method": "COMPANY_NAME",
+     "matched": "lemon tree hotels",
+     "reason": "headline names 'LEMON TREE HOTELS LTD'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/sports/man-city-found-guilty-of-premier-league-charges-set-to-appeal-reports-19999104.htm",
+   "title": "Man City found guilty of Premier League charges, set to appeal: reports",
+   "links": [
+    {
+     "instrument_key": null,
+     "method": "UNRESOLVED",
+     "matched": "Man City found guilty of Premier League charges, set to appeal: reports",
+     "reason": "premier: an ordinary word or group name on its own",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/zydus-lifesciences-usfda-inspection-new-jersey-office-concludes-nil-observations-19999096.htm",
+   "title": "Zydus Lifesciences says USFDA inspection at New Jersey office concludes with nil observations",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE010B01027",
+     "method": "COMPANY_NAME",
+     "matched": "zydus lifesciences",
+     "reason": "headline names 'ZYDUS LIFESCIENCES LTD'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/ntpc-green-energy-adds-81-mw-solar-capacity-in-rajasthan-19999076.htm",
+   "title": "NTPC Green Energy adds 81.34 MW solar capacity in Rajasthan",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0ONG01011",
+     "method": "COMPANY_NAME",
+     "matched": "ntpc green energy",
+     "reason": "headline names 'NTPC GREEN ENERGY LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/natco-pharma-share-price-egenesis-raises-investment-usd-16-7-million-20000104.htm",
+   "title": "Natco Pharma raises eGenesis investment to $16.7 million, backs gene-edited organ research",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE987B01026",
+     "method": "COMPANY_NAME",
+     "matched": "natco pharma",
+     "reason": "headline names 'NATCO PHARMA LTD.'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/stocks/vikram-solar-share-price-secures-400-mw-module-supply-order-for-solar-projects-in-maharashtra-20000114.htm",
+   "title": "Vikram Solar secures 400 MW module supply order for solar projects in Maharashtra",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE078V01014",
+     "method": "COMPANY_NAME",
+     "matched": "vikram solar",
+     "reason": "headline names 'VIKRAM SOLAR LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/irfc-expands-beyond-railways-with-rs4200-crore-renewable-energy-loan-to-dvc-20000199.htm",
+   "title": "IRFC expands beyond railways with ₹4,200 crore renewable energy loan to DVC",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE053F01010",
+     "method": "ALIAS",
+     "matched": "IRFC",
+     "reason": "reviewed alias IRFC -> IRFC (INDIAN RAILWAY FIN CORP L)",
+     "version": "alias-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/business/companies/allcargo-logistics-ceo-ketan-kulkarni-to-step-down-move-to-chief-growth-officer-role-20000209.htm",
+   "title": "Allcargo Logistics CEO Ketan Kulkarni to step down, move to Chief Growth Officer role",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE418H01029",
+     "method": "COMPANY_NAME",
+     "matched": "allcargo logistics",
+     "reason": "headline names 'ALLCARGO LOGISTICS LTD'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/photos/market/stocks-to-watch-for-september-29-irfc-ncc-clean-max-and-more-20000211.htm",
+   "title": "Stocks to watch for September 29: IRFC, NCC, Clean Max and more",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE053F01010",
+     "method": "ALIAS",
+     "matched": "IRFC",
+     "reason": "reviewed alias IRFC -> IRFC (INDIAN RAILWAY FIN CORP L)",
+     "version": "alias-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/stocks/eureka-forbes-share-price-receives-rs-273-crore-gst-show-cause-notice-from-uttar-pradesh-tax-authority-20000263.htm",
+   "title": "Eureka Forbes receives ₹273 crore GST show-cause notice from Uttar Pradesh tax authority",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0KCE01017",
+     "method": "COMPANY_NAME",
+     "matched": "eureka forbes",
+     "reason": "headline names 'EUREKA FORBES LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/stocks/cube-highways-trust-share-price-block-deal-seventy-second-investment-likely-to-sell-stake-at-rs-153-floor-price-20000287.htm",
+   "title": "Cube Highways Trust Block Deal: Seventy Second Investment likely to sell stake at ₹153 floor price",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0NR623014",
+     "method": "COMPANY_NAME",
+     "matched": "cube highways trust",
+     "reason": "headline names 'CUBE HIGHWAYS TRUST'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/business/piramal-finance-approves-%e2%82%b92000-crore-ncd-issue-at-8-62-interest-20000301.htm",
+   "title": "Piramal Finance approves ₹2,000 crore NCD issue at 8.62% interest",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE202B01038",
+     "method": "COMPANY_NAME",
+     "matched": "piramal finance",
+     "reason": "headline names 'PIRAMAL FINANCE LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/business/companies/ellenbarrie-wins-rs481-crore-bhel-order-for-giant-oxygen-and-nitrogen-plant-20000310.htm",
+   "title": "Ellenbarrie wins ₹481 crore BHEL order for giant oxygen and nitrogen plant",
+   "links": [
+    {
+     "instrument_key": null,
+     "method": "UNRESOLVED",
+     "matched": "Ellenbarrie wins ₹481 crore BHEL order for giant oxygen and nitrogen plant",
+     "reason": "no uniquely named company in the headline",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/stocks/power-mech-projects-share-price-bags-rs-279-crore-order-from-telangana-power-generation-company-20000306.htm",
+   "title": "Power Mech Projects bags ₹279 crore order from Telangana power generation company",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE211R01019",
+     "method": "COMPANY_NAME",
+     "matched": "power mech projects",
+     "reason": "headline names 'POWER MECH PROJECTS LTD.'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/auto/landmark-cars-expands-dealership-network-with-new-byd-mahindra-outlets-20000317.htm",
+   "title": "Landmark Cars expands dealership network with new BYD, Mahindra outlets",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE559R01029",
+     "method": "COMPANY_NAME",
+     "matched": "landmark cars",
+     "reason": "headline names 'LANDMARK CARS LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/stocks/honasa-consumer-share-price-block-deal-peak-xv-sequoia-redwood-trust-to-sell-stake-for-up-to-rs-400-crore-20000374.htm",
+   "title": "Honasa Consumer Block Deal: Peak XV, Sequoia, Redwood Trust to sell stake for up to ₹400 crore",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0J5401028",
+     "method": "COMPANY_NAME",
+     "matched": "honasa consumer",
+     "reason": "headline names 'HONASA CONSUMER LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/stocks/krsnaa-diagnostics-share-price-to-sell-diagnostic-equipment-worth-up-to-rs-120-crore-20000386.htm",
+   "title": "Krsnaa Diagnostics to sell diagnostic equipment worth up to ₹120 crore",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE08LI01020",
+     "method": "COMPANY_NAME",
+     "matched": "krsnaa diagnostics",
+     "reason": "headline names 'KRSNAA DIAGNOSTICS LTD'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/itc-buys-remaining-sproutlife-stake-for-rs645-crore-takes-full-ownership-20000388.htm",
+   "title": "ITC buys remaining Sproutlife stake for ₹645 crore, takes full ownership",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE154A01025",
+     "method": "ALIAS",
+     "matched": "ITC",
+     "reason": "reviewed alias ITC -> ITC (ITC LTD)",
+     "version": "alias-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/stocks/coforge-share-price-appoints-akhil-gupta-as-chairperson-for-five-year-term-20000410.htm",
+   "title": "Coforge appoints Akhil Gupta as Chairperson for five-year term",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE591G01025",
+     "method": "COMPANY_NAME",
+     "matched": "coforge",
+     "reason": "headline names 'COFORGE LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/sports/indias-asian-games-gold-and-the-promise-waiting-for-pawan-sehrawat-in-coastal-karnataka-20000124.htm",
+   "title": "India’s Asian Games gold and the promise waiting for Pawan Sehrawat in coastal Karnataka",
+   "links": [
+    {
+     "instrument_key": null,
+     "method": "UNRESOLVED",
+     "matched": "India’s Asian Games gold and the promise waiting for Pawan Sehrawat in coastal Karnataka",
+     "reason": "coastal: an ordinary word or group name on its own",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/pb-fintech-share-price-sell-off-sharp-jump-in-leveraged-mtf-positions-buy-sell-target-irdai-20000423.htm",
+   "title": "PB Fintech's 38% share price fall in two sessions takes its leveraged bets higher by 360%",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE417T01026",
+     "method": "COMPANY_NAME",
+     "matched": "pb fintech",
+     "reason": "headline names 'PB FINTECH LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/eternal-share-price-target-four-key-reasons-why-goldman-sachs-expects-stock-to-rise-20000505.htm",
+   "title": "Four key reasons why Goldman Sachs expects Eternal share price to rise 16%",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE758T01015",
+     "method": "COMPANY_NAME",
+     "matched": "eternal",
+     "reason": "headline names 'ETERNAL LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/cube-highways-trust-unit-price-block-deal-buyer-seller-seventy-second-investment-company-size-outlook-20000484.htm",
+   "title": "Cube Highways Trust Block Deal: 4.5 crore units worth ₹689.5 crore change hands",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0NR623014",
+     "method": "COMPANY_NAME",
+     "matched": "cube highways trust",
+     "reason": "headline names 'CUBE HIGHWAYS TRUST'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/access/exclusive/hindalco-adani-enterprises-hero-motocorp-coal-india-top-stock-picks-to-buy-sell-20000464.htm",
+   "title": "Technical analysts recommend selling Hindalco, Adani Enterprises, Coal India & buying Hero MotoCorp",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE423A01024",
+     "method": "COMPANY_NAME",
+     "matched": "adani enterprises",
+     "reason": "headline names 'ADANI ENTERPRISES LIMITED'",
+     "version": "headline-entity-v2"
+    },
+    {
+     "instrument_key": "NSE_EQ|INE522F01014",
+     "method": "COMPANY_NAME",
+     "matched": "coal india",
+     "reason": "headline names 'COAL INDIA LTD'",
+     "version": "headline-entity-v2"
+    },
+    {
+     "instrument_key": "NSE_EQ|INE158A01026",
+     "method": "COMPANY_NAME",
+     "matched": "hero motocorp",
+     "reason": "headline names 'HERO MOTOCORP LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/honasa-consumer-share-price-block-deal-643-crore-buyer-seller-peak-xv-shareholding-2026-returns-20000443.htm",
+   "title": "Honasa Consumer shares fall after equity worth ₹643 crore changes hands in upsized block deal",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0J5401028",
+     "method": "COMPANY_NAME",
+     "matched": "honasa consumer",
+     "reason": "headline names 'HONASA CONSUMER LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/axiscades-technologies-share-price-741-crore-block-deal-buyer-sellers-shareholding-promoters-retail-mfs-20000535.htm",
+   "title": "Axiscades Tech shares gain 10% after equity worth ₹741 crore changes hands in block deal window",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE555B01013",
+     "method": "COMPANY_NAME",
+     "matched": "axiscades tech",
+     "reason": "headline names 'AXISCADES TECH LTD'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/videos/market/honasa-buy-on-correction-mayuresh-joshi-marketsmith-india-metals-vodafone-idea-bharti-airtel-20000578.htm",
+   "title": "Mayuresh Joshi prefers Bharti Airtel, stays cautious on Vodafone Idea, metals and Honasa",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE397D01024",
+     "method": "COMPANY_NAME",
+     "matched": "bharti airtel",
+     "reason": "headline names 'BHARTI AIRTEL LIMITED'",
+     "version": "headline-entity-v2"
+    },
+    {
+     "instrument_key": "NSE_EQ|INE669E01016",
+     "method": "COMPANY_NAME",
+     "matched": "vodafone idea",
+     "reason": "headline names 'VODAFONE IDEA LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/coforge-share-price-appoints-akhil-gupta-as-chairperson-jpmorgan-sees-focus-shifting-back-to-business-20000581.htm",
+   "title": "Coforge appoints Akhil Gupta as chairperson; JPMorgan sees focus shifting back to biz",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE591G01025",
+     "method": "COMPANY_NAME",
+     "matched": "coforge",
+     "reason": "headline names 'COFORGE LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/s-naren-icici-prudential-amc-explains-why-markets-are-falling-what-investors-should-do-alpha-article-20000649.htm",
+   "title": "S Naren of ICICI Prudential AMC explains the three factors plaguing markets and what should investors do",
+   "links": [
+    {
+     "instrument_key": null,
+     "method": "UNRESOLVED",
+     "matched": "S Naren of ICICI Prudential AMC explains the three factors plaguing markets and what should investors do",
+     "reason": "icici prudential amc: an intermediary speaking / rating / recommending",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.cnbctv18.com/market/azad-engineering-share-price-goldman-sachs-positive-two-new-facilities-for-ge-vernova-demand-target-buy-sell-20000629.htm",
+   "title": "Azad Engineering shares extend 2026 gains to 82% after Goldman Sachs thumbs-up",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE02IJ01035",
+     "method": "COMPANY_NAME",
+     "matched": "azad engineering",
+     "reason": "headline names 'AZAD ENGINEERING LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": null,
+   "title": "Varmora Granito IPO listing: Grey market points to muted debut; key details to track",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0M5301040",
+     "method": "COMPANY_NAME",
+     "matched": "varmora granito"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "IT Q2 Earnings Preview: Infosys may cut FY27 guidance; here's what to watch",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE009A01021",
+     "method": "COMPANY_NAME",
+     "matched": "infosys"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Bank strike from September 28-30: SBI, PNB, Union Bank waive ATM charges for 3 days",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE062A01020",
+     "method": "ALIAS",
+     "matched": "SBI"
+    },
+    {
+     "instrument_key": "NSE_EQ|INE160A01022",
+     "method": "ALIAS",
+     "matched": "PNB"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Varmora Granito sees ₹2,500 crore revenue potential by FY29 after ₹450 crore capex",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0M5301040",
+     "method": "COMPANY_NAME",
+     "matched": "varmora granito"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Vinati Organics retains FY27 volume growth guidance despite delay in Viral Organics turnaround, says MD",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE410B01037",
+     "method": "COMPANY_NAME",
+     "matched": "vinati organics"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Another 3-4% price hike needed to protect margins; Equirus likes LG Electronics, Blue Star, Voltas",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE472A01039",
+     "method": "COMPANY_NAME",
+     "matched": "blue star"
+    },
+    {
+     "instrument_key": "NSE_EQ|INE226A01021",
+     "method": "COMPANY_NAME",
+     "matched": "voltas"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Stocks to watch today: Analysts recommend Dr Reddy's, Mankind Pharma; sell HCLTech",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE634S01028",
+     "method": "COMPANY_NAME",
+     "matched": "mankind pharma"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  }
+ ],
+ "review": {
+  "reviewer": "Claude (delegated by the user, 2026-09-29: 'Complete the mapping review')",
+  "criterion": "set correct=true when every link names the company the item is about, else false",
+  "mapper": "headline-entity-v2 / alias-v2 / nse-entity-v1",
+  "judged_at": "2026-09-29 IST",
+  "before_fix": {
+   "sample_wrong_rows": [
+    "04",
+    "08",
+    "19",
+    "21",
+    "32",
+    "39",
+    "48"
+   ],
+   "sample_rows": 50,
+   "holdout_wrong": 2,
+   "holdout_rows": 9,
+   "note": "links as recorded by the earlier mapper; the fixes (d166c1a and the holdout guards) were written from these errors"
+  },
+  "final": {
+   "rows": 57,
+   "wrong": 0
+  }
+ }
+}

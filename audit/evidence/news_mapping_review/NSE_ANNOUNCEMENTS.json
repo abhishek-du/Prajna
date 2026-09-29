@@ -1,0 +1,1165 @@
+{
+ "source": "NSE_ANNOUNCEMENTS",
+ "instructions": "set correct=true when every link names the company the item is about, else false",
+ "rows": [
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/PPSL_28092026154413_CLOSURE_OF_TRADING_WINDOW_Signed_Copy__1_.pdf",
+   "title": "Picturepost Studios Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0YAL01017",
+     "method": "EXACT_SYMBOL",
+     "matched": "PPSL",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/MAKSGROUP_28092026151825_TWC926.pdf",
+   "title": "Maks Energy Solutions India Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0CDK01019",
+     "method": "COMPANY_NAME",
+     "matched": "MAKS ENERGY SOL INDIA LTD",
+     "reason": "file-name symbol MAKSGROUP is not an included NSE_EQ symbol",
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/HAL_28092026145433_ChangeInMngt_28092026.pdf",
+   "title": "Hindustan Aeronautics Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE066F01020",
+     "method": "EXACT_SYMBOL",
+     "matched": "HAL",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/JAICORPLTD_28092026142049_ProceedingsAGM2026.pdf",
+   "title": "Jai Corp Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE070D01027",
+     "method": "EXACT_SYMBOL",
+     "matched": "JAICORPLTD",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/RKSWAMY1973_28092026132542_Closure_of_Trading_Window_September_2026.pdf",
+   "title": "R K Swamy Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0NQ801033",
+     "method": "COMPANY_NAME",
+     "matched": "R K SWAMY LIMITED",
+     "reason": "file-name symbol RKSWAMY1973 is not an included NSE_EQ symbol",
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/NILKAMAL_28092026124905_SE_Letter.pdf",
+   "title": "Nilkamal Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE310A01015",
+     "method": "EXACT_SYMBOL",
+     "matched": "NILKAMAL",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/RCF_28092026120909_WC_Sep2026.pdf",
+   "title": "Rashtriya Chemicals and Fertilizers Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE027A01015",
+     "method": "EXACT_SYMBOL",
+     "matched": "RCF",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/TEAMLEASE_28092026113051_TeamLeaseIntimationonUpdateonNEEMCase.pdf",
+   "title": "Teamlease Services Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE985S01024",
+     "method": "EXACT_SYMBOL",
+     "matched": "TEAMLEASE",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/GPTHEALTHCARE_28092026102150_GHL-Trading_Window_Closure_September_2026.pdf",
+   "title": "GPT Healthcare Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE486R01017",
+     "method": "COMPANY_NAME",
+     "matched": "GPT HEALTHCARE LIMITED",
+     "reason": "file-name symbol GPTHEALTHCARE is not an included NSE_EQ symbol",
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/CLOSURE_TRADING_WINDOW_2655_WebXMLFile_20260928_152947080.xml",
+   "title": "Magnum Ventures Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE387I01016",
+     "method": "COMPANY_NAME",
+     "matched": "MAGNUM VENTURES LTD.",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/CLOSURE_TRADING_WINDOW_25793_WebXMLFile_20260928_150050613.xml",
+   "title": "Current Infraprojects Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE1CRQ01014",
+     "method": "COMPANY_NAME",
+     "matched": "CURRENT INFRAPROJECTS LTD",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/CLOSURE_TRADING_WINDOW_19923_WebXMLFile_20260928_140146857.xml",
+   "title": "Jainam Ferro Alloys (I) Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE02KC01010",
+     "method": "COMPANY_NAME",
+     "matched": "JAINAM FER ALLOYS (I) LTD",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/CLOSURE_TRADING_WINDOW_24878_WebXMLFile_20260928_130511090.xml",
+   "title": "Belrise Industries Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE894V01022",
+     "method": "COMPANY_NAME",
+     "matched": "BELRISE INDUSTRIES LTD",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "sha256:3d7e5a1f34564b10c23167ff09dc7e471e1c95a48ff426d91f1fdd75555f6e2e",
+   "title": "Kotak Mahindra Mutual Fund - Kotak Nifty 100 Equal Weight ETF",
+   "links": [
+    {
+     "instrument_key": null,
+     "method": "UNRESOLVED",
+     "matched": "Kotak Mahindra Mutual Fund - Kotak Nifty 100 Equal Weight ETF",
+     "reason": "fund scheme filing: not mapped by name",
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "sha256:1019243622e30d228753ddd58f83950edc635875f1b5f6f3039d2b9ae11b4494",
+   "title": "ICICI Prudential BSE Sensex ETF",
+   "links": [
+    {
+     "instrument_key": null,
+     "method": "UNRESOLVED",
+     "matched": "ICICI Prudential BSE Sensex ETF",
+     "reason": "fund scheme filing: not mapped by name",
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/CLOSURE_TRADING_WINDOW_25881_WebXMLFile_20260928_112640895.xml",
+   "title": "Sattva Engineering Construction Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE14DW01018",
+     "method": "COMPANY_NAME",
+     "matched": "SATTVA ENGINEERING CSTN L",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/MANKIND1_28092026155312_Covering_sd.pdf",
+   "title": "Mankind Pharma Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE634S01028",
+     "method": "COMPANY_NAME",
+     "matched": "MANKIND PHARMA LIMITED",
+     "reason": "file-name symbol MANKIND1 is not an included NSE_EQ symbol",
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/CLEANMAX_28092026160234_PRDEbt.pdf",
+   "title": "Clean Max Enviro Energy Solutions Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE647U01026",
+     "method": "EXACT_SYMBOL",
+     "matched": "CLEANMAX",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/ALLTIMEPLASTICSLIMITED_28092026162036_Intimation_regarding_Closure_of_Trading_Window_Sept_2026.pdf",
+   "title": "All Time Plastics Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0GV601021",
+     "method": "COMPANY_NAME",
+     "matched": "ALL TIME PLASTICS LIMITED",
+     "reason": "file-name symbol ALLTIMEPLASTICSLIMITED is not an included NSE_EQ symbol",
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/CLOSURE_TRADING_WINDOW_1938_WebXMLFile_20260928_161012669.xml",
+   "title": "Usha Martin Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE228A01035",
+     "method": "COMPANY_NAME",
+     "matched": "USHA MARTIN LTD.",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/CLOSURE_TRADING_WINDOW_1734_WebXMLFile_20260928_163513789.xml",
+   "title": "Dhanlaxmi Bank Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE680A01011",
+     "method": "COMPANY_NAME",
+     "matched": "DHANLAXMI BANK LIMITED",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/KAUSHALYA_28092026164627_Proceedings_AGM_2026_Singed.pdf",
+   "title": "Kaushalya Infrastructure Development Corporation Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE234I01028",
+     "method": "EXACT_SYMBOL",
+     "matched": "KAUSHALYA",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/CLOSURE_TRADING_WINDOW_1351_WebXMLFile_20260928_165847212.xml",
+   "title": "Jayant Agro Organics Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE785A01026",
+     "method": "COMPANY_NAME",
+     "matched": "JAYANT AGRO ORGANICS LTD",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/REG30_PARA_B_13643_WebXMLFile_20260928_170500170.xml",
+   "title": "HEC Infra Projects Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE558R01013",
+     "method": "COMPANY_NAME",
+     "matched": "HEC INFRA PROJECTS LTD",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/JAYAGROGN1_28092026171159_TWC_SEP_2026.pdf",
+   "title": "Jayant Agro Organics Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE785A01026",
+     "method": "COMPANY_NAME",
+     "matched": "JAYANT AGRO ORGANICS LTD",
+     "reason": "file-name symbol JAYAGROGN1 is not an included NSE_EQ symbol",
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/CLOSURE_TRADING_WINDOW_17762_WebXMLFile_20260928_171318150.xml",
+   "title": "Universus Photo Imagings Limited",
+   "links": [
+    {
+     "instrument_key": null,
+     "method": "UNRESOLVED",
+     "matched": "Universus Photo Imagings Limited",
+     "reason": "no symbol in the filing link and no name match",
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/ABLBL_28092026172838_SEintimationTradingWindowQ2FY27.pdf",
+   "title": "Aditya Birla Lifestyle Brands Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE14LE01019",
+     "method": "EXACT_SYMBOL",
+     "matched": "ABLBL",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/MIDWEST_28092026180830_Summary_of_Proceedings.pdf",
+   "title": "Midwest Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0XAD01024",
+     "method": "COMPANY_NAME",
+     "matched": "MIDWEST LIMITED",
+     "reason": "file-name symbol MIDWEST is not an included NSE_EQ symbol",
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/UNITECH_28092026175138_Unitech_Voting_Result_and_Scrutinizer_Report.pdf",
+   "title": "Unitech Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE694A01020",
+     "method": "EXACT_SYMBOL",
+     "matched": "UNITECH",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/CLOSURE_TRADING_WINDOW_24151_WebXMLFile_20260928_180610209.xml",
+   "title": "Standard Engineering Technology Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0M4D01010",
+     "method": "COMPANY_NAME",
+     "matched": "STANDARD ENGNG TCNLGY LTD",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/CLOSURE_TRADING_WINDOW_15536_WebXMLFile_20260928_174628893.xml",
+   "title": "Milton Industries Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE376Y01016",
+     "method": "COMPANY_NAME",
+     "matched": "MILTON INDUSTRIES LIMITED",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/NOVA_28092026181647_Voting.pdf",
+   "title": "Nova Agritech Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE02H701025",
+     "method": "COMPANY_NAME",
+     "matched": "NOVA AGRITECH LIMITED",
+     "reason": "file-name symbol NOVA is not an included NSE_EQ symbol",
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/MSWIL_28092026183157_TradingWindowClosure.pdf",
+   "title": "Motherson Sumi Wiring India Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0FS801015",
+     "method": "COMPANY_NAME",
+     "matched": "MOTHERSON SUMI WRNG IND L",
+     "reason": "file-name symbol MSWIL is not an included NSE_EQ symbol",
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/SANGINITA_28092026185339_AGM_Proceedings.pdf",
+   "title": "Agastya Energy and Infrastructure Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE753W01010",
+     "method": "COMPANY_NAME",
+     "matched": "AGASTYA ENE AND INFRA LTD",
+     "reason": "file-name symbol SANGINITA is not an included NSE_EQ symbol",
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/CLOSURE_TRADING_WINDOW_24540_WebXMLFile_20260928_184941946.xml",
+   "title": "Northern Arc Capital Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE850M01015",
+     "method": "COMPANY_NAME",
+     "matched": "NORTHERN ARC CAPITAL LTD",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/MTARTECH_28092026190024_FINAL_sw.pdf",
+   "title": "Mtar Technologies Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE864I01014",
+     "method": "EXACT_SYMBOL",
+     "matched": "MTARTECH",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/HTMEDIA_28092026192633_TraddingWindowClosure.pdf",
+   "title": "HT Media Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE501G01024",
+     "method": "EXACT_SYMBOL",
+     "matched": "HTMEDIA",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/REG30_Restructuring_19759_WebXMLFile_20260928_192411043.xml",
+   "title": "One Mobikwik Systems Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0HLU01028",
+     "method": "COMPANY_NAME",
+     "matched": "ONE MOBIKWIK SYSTEMS LTD",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/CLEANMAX_28092026201247_Postal_Ballot_Result__Scrutnizer_Report_CMES.pdf",
+   "title": "Clean Max Enviro Energy Solutions Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE647U01026",
+     "method": "EXACT_SYMBOL",
+     "matched": "CLEANMAX",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/UNITEDHEAT_28092026204445_change_in_mgt-_Parab_Sir.pdf",
+   "title": "United Heat Transfer Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0SMR01011",
+     "method": "COMPANY_NAME",
+     "matched": "UNITED HEAT TRANSFER LTD",
+     "reason": "file-name symbol UNITEDHEAT is not an included NSE_EQ symbol",
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/REG30_Restructuring_2257_WebXMLFile_20260928_210401377.xml",
+   "title": "Indoco Remedies Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE873D01024",
+     "method": "COMPANY_NAME",
+     "matched": "INDOCO REMEDIES LTD.",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/REG30_PARA_B_358_WebXMLFile_20260928_223937088.xml",
+   "title": "Rane Holdings Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE384A01010",
+     "method": "COMPANY_NAME",
+     "matched": "RANE HOLDINGS LIMITED",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/CLOSURE_TRADING_WINDOW_27085_WebXMLFile_20260929_094050952.xml",
+   "title": "Skytech Infinite Platform Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0VFE01017",
+     "method": "COMPANY_NAME",
+     "matched": "SKYTECH INFINITE PLATFM L",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/CLOSURE_TRADING_WINDOW_4914_WebXMLFile_20260929_111320352.xml",
+   "title": "Relaxo Footwears Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE131B01039",
+     "method": "COMPANY_NAME",
+     "matched": "RELAXO FOOT LTD.",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/xbrl/CLOSURE_TRADING_WINDOW_22582_WebXMLFile_20260929_115852472.xml",
+   "title": "Indo Farm Equipment Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE622H01018",
+     "method": "COMPANY_NAME",
+     "matched": "INDO FARM EQUIPMENT LTD",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/ALPA_29092026123048_Trading_Window_Closure_September_2026.pdf",
+   "title": "Alpa Laboratories Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE385I01010",
+     "method": "EXACT_SYMBOL",
+     "matched": "ALPA",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/ASIANENE_29092026131017_AESLSEAnnouncementTWCSept_2026.pdf",
+   "title": "Asian Energy Services Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE276G01015",
+     "method": "EXACT_SYMBOL",
+     "matched": "ASIANENE",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/EMAMIREAL_29092026135254_ERLSummaryofProceedingsofAGM.pdf",
+   "title": "Emami Realty Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE778K01012",
+     "method": "EXACT_SYMBOL",
+     "matched": "EMAMIREAL",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/COALINDIA_29092026143252_HURL_MOU.pdf",
+   "title": "Coal India Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE522F01014",
+     "method": "EXACT_SYMBOL",
+     "matched": "COALINDIA",
+     "reason": null,
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://nsearchives.nseindia.com/corporate/AMBANIORG_29092026150258_Disclosure_under_reg_30.pdf",
+   "title": "AMBANI ORGOCHEM LIMITED",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE00C501018",
+     "method": "COMPANY_NAME",
+     "matched": "AMBANI ORGOCHEM LIMITED",
+     "reason": "file-name symbol AMBANIORG is not an included NSE_EQ symbol",
+     "version": "nse-entity-v1"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": null,
+   "title": "R&B Denims Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE012Q01039",
+     "method": "COMPANY_NAME",
+     "matched": "R&B DENIMS LIMITED"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Rajshree Polypack Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE760W01023",
+     "method": "COMPANY_NAME",
+     "matched": "RAJSHREE POLYPACK LTD"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Dhunseri Investments Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE320L01011",
+     "method": "EXACT_SYMBOL",
+     "matched": "DHUNINV"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "RFBL Flexi Pack Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0V2V01015",
+     "method": "EXACT_SYMBOL",
+     "matched": "RFBL"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Shreeji Shipping Global Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE1B6101010",
+     "method": "COMPANY_NAME",
+     "matched": "SHREEJI SHIPPING GLOBAL L"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Aksh Optifibre Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE523B01011",
+     "method": "EXACT_SYMBOL",
+     "matched": "AKSHOPTFBR"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Ola Electric Mobility Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0LXG01040",
+     "method": "COMPANY_NAME",
+     "matched": "OLA ELECTRIC MOBILITY LTD"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "SRG Housing Finance Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE559N01010",
+     "method": "COMPANY_NAME",
+     "matched": "SRG HOUSING FINANCE L"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "MAS Financial Services Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE348L01012",
+     "method": "COMPANY_NAME",
+     "matched": "MAS FINANCIAL SERV LTD"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Gravita India Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE024L01027",
+     "method": "EXACT_SYMBOL",
+     "matched": "GRAVITA"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Saurashtra Cement Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE626A01014",
+     "method": "COMPANY_NAME",
+     "matched": "SAURASHTRA CEMENT LIMITED"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Geojit Financial Services Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE007B01023",
+     "method": "COMPANY_NAME",
+     "matched": "GEOJIT FINANCIAL SER L"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Exide Industries Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE302A01020",
+     "method": "COMPANY_NAME",
+     "matched": "EXIDE INDUSTRIES LTD"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Kirloskar Pneumatic Company Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE811A01038",
+     "method": "COMPANY_NAME",
+     "matched": "KIRLOSKAR PNEUMATIC COM L"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Manipal Health Enterprises Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE459N01021",
+     "method": "COMPANY_NAME",
+     "matched": "MANIPAL HEALTH ENTERPRI L"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Sun Pharmaceutical Industries Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE044A01036",
+     "method": "COMPANY_NAME",
+     "matched": "SUN PHARMACEUTICAL IND L"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Firstsource Solutions Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE684F01012",
+     "method": "COMPANY_NAME",
+     "matched": "FIRSTSOURCE SOLU. LTD."
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Ksb Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE999A01023",
+     "method": "COMPANY_NAME",
+     "matched": "KSB LIMITED"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Rossell Techsys Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0OJW01016",
+     "method": "COMPANY_NAME",
+     "matched": "ROSSELL TECHSYS LIMITED"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "3P Land Holdings Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE105C01023",
+     "method": "EXACT_SYMBOL",
+     "matched": "3PLAND"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Kanohar Electricals Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE877D01025",
+     "method": "COMPANY_NAME",
+     "matched": "KANOHAR ELECTRICALS LTD"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Allcargo Logistics Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE418H01029",
+     "method": "COMPANY_NAME",
+     "matched": "ALLCARGO LOGISTICS LTD"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Eris Lifesciences Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE406M01024",
+     "method": "EXACT_SYMBOL",
+     "matched": "ERIS"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "TREJHARA SOLUTIONS LIMITED",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE00CA01015",
+     "method": "COMPANY_NAME",
+     "matched": "TREJHARA SOLUTIONS LTD"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Moneyboxx Finance Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE296Q01012",
+     "method": "EXACT_SYMBOL",
+     "matched": "MONEYBOXX"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Vivo Collaboration Solutions Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE0IA701014",
+     "method": "COMPANY_NAME",
+     "matched": "VIVO COLLAB SOLUTIONS LTD"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Capital India Finance Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE345H01024",
+     "method": "EXACT_SYMBOL",
+     "matched": "CIFL"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Delta Corp Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE124G01033",
+     "method": "COMPANY_NAME",
+     "matched": "DELTA CORP LIMITED"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Grand Foundry Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE534A01028",
+     "method": "EXACT_SYMBOL",
+     "matched": "GFSTEELS"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  },
+  {
+   "id": null,
+   "title": "Laxmi Organic Industries Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE576O01020",
+     "method": "EXACT_SYMBOL",
+     "matched": "LXCHEM"
+    }
+   ],
+   "sample": "holdout",
+   "correct": true
+  }
+ ],
+ "review": {
+  "reviewer": "Claude (delegated by the user, 2026-09-29: 'Complete the mapping review')",
+  "criterion": "set correct=true when every link names the company the item is about, else false",
+  "mapper": "headline-entity-v2 / alias-v2 / nse-entity-v1",
+  "judged_at": "2026-09-29 IST",
+  "before_fix": {
+   "sample_wrong_rows": [
+    "13"
+   ],
+   "sample_rows": 50,
+   "holdout_wrong": 0,
+   "holdout_rows": 30,
+   "note": "links as recorded by the earlier mapper; the fixes (d166c1a and the holdout guards) were written from these errors"
+  },
+  "final": {
+   "rows": 80,
+   "wrong": 0
+  }
+ }
+}

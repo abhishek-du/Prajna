@@ -1,0 +1,131 @@
+{
+ "source": "SEBI_RSS",
+ "instructions": "set correct=true when every link names the company the item is about, else false",
+ "rows": [
+  {
+   "id": "https://www.sebi.gov.in/enforcement/orders/sep-2026/order-in-the-matter-of-non-compliance-of-minimum-public-shareholding-in-omaxe-limited_104726.html",
+   "title": "Order in the matter of Non-Compliance of Minimum Public Shareholding in Omaxe Limited",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE800H01010",
+     "method": "COMPANY_NAME",
+     "matched": "omaxe",
+     "reason": "headline names 'OMAXE LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.sebi.gov.in/enforcement/recovery-proceedings/sep-2026/release-order-rashesh-purohit-defaulter-pan-adqpp1270q-in-the-matter-of-tv-vision-limited-under-certificate-no-7475-of-2023-_104723.html",
+   "title": "Release Order – Rashesh Purohit [Defaulter] PAN: ADQPP1270Q in the matter of TV Vision Limited: under Certificate No. 7475 of 2023.",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE871L01013",
+     "method": "COMPANY_NAME",
+     "matched": "tv vision",
+     "reason": "headline names 'TV VISION LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.sebi.gov.in/enforcement/recovery-proceedings/sep-2026/release-order-rashesh-purohit-defaulter-pan-adqpp1270q-in-the-matter-of-tv-vision-limited-under-certificate-no-7449-of-2023-_104721.html",
+   "title": "Release Order – Rashesh Purohit [Defaulter] PAN: ADQPP1270Q in the matter of TV Vision Limited: under Certificate No. 7449 of 2023.",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE871L01013",
+     "method": "COMPANY_NAME",
+     "matched": "tv vision",
+     "reason": "headline names 'TV VISION LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.sebi.gov.in/enforcement/recovery-proceedings/sep-2026/cancellation-of-recovery-certificate-no-7475-of-2023-dated-december-14-2023-issued-to-rashesh-purohit-defaulter-pan-adqpp1270q-in-the-matter-of-tv-vision-limited-under-certificate-no-7475-of-20-_104719.html",
+   "title": "Cancellation of Recovery Certificate No. 7475 of 2023 dated December 14, 2023 issued to Rashesh Purohit [Defaulter] PAN: ADQPP1270Q in the matter of TV Vision Limited: under Certificate No. 7475 of 2023.",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE871L01013",
+     "method": "COMPANY_NAME",
+     "matched": "tv vision",
+     "reason": "headline names 'TV VISION LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.sebi.gov.in/enforcement/recovery-proceedings/sep-2026/cancellation-of-recovery-certificate-no-7449-of-2023-dated-december-08-2023-issued-to-rashesh-purohit-defaulter-pan-adqpp1270q-in-the-matter-of-tv-vision-limited-under-certificate-no-7449-of-20-_104717.html",
+   "title": "Cancellation of Recovery Certificate No. 7449 of 2023 dated December 08, 2023 issued to Rashesh Purohit [Defaulter] PAN: ADQPP1270Q in the matter of TV Vision Limited: under Certificate No. 7449 of 2023.",
+   "links": [
+    {
+     "instrument_key": "NSE_EQ|INE871L01013",
+     "method": "COMPANY_NAME",
+     "matched": "tv vision",
+     "reason": "headline names 'TV VISION LIMITED'",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.sebi.gov.in/enforcement/orders/sep-2026/adjudication-order-in-the-matter-of-alankit-assignments-limited_104750.html",
+   "title": "Adjudication Order in the matter of Alankit Assignments Limited",
+   "links": [
+    {
+     "instrument_key": null,
+     "method": "UNRESOLVED",
+     "matched": "Adjudication Order in the matter of Alankit Assignments Limited",
+     "reason": "alankit: followed by 'Assignments': another entity",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  },
+  {
+   "id": "https://www.sebi.gov.in/enforcement/orders/sep-2026/adjudication-order-in-the-matter-of-alankit-assignments-limited_104768.html",
+   "title": "Adjudication Order in the matter of Alankit Assignments Limited",
+   "links": [
+    {
+     "instrument_key": null,
+     "method": "UNRESOLVED",
+     "matched": "Adjudication Order in the matter of Alankit Assignments Limited",
+     "reason": "alankit: followed by 'Assignments': another entity",
+     "version": "headline-entity-v2"
+    }
+   ],
+   "correct": true,
+   "sample": "review-2026-09-29"
+  }
+ ],
+ "review": {
+  "reviewer": "Claude (delegated by the user, 2026-09-29: 'Complete the mapping review')",
+  "criterion": "set correct=true when every link names the company the item is about, else false",
+  "mapper": "headline-entity-v2 / alias-v2 / nse-entity-v1",
+  "judged_at": "2026-09-29 IST",
+  "before_fix": {
+   "sample_wrong_rows": [
+    "05",
+    "06"
+   ],
+   "sample_rows": 7,
+   "holdout_wrong": 0,
+   "holdout_rows": 0,
+   "note": "links as recorded by the earlier mapper; the fixes (d166c1a and the holdout guards) were written from these errors"
+  },
+  "final": {
+   "rows": 7,
+   "wrong": 0
+  }
+ }
+}

@@ -23,6 +23,9 @@ UNI = EN.Universe({
     "CYIENT": ("CY", "CYIENT LIMITED"), "CYIENTDLM": ("CD", "CYIENT DLM LIMITED"),
     "TCS": ("TC", "TATA CONSULTANCY SERV LT"), "TITAN": ("TI", "TITAN COMPANY LIMITED"),
     "HDFCBANK": ("HB", "HDFC BANK LTD"), "CRISIL": ("CS", "CRISIL LTD"),
+    "URBANCO": ("UC", "URBAN COMPANY LIMITED"), "BIRLACORPN": ("BC", "BIRLA CORPORATION LTD"),
+    "SBIN": ("SB", "STATE BANK OF INDIA"), "JMFINANCIL": ("JM", "JM FINANCIAL LIMITED"),
+    "INFY": ("IN", "INFOSYS LIMITED"), "VOLTAS": ("VO", "VOLTAS LTD"),
 })
 IX = EN.HeadlineIndex(UNI)
 
@@ -49,6 +52,12 @@ def keys(title):
     "Gold may rise to $5,000/oz in H1 2027 after consolidation: ICICI Bank",    # BL-05
     "Ellenbarrie Industrial Gases secures contract worth Rs 480 cr from BHEL",  # BS-14
     "Ellenbarrie wins Rs 481 crore BHEL order for giant oxygen plant",          # CNBC-32
+    # the holdout sample (judged after the first fixes)
+    "Aditya Birla Sun Life AMC launches BSE Total Market Index Fund, ETF",
+    "Atishay receives LoI from Punjab Urban Planning & Development Authority",
+    "PM Awas Yojana Urban 2.0: Over 18 lakh houses sanctioned so far",
+    "Which SBI Card Can Help If I Have a Low Credit Score?",
+    "SBI Conclave 2026: RBI DG sees case for rupee recovery",
 ])
 def test_judged_wrong_links_are_not_made(title):
     assert keys(title) == []
@@ -57,7 +66,7 @@ def test_judged_wrong_links_are_not_made(title):
 def test_the_rejection_is_recorded_as_the_unresolved_reason():
     it = ItemObs("x", "Man City found guilty of Premier League charges", None, "P", None, None)
     (ln,) = EN.resolve_headline(it, UNI, IX)
-    assert ln.method == "UNRESOLVED" and "League" in ln.reason
+    assert ln.method == "UNRESOLVED" and ln.reason.startswith("premier: ")
     assert ln.version == "headline-entity-v2"
 
 
@@ -69,6 +78,9 @@ def test_the_rejection_is_recorded_as_the_unresolved_reason():
     ("HDFC Bank CEO transition nears; Jefferies sees rerating scope", ["HB"]),
     ("Top 5 Breakout stocks to buy: KPI Green, Crisil, Manyavar", ["CS"]),     # a listed rater
     ("Power Mech bags order from Telangana genco; BHEL shares rise", ["BH"]),
+    ("Stocks to buy: JM Financial expects soft Q2 season; targets for Infosys", ["IN"]),
+    ("Equirus likes LG Electronics, Blue Star, Voltas", ["VO"]),
+    ("Why Voltas Shares Fell Today", ["VO"]),                     # title case, generic words
 ])
 def test_genuine_links_stay(title, expected):
     assert keys(title) == expected

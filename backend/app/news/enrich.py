@@ -302,13 +302,22 @@ CONTINUATION = frozenset("""projects project estate estates assignments league p
 vehicles pv cv international industries ventures holdings capital securities finance
 financial fin services life general insurance housing power energy green renewables ports
 airports logistics foods consumer chemicals realty developers infra infrastructure trust
-amc prudential""".split())
+amc prudential card cards conclave summit research foundation awards""".split())
+# one-word "names" that are ordinary words or a business-group name shared by many
+# companies ("Urban" Company, "Birla" Corporation): never matched on their own
+SINGLE_WORD_BLOCK = frozenset({"urban", "birla", "premier", "coastal", "delta", "orient",
+                               "future", "supreme", "prime"})
+# generic words that may follow or precede a company name in title-case headlines
+GENERIC = frozenset("""share shares stock stocks price ltd limited company co board ceo cfo md
+chairman chairperson q1 q2 q3 q4 fy results ipo group live updates why how what top stocks to
+watch buy sell hold""".split())
 # a name that has meant two listed companies since a demerger
 AMBIGUOUS = frozenset({("tata", "motors")})
 # an intermediary named as the speaker, rater or broker is not the subject
 # ("CARE Ratings reaffirms ratings of ...", "Angel One sees 25% upside in ...")
 INTERMEDIARY = re.compile(r"rating|securities|broking|\bamc\b|asset manag|angel one|motilal|"
-                          r"crisil|icra|capital market", re.I)
+                          r"crisil|icra|capital market|jm financial|iifl|nuvama|anand rathi|"
+                          r"geojit|emkay|equirus|prabhudas|sharekhan|5paisa", re.I)
 ROLE_VERBS = frozenset("""sees expects reaffirms reaffirmed upgrades downgrades maintains
 initiates retains assigns explains prefers rates recommends""".split())
 
@@ -335,6 +344,15 @@ def context_reject(title: str, start: int, end: int, name: str) -> str | None:
     return None
 
 
+def _embedded(title: str, start: int, end: int) -> bool:
+    """A one-word name between two capitalised words that are not generic ("Aditya
+    Birla Sun", "Punjab Urban Planning") is part of another proper name."""
+    before, after = _words(title[:start]), _words(title[end:])
+    if not before or not after or title[:start].rstrip()[-1:] in ":,;|-":
+        return False
+    return all(w[0].isupper() and w.lower() not in GENERIC for w in (before[-1], after[0]))
+
+
 def _span(title: str, core: tuple[str, ...]) -> tuple[int, int] | None:
     pat = r"[^A-Za-z0-9]+".join(r"(?:and|&)" if t == "and" else re.escape(t) for t in core)
     m = re.search(rf"(?<![A-Za-z0-9]){pat}(?![A-Za-z0-9])", title, re.I)
@@ -355,8 +373,12 @@ def resolve_headline(item: ItemObs, universe: Universe | None, index: HeadlineIn
             continue
         span = _span(item.title, core)
         why = ("a name shared by two listed companies" if core in AMBIGUOUS else
+               "an ordinary word or group name on its own" if core[0] in SINGLE_WORD_BLOCK
+               and len(core) == 1 else
                "matched only as a lower-case word" if span and len(core) == 1
                and item.title[span[0]].islower() else
+               "inside a longer proper name" if span and len(core) == 1
+               and _embedded(item.title, *span) else
                context_reject(item.title, *span, name) if span else None)
         if why:
             rejected.append(f"{' '.join(core)}: {why}")
