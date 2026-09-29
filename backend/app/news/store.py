@@ -50,7 +50,6 @@ from app.news.model import canonical_url, title_hash
 from app.news.sources import SOURCES
 from app.storage.payload_store import PayloadStore
 
-
 STORY_LOCK = "news:stories"
 
 
