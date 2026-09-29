@@ -109,3 +109,13 @@ async def test_a_future_row_violates_the_invariants(db_session, unlocked):  # no
         interval '1 day', decided_at = now() + interval '1 day'"""))    # test database only
     rep = await NR.reconcile(db_session, T0.date(), "SHADOW", at=T0 + _dt.timedelta(minutes=1))
     assert rep["invariants"]["knowable_in_the_future"] > 0 and rep["invariants"]["ok"] is False
+
+
+def test_an_hourly_ttl_feed_is_not_collector_down():
+    """Regression (2026-09-29 21:05 IST): BusinessLine (<ttl>60</ttl>) polled at 20:11
+    was reported COLLECTOR_DOWN at 21:02 against the 15-min off-hours interval."""
+    k = "BL_MARKETS_RSS"
+    night = AT.replace(hour=21, minute=2)
+    last = [(night - _dt.timedelta(minutes=51), "OK")]
+    assert NR.monitor_states(k, last, [], [], 0, 0, night, None) == ["COLLECTOR_DOWN"]
+    assert NR.monitor_states(k, last, [], [], 0, 0, night, None, feed_ttl_s=3600) == ["HEALTHY"]

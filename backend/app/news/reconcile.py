@@ -94,13 +94,24 @@ async def latency(s: AsyncSession, source: str, mode: str, start: _dt.datetime,
             "note": "measured, never claimed first; backlog and date-only items excluded"}
 
 
+def feed_ttl(key: str) -> int | None:
+    """The feed <ttl> the collector recorded (var/news/collect/<SRC>/state.json)."""
+    try:
+        return json.loads((BASE / "var" / "news" / "collect" / key / "state.json")
+                          .read_text())["http"].get("ttl_s")
+    except (OSError, ValueError, KeyError):
+        return None
+
+
 def monitor_states(src_key: str, polls: list[tuple], new_times: list[_dt.datetime],
                    trailing_counts: list[int], today_items: int, today_dups: int,
-                   at: _dt.datetime, norm_gap_s: float | None) -> list[str]:
+                   at: _dt.datetime, norm_gap_s: float | None,
+                   feed_ttl_s: int | None = None) -> list[str]:
     """`polls`: (started_at, outcome) ascending; `new_times`: discovered_at of live
-    items stored today, ascending. Pure, for testing."""
+    items stored today, ascending; `feed_ttl_s`: the feed's own <ttl> (the collector
+    never polls faster, so the expected interval is the longer of the two). Pure."""
     src = SOURCES[src_key]
-    expected = max(interval_for(src, at), 60)
+    expected = max(interval_for(src, at), feed_ttl_s or 0, 60)
     out: list[str] = []
     if not polls or (at - polls[-1][0]).total_seconds() > 3 * expected:
         out.append("COLLECTOR_DOWN")
@@ -208,7 +219,8 @@ async def reconcile(s: AsyncSession, day: _dt.date, mode: str,
         norm = statistics.median(gaps) if len(gaps) >= 5 else None
         per_day = collections.Counter(r[0].astimezone(IST).date() for r in trail)
         st = monitor_states(key, [(p[0], p[1]) for p in polls], new_times, list(per_day.values()),
-                            stored[0], decisions.get("DUPLICATE_ARTICLE", 0), at, norm)
+                            stored[0], decisions.get("DUPLICATE_ARTICLE", 0), at, norm,
+                            feed_ttl(key))
         states[key] = st
         refusals = (await _rows(s, """select count(*) from news_audit where source = :s
             and event = 'REFUSED' and at >= :a and at < :b""", s=key, a=start, b=end))[0][0]
