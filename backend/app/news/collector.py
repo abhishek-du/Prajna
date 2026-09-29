@@ -181,7 +181,10 @@ def _enrich_story_and_assess(d: Discovery, src: Source, stories: ST.StoryIndex |
     confirmed: list[str] = []
     if stories is not None:
         m = ST.Member(f"{src.key}|{it.source_article_id}", "", src.key, ST.words(it.title),
-                      canonical_url(it.url), title_hash(it.title), frozenset(companies),
+                      canonical_url(it.url),
+                      ST.identity_hash(it.title, it.summary,
+                                       strict=src.enrich in ("EXCHANGE", "REGULATOR")),
+                      frozenset(companies),
                       frozenset(f"{t}:{e}" for t, e in ments), d.classification.category,
                       it.published_at or d.discovered_at, d.discovered_at,
                       strict=src.enrich in ("EXCHANGE", "REGULATOR"))

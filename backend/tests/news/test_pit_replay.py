@@ -26,9 +26,9 @@ def at(hh, mm):
     return _dt.datetime.combine(DAY, _dt.time(hh, mm), tzinfo=IST)
 
 
-def item(sym, title, desc, pub):
+def item(sym, title, desc, pub, q=""):
     return (f"<item><title>{escape(title)}</title><link>https://nsearchives.nseindia.com/"
-            f"corporate/{sym}_28092026{pub.replace(':', '')}_x.pdf</link>"
+            f"corporate/{sym}_28092026{pub.replace(':', '')}_x.pdf{escape(q)}</link>"
             f"<description>{escape(desc)}</description>"
             f"<pubDate>28-Sep-2026 {pub}</pubDate></item>")
 
@@ -46,7 +46,8 @@ A2 = (A[0], A[1], "Jullundur Motor Agency (Delhi) Limited has now informed |SUBJ
 B = ("SHEETAL", "Sheetal Universal Limited", "Outcome of Board Meeting |SUBJECT: Outcome",
      "08:10:00")
 C = ("PARAS", "Paras Def And Spce Tech L", "Order received |SUBJECT: Bagging of orders", "08:50:00")
-D = ("PARAS2", C[1], C[2], "09:01:00")                   # the same filing again, a new link
+D2 = ("PARAS2", C[1], C[2], "09:01:00")                  # a separate filing, identical text
+D = (*C, "?utm_source=rss")                              # C's own link, tracking tag
 E = ("AXISBANK", "Axis Bank Limited", "Credit rating |SUBJECT: Credit Rating", "10:30:00")
 F = ("AMNPLST", "Amines & Plasticizers Limited", "Trading window |SUBJECT: Trading Window",
      "06:00:00")
@@ -66,9 +67,9 @@ async def test_a_news_day_replayed_at_eight_instants(db_session, production):
 
     await poll(at(8, 40), A, B)                      # the first poll: backlog
     r2 = await poll(at(8, 57), A2, B, C)             # A edited; C new
-    await poll(at(9, 5), A2, B, C, D)                # D repeats C (same source)
-    await poll(at(9, 20), A2, B, C, D, E)            # E published "10:30": a future time
-    await poll(at(11, 0), A2, B, C, D, E, F)         # F published 06:00, seen only at 11:00
+    await poll(at(9, 5), A2, B, C, D, D2)            # D repeats C's link; D2 same text
+    await poll(at(9, 20), A2, B, C, D, D2, E)        # E published "10:30": a future time
+    await poll(at(11, 0), A2, B, C, D, D2, E, F)     # F published 06:00, seen only at 11:00
     assert r2["changed"] == 1 and r2["decisions"] == {"STORY_UPDATE": 1, "NEW_ARTICLE": 1}
 
     async def view(hh, mm):
@@ -94,7 +95,12 @@ async def test_a_news_day_replayed_at_eight_instants(db_session, production):
     v = await view(9, 15)
     dups = [r for r in v.values() if r["dedup_decision"] == "DUPLICATE_ARTICLE"]
     assert len(dups) == 1 and dups[0]["duplicate_of"] is not None   # D marked, still stored
-    assert len(v) == 4
+    related = [r for r in v.values() if r["dedup_decision"] == "STORY_RELATED"]
+    assert len(related) == 1 and related[0]["source_article_id"].startswith(   # D2: C's story
+        "https://nsearchives.nseindia.com/corporate/PARAS2")
+    c_story = [r["story_id"] for r in v.values() if r["title"] == C[1]]
+    assert len(set(c_story) - {None}) == 1 or related[0]["story_id"] in c_story
+    assert len(v) == 5
     v = await view(9, 30)
     e = [r for r in v.values() if r["title"] == E[1]]
     # visible from its discovery (09:20) although its publisher time is 10:30
@@ -104,13 +110,13 @@ async def test_a_news_day_replayed_at_eight_instants(db_session, production):
     v = await view(12, 0)
     f = [r for r in v.values() if r["title"] == F[1]]
     assert len(f) == 1 and f[0]["knowable_at"] == at(11, 0)    # never back-dated to 06:00
-    assert len(v) == 6 and titles(await view(15, 0)) == titles(v)
+    assert len(v) == 7 and titles(await view(15, 0)) == titles(v)
 
     # the Stage 3 news v2 candidate on the same day: duplicates never counted, and a
     # collector silent for more than 2 h makes every feature MISSING_INPUT, not 0
     from app.features import news_features as NF
     g = await NF.snapshot(db_session, at(12, 0), None)
-    assert g["mnews_news_count_24h"] == (5.0, None)
+    assert g["mnews_news_count_24h"] == (6.0, None)                 # D2 counts, D does not
     assert g["mnews_duplicate_count_24h"] == (1.0, None)
     assert await NF.coverage_state(db_session, at(12, 0)) == "NORMAL"
     assert await NF.coverage_state(db_session, at(15, 0)) == "STALE"      # last poll 11:00

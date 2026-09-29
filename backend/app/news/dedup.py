@@ -1,4 +1,4 @@
-"""Dedup decisions, rule version dedup-v1 (docs/NEWS_DEDUP_SPEC.md). Pure.
+"""Dedup decisions, rule version dedup-v2 (docs/NEWS_DEDUP_SPEC.md). Pure.
 
 Every stored article and every stored edit gets exactly one decision. A decision
 only MARKS: the article is stored in any case, edits stay observations, and
@@ -8,9 +8,12 @@ A NEW article (a (source, source_article_id) never stored before), in order:
   DUPLICATE_ARTICLE  the SAME source already stored, within 24 h before it,
                      the same canonical URL        (SAME_SOURCE_URL), or
                      the same title and summary    (SAME_SOURCE_CONTENT), or
-                     the same normalised title     (SAME_SOURCE_TITLE) - not for
-                     exchange / regulator sources, whose titles are the filer's
-                     name (NSE: many different filings share one title)
+                     the same normalised title     (SAME_SOURCE_TITLE) - the last
+                     two not for exchange / regulator sources (dedup-v2): an NSE
+                     title is the filer's name, and separate filings (a different
+                     document link) can carry identical boilerplate text; those
+                     join one story (STORY_RELATED) instead of being marked
+                     duplicates. For them only the same link is a duplicate.
   STORY_CORRECTION   it joins an existing story and its title carries a
                      correction marker             (CORRECTION_MARKER)
   STORY_RELATED      it joins an existing story (another article, usually another
@@ -31,7 +34,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-VERSION = "dedup-v1"
+VERSION = "dedup-v2"
 WINDOW = _dt.timedelta(hours=24)
 MATERIAL = ("title", "summary", "published_at")
 CORRECTION = re.compile(
@@ -68,7 +71,8 @@ def decide_new(*, canonical_url: str | None, title_norm_hash: str, content_sha25
     window = [p for p in priors if discovered_at - WINDOW <= p.discovered_at <= discovered_at]
     for rule, hit in (
             ("SAME_SOURCE_URL", lambda p: canonical_url and p.canonical_url == canonical_url),
-            ("SAME_SOURCE_CONTENT", lambda p: p.content_sha256 == content_sha256),
+            ("SAME_SOURCE_CONTENT", lambda p: not exchange
+             and p.content_sha256 == content_sha256),
             ("SAME_SOURCE_TITLE", lambda p: not exchange
              and p.title_norm_hash == title_norm_hash)):
         match = next((p for p in sorted(window, key=lambda p: p.discovered_at) if hit(p)), None)

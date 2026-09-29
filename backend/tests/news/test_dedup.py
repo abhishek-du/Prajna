@@ -34,7 +34,7 @@ def new(priors=(), url="https://x/b", title_hash="h2", content="c2", title="Head
 class TestNewArticle:
     def test_first_seen(self):
         d = new()
-        assert (d.decision, d.rule, d.version) == ("NEW_ARTICLE", "FIRST_SEEN", "dedup-v1")
+        assert (d.decision, d.rule, d.version) == ("NEW_ARTICLE", "FIRST_SEEN", "dedup-v2")
 
     def test_founder_of_a_story_is_new(self):
         assert new(story="FOUNDER").decision == "NEW_ARTICLE"
@@ -52,8 +52,13 @@ class TestNewArticle:
     def test_exchange_titles_are_the_filer_name_not_a_duplicate(self):
         # NSE: "Reliance Industries Limited" titles many different filings
         assert new([prior()], title_hash="h1", exchange=True).decision == "NEW_ARTICLE"
-        # ...but an identical filing (title AND summary) still is one
-        assert new([prior()], content="c1", exchange=True).decision == "DUPLICATE_ARTICLE"
+        # dedup-v2: a separate filing (another document link) with identical boilerplate
+        # text is not a duplicate - it joins the same story instead
+        assert new([prior()], content="c1", exchange=True).decision == "NEW_ARTICLE"
+        assert new([prior()], content="c1", exchange=True, story="SAME_TITLE").decision == \
+            "STORY_RELATED"
+        # ...the same document link still is one
+        assert new([prior()], url="https://x/a", exchange=True).decision == "DUPLICATE_ARTICLE"
 
     def test_outside_the_24h_window_is_not_a_duplicate(self):
         assert new([prior(ago_h=25)], url="https://x/a").decision == "NEW_ARTICLE"
@@ -127,7 +132,7 @@ class TestStored:
         assert (await q(db_session, """select count(*) from news_item i where not exists
             (select 1 from news_decision d where d.item_id = i.id)"""))[0][0] == 0
         assert (await q(db_session, """select count(*) from news_decision
-            where knowable_at < decided_at or rule_version <> 'dedup-v1'"""))[0][0] == 0
+            where knowable_at < decided_at or rule_version <> 'dedup-v2'"""))[0][0] == 0
 
     async def test_an_edit_gets_an_update_decision(self, db_session, unlocked):  # noqa: F811
         await poll_shadow(db_session, KEY, token=TOKEN, transport=feed())

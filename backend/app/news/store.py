@@ -105,7 +105,7 @@ async def _stories(s: AsyncSession, at: _dt.datetime) -> ST.StoryIndex:
     """Story members KNOWABLE before `at` within the grouping window (point in time)."""
     ix = ST.StoryIndex()
     rows = (await s.execute(text("""
-        select m.story_id, i.source, i.source_article_id, i.title, i.canonical_url,
+        select m.story_id, i.source, i.source_article_id, i.title, i.summary, i.canonical_url,
                i.title_norm_hash, coalesce(i.published_at, i.discovered_at) as t_ref, m.knowable_at,
                (select c.category from news_classification c where c.item_id = i.id
                   and c.method <> 'SCOPE_RULES' and c.knowable_at < :at
@@ -115,12 +115,14 @@ async def _stories(s: AsyncSession, at: _dt.datetime) -> ST.StoryIndex:
                array(select e.entity_type || ':' || e.entity_id from news_entity_mention e
                   where e.item_id = i.id and e.knowable_at < :at) as ents
         from news_story_member m join news_item i on i.id = m.item_id
-        where m.knowable_at < :at and m.rule_version = :v
+        where m.knowable_at < :at and m.rule_version in ('story-v1', :v)
           and coalesce(i.published_at, i.discovered_at) > :since"""),
         {"at": at, "v": ST.VERSION, "since": at - 2 * ST.WINDOW})).all()
     for r in rows:
         ix.add(ST.Member(f"{r.source}|{r.source_article_id}", f"db:{r.story_id}", r.source,
-                         ST.words(r.title), r.canonical_url, r.title_norm_hash,
+                         ST.words(r.title), r.canonical_url,
+                         ST.identity_hash(r.title, r.summary, strict=SOURCES[r.source].enrich in (
+                             "EXCHANGE", "REGULATOR") if r.source in SOURCES else False),
                          frozenset(r.cos), frozenset(r.ents), r.cat or "OTHER", r.t_ref,
                          r.knowable_at, SOURCES[r.source].enrich in ("EXCHANGE", "REGULATOR")
                          if r.source in SOURCES else False))
