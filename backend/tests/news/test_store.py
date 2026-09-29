@@ -66,7 +66,9 @@ async def q(s, sql, **kw):
     return (await s.execute(text(sql), kw)).all()
 
 
-async def test_locked_by_default_and_refusal_is_audited(db_session):
+async def test_locked_by_default_and_refusal_is_audited(db_session, monkeypatch, tmp_path):
+    # the defaults, not the production acceptance file (where sources now PASS)
+    monkeypatch.setattr(NL, "NEWS_REPORT", tmp_path / "no-acceptance.json")
     with pytest.raises(LockRefused) as e:
         await poll_shadow(db_session, KEY, token=TOKEN, transport=feed())
     failing = e.value.report.summary()["failing"]
