@@ -16,8 +16,9 @@ news coverage is not proven at as_of: no PRODUCTION news source had a
 successful poll within its staleness window. With coverage, 0 is a real zero.
 
 v2 candidate (built and tested; registered only at activation):
-  * de-duplicated: an article marked DUPLICATE_ARTICLE (dedup-v1) is never
-    counted (it is counted once, as mnews_duplicate_count_24h)
+  * de-duplicated: an article marked DUPLICATE_ARTICLE is never counted (it is
+    counted once, as mnews_duplicate_count_24h); backlog (a source's first poll:
+    arrival time unknown) is never counted as an arrival
   * scope-v1 counts (market-wide, macro, geopolitical, commodity, currency,
     global market), corrections, edited articles, source diversity
   * quality state per snapshot (quality()): NORMAL (coverage proven); MISSING
@@ -124,6 +125,10 @@ def compute(rows: list[dict[str, Any]], as_of: _dt.datetime, covered: bool | str
         return {f: miss(MALFORMED_INPUT) for f in FEATURES}
     if q != "NORMAL":
         return {f: miss(MISSING_INPUT) for f in FEATURES}
+    # backlog (in a source's first successful poll: it existed before Prajna watched,
+    # its arrival time is unknown) is not a news arrival: counting it at go-live made
+    # a one-time spike (2,002 articles knowable at once, 2026-09-29 17:33 IST)
+    rows = [r for r in rows if not r.get("backlog")]
     dups = [r for r in rows if r.get("dedup_decision") == "DUPLICATE_ARTICLE"]
     rows = [r for r in rows if r.get("dedup_decision") != "DUPLICATE_ARTICLE"]
 
@@ -225,7 +230,8 @@ def compute_company(rows: list[dict[str, Any]], as_of: _dt.datetime, state: str
         return {f: miss(MALFORMED_INPUT) for f in COMPANY_FEATURES}
     if q != "NORMAL":
         return {f: miss(MISSING_INPUT) for f in COMPANY_FEATURES}
-    rows = [r for r in rows if r.get("dedup_decision") != "DUPLICATE_ARTICLE"]
+    rows = [r for r in rows if r.get("dedup_decision") != "DUPLICATE_ARTICLE"
+            and not r.get("backlog")]
 
     def win(h: float) -> list[dict]:
         return [r for r in rows if as_of - r["knowable_at"] <= H * h]

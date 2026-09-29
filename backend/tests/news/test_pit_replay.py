@@ -116,7 +116,8 @@ async def test_a_news_day_replayed_at_eight_instants(db_session, production):
     # collector silent for more than 2 h makes every feature MISSING_INPUT, not 0
     from app.features import news_features as NF
     g = await NF.snapshot(db_session, at(12, 0), None)
-    assert g["mnews_news_count_24h"] == (6.0, None)                 # D2 counts, D does not
+    # C, D2, E, F are arrivals (D is a duplicate; A and B were the first poll's backlog)
+    assert g["mnews_news_count_24h"] == (4.0, None)
     assert g["mnews_duplicate_count_24h"] == (1.0, None)
     assert await NF.coverage_state(db_session, at(12, 0)) == "NORMAL"
     assert await NF.coverage_state(db_session, at(15, 0)) == "STALE"      # last poll 11:00
@@ -150,17 +151,17 @@ async def test_stage3_news_rows_activation_rehearsal(db_session, production, mon
     def snap(hh, mm):
         return Snapshot(DAY, "PRE_SESSION", at(hh, mm), DAY - _dt.timedelta(days=3))
 
-    jma, other = "NSE_EQ|INE412C01023", "NSE_EQ|INE238A01034"            # linked / not
+    jma, other = "NSE_EQ|INE045601023", "NSE_EQ|INE238A01034"   # PARAS (C, D2) / not linked
     assert await E.news_rows(db_session, snap(9, 10), [jma, other]) == []  # v1: inactive
     monkeypatch.setattr(E, "FEATURES", R.FEATURES_V1 + R.NEWS_V2_FEATURES)
     rows = await E.news_rows(db_session, snap(9, 10), [jma, other])
     ctx = {r.feature_id: r for r in rows if r.scope == "CONTEXT"}
     co = {(r.instrument_key, r.feature_id): r for r in rows if r.scope == "INSTRUMENT"}
     assert len(ctx) == 32 and {r.instrument_key for r in ctx.values()} == {"MARKET"}
-    assert ctx["mnews_news_count_24h"].value == 4.0          # A, B, C, D2 (D is a duplicate)
+    assert ctx["mnews_news_count_24h"].value == 2.0     # C, D2 (D duplicate; A, B backlog)
     assert ctx["mnews_duplicate_count_24h"].value == 1.0
     assert all(r.input_max_knowable_at < at(9, 10) for r in rows if r.input_max_knowable_at)
-    assert co[(jma, "mnews_company_count_24h")].value == 1.0                   # A only
+    assert co[(jma, "mnews_company_count_24h")].value == 2.0                   # C and D2
     assert co[(other, "mnews_company_count_24h")].value == 0.0                 # a real zero
     assert co[(other, "mnews_company_time_since_last_s")].reason == "MISSING_INPUT"
     # deterministic: the same snapshot again gives the same values and provenance

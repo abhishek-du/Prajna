@@ -125,3 +125,11 @@ def test_v2_a_truncated_read_is_invalid_not_a_short_count(monkeypatch):
     monkeypatch.setattr(NF, "ROW_LIMIT", 3)
     got = NF.compute([v2(1), v2(2), v2(3)], AS_OF, covered=True)
     assert got["mnews_news_count_1h"] == (None, "MALFORMED_INPUT")
+
+
+def test_v2_backlog_is_not_an_arrival():
+    rows = [v2(10), {**v2(20), "backlog": True}]
+    g = NF.compute(rows, AS_OF, covered=True)
+    assert g["mnews_news_count_1h"] == (1.0, None)
+    c = NF.compute_company([{**v2(20), "backlog": True}], AS_OF, "NORMAL")
+    assert c["mnews_company_count_24h"] == (0.0, None)

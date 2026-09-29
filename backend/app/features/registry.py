@@ -166,7 +166,8 @@ FEATURES_V1: tuple[FeatureSpec, ...] = (
 # Diagram items (stage 3) and what Prajna does with each. Every item appears once.
 # ── multi-source news, decision FEATURE-NEWS-V2 (APPROVED 2026-09-29; ACTIVATED only
 # after a production canary on a real scheduled snapshot). Inputs: app.canon.news_pit
-# (PRODUCTION rows, knowable_at < as_of), de-duplicated (dedup decisions), quality:
+# (PRODUCTION rows, knowable_at < as_of), de-duplicated (dedup decisions), backlog
+# excluded (a source's first poll: arrival time unknown), quality:
 # no proven coverage within 2 h (MISSING / STALE) -> MISSING_INPUT, never 0;
 # INVALID -> MALFORMED_INPUT. Windows are by knowable_at, never publication time.
 _MNEWS_CONTEXT = {
