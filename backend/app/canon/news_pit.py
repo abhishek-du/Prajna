@@ -34,7 +34,16 @@ select i.id, i.source, i.source_article_id, i.url, i.canonical_url, i.publisher,
        i.category_raw, i.symbol_raw, i.language, i.published_at, i.published_at_raw,
        coalesce(o.source_updated_at, i.source_updated_at) as source_updated_at,
        i.discovered_at, i.knowable_at, i.processed_at, i.backlog, i.source_priority,
-       i.terms_status, i.content_fetch_status, (o.id is not null) as edited,
+       i.terms_status, i.content_fetch_status,
+       -- a real edit before as_of: a changed title / summary, or a NEW time value (an
+       -- observation recording only a time that vanished from one response - a
+       -- flapping feed, stored before 2026-09-29 20:40 IST - is not an edit)
+       exists (select 1 from news_item_observation x where x.item_id = i.id
+               and x.observed_at < :as_of and ('title' = any(x.changed)
+               or 'summary' = any(x.changed)
+               or ('published_at' = any(x.changed) and x.published_at is not null)
+               or ('source_updated_at' = any(x.changed)
+                   and x.source_updated_at is not null))) as edited,
        c.category, c.confidence as category_confidence, c.method as category_method,
        sc.category as scope, sc.confidence as scope_confidence, sc.version as scope_version,
        dd.decision as dedup_decision, dd.related_item_id as duplicate_of,

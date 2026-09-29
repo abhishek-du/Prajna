@@ -20,6 +20,7 @@ Two recorders share this logic:
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import datetime as _dt
 import fcntl
 import gzip
@@ -160,9 +161,18 @@ def process(src: Source, fetch: H.FetchResult, seen: dict[str, Seen], *,
             continue
         cur = {"title": it.title, "summary": it.summary, "published_at": _iso(it.published_at),
                "source_updated_at": _iso(it.source_updated_at)}
-        changed = [f for f in TRACKED if getattr(prev, f) != cur[f]]
+        # a field MISSING from this response is not an edit (Mint's feed flaps between
+        # variants with and without pubDate: 69 of 148 "edits" on 2026-09-29 were the
+        # time disappearing, 73 it coming back); the known value is kept, and only a new,
+        # different value is a change
+        changed = [f for f in TRACKED
+                   if cur[f] is not None and getattr(prev, f) != cur[f]]
         if changed:
-            out.changed.append((it, changed))
+            keep = {f: (getattr(prev, f) if f in ("title", "summary") else
+                        _dt.datetime.fromisoformat(getattr(prev, f)) if getattr(prev, f)
+                        else None)
+                    for f in TRACKED if cur[f] is None and getattr(prev, f) is not None}
+            out.changed.append((dataclasses.replace(it, **keep) if keep else it, changed))
             for f in changed:
                 setattr(prev, f, cur[f])
     return out

@@ -164,3 +164,21 @@ def test_rss_parser_still_parses_a_normal_feed():
     f = rss_parser("ET")(rss(it(), ttl="<ttl>5</ttl>"))
     assert f.ttl_minutes == 5 and f.items[0].published_at == _dt.datetime(
         2026, 9, 29, 4, 30, tzinfo=_dt.UTC)
+
+
+class TestFlappingFeeds:
+    def test_a_field_missing_from_one_response_is_not_an_edit(self):
+        seen: dict = {}
+        run(rss(it()), seen=seen)
+        _, o, _ = run(rss(it(pub=None)), seen=seen)             # the time disappears
+        assert o.changed == []
+        _, o, _ = run(rss(it()), seen=seen)                     # ...and comes back
+        assert o.changed == []
+
+    def test_a_new_value_is_still_an_edit_and_keeps_the_known_time(self):
+        seen: dict = {}
+        run(rss(it()), seen=seen)
+        _, o, _ = run(rss(it(title="Nifty ends higher; banks lead", pub=None)), seen=seen)
+        (item, changed), = o.changed
+        assert changed == ["title"]
+        assert item.published_at is not None                    # not recorded as removed
