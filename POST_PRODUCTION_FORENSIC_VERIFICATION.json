@@ -1,0 +1,636 @@
+{
+ "generated_at": "2026-09-29T07:04:11.963075+00:00",
+ "session": "2026-09-29",
+ "method": "one REPEATABLE READ, READ ONLY transaction on the production database 'prajna'",
+ "isolation": "repeatable read",
+ "transaction_read_only": "on",
+ "database": "prajna",
+ "ingest_runs": [
+  {
+   "run_id": "cb26b9c2-a95c-4bb5-a6d2-ec33a09c6fdd",
+   "stream": "features.PRE_SESSION",
+   "logical_date": "2026-09-29",
+   "mode": "COMMIT",
+   "status": "COMPLETE",
+   "rows_written": 180256,
+   "started_at": "2026-09-29 05:05:19.635721+00:00",
+   "finished_at": "2026-09-29 05:08:59.317773+00:00",
+   "error": null,
+   "outcome": {
+    "rows": 180256,
+    "locks": {
+     "mode": "RUN",
+     "failing": [],
+     "unlocked": true
+    },
+    "values": 128996,
+    "seconds": 140.97,
+    "inserted": 180256,
+    "instruments": 3534,
+    "refused_bars": {
+     "reconstructed": 0,
+     "low_confidence": 154244
+    },
+    "already_present": 0,
+    "nulls_by_reason": {
+     "MISSING_INPUT": 42124,
+     "MALFORMED_INPUT": 4545,
+     "DIVISION_UNDEFINED": 1124,
+     "INSUFFICIENT_HISTORY": 3467
+    }
+   },
+   "snapshot": "PRE_SESSION",
+   "as_of": "2026-09-29T03:29:59+00:00",
+   "registry_sha256": "9061d85b3696ab70e566d8257ecb13466930792a74f9b1d8308f232331e47188",
+   "instruments": "3534",
+   "authorised": true
+  },
+  {
+   "run_id": "eb0a0012-6f3c-47a3-a62a-bc95193ff1ab",
+   "stream": "features.PRE_OPEN",
+   "logical_date": "2026-09-29",
+   "mode": "COMMIT",
+   "status": "COMPLETE",
+   "rows_written": 194392,
+   "started_at": "2026-09-29 05:10:12.525627+00:00",
+   "finished_at": "2026-09-29 05:14:16.539992+00:00",
+   "error": null,
+   "outcome": {
+    "rows": 194392,
+    "locks": {
+     "mode": "RUN",
+     "failing": [],
+     "unlocked": true
+    },
+    "values": 141982,
+    "seconds": 157.86,
+    "inserted": 194392,
+    "instruments": 3534,
+    "refused_bars": {
+     "reconstructed": 0,
+     "low_confidence": 154244
+    },
+    "already_present": 0,
+    "nulls_by_reason": {
+     "MISSING_INPUT": 43020,
+     "MALFORMED_INPUT": 4545,
+     "DIVISION_UNDEFINED": 1378,
+     "INSUFFICIENT_HISTORY": 3467
+    }
+   },
+   "snapshot": "PRE_OPEN",
+   "as_of": "2026-09-29T03:38:00+00:00",
+   "registry_sha256": "9061d85b3696ab70e566d8257ecb13466930792a74f9b1d8308f232331e47188",
+   "instruments": "3534",
+   "authorised": true
+  },
+  {
+   "run_id": "a3dd4baa-0b83-4da6-84a3-21b411749e61",
+   "stream": "features.PRE_SESSION",
+   "logical_date": "2026-09-29",
+   "mode": "COMMIT",
+   "status": "COMPLETE",
+   "rows_written": 0,
+   "started_at": "2026-09-29 05:16:19.861459+00:00",
+   "finished_at": "2026-09-29 05:19:55.520226+00:00",
+   "error": null,
+   "outcome": {
+    "rows": 180256,
+    "locks": {
+     "mode": "RUN",
+     "failing": [],
+     "unlocked": true
+    },
+    "values": 128996,
+    "seconds": 140.18,
+    "inserted": 0,
+    "instruments": 3534,
+    "refused_bars": {
+     "reconstructed": 0,
+     "low_confidence": 154244
+    },
+    "already_present": 180256,
+    "nulls_by_reason": {
+     "MISSING_INPUT": 42124,
+     "MALFORMED_INPUT": 4545,
+     "DIVISION_UNDEFINED": 1124,
+     "INSUFFICIENT_HISTORY": 3467
+    }
+   },
+   "snapshot": "PRE_SESSION",
+   "as_of": "2026-09-29T03:29:59+00:00",
+   "registry_sha256": "9061d85b3696ab70e566d8257ecb13466930792a74f9b1d8308f232331e47188",
+   "instruments": "3534",
+   "authorised": true
+  }
+ ],
+ "stage3_events": [
+  {
+   "id": 1,
+   "at": "2026-09-28 08:34:21.075926+00:00",
+   "event": "REFUSED",
+   "mode": "RUN",
+   "operator": "cli",
+   "run_id": null,
+   "detail": "{\"conditions\": [{\"ok\": false, \"name\": \"stage3_enabled\", \"detail\": \"PRAJNA_STAGE3_ENABLED is false (default; production execution not approved)\"}, {\"ok\": true, \"name\": \"kill_switch_off\", \"detail\": \"not engaged\"}, {\"ok\": false, \"name\": \"stage1_complete\", \"detail\": \"overall NOT COMPLETE (waiting: ['X']"
+  },
+  {
+   "id": 2,
+   "at": "2026-09-28 08:35:20.839669+00:00",
+   "event": "REFUSED",
+   "mode": "BACKFILL",
+   "operator": "cli",
+   "run_id": null,
+   "detail": "{\"conditions\": [{\"ok\": false, \"name\": \"stage3_enabled\", \"detail\": \"PRAJNA_STAGE3_ENABLED is false (default; production execution not approved)\"}, {\"ok\": false, \"name\": \"backfill_enabled\", \"detail\": \"PRAJNA_STAGE3_BACKFILL_ENABLED is false (default; feature backfill not approved)\"}, {\"ok\": true, \"nam"
+  },
+  {
+   "id": 3,
+   "at": "2026-09-28 09:29:46.144808+00:00",
+   "event": "REFUSED",
+   "mode": "RUN",
+   "operator": "cli",
+   "run_id": null,
+   "detail": "{\"conditions\": [{\"ok\": false, \"name\": \"stage3_enabled\", \"detail\": \"PRAJNA_STAGE3_ENABLED is false (default; production execution not approved)\"}, {\"ok\": true, \"name\": \"kill_switch_off\", \"detail\": \"not engaged\"}, {\"ok\": false, \"name\": \"stage1_complete\", \"detail\": \"overall NOT COMPLETE (waiting: ['X']"
+  },
+  {
+   "id": 4,
+   "at": "2026-09-28 09:30:18.847326+00:00",
+   "event": "REFUSED",
+   "mode": "BACKFILL",
+   "operator": "cli",
+   "run_id": null,
+   "detail": "{\"conditions\": [{\"ok\": false, \"name\": \"stage3_enabled\", \"detail\": \"PRAJNA_STAGE3_ENABLED is false (default; production execution not approved)\"}, {\"ok\": false, \"name\": \"backfill_enabled\", \"detail\": \"PRAJNA_STAGE3_BACKFILL_ENABLED is false (default; feature backfill not approved)\"}, {\"ok\": true, \"nam"
+  },
+  {
+   "id": 5,
+   "at": "2026-09-29 05:08:59.397760+00:00",
+   "event": "RUN_COMPLETE",
+   "mode": "RUN",
+   "operator": "cli",
+   "run_id": "cb26b9c2-a95c-4bb5-a6d2-ec33a09c6fdd",
+   "detail": "{\"rows\": 180256, \"locks\": {\"mode\": \"RUN\", \"failing\": [], \"unlocked\": true}, \"values\": 128996, \"seconds\": 140.97, \"inserted\": 180256, \"instruments\": 3534, \"refused_bars\": {\"reconstructed\": 0, \"low_confidence\": 154244}, \"already_present\": 0, \"nulls_by_reason\": {\"MISSING_INPUT\": 42124, \"MALFORMED_INPUT"
+  },
+  {
+   "id": 6,
+   "at": "2026-09-29 05:14:16.618641+00:00",
+   "event": "RUN_COMPLETE",
+   "mode": "RUN",
+   "operator": "cli",
+   "run_id": "eb0a0012-6f3c-47a3-a62a-bc95193ff1ab",
+   "detail": "{\"rows\": 194392, \"locks\": {\"mode\": \"RUN\", \"failing\": [], \"unlocked\": true}, \"values\": 141982, \"seconds\": 157.86, \"inserted\": 194392, \"instruments\": 3534, \"refused_bars\": {\"reconstructed\": 0, \"low_confidence\": 154244}, \"already_present\": 0, \"nulls_by_reason\": {\"MISSING_INPUT\": 43020, \"MALFORMED_INPUT"
+  },
+  {
+   "id": 7,
+   "at": "2026-09-29 05:19:55.599373+00:00",
+   "event": "RUN_COMPLETE",
+   "mode": "RUN",
+   "operator": "cli",
+   "run_id": "a3dd4baa-0b83-4da6-84a3-21b411749e61",
+   "detail": "{\"rows\": 180256, \"locks\": {\"mode\": \"RUN\", \"failing\": [], \"unlocked\": true}, \"values\": 128996, \"seconds\": 140.18, \"inserted\": 0, \"instruments\": 3534, \"refused_bars\": {\"reconstructed\": 0, \"low_confidence\": 154244}, \"already_present\": 180256, \"nulls_by_reason\": {\"MISSING_INPUT\": 42124, \"MALFORMED_INPUT"
+  }
+ ],
+ "running_or_failed_stage3_runs": 0,
+ "feature_value_by_snapshot": {
+  "PRE_OPEN": {
+   "rows": 194392,
+   "values": 141982,
+   "nulls": 52410,
+   "instrument_keys": 3548,
+   "distinct_run_ids": 1,
+   "as_of_ist": [
+    "2026-09-29T09:08:00+05:30"
+   ],
+   "distinct_computed_at": 1,
+   "run_ids": [
+    "eb0a0012-6f3c-47a3-a62a-bc95193ff1ab"
+   ],
+   "reasons": {
+    "DIVISION_UNDEFINED": 1378,
+    "INSUFFICIENT_HISTORY": 3467,
+    "MALFORMED_INPUT": 4545,
+    "MISSING_INPUT": 43020,
+    "VALUE": 141982
+   }
+  },
+  "PRE_SESSION": {
+   "rows": 180256,
+   "values": 128996,
+   "nulls": 51260,
+   "instrument_keys": 3548,
+   "distinct_run_ids": 1,
+   "as_of_ist": [
+    "2026-09-29T08:59:59+05:30"
+   ],
+   "distinct_computed_at": 1,
+   "run_ids": [
+    "cb26b9c2-a95c-4bb5-a6d2-ec33a09c6fdd"
+   ],
+   "reasons": {
+    "DIVISION_UNDEFINED": 1124,
+    "INSUFFICIENT_HISTORY": 3467,
+    "MALFORMED_INPUT": 4545,
+    "MISSING_INPUT": 42124,
+    "VALUE": 128996
+   }
+  }
+ },
+ "feature_value_total": 374648,
+ "feature_value_other_sessions": 0,
+ "duplicate_keys": 0,
+ "value_reason_violations": 0,
+ "unknown_reasons": null,
+ "rows_of_non_complete_runs": 0,
+ "rows_by_run": {
+  "cb26b9c2-a95c-4bb5-a6d2-ec33a09c6fdd": 180256,
+  "eb0a0012-6f3c-47a3-a62a-bc95193ff1ab": 194392
+ },
+ "registry": {
+  "version": "features-v1",
+  "sha256": "9061d85b3696ab70e566d8257ecb13466930792a74f9b1d8308f232331e47188",
+  "features": 65,
+  "stored_registry_sha256": [
+   "9061d85b3696ab70e566d8257ecb13466930792a74f9b1d8308f232331e47188"
+  ],
+  "feature_version_mismatches": 0,
+  "by_snapshot": {
+   "PRE_OPEN": {
+    "stored": 65,
+    "expected": 65,
+    "unexpected": [],
+    "missing": []
+   },
+   "PRE_SESSION": {
+    "stored": 61,
+    "expected": 61,
+    "unexpected": [],
+    "missing": []
+   }
+  },
+  "mnews_rows": 0
+ },
+ "pit": {
+  "input_max_knowable_at_ge_as_of": 0,
+  "rows_without_input_knowable_at": 51994,
+  "max_input_knowable_at_ist": {
+   "PRE_OPEN": "2026-09-29T09:07:59.998000+05:30",
+   "PRE_SESSION": "2026-09-29T08:32:21.295299+05:30"
+  },
+  "nse_1d_bars_of_the_session_knowable_before_as_of": 0,
+  "calendar_snapshots": {
+   "PRE_SESSION": {
+    "as_of_ist": "2026-09-29T08:59:59+05:30",
+    "previous_session": "2026-09-28"
+   },
+   "PRE_OPEN": {
+    "as_of_ist": "2026-09-29T09:08:00+05:30",
+    "previous_session": "2026-09-28"
+   }
+  },
+  "fii_dii_independent": {
+   "PRE_SESSION/FII": {
+    "latest_observation_knowable_before_as_of": "2026-09-28",
+    "previous_session": "2026-09-28",
+    "latest_is_previous_session": true,
+    "last5_days": [
+     "2026-09-22",
+     "2026-09-23",
+     "2026-09-24",
+     "2026-09-25",
+     "2026-09-28"
+    ],
+    "expected_1d": -5353.220000000001,
+    "stored_1d": [
+     -5353.22,
+     null
+    ],
+    "expected_5d": -16267.050000000005,
+    "stored_5d": [
+     -16267.05,
+     null
+    ],
+    "match_1d": true,
+    "match_5d": true
+   },
+   "PRE_SESSION/DII": {
+    "latest_observation_knowable_before_as_of": "2026-09-28",
+    "previous_session": "2026-09-28",
+    "latest_is_previous_session": true,
+    "last5_days": [
+     "2026-09-22",
+     "2026-09-23",
+     "2026-09-24",
+     "2026-09-25",
+     "2026-09-28"
+    ],
+    "expected_1d": 5189.02,
+    "stored_1d": [
+     5189.02,
+     null
+    ],
+    "expected_5d": 18789.9,
+    "stored_5d": [
+     18789.9,
+     null
+    ],
+    "match_1d": true,
+    "match_5d": true
+   },
+   "PRE_OPEN/FII": {
+    "latest_observation_knowable_before_as_of": "2026-09-28",
+    "previous_session": "2026-09-28",
+    "latest_is_previous_session": true,
+    "last5_days": [
+     "2026-09-22",
+     "2026-09-23",
+     "2026-09-24",
+     "2026-09-25",
+     "2026-09-28"
+    ],
+    "expected_1d": -5353.220000000001,
+    "stored_1d": [
+     -5353.22,
+     null
+    ],
+    "expected_5d": -16267.050000000005,
+    "stored_5d": [
+     -16267.05,
+     null
+    ],
+    "match_1d": true,
+    "match_5d": true
+   },
+   "PRE_OPEN/DII": {
+    "latest_observation_knowable_before_as_of": "2026-09-28",
+    "previous_session": "2026-09-28",
+    "latest_is_previous_session": true,
+    "last5_days": [
+     "2026-09-22",
+     "2026-09-23",
+     "2026-09-24",
+     "2026-09-25",
+     "2026-09-28"
+    ],
+    "expected_1d": 5189.02,
+    "stored_1d": [
+     5189.02,
+     null
+    ],
+    "expected_5d": 18789.9,
+    "stored_5d": [
+     18789.9,
+     null
+    ],
+    "match_1d": true,
+    "match_5d": true
+   }
+  },
+  "preopen_independent": {
+   "instrument_keys_in_snapshot": 3534,
+   "keys_with_a_tick_knowable_before_0908": 3531,
+   "ticks_total_for_session": 395746,
+   "ticks_knowable_before_as_of": 188415,
+   "ticks_knowable_at_or_after_as_of": 207331,
+   "replay_run_window_ist": [
+    "2026-09-29T09:20:01.132138+05:30",
+    "2026-09-29T09:32:05.087657+05:30"
+   ],
+   "ieq_compared": 3531,
+   "mismatches": [],
+   "mismatch_count": 0,
+   "tick_present_but_ieq_null": 117,
+   "no_tick_and_missing_input": 3
+  },
+  "ret_1d_independent_sample": {
+   "sample": 400,
+   "agree": 400,
+   "disagree": [],
+   "note": "instruments without any ca_factor; raw closes knowable before as_of"
+  },
+  "india_vix_level_independent": {
+   "raw_last_close": 13.64,
+   "stored": 13.64,
+   "match": true
+  }
+ },
+ "full_readonly_recompute": {
+  "PRE_SESSION": {
+   "universe": 3534,
+   "recomputed_rows": 180256,
+   "stored_rows": 180256,
+   "only_recomputed": 0,
+   "only_stored": 0,
+   "value_differences": 0,
+   "reason_differences": 0,
+   "inputs_sha256_differences": 0,
+   "examples": [],
+   "recompute_stats": {
+    "rows": 180256,
+    "values": 128996,
+    "nulls_by_reason": {
+     "DIVISION_UNDEFINED": 1124,
+     "INSUFFICIENT_HISTORY": 3467,
+     "MALFORMED_INPUT": 4545,
+     "MISSING_INPUT": 42124
+    },
+    "refused_bars": {
+     "reconstructed": 0,
+     "low_confidence": 154244
+    },
+    "seconds": 139.52,
+    "instruments": 3534
+   }
+  },
+  "PRE_OPEN": {
+   "universe": 3534,
+   "recomputed_rows": 194392,
+   "stored_rows": 194392,
+   "only_recomputed": 0,
+   "only_stored": 0,
+   "value_differences": 0,
+   "reason_differences": 0,
+   "inputs_sha256_differences": 0,
+   "examples": [],
+   "recompute_stats": {
+    "rows": 194392,
+    "values": 141982,
+    "nulls_by_reason": {
+     "DIVISION_UNDEFINED": 1378,
+     "INSUFFICIENT_HISTORY": 3467,
+     "MALFORMED_INPUT": 4545,
+     "MISSING_INPUT": 43020
+    },
+    "refused_bars": {
+     "reconstructed": 0,
+     "low_confidence": 154244
+    },
+    "seconds": 159.29,
+    "instruments": 3534
+   }
+  }
+ },
+ "float_representation": {
+  "column": {
+   "type": "numeric",
+   "precision": null,
+   "scale": null
+  },
+  "values": 270978,
+  "stored_value_is_not_the_exact_binary_double": 0,
+  "values_with_more_than_12_significant_digits_as_double": 0,
+  "example_dii_net_cash_1d_text": "5189.02000000000043655745685100555419921875",
+  "example_as_float": 5189.02,
+  "example_repr": "5189.02"
+ },
+ "safety": {
+  "PRAJNA_STAGE3_ENABLED": false,
+  "PRAJNA_STAGE3_BACKFILL_ENABLED": false,
+  "dotenv_stage3_lines": [],
+  "PRAJNA_SUPPLIED_TOKEN_in_env": false,
+  "kill_file": "/home/cis/windows/prajna/backend/var/run/stage3.kill",
+  "kill_file_exists": false,
+  "locks_RUN": {
+   "ok": false,
+   "conditions": [
+    {
+     "name": "stage3_enabled",
+     "ok": false,
+     "detail": "PRAJNA_STAGE3_ENABLED is false (default; production execution not approved)"
+    },
+    {
+     "name": "kill_switch_off",
+     "ok": true,
+     "detail": "not engaged"
+    },
+    {
+     "name": "stage1_complete",
+     "ok": true,
+     "detail": "overall COMPLETE"
+    },
+    {
+     "name": "stage2_pass",
+     "ok": true,
+     "detail": "PASS, generated 2026-09-28T17:48:51.443631+00:00"
+    },
+    {
+     "name": "decisions_approved",
+     "ok": true,
+     "detail": "all approved"
+    },
+    {
+     "name": "registry_consistent",
+     "ok": true,
+     "detail": "consistent"
+    },
+    {
+     "name": "write_token",
+     "ok": false,
+     "detail": "AuthorizationError"
+    }
+   ]
+  },
+  "locks_BACKFILL": {
+   "ok": false,
+   "failing": [
+    "stage3_enabled",
+    "backfill_enabled",
+    "write_token"
+   ]
+  }
+ },
+ "news": {
+  "news_item": 0,
+  "news_item_observation": 0,
+  "news_story": 0,
+  "news_story_member": 0,
+  "news_poll": 0,
+  "news_content": 0,
+  "news_ai_enrichment": 0,
+  "news_assessment": 0,
+  "news_classification": 0,
+  "news_entity_link": 0,
+  "news_entity_mention": 0,
+  "news_audit": 2
+ },
+ "read_only_confirmed_at_end": "on",
+ "cron": {
+  "stage3_mentions": 0,
+  "active_jobs": 16
+ },
+ "systemd_timers_matching_prajna_or_stage3": 0,
+ "investigations": {
+  "universe_change": {
+   "session_2026_09_28_verification_universe": 3547,
+   "session_2026_09_29_production_universe": 3534,
+   "removed_from_master_last_seen_2026_09_28": 15,
+   "removed_symbols_first_13": [
+    "RAJVIR",
+    "SELMC",
+    "MORARJEE",
+    "EDUCOMP",
+    "BGLOBAL",
+    "SPELS",
+    "UNIVAFOODS",
+    "CEREBRAINT",
+    "CLCIND",
+    "SKIL",
+    "NAGAFERT",
+    "BLUECHIP",
+    "LASA"
+   ],
+   "new_active_listings": [
+    "PARTY-RE",
+    "VARMORA"
+   ],
+   "reconciliation": "3547 - 15 + 2 = 3534",
+   "row_reconciliation": {
+    "PRE_SESSION": "NSE_EQ x 51 + 3 NSE_INDEX x 50 + 25 context: 2026-09-28 3544*51+150+25=180919; 2026-09-29 3531*51+150+25=180256 (diff 663 = 13*51)",
+    "PRE_OPEN": "NSE_EQ x 55 + 3 NSE_INDEX x 54 + 25 context: 3544*55+162+25=195107; 3531*55+162+25=194392 (diff 715 = 13*55)"
+   },
+   "values_and_reasons": "different sessions' data: not expected to be equal; the same-session comparison (full read-only recompute of 2026-09-29) matches every stored row"
+  },
+  "rows_without_input_max_knowable_at": {
+   "null_value_MISSING_INPUT": 38414,
+   "null_value_INSUFFICIENT_HISTORY": 300,
+   "non_null": {
+    "news_count_24h": 6640,
+    "news_count_7d": 6640
+   },
+   "explanation": "no input row was used (nothing to record); the non-null ones are news counts of 0 with no linked news, so no knowable_at exists"
+  },
+  "preopen_ieq_null_with_tick": {
+   "count": 117,
+   "last_canon_tick_ieq_not_null": 117,
+   "their_ret_1d_reason": {
+    "MISSING_INPUT": 117
+   },
+   "instruments_with_stale_previous_session_bar": 117,
+   "cause": "engine._BAR_INPUTS includes 'preopen': when an instrument's previous-session daily bar is not knowable (stale), EVERY feature with a preopen input is set MISSING_INPUT, including preopen_ieq and preopen_imbalance which use no bar (engine.py:197, :212)",
+   "classification": "conservative loss of information, not a point-in-time violation; the other 3 null rows have no tick at all"
+  },
+  "atomicity_xmin": {
+   "feature_value_distinct_xmin": {
+    "PRE_SESSION": [
+     "185560",
+     1
+    ],
+    "PRE_OPEN": [
+     "185564",
+     1
+    ]
+   },
+   "ingest_run_current_version_xmin": {
+    "cb26b9c2 (PRE_SESSION)": "185560",
+    "eb0a0012 (PRE_OPEN)": "185564",
+    "a3dd4baa (rerun)": "185568"
+   },
+   "stage3_event_RUN_COMPLETE_xmin": {
+    "5": "185561",
+    "6": "185565",
+    "7": "185569"
+   },
+   "interpretation": "each snapshot's rows AND its run's COMPLETE status were inserted/updated by ONE transaction (IngestRunner.finalize commits); the RUN_COMPLETE audit event is a separate, subsequent transaction",
+   "commit_timestamps": "UNAVAILABLE (track_commit_timestamp off)"
+  },
+  "float_api": "app/readapi/main.py _f(v) returns float(v): consumers receive 5189.02"
+ }
+}
