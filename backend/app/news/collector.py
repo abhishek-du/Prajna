@@ -347,9 +347,13 @@ async def dry_run(source_key: str, *, polls: int = 1, until: _dt.datetime | None
         floor = max(interval_for(src, now()), rec.http.ttl_s or 0)
         wait = floor - (now() - rec.last_poll_at).total_seconds()
         if wait > 0:
+            if until and now() + _dt.timedelta(seconds=wait) >= until:
+                return out                         # the next allowed poll is past the deadline
             log.info("news_poll_deferred", source=source_key, wait_s=round(wait, 1))
             await sleep(wait)
     while True:
+        if until and now() >= until:               # the deadline is checked before every poll
+            break
         if KILL_FILE.exists():
             log.warning("news_kill_switch", source=source_key)
             break
@@ -374,9 +378,12 @@ async def dry_run(source_key: str, *, polls: int = 1, until: _dt.datetime | None
             log.warning("news_source_rate_limited", source=source_key)
         out.append(poll)
         n += 1
-        if rec.http.stopped or (until is None and n >= polls) or (until and now() >= until):
+        if rec.http.stopped or (until is None and n >= polls):
             break
-        await sleep(H.next_delay(interval_for(src, now()), rec.http, rng))
+        delay = H.next_delay(interval_for(src, now()), rec.http, rng)
+        if until and now() + _dt.timedelta(seconds=delay) >= until:
+            break                                  # never sleep past the deadline to poll again
+        await sleep(delay)
     return out
 
 

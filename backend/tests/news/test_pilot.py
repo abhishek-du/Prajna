@@ -343,6 +343,25 @@ class TestDryRun:
                         transport=transport(httpx.Response(304)))
         assert slept and slept[0] >= 300 - 17 - 0.01              # ttl 5 min honoured
 
+    async def test_until_is_never_overshot(self, env):
+        """Regression (2026-09-29): with --until 15:45 the collector still polled at
+        15:46-15:48 and hourly sources ran on for up to an hour."""
+        until = T0 + _dt.timedelta(minutes=12)
+
+        async def sleep(s):                                       # time passes while asleep
+            clock.freeze(clock.now() + _dt.timedelta(seconds=s))
+        t = transport(OK, *[httpx.Response(304)] * 10)
+        out = await C.dry_run("NSE_ANNOUNCEMENTS", until=until, root=env, sleep=sleep,
+                              transport=t, rng=random.Random(0))
+        assert len(out) >= 2
+        assert all(_dt.datetime.fromisoformat(p["started_at"]) < until for p in out)
+        assert clock.now() < until                                # never slept past it
+
+    async def test_a_deadline_already_passed_makes_no_request(self, env):
+        t = transport(OK)
+        assert await C.dry_run("NSE_ANNOUNCEMENTS", until=T0, root=env, transport=t) == []
+        assert t.requests == []
+
     async def test_kill_switch_stops_before_any_request(self, env):
         (env / "news.kill").write_text("{}")
         t = transport(OK)
