@@ -41,3 +41,16 @@ def test_no_token_on_any_command_line_and_no_slot_collision():
                    for ln in active)
     slots = [" ".join(ln.split()[:5]) for ln in active]
     assert len(slots) == len(set(slots))
+
+
+def test_the_stage2_report_stage3_depends_on_is_refreshed_daily():
+    """Stage 3's lock refuses a Stage 2 report older than 7 days (locks.STAGE2_MAX_AGE);
+    a daily job (user decision 2026-09-29) regenerates it WITH tests (criterion P)
+    and never rewrites docs/."""
+    from app.features.locks import STAGE2_MAX_AGE
+    jobs = [ln for ln in _active(CRON.read_text()) if "acceptance stage2" in ln]
+    assert len(jobs) == 1
+    job = jobs[0]
+    assert job.split()[:5] == ["30", "5", "*", "*", "*"]                  # every day
+    assert "--run-tests" in job and "--md ''" in job
+    assert STAGE2_MAX_AGE.days == 7

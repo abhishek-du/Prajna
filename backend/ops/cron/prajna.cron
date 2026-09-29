@@ -59,3 +59,8 @@ LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 #              missing replay skips the run (nothing written); available after the 09:15 open (~09:37)
 22 9 * * 1-5  cd $B && ops/runbooks/stage3_snapshot.sh PRE_OPEN --after-replay --token-from-dotenv >> var/logs/cron.log 2>&1
 # (OPTION A - PRE_OPEN at 09:08:30 with every preopen_* feature MISSING_INPUT - was NOT chosen.)
+# 05:30 daily  Stage 2 gate with tests (user decision 2026-09-29): Stage 3's lock needs a Stage 2
+#              report PASS with P, at most 7 days old (locks.STAGE2_MAX_AGE), and nothing else
+#              regenerates it. Read-only on the prajna database, tests on prajna_test only;
+#              --md '' leaves docs/ untouched. A failed day leaves 6 days of margin.
+30 5 * * *    cd $B && .venv/bin/prajna acceptance stage2 --run-tests --md '' >> var/logs/cron.log 2>&1
