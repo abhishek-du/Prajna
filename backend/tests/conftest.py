@@ -68,6 +68,12 @@ def _install_database_guard() -> None:
     os.environ["PRAJNA_DATABASE_URL"] = test_dsn
     os.environ["PRAJNA_TEST_DATABASE_URL"] = test_dsn
     os.environ.setdefault("PRAJNA_WRITE_TOKEN", "test-token-not-a-real-secret")
+    # Production execution switches in backend/.env never reach the tests: they
+    # start from the defaults (locked); a test that needs a switch sets it itself
+    # (the `unlocked` fixture). Found at go-live 2026-09-29: with
+    # PRAJNA_STAGE3_ENABLED=true in .env the "defaults refuse" tests failed.
+    os.environ["PRAJNA_STAGE3_ENABLED"] = "false"
+    os.environ["PRAJNA_STAGE3_BACKFILL_ENABLED"] = "false"
 
 
 _install_database_guard()
