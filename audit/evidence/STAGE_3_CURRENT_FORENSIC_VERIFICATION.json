@@ -1,0 +1,946 @@
+{
+ "timestamp": "2026-09-29T14:50:00+05:30",
+ "git_head_verified": "df0d861f9009dad63558edd354f9a15563c8bd4b",
+ "configuration": {
+  "PRAJNA_STAGE3_ENABLED": true,
+  "PRAJNA_STAGE3_BACKFILL_ENABLED": false,
+  "token": "in backend/.env (0600, git-ignored); supplied via --token-from-dotenv; never in cron/argv/logs",
+  "kill_switch_file_exists": false,
+  "cron_active_lines": 19,
+  "cron_stage3_lines": [
+   "0 9 * * 1-5   cd $B && sleep 30 && ops/runbooks/stage3_snapshot.sh PRE_SESSION --token-from-dotenv >> var/logs/cron.log 2>&1",
+   "22 9 * * 1-5  cd $B && ops/runbooks/stage3_snapshot.sh PRE_OPEN --after-replay --token-from-dotenv >> var/logs/cron.log 2>&1"
+  ],
+  "cron_stage2_refresh": [
+   "30 5 * * *    cd $B && .venv/bin/prajna acceptance stage2 --run-tests --md '' >> var/logs/cron.log 2>&1"
+  ],
+  "systemd_timers_prajna_or_stage3": 0,
+  "status": "VERIFIED_NOW",
+  "class": "DIRECT"
+ },
+ "gates": {
+  "stage1": {
+   "generated_at": "2026-09-29T08:59:35.710226+00:00",
+   "overall": "COMPLETE",
+   "counts": {
+    "PASS": 19,
+    "DEFERRED": 4,
+    "OUT_OF_SCOPE": 2
+   }
+  },
+  "stage2": {
+   "generated_at": "2026-09-29T09:06:22.944356+00:00",
+   "overall": "PASS",
+   "formal_terminal_status": "PASS (app/acceptance/stage2.py:297 defines only PASS / NOT PASSED)",
+   "criteria": {
+    "A": "PASS",
+    "B": "PASS",
+    "C": "PASS",
+    "D": "PASS",
+    "E": "PASS",
+    "F": "PASS",
+    "G": "PASS",
+    "H": "PASS",
+    "I": "PASS",
+    "J": "PASS",
+    "K": "PASS",
+    "L": "PASS",
+    "M": "PASS",
+    "N": "PASS",
+    "O": "PASS",
+    "P": "PASS"
+   },
+   "P": {
+    "exit": 0,
+    "summary": "1126 passed, 4 skipped in 355.69s (0:05:55)"
+   }
+  },
+  "stage3": {
+   "generated_at": "2026-09-29T09:15:47.016230+00:00",
+   "overall_gate_label": "COMPLETE",
+   "criteria": {
+    "A": "PASS",
+    "B": "PASS",
+    "C": "PASS",
+    "D": "PASS",
+    "E": "PASS",
+    "F": "PASS",
+    "G": "PASS",
+    "H": "PASS",
+    "I": "PASS",
+    "J": "PASS",
+    "K": "PASS",
+    "L": "PASS",
+    "M": "PASS",
+    "N": "PASS",
+    "O": "PASS"
+   },
+   "levels": {
+    "IMPLEMENTED": true,
+    "TESTED": true,
+    "DRY-RUN READY": true,
+    "PRODUCTION READY": true,
+    "PRODUCTION UNLOCKED": true,
+    "BACKFILL EXECUTED": false
+   },
+   "O": {
+    "complete_runs": 3,
+    "backfill_runs": 0,
+    "failed_runs": 2,
+    "stored_values": 374648,
+    "latest_session": "2026-09-29"
+   },
+   "note": "gate label COMPLETE does not include actual scheduled-run evidence; O ignores failed_runs"
+  }
+ },
+ "tests": {
+  "full_suite_as_stage3_K": {
+   "exit": 0,
+   "summary": "1126 passed, 4 skipped in 346.29s (0:05:46)"
+  },
+  "full_suite_as_stage2_P": {
+   "exit": 0,
+   "summary": "1126 passed, 4 skipped in 355.69s (0:05:55)"
+  },
+  "live_cron": "4 passed",
+  "skipped": "4 = tests/live/test_installed_cron.py without -m live (pass with -m live)",
+  "failed": 0,
+  "errors": 0,
+  "xfailed": 0,
+  "command": "cd backend && .venv/bin/python -m pytest -p no:randomly (via acceptance --run-tests); pytest -m live tests/live"
+ },
+ "production": {
+  "db": {
+   "isolation": "repeatable read",
+   "read_only": "on",
+   "feature_value_by_snapshot": [
+    [
+     "2026-09-29",
+     "PRE_OPEN",
+     194392,
+     141982,
+     52410,
+     1,
+     1
+    ],
+    [
+     "2026-09-29",
+     "PRE_SESSION",
+     180256,
+     128996,
+     51260,
+     1,
+     1
+    ]
+   ],
+   "reasons_by_snapshot": [
+    [
+     "PRE_OPEN",
+     "DIVISION_UNDEFINED",
+     1378
+    ],
+    [
+     "PRE_OPEN",
+     "INSUFFICIENT_HISTORY",
+     3467
+    ],
+    [
+     "PRE_OPEN",
+     "MALFORMED_INPUT",
+     4545
+    ],
+    [
+     "PRE_OPEN",
+     "MISSING_INPUT",
+     43020
+    ],
+    [
+     "PRE_OPEN",
+     "VALUE",
+     141982
+    ],
+    [
+     "PRE_SESSION",
+     "DIVISION_UNDEFINED",
+     1124
+    ],
+    [
+     "PRE_SESSION",
+     "INSUFFICIENT_HISTORY",
+     3467
+    ],
+    [
+     "PRE_SESSION",
+     "MALFORMED_INPUT",
+     4545
+    ],
+    [
+     "PRE_SESSION",
+     "MISSING_INPUT",
+     42124
+    ],
+    [
+     "PRE_SESSION",
+     "VALUE",
+     128996
+    ]
+   ],
+   "duplicate_keys": [
+    [
+     0
+    ]
+   ],
+   "orphan_run_rows": [
+    [
+     0
+    ]
+   ],
+   "rows_of_non_complete_runs": [
+    [
+     0
+    ]
+   ],
+   "orphan_instrument_rows": [
+    [
+     0
+    ]
+   ],
+   "pit_violations": [
+    [
+     0
+    ]
+   ],
+   "value_reason_violations": [
+    [
+     0
+    ]
+   ],
+   "registry_hashes": [
+    [
+     "9061d85b3696ab70e566d8257ecb13466930792a74f9b1d8308f232331e47188",
+     374648
+    ]
+   ],
+   "ingest_runs": [
+    [
+     "cb26b9c2-a95c-4bb5-a6d2-ec33a09c6fdd",
+     "features.PRE_SESSION",
+     "COMPLETE",
+     180256,
+     "2026-09-29 10:35:19",
+     "10:38:59",
+     ""
+    ],
+    [
+     "eb0a0012-6f3c-47a3-a62a-bc95193ff1ab",
+     "features.PRE_OPEN",
+     "COMPLETE",
+     194392,
+     "2026-09-29 10:40:12",
+     "10:44:16",
+     ""
+    ],
+    [
+     "a3dd4baa-0b83-4da6-84a3-21b411749e61",
+     "features.PRE_SESSION",
+     "COMPLETE",
+     0,
+     "2026-09-29 10:46:19",
+     "10:49:55",
+     ""
+    ],
+    [
+     "90e42bd9-0385-48c2-9e19-61eecd4d8269",
+     "features.PRE_SESSION",
+     "FAILED",
+     0,
+     "2026-09-29 14:19:34",
+     "14:23:13",
+     "DeterminismMismatch: 1 stored feature values differ from a recompute (first: ['GLOBAL_INDEX|^DJI:global_ret_1d']); nothing overwritten"
+    ],
+    [
+     "8f2a59ea-f5ce-44e8-8dbe-4249e45b1069",
+     "features.PRE_OPEN",
+     "FAILED",
+     0,
+     "2026-09-29 14:24:31",
+     "14:28:37",
+     "DeterminismMismatch: 1 stored feature values differ from a recompute (first: ['GLOBAL_INDEX|^DJI:global_ret_1d']); nothing overwritten"
+    ]
+   ],
+   "stage3_events": [
+    [
+     1,
+     "2026-09-28 14:04:21",
+     "REFUSED",
+     "RUN",
+     "",
+     "{\"conditions\": [{\"ok\": false, \"name\": \"stage3_enabled\", \"detail\": \"PRAJNA_STAGE3_ENABLED is false (default; production e"
+    ],
+    [
+     2,
+     "2026-09-28 14:05:20",
+     "REFUSED",
+     "BACKFILL",
+     "",
+     "{\"conditions\": [{\"ok\": false, \"name\": \"stage3_enabled\", \"detail\": \"PRAJNA_STAGE3_ENABLED is false (default; production e"
+    ],
+    [
+     3,
+     "2026-09-28 14:59:46",
+     "REFUSED",
+     "RUN",
+     "",
+     "{\"conditions\": [{\"ok\": false, \"name\": \"stage3_enabled\", \"detail\": \"PRAJNA_STAGE3_ENABLED is false (default; production e"
+    ],
+    [
+     4,
+     "2026-09-28 15:00:18",
+     "REFUSED",
+     "BACKFILL",
+     "",
+     "{\"conditions\": [{\"ok\": false, \"name\": \"stage3_enabled\", \"detail\": \"PRAJNA_STAGE3_ENABLED is false (default; production e"
+    ],
+    [
+     5,
+     "2026-09-29 10:38:59",
+     "RUN_COMPLETE",
+     "RUN",
+     "cb26b9c2-a95c-4bb5-a6d2-ec33a09c6fdd",
+     "{\"rows\": 180256, \"locks\": {\"mode\": \"RUN\", \"failing\": [], \"unlocked\": true}, \"values\": 128996, \"seconds\": 140.97, \"insert"
+    ],
+    [
+     6,
+     "2026-09-29 10:44:16",
+     "RUN_COMPLETE",
+     "RUN",
+     "eb0a0012-6f3c-47a3-a62a-bc95193ff1ab",
+     "{\"rows\": 194392, \"locks\": {\"mode\": \"RUN\", \"failing\": [], \"unlocked\": true}, \"values\": 141982, \"seconds\": 157.86, \"insert"
+    ],
+    [
+     7,
+     "2026-09-29 10:49:55",
+     "RUN_COMPLETE",
+     "RUN",
+     "a3dd4baa-0b83-4da6-84a3-21b411749e61",
+     "{\"rows\": 180256, \"locks\": {\"mode\": \"RUN\", \"failing\": [], \"unlocked\": true}, \"values\": 128996, \"seconds\": 140.18, \"insert"
+    ],
+    [
+     8,
+     "2026-09-29 14:13:28",
+     "REFUSED",
+     "RUN",
+     "",
+     "{\"conditions\": [{\"ok\": false, \"name\": \"stage3_enabled\", \"detail\": \"PRAJNA_STAGE3_ENABLED is false (default; production e"
+    ],
+    [
+     9,
+     "2026-09-29 14:14:10",
+     "REFUSED",
+     "RUN",
+     "",
+     "{\"conditions\": [{\"ok\": true, \"name\": \"stage3_enabled\", \"detail\": \"PRAJNA_STAGE3_ENABLED=true\"}, {\"ok\": true, \"name\": \"ki"
+    ],
+    [
+     10,
+     "2026-09-29 14:14:51",
+     "REFUSED",
+     "RUN",
+     "",
+     "{\"conditions\": [{\"ok\": true, \"name\": \"stage3_enabled\", \"detail\": \"PRAJNA_STAGE3_ENABLED=true\"}, {\"ok\": true, \"name\": \"ki"
+    ],
+    [
+     11,
+     "2026-09-29 14:15:33",
+     "REFUSED",
+     "BACKFILL",
+     "",
+     "{\"conditions\": [{\"ok\": true, \"name\": \"stage3_enabled\", \"detail\": \"PRAJNA_STAGE3_ENABLED=true\"}, {\"ok\": false, \"name\": \"b"
+    ],
+    [
+     12,
+     "2026-09-29 14:15:36",
+     "KILL_ON",
+     "RUN",
+     "",
+     "{\"file\": \"/home/cis/windows/prajna/backend/var/run/stage3.kill\", \"reason\": \"controlled verification 2026-09-29\"}"
+    ],
+    [
+     13,
+     "2026-09-29 14:16:17",
+     "REFUSED",
+     "RUN",
+     "",
+     "{\"conditions\": [{\"ok\": true, \"name\": \"stage3_enabled\", \"detail\": \"PRAJNA_STAGE3_ENABLED=true\"}, {\"ok\": false, \"name\": \"k"
+    ],
+    [
+     14,
+     "2026-09-29 14:16:20",
+     "KILL_OFF",
+     "RUN",
+     "",
+     "{\"file\": \"/home/cis/windows/prajna/backend/var/run/stage3.kill\", \"reason\": \"controlled verification 2026-09-29\"}"
+    ],
+    [
+     15,
+     "2026-09-29 14:23:13",
+     "RUN_FAILED",
+     "RUN",
+     "90e42bd9-0385-48c2-9e19-61eecd4d8269",
+     "{\"error\": \"DeterminismMismatch: 1 stored feature values differ from a recompute (first: ['GLOBAL_INDEX|^DJI:global_ret_1"
+    ],
+    [
+     16,
+     "2026-09-29 14:28:37",
+     "RUN_FAILED",
+     "RUN",
+     "8f2a59ea-f5ce-44e8-8dbe-4249e45b1069",
+     "{\"error\": \"DeterminismMismatch: 1 stored feature values differ from a recompute (first: ['GLOBAL_INDEX|^DJI:global_ret_1"
+    ]
+   ],
+   "preopen_feature_counts": [
+    [
+     "preopen_gap_pct",
+     3045,
+     3534
+    ],
+    [
+     "preopen_ieq",
+     3414,
+     3534
+    ],
+    [
+     "preopen_ieq_to_avg_volume",
+     3367,
+     3534
+    ],
+    [
+     "preopen_imbalance",
+     3160,
+     3534
+    ]
+   ],
+   "fii_dii_stored": [
+    [
+     "dii_net_cash_1d",
+     "PRE_OPEN",
+     5189.02,
+     "2026-09-29 08:32:09"
+    ],
+    [
+     "dii_net_cash_1d",
+     "PRE_SESSION",
+     5189.02,
+     "2026-09-29 08:32:09"
+    ],
+    [
+     "dii_net_cash_5d",
+     "PRE_OPEN",
+     18789.9,
+     "2026-09-29 08:32:09"
+    ],
+    [
+     "dii_net_cash_5d",
+     "PRE_SESSION",
+     18789.9,
+     "2026-09-29 08:32:09"
+    ],
+    [
+     "fii_net_cash_1d",
+     "PRE_OPEN",
+     -5353.22,
+     "2026-09-29 08:32:09"
+    ],
+    [
+     "fii_net_cash_1d",
+     "PRE_SESSION",
+     -5353.22,
+     "2026-09-29 08:32:09"
+    ],
+    [
+     "fii_net_cash_5d",
+     "PRE_OPEN",
+     -16267.05,
+     "2026-09-29 08:32:09"
+    ],
+    [
+     "fii_net_cash_5d",
+     "PRE_SESSION",
+     -16267.05,
+     "2026-09-29 08:32:09"
+    ]
+   ],
+   "fii_dii_source_2026_09_28": [
+    [
+     "DII|NSE_EQ|CASH|1D|buy_amt",
+     15918.32,
+     "2026-09-29 08:32:09"
+    ],
+    [
+     "DII|NSE_EQ|CASH|1D|sell_amt",
+     10729.3,
+     "2026-09-29 08:32:09"
+    ],
+    [
+     "FII|NSE_EQ|CASH|1D|buy_amt",
+     9047.56,
+     "2026-09-29 08:32:09"
+    ],
+    [
+     "FII|NSE_EQ|CASH|1D|sell_amt",
+     14400.78,
+     "2026-09-29 08:32:09"
+    ]
+   ],
+   "mnews_rows": [
+    [
+     0
+    ]
+   ],
+   "running_stage3_runs": [
+    [
+     0
+    ]
+   ]
+  },
+  "recompute_vs_stored": {
+   "PRE_SESSION": {
+    "universe": 3534,
+    "recomputed_rows": 180256,
+    "stored_rows": 180256,
+    "only_recomputed": 0,
+    "only_stored": 0,
+    "value_differences": 1,
+    "reason_differences": 0,
+    "inputs_sha256_differences": 1,
+    "examples": [
+     {
+      "key": "GLOBAL_INDEX|^DJI|global_ret_1d",
+      "stored": [
+       0.00785407121282,
+       null
+      ],
+      "recomputed": [
+       -0.00304529248884,
+       null
+      ]
+     }
+    ],
+    "recompute_stats": {
+     "rows": 180256,
+     "values": 128996,
+     "nulls_by_reason": {
+      "DIVISION_UNDEFINED": 1124,
+      "INSUFFICIENT_HISTORY": 3467,
+      "MALFORMED_INPUT": 4545,
+      "MISSING_INPUT": 42124
+     },
+     "refused_bars": {
+      "reconstructed": 0,
+      "low_confidence": 154244
+     },
+     "seconds": 140.12,
+     "instruments": 3534
+    }
+   },
+   "PRE_OPEN": {
+    "universe": 3534,
+    "recomputed_rows": 194392,
+    "stored_rows": 194392,
+    "only_recomputed": 0,
+    "only_stored": 0,
+    "value_differences": 1,
+    "reason_differences": 0,
+    "inputs_sha256_differences": 1,
+    "examples": [
+     {
+      "key": "GLOBAL_INDEX|^DJI|global_ret_1d",
+      "stored": [
+       0.00785407121282,
+       null
+      ],
+      "recomputed": [
+       -0.00304529248884,
+       null
+      ]
+     }
+    ],
+    "recompute_stats": {
+     "rows": 194392,
+     "values": 141982,
+     "nulls_by_reason": {
+      "DIVISION_UNDEFINED": 1378,
+      "INSUFFICIENT_HISTORY": 3467,
+      "MALFORMED_INPUT": 4545,
+      "MISSING_INPUT": 43020
+     },
+     "refused_bars": {
+      "reconstructed": 0,
+      "low_confidence": 154244
+     },
+     "seconds": 157.28,
+     "instruments": 3534
+    }
+   }
+  },
+  "pit": {
+   "input_max_knowable_at_ge_as_of": 0,
+   "rows_without_input_knowable_at": 51994,
+   "max_input_knowable_at_ist": {
+    "PRE_OPEN": "2026-09-29T09:07:59.998000+05:30",
+    "PRE_SESSION": "2026-09-29T08:32:21.295299+05:30"
+   },
+   "nse_1d_bars_of_the_session_knowable_before_as_of": 0,
+   "calendar_snapshots": {
+    "PRE_SESSION": {
+     "as_of_ist": "2026-09-29T08:59:59+05:30",
+     "previous_session": "2026-09-28"
+    },
+    "PRE_OPEN": {
+     "as_of_ist": "2026-09-29T09:08:00+05:30",
+     "previous_session": "2026-09-28"
+    }
+   },
+   "fii_dii_independent": {
+    "PRE_SESSION/FII": {
+     "latest_observation_knowable_before_as_of": "2026-09-28",
+     "previous_session": "2026-09-28",
+     "latest_is_previous_session": true,
+     "last5_days": [
+      "2026-09-22",
+      "2026-09-23",
+      "2026-09-24",
+      "2026-09-25",
+      "2026-09-28"
+     ],
+     "expected_1d": -5353.220000000001,
+     "stored_1d": [
+      -5353.22,
+      null
+     ],
+     "expected_5d": -16267.050000000005,
+     "stored_5d": [
+      -16267.05,
+      null
+     ],
+     "match_1d": true,
+     "match_5d": true
+    },
+    "PRE_SESSION/DII": {
+     "latest_observation_knowable_before_as_of": "2026-09-28",
+     "previous_session": "2026-09-28",
+     "latest_is_previous_session": true,
+     "last5_days": [
+      "2026-09-22",
+      "2026-09-23",
+      "2026-09-24",
+      "2026-09-25",
+      "2026-09-28"
+     ],
+     "expected_1d": 5189.02,
+     "stored_1d": [
+      5189.02,
+      null
+     ],
+     "expected_5d": 18789.9,
+     "stored_5d": [
+      18789.9,
+      null
+     ],
+     "match_1d": true,
+     "match_5d": true
+    },
+    "PRE_OPEN/FII": {
+     "latest_observation_knowable_before_as_of": "2026-09-28",
+     "previous_session": "2026-09-28",
+     "latest_is_previous_session": true,
+     "last5_days": [
+      "2026-09-22",
+      "2026-09-23",
+      "2026-09-24",
+      "2026-09-25",
+      "2026-09-28"
+     ],
+     "expected_1d": -5353.220000000001,
+     "stored_1d": [
+      -5353.22,
+      null
+     ],
+     "expected_5d": -16267.050000000005,
+     "stored_5d": [
+      -16267.05,
+      null
+     ],
+     "match_1d": true,
+     "match_5d": true
+    },
+    "PRE_OPEN/DII": {
+     "latest_observation_knowable_before_as_of": "2026-09-28",
+     "previous_session": "2026-09-28",
+     "latest_is_previous_session": true,
+     "last5_days": [
+      "2026-09-22",
+      "2026-09-23",
+      "2026-09-24",
+      "2026-09-25",
+      "2026-09-28"
+     ],
+     "expected_1d": 5189.02,
+     "stored_1d": [
+      5189.02,
+      null
+     ],
+     "expected_5d": 18789.9,
+     "stored_5d": [
+      18789.9,
+      null
+     ],
+     "match_1d": true,
+     "match_5d": true
+    }
+   },
+   "preopen_independent": {
+    "instrument_keys_in_snapshot": 3534,
+    "keys_with_a_tick_knowable_before_0908": 3531,
+    "ticks_total_for_session": 395746,
+    "ticks_knowable_before_as_of": 188415,
+    "ticks_knowable_at_or_after_as_of": 207331,
+    "replay_run_window_ist": [
+     "2026-09-29T09:20:01.132138+05:30",
+     "2026-09-29T09:32:05.087657+05:30"
+    ],
+    "ieq_compared": 3531,
+    "mismatches": [],
+    "mismatch_count": 0,
+    "tick_present_but_ieq_null": 117,
+    "no_tick_and_missing_input": 3
+   },
+   "ret_1d_independent_sample": {
+    "sample": 400,
+    "agree": 400,
+    "disagree": [],
+    "note": "instruments without any ca_factor; raw closes knowable before as_of"
+   },
+   "india_vix_level_independent": {
+    "raw_last_close": 13.64,
+    "stored": 13.64,
+    "match": true
+   }
+  },
+  "registry": {
+   "version": "features-v1",
+   "sha256": "9061d85b3696ab70e566d8257ecb13466930792a74f9b1d8308f232331e47188",
+   "features": 65,
+   "stored_registry_sha256": [
+    "9061d85b3696ab70e566d8257ecb13466930792a74f9b1d8308f232331e47188"
+   ],
+   "feature_version_mismatches": 0,
+   "by_snapshot": {
+    "PRE_OPEN": {
+     "stored": 65,
+     "expected": 65,
+     "unexpected": [],
+     "missing": []
+    },
+    "PRE_SESSION": {
+     "stored": 61,
+     "expected": 61,
+     "unexpected": [],
+     "missing": []
+    }
+   },
+   "mnews_rows": 0
+  },
+  "news": {
+   "news_item": 0,
+   "news_item_observation": 0,
+   "news_story": 0,
+   "news_story_member": 0,
+   "news_poll": 0,
+   "news_content": 0,
+   "news_ai_enrichment": 0,
+   "news_assessment": 0,
+   "news_classification": 0,
+   "news_entity_link": 0,
+   "news_entity_mention": 0,
+   "news_audit": 2
+  }
+ },
+ "run_ids": {
+  "PRE_SESSION": "cb26b9c2-a95c-4bb5-a6d2-ec33a09c6fdd",
+  "PRE_OPEN": "eb0a0012-6f3c-47a3-a62a-bc95193ff1ab",
+  "rerun_ok_1046": "a3dd4baa-0b83-4da6-84a3-21b411749e61",
+  "controlled_cron_equivalent_PRE_SESSION_failed_closed": "90e42bd9-0385-48c2-9e19-61eecd4d8269",
+  "controlled_cron_equivalent_PRE_OPEN_failed_closed": "8f2a59ea-f5ce-44e8-8dbe-4249e45b1069"
+ },
+ "event_ids": {
+  "REFUSED_2026_09_28": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "RUN_COMPLETE": [
+   5,
+   6,
+   7
+  ],
+  "failure_safety_REFUSED": [
+   8,
+   9,
+   10,
+   11,
+   13
+  ],
+  "KILL_ON": 12,
+  "KILL_OFF": 14,
+  "RUN_FAILED_controlled": [
+   15,
+   16
+  ]
+ },
+ "failure_safety": {
+  "cases": {
+   "1_flag_off": "REFUSED exit 3, event 8",
+   "2a_no_token": "REFUSED exit 3, event 9",
+   "2b_bad_token": "REFUSED exit 3, event 10",
+   "3_backfill": "REFUSED backfill_enabled exit 3, event 11",
+   "4_stage1_stale": "test_each_condition_alone_refuses_the_run[_stage1-stage1_complete] PASSED (test DB)",
+   "5_replay_failure": "stub-CLI runbook copy: STAGE3_SKIP nothing written, CLI not invoked",
+   "6_concurrent": "real runbook with lock held: STAGE3_SKIP exit 1, 0 writes",
+   "7_duplicate": "unique key + determinism: 0 duplicates; reruns refused on mismatch",
+   "8_kill_switch": "KILL_ON 12 -> run REFUSED 13 -> KILL_OFF 14, file absent",
+   "9_invalid_config": "ValidationError exit 1 before lock check, 0 events"
+  },
+  "outputs": {
+   "D1_flag_off": [
+    "FAIL  stage3_enabled       PRAJNA_STAGE3_ENABLED is false (default; production execution not approved)",
+    "REFUSED: Stage 3 RUN is locked (audited in stage3_event); nothing written"
+   ],
+   "D2a_no_token": [
+    "FAIL  write_token          AuthorizationError",
+    "REFUSED: Stage 3 RUN is locked (audited in stage3_event); nothing written"
+   ],
+   "D2b_bad_token": [
+    "FAIL  write_token          AuthorizationError",
+    "REFUSED: Stage 3 RUN is locked (audited in stage3_event); nothing written"
+   ],
+   "D3_backfill": [
+    "FAIL  backfill_enabled     PRAJNA_STAGE3_BACKFILL_ENABLED is false (default; feature backfill not approved)",
+    "REFUSED: Stage 3 BACKFILL is locked (audited in stage3_event); nothing written"
+   ],
+   "D6_concurrent": [
+    "[2026-09-29 14:16:28 IST] STAGE3_SKIP PRE_SESSION 2026-09-29: another Stage 3 run held var/run/stage3.lock for 3 s"
+   ],
+   "D8a_kill_on": [
+    "Stage 3 kill switch ENGAGED"
+   ],
+   "D8b_run_while_killed": [
+    "FAIL  kill_switch_off      engaged (/home/cis/windows/prajna/backend/var/run/stage3.kill)",
+    "REFUSED: Stage 3 RUN is locked (audited in stage3_event); nothing written"
+   ],
+   "D8c_kill_off": [
+    "Stage 3 kill switch released"
+   ],
+   "D9_invalid_flag": [
+    "ValidationError: 1 validation error for Settings",
+    "https://errors.pydantic.dev/2.13/v/bool_parsing"
+   ]
+  },
+  "feature_value_constant": 374648,
+  "status": "VERIFIED_NOW",
+  "class": "DIRECT"
+ },
+ "controlled_cron_equivalent_execution": {
+  "label": "CONTROLLED CRON-EQUIVALENT EXECUTION (not an actual scheduled run)",
+  "env": "env -i HOME LOGNAME SHELL=/bin/bash PATH=/usr/bin:/bin B LK; /bin/bash -c <crontab line>",
+  "result": "both FAILED closed: DeterminismMismatch GLOBAL_INDEX|^DJI:global_ret_1d; nothing overwritten",
+  "feature_value_before_after": [
+   374648,
+   374648
+  ],
+  "max_xmin_before_after": [
+   185564,
+   185564
+  ],
+  "dji_stored_unchanged": 0.00785407121282
+ },
+ "findings": [
+  {
+   "id": "F-GLOBAL-FINALITY",
+   "classification": "NON-BLOCKING for installed schedule; BLOCKING for manual runs after 12:40 IST, recomputes, backfill",
+   "evidence": "DJI 2026-09-25 label revised 51774.28 -> 51510.98, observed 2026-09-29 12:40:03 IST (after as_of); finality view withholds it; recompute -0.00305 vs stored 0.00785 (correct as of 08:59:59); global observations only at 12:40/21:10 IST",
+   "fix": "Stage 2: evaluate finality from observations fetched before as_of in pit.global_bars; needs user decision"
+  },
+  {
+   "id": "STAGE2/3 CLI default paths",
+   "classification": "FIXED",
+   "commits": [
+    "1327f75",
+    "bcf10e0",
+    "1e93993"
+   ]
+  },
+  {
+   "id": "crontab drift assertion",
+   "classification": "FIXED",
+   "commits": [
+    "1327f75",
+    "b49b47a"
+   ]
+  },
+  {
+   "id": "no DB advisory lock",
+   "classification": "ACCEPTED RISK (flock + unique key + determinism)"
+  },
+  {
+   "id": "Stage 1 timing at 09:00:30",
+   "classification": "NON-BLOCKING; PENDING VERIFICATION at first scheduled run"
+  },
+  {
+   "id": "Stage 2 report 7-day expiry",
+   "classification": "FIXED",
+   "commits": [
+    "1884be4"
+   ]
+  },
+  {
+   "id": "tests read production flags",
+   "classification": "FIXED",
+   "commits": [
+    "df0d861"
+   ]
+  },
+  {
+   "id": "F1 preopen blanked for stale instruments",
+   "classification": "NON-BLOCKING"
+  },
+  {
+   "id": "F2 RUN_COMPLETE separate commit",
+   "classification": "NON-BLOCKING"
+  },
+  {
+   "id": "gate O ignores failed runs",
+   "classification": "NON-BLOCKING"
+  }
+ ],
+ "pending_checks": [
+  "cron fires at 09:00 / 09:22 IST on 2026-09-30",
+  "Stage 1 COMPLETE at 09:00:30",
+  "first-time scheduled PRE_SESSION commit",
+  "PRE_OPEN waits for real replay and commits (STAGE3_LATE expected)",
+  "scheduled runtimes",
+  "05:30 Stage 2 refresh from cron",
+  "no global observation between as_of and run"
+ ],
+ "final_status": {
+  "IMPLEMENTATION": "VERIFIED",
+  "PRODUCTION_RUN": "VERIFIED (2026-09-29 manual)",
+  "PRODUCTION_ENABLED": true,
+  "SCHEDULE": "INSTALLED",
+  "CONTROLLED_EXECUTION": "VERIFIED (fail-closed on F-GLOBAL-FINALITY)",
+  "ACTUAL_SCHEDULED_EXECUTION": "PENDING (2026-09-30)",
+  "FULLY_COMPLETE": false,
+  "BACKFILL": "LOCKED, not executed"
+ }
+}
