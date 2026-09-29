@@ -34,7 +34,7 @@ def new(priors=(), url="https://x/b", title_hash="h2", content="c2", title="Head
 class TestNewArticle:
     def test_first_seen(self):
         d = new()
-        assert (d.decision, d.rule, d.version) == ("NEW_ARTICLE", "FIRST_SEEN", "dedup-v2")
+        assert (d.decision, d.rule, d.version) == ("NEW_ARTICLE", "FIRST_SEEN", "dedup-v3")
 
     def test_founder_of_a_story_is_new(self):
         assert new(story="FOUNDER").decision == "NEW_ARTICLE"
@@ -132,7 +132,7 @@ class TestStored:
         assert (await q(db_session, """select count(*) from news_item i where not exists
             (select 1 from news_decision d where d.item_id = i.id)"""))[0][0] == 0
         assert (await q(db_session, """select count(*) from news_decision
-            where knowable_at < decided_at or rule_version <> 'dedup-v2'"""))[0][0] == 0
+            where knowable_at < decided_at or rule_version <> 'dedup-v3'"""))[0][0] == 0
 
     async def test_an_edit_gets_an_update_decision(self, db_session, unlocked):  # noqa: F811
         await poll_shadow(db_session, KEY, token=TOKEN, transport=feed())
@@ -160,3 +160,26 @@ class TestStored:
                     decision, rule, rule_version, evidence, decided_at, knowable_at)
                     values (:i, :p, 'DUPLICATE_ARTICLE', 'X', 'test', '{}', now(), now())"""),
                     {"i": iid, "p": pid})
+
+
+class TestRegulatorCorrections:
+    ORDER = "Final order in the matter of Adani Group Companies for alleged violations"
+    CORR = "Corrigendum to the final order in the matter of Adani Group Companies"
+
+    def pri(self, title, i=7, ago_h=3):
+        return DD.Prior(i, f"https://s/{i}", "t", f"c{i}", T - _dt.timedelta(hours=ago_h),
+                        title)
+
+    def test_a_corrigendum_corrects_the_earlier_document_of_the_same_matter(self):
+        d = new([self.pri(self.ORDER)], title=self.CORR, exchange=True)
+        assert (d.decision, d.rule) == ("STORY_CORRECTION", "CORRECTION_OF_DOCUMENT")
+        assert d.evidence["corrects"] == 7
+
+    def test_another_matter_or_no_matter_is_not_a_correction(self):
+        other = self.pri("Final order in the matter of Some Other Ltd")
+        assert new([other], title=self.CORR, exchange=True).decision == "NEW_ARTICLE"
+        assert new([self.pri(self.ORDER)], title="Corrigendum to circular dated 1 Sep",
+                   exchange=True).decision == "NEW_ARTICLE"          # nothing guessed
+
+    def test_the_rule_is_for_documents_not_media(self):
+        assert new([self.pri(self.ORDER)], title=self.CORR).decision == "NEW_ARTICLE"

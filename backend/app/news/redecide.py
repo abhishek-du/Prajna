@@ -1,4 +1,5 @@
-"""Append-only re-decision of exchange / regulator articles under dedup-v2.
+"""Append-only re-decision of exchange / regulator articles under the current dedup
+rules (dedup-v2: duplicates only by the same link; dedup-v3: corrigenda).
 
 dedup-v1 marked a separate filing with identical boilerplate text (a different
 document link) as DUPLICATE_ARTICLE. dedup-v2 decides it as STORY_RELATED (or
@@ -29,16 +30,25 @@ STRICT = tuple(k for k, s in SOURCES.items() if s.enrich in ("EXCHANGE", "REGULA
 
 
 def decide_v2(rows: list[tuple]) -> dict[int, tuple[str, str, int | None]]:
-    """rows: (id, canonical_url, content_sha256, discovered_at) in insertion order.
-    -> {id: (decision, rule, related_id)} under dedup-v2 for a strict source."""
+    """rows: (id, canonical_url, content_sha256, discovered_at[, title]) in insertion
+    order -> {id: (decision, rule, related_id)} under dedup-v2 for a strict source."""
     by_url: dict[str, tuple[int, _dt.datetime]] = {}
     by_content: dict[str, tuple[int, _dt.datetime]] = {}
+    earlier: list[DD.Prior] = []
     out = {}
-    for iid, url, content, disc in rows:
+    for row in rows:
+        iid, url, content, disc = row[:4]
+        title = row[4] if len(row) > 4 else ""
         u = by_url.get(url) if url else None
         c = by_content.get(content)
+        orig = (DD.corrected_document(title, [p for p in earlier
+                                              if disc - p.discovered_at <= DD.WINDOW])
+                if title and DD.CORRECTION.search(title) else None)
+        earlier.append(DD.Prior(iid, url, "", content, disc, title))
         if u and disc - u[1] <= DD.WINDOW:
             out[iid] = ("DUPLICATE_ARTICLE", "SAME_SOURCE_URL", u[0])
+        elif orig is not None:
+            out[iid] = ("STORY_CORRECTION", "CORRECTION_OF_DOCUMENT", orig.item_id)
         elif c and disc - c[1] <= DD.WINDOW:
             out[iid] = ("STORY_RELATED", "STORY_SAME_TITLE", c[0])
         else:
@@ -57,7 +67,7 @@ async def redecide(s: AsyncSession, *, token: str | None, commit: bool,
     plan: list[dict] = []
     for k in STRICT:
         rows = (await s.execute(text("""
-            select i.id, i.canonical_url, i.content_sha256, i.discovered_at
+            select i.id, i.canonical_url, i.content_sha256, i.discovered_at, i.title
             from news_item i where i.source = :s order by i.discovered_at, i.id"""),
             {"s": k})).all()
         latest = dict((await s.execute(text("""
@@ -72,7 +82,7 @@ async def redecide(s: AsyncSession, *, token: str | None, commit: bool,
         polls = dict((await s.execute(text(
             "select id, first_poll_id from news_item where source = :s"), {"s": k})).all())
         for iid, (dec, rule, rel) in decide_v2(rows).items():
-            if iid in done or latest.get(iid) == dec:
+            if latest.get(iid) == dec or iid in done:
                 continue
             plan.append({"item_id": iid, "source": k, "from": latest.get(iid), "to": dec,
                          "rule": rule, "related": rel, "poll_id": polls[iid]})
@@ -82,7 +92,7 @@ async def redecide(s: AsyncSession, *, token: str | None, commit: bool,
         summary["by_change"][key] = summary["by_change"].get(key, 0) + 1
     if not commit or not plan:
         return {**summary, "committed": False}
-    runner = IngestRunner(s, source="news_redecide", stream="news.redecide.dedup-v2",
+    runner = IngestRunner(s, source="news_redecide", stream=f"news.redecide.{DD.VERSION}",
                           vendor_endpoint="internal", request_params={"version": DD.VERSION},
                           operator=operator)
     await runner.open(commit=True, token=token)
@@ -94,9 +104,10 @@ async def redecide(s: AsyncSession, *, token: str | None, commit: bool,
                 rule_version=DD.VERSION, related_item_id=p["related"]
                 if p["to"] == "DUPLICATE_ARTICLE" else None,
                 evidence={"re_decision": True, "supersedes": p["from"],
-                          "reason": "dedup-v2: for exchange / regulator sources only the same "
-                                    "document link is a duplicate",
-                          **({"with": p["related"]} if p["related"] else {})},
+                          "reason": f"{DD.VERSION}: exchange / regulator rules (duplicates "
+                                    "only by the same link; corrigenda correct the document)",
+                          **({"corrects" if p["to"] == "STORY_CORRECTION" else "with":
+                              p["related"]} if p["related"] else {})},
                 decided_at=t, knowable_at=t))
         await runner.finalize(rows_written=len(plan), outcome=summary)
     except BaseException as e:

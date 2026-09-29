@@ -83,7 +83,7 @@ async def _seen(s: AsyncSession, source: str) -> dict[str, Seen]:
 async def _priors(s: AsyncSession, source: str, at: _dt.datetime) -> list[DD.Prior]:
     """The source's articles stored within the dedup window before `at`."""
     rows = (await s.execute(text("""
-        select id, canonical_url, title_norm_hash, content_sha256, discovered_at
+        select id, canonical_url, title_norm_hash, content_sha256, discovered_at, title
         from news_item where source = :s and discovered_at >= :since
           and content_sha256 is not null"""), {"s": source, "since": at - DD.WINDOW})).all()
     return [DD.Prior(*r) for r in rows]
@@ -249,7 +249,7 @@ async def poll_shadow(s: AsyncSession, source_key: str, *, token: str | None,
                 rule_version=dec.version, related_item_id=dec.related_item_id,
                 story_id=story_pk, evidence=dec.evidence, decided_at=t, knowable_at=t))
             decisions[dec.decision] = decisions.get(dec.decision, 0) + 1
-            priors.append(DD.Prior(iid, curl, thash, csha, d.discovered_at))
+            priors.append(DD.Prior(iid, curl, thash, csha, d.discovered_at, it.title))
             if d.assessment is not None:
                 a = d.assessment
                 await s.execute(insert(NewsAssessment).values(

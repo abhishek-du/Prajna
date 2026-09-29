@@ -1826,7 +1826,7 @@ def news_reconcile(
     """Daily reconciliation of the database collector (read-only): polls, failures,
     fetched vs stored, dedup decisions, edits, scopes, latency, invariants and the
     monitoring state per source (also written to var/status/news_health.json).
-    Exit 1 if an invariant is violated."""
+    Exit 4 if an invariant is violated (1 is left to crashes)."""
     import datetime as _dt
     import json as _json
     import pathlib as _pl
@@ -1857,7 +1857,7 @@ def news_reconcile(
     typer.echo(f"invariants: {'OK' if rep['invariants']['ok'] else 'VIOLATED'} "
                f"{_json.dumps({k: v for k, v in rep['invariants'].items() if k != 'ok'})}")
     if not rep["invariants"]["ok"]:
-        raise typer.Exit(1)
+        raise typer.Exit(4)
 
 
 @news_app.command("redecide")

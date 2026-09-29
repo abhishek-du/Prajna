@@ -1,4 +1,7 @@
-"""Dedup decisions, rule version dedup-v2 (docs/NEWS_DEDUP_SPEC.md). Pure.
+"""Dedup decisions, rule version dedup-v3 (docs/NEWS_DEDUP_SPEC.md). Pure.
+
+v2: exchange / regulator duplicates only by the same link. v3: regulator / exchange
+corrigenda are corrections of the earlier document (CORRECTION_OF_DOCUMENT).
 
 Every stored article and every stored edit gets exactly one decision. A decision
 only MARKS: the article is stored in any case, edits stay observations, and
@@ -15,7 +18,10 @@ A NEW article (a (source, source_article_id) never stored before), in order:
                      join one story (STORY_RELATED) instead of being marked
                      duplicates. For them only the same link is a duplicate.
   STORY_CORRECTION   it joins an existing story and its title carries a
-                     correction marker             (CORRECTION_MARKER)
+                     correction marker             (CORRECTION_MARKER); or, for an
+                     exchange / regulator document, its title carries a marker and
+                     names the same "in the matter of" party as an earlier document
+                     of that source within 24 h    (CORRECTION_OF_DOCUMENT)
   STORY_RELATED      it joins an existing story (another article, usually another
                      source)                       (STORY_SAME_URL / _SAME_TITLE / _SIMILAR)
   NEW_ARTICLE        otherwise                     (FIRST_SEEN)
@@ -34,7 +40,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-VERSION = "dedup-v2"
+VERSION = "dedup-v3"
 WINDOW = _dt.timedelta(hours=24)
 MATERIAL = ("title", "summary", "published_at")
 CORRECTION = re.compile(
@@ -50,6 +56,7 @@ class Prior:
     title_norm_hash: str
     content_sha256: str
     discovered_at: _dt.datetime
+    title: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +88,12 @@ def decide_new(*, canonical_url: str | None, title_norm_hash: str, content_sha25
                             {"duplicate_of": match.item_id,
                              "first_seen": match.discovered_at.isoformat(),
                              "window_h": WINDOW.total_seconds() / 3600})
+    if exchange and (m := CORRECTION.search(title)):
+        orig = corrected_document(title, [p for p in window if p.title])
+        if orig is not None:
+            return Decision("STORY_CORRECTION", "CORRECTION_OF_DOCUMENT", None,
+                            {"marker": m.group(0), "corrects": orig.item_id,
+                             "matter": matter(title)})
     joined = story_method not in (None, "FOUNDER")
     if joined and (m := CORRECTION.search(title)):
         return Decision("STORY_CORRECTION", "CORRECTION_MARKER", None,
@@ -89,6 +102,28 @@ def decide_new(*, canonical_url: str | None, title_norm_hash: str, content_sha25
     if joined:
         return Decision("STORY_RELATED", f"STORY_{story_method}", None, dict(story_evidence or {}))
     return Decision("NEW_ARTICLE", "FIRST_SEEN", None, {"story_method": story_method})
+
+
+_MATTER = re.compile(r"\bin the matter of\s+(.+)", re.IGNORECASE)
+_WORD = re.compile(r"[a-z0-9]+")
+
+
+def matter(title: str) -> str | None:
+    """The party named after "in the matter of" (first six words, normalised)."""
+    m = _MATTER.search(title)
+    return " ".join(_WORD.findall(m.group(1).lower())[:6]) or None if m else None
+
+
+def corrected_document(title: str, priors: list[Prior]) -> Prior | None:
+    """A regulator / exchange corrigendum corrects the latest earlier document of the
+    same source about the same matter (never guessed: no matter, no correction link)."""
+    key = matter(title)
+    if not key:
+        return None
+    same = [p for p in priors if matter(p.title) and (
+        matter(p.title).startswith(key[:30]) or key.startswith(matter(p.title)[:30]))
+            and not CORRECTION.search(p.title)]
+    return max(same, key=lambda p: p.discovered_at) if same else None
 
 
 def decide_edit(changed: list[str], *, old_title: str | None, new_title: str) -> Decision | None:

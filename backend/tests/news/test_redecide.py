@@ -62,7 +62,7 @@ async def test_append_only_and_idempotent(db_session, unlocked, monkeypatch):  #
     rows = (await s.execute(text("""select decision, rule_version, knowable_at from
         news_decision where item_id = :i order by id"""), {"i": ids[1]})).all()
     assert [(r[0], r[1]) for r in rows] == [("DUPLICATE_ARTICLE", "dedup-v1"),
-                                             ("STORY_RELATED", "dedup-v2")]   # old row kept
+                                             ("STORY_RELATED", "dedup-v3")]   # old row kept
     assert rows[1][2] == T0 + _dt.timedelta(hours=1)          # knowable from the re-decision
     assert (await RD.redecide(s, token=TOKEN, commit=True))["changes"] == 0   # idempotent
     # the reconciliation counts the CURRENT decision per article, not every version
@@ -70,3 +70,10 @@ async def test_append_only_and_idempotent(db_session, unlocked, monkeypatch):  #
     rep = await NR.reconcile(s, T0.date(), "SHADOW", at=T0 + _dt.timedelta(hours=2))
     assert rep["sources"][KEY]["decisions"] == {"NEW_ARTICLE": 1, "STORY_RELATED": 1}
     assert rep["invariants"]["ok"], rep["invariants"]
+
+
+def test_v3_corrigendum_rule():
+    rows = [(1, "u1", "c1", T, "Final order in the matter of Adani Group Companies for x"),
+            (2, "u2", "c2", T + _dt.timedelta(hours=3),
+             "Corrigendum to the final order in the matter of Adani Group Companies")]
+    assert RD.decide_v2(rows)[2] == ("STORY_CORRECTION", "CORRECTION_OF_DOCUMENT", 1)

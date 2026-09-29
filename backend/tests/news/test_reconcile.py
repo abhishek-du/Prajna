@@ -7,6 +7,7 @@ import datetime as _dt
 
 import httpx
 import pytest
+from sqlalchemy import text
 
 from app.core import clock
 from app.news import reconcile as NR
@@ -95,3 +96,16 @@ def test_ops_status_reports_the_news_states(tmp_path):
     h = news_health(tmp_path / "news_health.json", AT)
     assert h["age_hours"] == 2.0 and h["invariants_ok"] is True
     assert h["not_healthy"] == {"ET_STOCKS_RSS": ["SOURCE_STALE"]}
+
+
+@pytest.mark.db
+@pytest.mark.integration
+async def test_a_future_row_violates_the_invariants(db_session, unlocked):  # noqa: F811
+    feed = httpx.MockTransport(lambda r: httpx.Response(200, content=BODY))
+    await poll_shadow(db_session, KEY, token=TOKEN, transport=feed)
+    await db_session.execute(text("alter table news_decision disable trigger "
+                                  "tr_news_decision_append_only"))
+    await db_session.execute(text("""update news_decision set knowable_at = now() +
+        interval '1 day', decided_at = now() + interval '1 day'"""))    # test database only
+    rep = await NR.reconcile(db_session, T0.date(), "SHADOW", at=T0 + _dt.timedelta(minutes=1))
+    assert rep["invariants"]["knowable_in_the_future"] > 0 and rep["invariants"]["ok"] is False
