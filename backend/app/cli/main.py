@@ -1672,7 +1672,6 @@ def news_dry_run(
     from app.features.locks import LockRefused
     from app.news import collector as C
     from app.news import locks as NL
-
     from app.news.sources import SOURCES
 
     keys = ([k for k, s in SOURCES.items() if s.enrich in ("HEADLINE", "REGULATOR") and s.parse
@@ -1767,6 +1766,54 @@ def news_poll(
             typer.echo(f"{'PASS' if c['ok'] else 'FAIL':5} {c['name']:20} {c['detail']}")
         typer.echo("REFUSED: news SHADOW polling is locked (audited in news_audit); nothing written")
         raise typer.Exit(3) from None
+
+
+@news_app.command("collect")
+def news_collect(
+    source: str = typer.Option(..., "--source",
+                               help="a source key, a comma-separated list, or ALL (every "
+                                    "implemented adapter)"),
+    mode: str = typer.Option("SHADOW", "--mode", help="SHADOW (invisible) or PRODUCTION"),
+    until: str = typer.Option(..., "--until", help="HH:MM today (IST) or an ISO date-time "
+                              "with offset"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN"),
+):
+    """Scheduled collection into the database until --until: every poll is a
+    lock-checked, committed transaction (store.poll_shadow). A refusal stops that
+    source (audited); other sources continue. Exit 3 if every source was refused."""
+    import datetime as _dt
+    import json as _json
+
+    from app.core.clock import IST
+    from app.core.clock import now as _now
+    from app.news import collect as NC
+    from app.news.sources import SOURCES
+
+    mode = mode.upper()
+    if mode not in ("SHADOW", "PRODUCTION"):
+        raise typer.BadParameter("--mode SHADOW | PRODUCTION")
+    keys = ([k for k, s in SOURCES.items() if s.parse and s.status != "UNSUPPORTED"]
+            if source.upper() == "ALL" else [k.strip() for k in source.split(",") if k.strip()])
+    if "T" in until:
+        end = _dt.datetime.fromisoformat(until)
+        if end.tzinfo is None:
+            raise typer.BadParameter("--until needs a UTC offset, e.g. +05:30")
+    else:
+        hh, mm = (int(x) for x in until.split(":"))
+        end = _dt.datetime.combine(_now().astimezone(IST).date(), _dt.time(hh, mm), tzinfo=IST)
+    res = asyncio.run(NC.collect_many(keys, mode=mode, token=token, until=end))
+    summary = {}
+    for k, out in res.items():
+        st = NC.CollectState(k).status
+        summary[k] = ({"error": out} if isinstance(out, str) else
+                      {"polls": len(out), "inserted": sum(r["inserted"] for r in out),
+                       "changed": sum(r["changed"] for r in out),
+                       "last_outcome": st.get("last_outcome"), "refused": st.get("refused")
+                       if st.get("last_outcome") == "REFUSED" else None})
+    typer.echo(_json.dumps({"mode": mode, "until": end.isoformat(), "sources": summary},
+                           indent=2, default=str))
+    if all(v.get("refused") for v in summary.values()):
+        raise typer.Exit(3)
 
 
 @news_app.command("kill")

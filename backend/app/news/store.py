@@ -152,6 +152,9 @@ async def poll_shadow(s: AsyncSession, source_key: str, *, token: str | None,
         o = process(src, f, seen, universe=await load_universe(),
                     aliases=await _aliases(s, src.key, f.finished_at), first_success=first,
                     stories=story_ix)
+        if f.outcome == "OK" and o.fetch.outcome == "OK":   # the feed <ttl> paces the next poll
+            ttl = src.parse(f.body).ttl_minutes
+            state.ttl_s = ttl * 60 if ttl else None
         poll_id = (await s.execute(insert(NewsPoll).values(
             source=src.key, mode=mode, run_id=ctx.run_id, started_at=f.started_at,
             finished_at=f.finished_at, outcome=o.fetch.outcome, http_status=f.http_status,
