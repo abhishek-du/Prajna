@@ -1860,6 +1860,25 @@ def news_reconcile(
         raise typer.Exit(1)
 
 
+@news_app.command("redecide")
+def news_redecide(
+    commit: bool = typer.Option(False, "--commit", help="append the re-decisions (LOCKED)"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN"),
+):
+    """Append-only dedup-v2 re-decisions for exchange / regulator articles whose
+    dedup-v1 decision differs (a new row knowable from now; nothing updated)."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.news import redecide as RD
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await RD.redecide(s, token=token, commit=commit)
+
+    typer.echo(_json.dumps(asyncio.run(_go()), indent=2))
+
+
 @news_app.command("kill")
 def news_kill(state: str = typer.Argument(..., help="on | off"),
               reason: str = typer.Option("", "--reason")):
