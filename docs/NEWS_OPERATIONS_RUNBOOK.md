@@ -65,19 +65,35 @@ The exact names are in `app/news/sources/__init__.py`. They are set in `backend/
 
 **Markers** in `var/logs/daily/news_collect_<day>.log`: NEWS_COLLECT_START / DONE / REFUSED / FAILED / SKIP. The JSON summary is `news_collect_<day>_<MODE>.json`.
 
-## 3. Scheduling (NOT installed; needs the user's approval)
+## 3. Scheduling (INSTALLED 2026-09-29 ~20:14 IST, user-approved; `ops/cron/prajna.cron` == the crontab)
 
-**Proposed cron lines** (IST, the same `$B` as the other lines):
+The machine timezone is Asia/Kolkata, so cron times are IST. `B=/home/cis/windows/prajna/backend`.
 
 ```
-# news collection 06:00-23:30 daily (sources publish outside market hours too)
-0 6 * * *    cd $B && ops/runbooks/news_collect.sh --mode SHADOW --sources ALL --until 23:30 --token-from-dotenv >> var/logs/cron.log 2>&1
-# reconciliation after the collector's deadline
-40 23 * * *  cd $B && .venv/bin/prajna news reconcile --mode SHADOW --md '' --json var/news/reconcile_$(TZ=Asia/Kolkata date +\%F).json >> var/logs/cron.log 2>&1
+# collection SUPERVISOR, every 15 min 06:00-23:15 (7 accepted sources; Indian Express not enabled)
+*/15 6-22 * * *  cd $B && ops/runbooks/news_collect.sh --mode PRODUCTION --sources NSE_ANNOUNCEMENTS,SEBI_RSS,ET_STOCKS_RSS,BS_MARKETS_RSS,BL_MARKETS_RSS,MINT_MARKETS_RSS,CNBCTV18_NEWS_SITEMAP --until 23:30 --token-from-dotenv >> var/logs/cron.log 2>&1
+0,15 23 * * *    (the same command)
+# nightly reconciliation, read-only, separate responsibility
+45 23 * * *      cd $B && ops/runbooks/news_reconcile.sh --mode PRODUCTION >> var/logs/cron.log 2>&1
 ```
 
-- At canary and production, `SHADOW` becomes `PRODUCTION`, and `--sources` is the canary tier first (`NSE_ANNOUNCEMENTS,SEBI_RSS,ET_STOCKS_RSS,BS_MARKETS_RSS`).
-- **The gap 23:30–06:00 is a real coverage gap.** The feeds are rolling windows, so on the next start the items first seen are marked by Prajna's discovery time, and nothing is back-dated.
+**Why a supervisor, not one long start:**
+
+- `news_collect.sh` holds `flock -n var/run/news_collect.lock`. While a collector runs, each 15-minute start logs NEWS_COLLECT_SKIP and exits 1. Observed at 20:12 (manual) and 20:15 (cron).
+- **After a crash, kill or reboot**, the next slot (≤ 15 min) starts a new collector. Each source waits out its interval since its last stored poll, so a restart is never impolite.
+- **No retry storm:** failures back off inside the collector (exponential, capped at 30 min, honouring `Retry-After`). BLOCKED / AUTH_FAILED stop that source.
+
+**Environment:**
+
+- cron runs `bash` with a minimal PATH.
+- The runbook `cd`s to `backend/` and calls `.venv/bin/python` explicitly.
+- Settings and flags come from `backend/.env` (pydantic settings); the token reaches the process only through the environment (`--token-from-dotenv`).
+- Verified with an `env -i` cron-equivalent run on 2026-09-29 20:11 IST: it collected in production, and a concurrent second start was refused by the lock.
+
+**Coverage gap 23:30–06:00:**
+
+- The feeds are rolling windows, so items published overnight are knowable from the first morning poll, never back-dated.
+- The Stage 3 news features need a successful poll within 2 h before `as_of` (08:59:59 / 09:08:00). The 06:00 start provides it.
 
 ## 4. Monitoring states (from `prajna news reconcile`)
 
