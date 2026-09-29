@@ -1,119 +1,121 @@
-# News deduplication specification (dedup-v1, with story-v1 and scope-v1)
+# News deduplication specification (dedup-v3, story-v2, scope-v1)
 
 **Code:**
 
 - `backend/app/news/dedup.py` (pure rules)
-- `backend/app/news/stories.py` (story-v1)
+- `backend/app/news/stories.py` (story-v2)
 - `backend/app/news/scope.py` (scope-v1)
-- `backend/app/news/store.py` (where they are recorded)
+- `backend/app/news/collector.py` (`process`: new vs edit)
+- `backend/app/news/store.py` (where decisions are recorded)
+- `backend/app/news/redecide.py` (append-only re-decision)
 
-**Schema:** migration `0015` (`news_decision`).
+**Schema:** migration `0015` (`news_decision`), applied to production 2026-09-29 17:20 IST after a verified backup.
 
-**Tests:** `tests/news/test_dedup.py`, `test_scope.py`, `test_store.py`, `test_store_concurrency.py`.
+**Tests:** `tests/news/test_dedup.py`, `test_redecide.py`, `test_scope.py`, `test_store*.py`, `test_pit_replay.py`, `test_failures_security.py`.
 
 ## Principles
 
-1. **Nothing is deleted or merged.** Every fetched article with a new (source, source_article_id) is stored as its own `news_item`. A duplicate is **marked** (a `news_decision` row), not dropped. Tables are append-only (DB trigger).
-2. **Edits are observations, never overwrites.** A later change to a stored article's title, summary, published time or source-updated time is a `news_item_observation` row, with its own `observed_at`.
-3. **Every decision is explainable.** It records the rule name, the rule version, the related article (for a duplicate), the story, the evidence (JSON) and its own `knowable_at`. A past `as_of` never sees a later decision.
-4. **One decision per stored article and per material edit, per rule version.** This is enforced by two partial unique indexes.
+1. **Nothing is deleted or merged.** Every fetched article with a new (source, source_article_id) is stored as its own `news_item`. A duplicate is **marked** by a `news_decision` row pointing at its original. All news tables are append-only (DB trigger).
+2. **Edits are observations, never overwrites.** Only a **new, different value** is an edit. A field *missing* from one response is not an edit.
+   - Mint's feed alternates between variants with and without `pubDate`: 142 of 148 "edits" on 2026-09-29 were such flaps.
+   - The known value is kept. This fix is in `9e8a94e`.
+3. **Every decision is explainable and point in time.** It records the rule, rule version, original (for a duplicate), story, evidence and its own `knowable_at`.
+   - A corrected rule adds a **new** decision row under a new version, knowable from the correction.
+   - A snapshot before that time still sees what was decided then. `news_pit` takes the latest *knowable* decision.
+4. **One decision per article (and per material edit) per rule version**, enforced by partial unique indexes.
 
 ## Identity levels
 
 | Level | Key | Where enforced |
 |---|---|---|
-| Same article, same source | (source, source_article_id) | DB `uq_news_item_source_id` + `ON CONFLICT DO NOTHING`; poll writers are serialised by advisory locks, so "seen" is decided by one writer at a time |
-| Same raw payload | payload SHA-256 | `raw_payload` primary key (content-addressed archive) |
-| Same-source duplicate under a new ID | canonical URL / title+summary hash / normalised-title hash within 24 h | dedup-v1 → `DUPLICATE_ARTICLE` |
-| Same story, several articles | story-v1 (SAME_URL / SAME_TITLE / SIMILAR, with score and evidence) | `news_story`, `news_story_member` → `STORY_RELATED` |
+| Same article, same source | (source, source_article_id) | DB `uq_news_item_source_id` + `ON CONFLICT DO NOTHING`, with writers serialised by advisory locks |
+| Same raw payload | payload SHA-256 | `raw_payload` primary key |
+| Same-source duplicate under a new ID | canonical URL (tracking parameters, `/amp`, fragments and case removed); for media also title+summary or normalised title; 24 h window | dedup → `DUPLICATE_ARTICLE` |
+| Same story, several articles / sources | story-v2 (below) | `news_story_member` → `STORY_RELATED` |
 
-## Decisions (dedup-v1)
+## Decisions (dedup-v3)
 
 **For a newly stored article, the first rule that applies wins:**
 
-| Order | Decision | Rule | Condition |
+| # | Decision | Rule | Condition |
 |---|---|---|---|
-| 1 | `DUPLICATE_ARTICLE` | `SAME_SOURCE_URL` | the same source stored an article with the same **canonical URL** in the 24 h before it |
-| 2 | `DUPLICATE_ARTICLE` | `SAME_SOURCE_CONTENT` | …with the same **title and summary** (SHA-256 of `title \x1f summary`) |
-| 3 | `DUPLICATE_ARTICLE` | `SAME_SOURCE_TITLE` | …with the same **normalised title**. **Not for exchange / regulator sources:** an NSE title is the filer's name, and many different filings share it (213 same-title repeats on 2026-09-29, all distinct filings) |
-| 4 | `STORY_CORRECTION` | `CORRECTION_MARKER` | it joins an existing story **and** its title carries a correction marker |
-| 5 | `STORY_RELATED` | `STORY_SAME_URL` / `STORY_SAME_TITLE` / `STORY_SIMILAR` | it joins an existing story (the story-v1 evidence is copied) |
-| 6 | `NEW_ARTICLE` | `FIRST_SEEN` | otherwise, including the founder of a new story |
+| 1 | `DUPLICATE_ARTICLE` | `SAME_SOURCE_URL` | the same source stored an article with the same canonical URL in the 24 h before |
+| 2 | `DUPLICATE_ARTICLE` | `SAME_SOURCE_CONTENT` | …same title and summary. **Media only** (v2) |
+| 3 | `DUPLICATE_ARTICLE` | `SAME_SOURCE_TITLE` | …same normalised title. **Media only** |
+| 4 | `STORY_CORRECTION` | `CORRECTION_OF_DOCUMENT` | **exchange / regulator** (v3): the title carries a correction marker and names the same "in the matter of" party as an earlier document of that source within 24 h |
+| 5 | `STORY_CORRECTION` | `CORRECTION_MARKER` | joins an existing story, and the title carries a correction marker |
+| 6 | `STORY_RELATED` | `STORY_SAME_URL` / `_SAME_TITLE` / `_SIMILAR` | joins an existing story |
+| 7 | `NEW_ARTICLE` | `FIRST_SEEN` | otherwise, including a story's founder |
 
-- A duplicate names its original (`related_item_id`: the **earliest** match in the window). A DB check makes that mandatory.
-- Only **earlier** articles can be originals.
-- Articles outside the 24 h window are never duplicates.
+**Why rules 2 and 3 exclude exchange / regulator sources (v2):**
 
-**For an edit (an observation of a stored article):**
+- An NSE title is only the filer's name.
+- **Separate filings** (a different document link) can carry identical boilerplate text: for example several SAST disclosures from one company on the same day.
+- dedup-v1 marked 38 such filings DUPLICATE on 2026-09-29. dedup-v2 decides them STORY_RELATED: one story, separate evidence, each counted.
 
-| Decision | Rule | Condition |
+**For an edit:**
+
+| Decision | Condition |
+|---|---|
+| `STORY_CORRECTION` / `CORRECTION_MARKER` | the title changed and **gained** a correction marker |
+| `STORY_UPDATE` / `MATERIAL_EDIT` | the title, summary or published time changed to a new value |
+| none | only `source_updated_at` changed: stored as an observation, but not material |
+
+**Correction markers:** correction, corrected, corrigendum, erratum, clarification, clarifies, clarified, retract(s/ed), withdrawn, revised, rectification.
+
+## Story identity (story-v2)
+
+A new article joins an existing story only on explicit evidence, recorded with it. It is compared only with members knowable at its discovery.
+
+- `SAME_URL` (score 1.0) or `SAME_TITLE` (0.95). For **exchange / regulator** documents the exact key is title **and** summary: a company's different filings are separate stories, and identical-text filings are one story.
+- **`SIMILAR`** (media only), with J = title-word Jaccard over content words. The first condition that holds applies:
+
+| Word overlap (J) | Time window | Also required |
 |---|---|---|
-| `STORY_CORRECTION` | `CORRECTION_MARKER` | the title changed **and** gained a correction marker it did not have |
-| `STORY_UPDATE` | `MATERIAL_EDIT` | the title, summary or published time changed |
-| *(none)* | — | only `source_updated_at` changed: the observation is stored, but it is not a material change |
+| ≥ 0.25 | 2 h | a shared listed company and the same event category |
+| ≥ 0.35 | 6 h | a shared listed company (v2; was 0.5) |
+| ≥ 0.5 | 6 h | no company on either side, a shared entity and the same category |
+| ≥ 0.45 | 3 h | no company on either side and a shared entity (v2) |
+| ≥ 0.7 | 3 h | nothing else (near-identical wording) |
 
-**Correction markers** (word-bounded, case-insensitive): correction, corrected, corrigendum, erratum, clarification, clarifies, clarified, retract(s/ed), withdrawn, revised, rectification.
+**Replay of the 2-day DRY_RUN data** (2026-09-28/29, 4,781 articles):
 
-## Cross-source stories (story-v1, unchanged)
-
-- An article joins an existing story only on explicit evidence, recorded as `method`, `score` and `evidence`.
-- **Point in time:** it is compared only with members knowable at its own discovery.
-- Exchange and regulator items join **strictly** (the same company and category required), for the same reason as rule 3.
-- **Story assignment is serialised across all sources** by one shared advisory lock, so two sources cannot both found a story for the same event.
+- **Cross-source stories went from 4 to 14.** All 14 were inspected and are the same story, for example:
+  - Aegis Logistics' ₹6,000 cr fund raise (BS ×2, CNBC-TV18);
+  - Honasa block deal (CNBC-TV18, ET, Mint);
+  - "stocks breaking long-held supports" (BL, ET, Mint);
+  - rupee at 96.03 (BL, CNBC-TV18).
+- **A looser 0.25 / 6 h variant was rejected.** It added 6 more groups, but also merged two different "stocks in news" round-ups, and joined HDFC Bank's CEO transition to a separate Jefferies note.
+- **Precision is preferred.** Recall of cross-source grouping stays modest, and that is a known limitation.
 
 ## Market scope (scope-v1)
 
-Each stored article gets **one primary scope and every other applicable scope**. They are stored as a second versioned `news_classification` row (method `SCOPE_RULES`); the secondary scopes go in the assessment evidence.
+Each article gets **one primary scope and every other applicable scope**:
 
-**Rule order:**
+- REGULATORY / CORPORATE / COMPANY / GEOPOLITICAL / CURRENCY / COMMODITY / MACRO / GLOBAL_MARKET / SECTOR / MARKET_WIDE;
+- then low-confidence fallbacks: an exchange filing, or corporate / market vocabulary;
+- else IRRELEVANT.
 
-1. REGULATORY
-2. CORPORATE
-3. COMPANY
-4. GEOPOLITICAL
-5. CURRENCY
-6. COMMODITY
-7. MACRO
-8. GLOBAL_MARKET
-9. SECTOR
-10. MARKET_WIDE
-11. Low-confidence fallbacks (an exchange filing; corporate or market vocabulary)
-12. IRRELEVANT
+**IRRELEVANT items are stored, never dropped.** The scope is a separate classification row (method `SCOPE_RULES`).
 
-The exact rules are in the `scope.py` docstring. **IRRELEVANT items are stored and labelled, never dropped.** Readers that want the event category exclude `SCOPE_RULES` (story index, `news_pit`).
+## Production evidence (2026-09-29)
 
-**Measured on the 1,365 live items of 2026-09-29** (DRY_RUN evidence, rules applied offline):
+**First production day:**
 
-| Scope | Items |
-|---|---|
-| COMPANY | 565 |
-| CORPORATE | 297 |
-| MARKET_WIDE | 268 |
-| COMMODITY | 70 |
-| IRRELEVANT | 56 (4.1%: lifestyle, gadgets, crime, politics) |
-| SECTOR | 36 |
-| MACRO | 21 |
-| GEOPOLITICAL | 17 |
-| GLOBAL_MARKET | 15 |
-| REGULATORY | 14 |
-| CURRENCY | 6 |
+- 2,002 backlog articles at 17:33 IST, then live polling. The per-source counts are in `docs/NEWS_DAILY_RECONCILIATION.md`.
+- **Invariants (production, 20:1x IST):** duplicate source IDs 0; articles without a decision 0; decision / enrichment knowable before its article 0; anything knowable in the future 0.
 
-**Known weakness:** the event classifier leaves 82% of items as category OTHER, so many scopes come from mentions or vocabulary (confidence 0.5–0.6), not from a category (0.8). **Scopes are routing aids, not labels to trade on.**
+**Append-only re-decisions applied in production:**
+
+| Run | Time (IST) | Change |
+|---|---|---|
+| `c49a0f64` | 20:07:51 | NSE 38 DUPLICATE → STORY_RELATED (identical-text separate filings); 354 STORY_RELATED → NEW_ARTICLE (filings grouped only by the filer's name under story-v1) |
+| dedup-v3 run | 20:14:40 | SEBI "Corrigendum to the final order in the matter of Adani Group Companies" NEW_ARTICLE → STORY_CORRECTION, correcting item 1973 ("Final order in the matter of Adani Group Companies…", stored 17:33) |
+
+**Point in time, via the Stage 2 API on production:** before 20:07:51, NSE shows 354 RELATED and 38 DUPLICATE (item 145 is DUPLICATE of 142). After it, item 145 is STORY_RELATED. The v1 rows are kept.
 
 ## Concurrency
 
-- **Serialisation:** the database part of a poll runs under `pg_advisory_xact_lock(news:source:<SRC>)`, then `pg_advisory_xact_lock(news:stories)`. The locks are always taken in that order, so the two cannot deadlock, and they are released at commit or rollback.
-- **Proved on the test database** with real commits on separate connections:
-  - three overlapping polls insert each item once, and exactly one writer wins;
-  - an edit seen by three overlapping polls is recorded once;
-  - a writer that dies mid-transaction leaves no news rows, its run is FAILED, and a retry completes.
-- **Without the locks, those tests fail:** the overlapping writers collide on the `raw_payload` key, and the edits would be double-recorded.
-
-## Example evidence
-
-| Case | Decision |
-|---|---|
-| Mint re-publishes a story with a new GUID but the same URL | `DUPLICATE_ARTICLE` / `SAME_SOURCE_URL`, `duplicate_of` = the first |
-| BS and CNBC-TV18 both report "Brent near $107" | the second is `STORY_RELATED` / `STORY_SIMILAR` |
-| An NSE filing's summary gains "has now informed" | observation + `STORY_UPDATE` / `MATERIAL_EDIT` (`changed: ["summary"]`) |
-| "Correction: Rupee closes at 96.13" joining the rupee story | `STORY_CORRECTION` / `CORRECTION_MARKER` |
+- **Serialisation:** the database part of a poll runs under `pg_advisory_xact_lock(news:source:<SRC>)`, then `(news:stories)`, always in that order.
+- **Tests:** three overlapping writers insert each item once; an edit is recorded once; a writer killed mid-transaction leaves no rows.
+- **In production:** a second collector started while one runs logs NEWS_COLLECT_SKIP (`flock -n`). Cron at 20:15 IST did exactly that while a collector was running.
