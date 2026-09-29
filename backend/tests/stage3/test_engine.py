@@ -838,3 +838,28 @@ class TestPersistScale:
             await run(world)
         assert n["batches"] >= 2 and await stored(world) == 0
         assert await events(world, "RUN_FAILED") == 1
+
+
+class TestMidnightBoundary:
+    async def test_inputs_at_ist_midnight_of_the_snapshot_day(self, world):
+        """IST midnight is 18:30 UTC of the day before, so a UTC-date mistake would
+        misplace these. Snapshot 2026-09-24 PRE_SESSION (as_of 08:59:59 IST).
+        - the snapshot session's own daily bar, knowable 00:00:00 IST of that day
+          (before as_of): never used - the session has not traded (same-session
+          exclusion by market date, not by UTC date);
+        - an FII/DII figure for 09-23 knowable 00:00:00 IST 09-24: visible (value)."""
+        sn = await snap(world)
+        base = by(await E.compute_snapshot(world, sn, [W.A]))
+        midnight = W.ist(2026, 9, 24, 0, 0)
+        assert midnight.astimezone(_dt.UTC).date() == _dt.date(2026, 9, 23)
+        rid, sha = await _facts(world, "facts.midnight")
+        await W.insert_basis(world, sha)
+        await W.insert_bar(world, world.info["ids"], W.A, W.SESSION, 999.0, rid=rid, sha=sha,
+                           knowable=midnight, i=len(W.history()))
+        await _fii(world, _dt.date(2026, 9, 23), 90, 30, midnight)
+        await world.commit()
+        v = by(await E.compute_snapshot(world, sn, [W.A]))
+        for (k, fid), val in base.items():
+            if not fid.startswith("fii_net_cash"):
+                assert v[(k, fid)] == val, fid                       # the 999 bar is not used
+        assert v[("MARKET", "fii_net_cash_1d")] == (60.0, None)
