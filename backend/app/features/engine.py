@@ -20,6 +20,8 @@ one snapshot a mix of before and after states.
 from __future__ import annotations
 
 import datetime as _dt
+import hashlib
+import json
 import time
 from collections import Counter
 from dataclasses import dataclass, field
@@ -34,6 +36,7 @@ from app.core.clock import now
 from app.db.models import FeatureValue
 from app.features import inputs as I
 from app.features import locks
+from app.features import news_features as NF
 from app.features.compute import MISSING_INPUT, NOT_APPLICABLE, Result, miss, ok
 from app.features.compute import context as CX
 from app.features.compute import event as EV
@@ -248,6 +251,49 @@ async def context_rows(s: AsyncSession, snap: Snapshot) -> list[FeatureRow]:
     return rows
 
 
+# ── multi-source news (FEATURE-NEWS-V2; only specs present in the registry) ─────
+NEWS_INPUT = "multi_news"
+
+
+def _news_provenance(rows: list[dict], state: str) -> tuple[str, _dt.datetime | None]:
+    body = [state, *sorted([r["id"], r["knowable_at"].isoformat(), r.get("dedup_decision"),
+                            r.get("scope"), bool(r.get("edited"))] for r in rows)]
+    kn = [r["knowable_at"] for r in rows]
+    return (hashlib.sha256(json.dumps(body, default=str).encode()).hexdigest(),
+            max(kn) if kn else None)
+
+
+async def news_rows(s: AsyncSession, snap: Snapshot, keys: list[str], *,
+                    with_context: bool = True) -> list[FeatureRow]:
+    """Market-wide (CONTEXT, key MARKET) and per-company news features from ONE
+    point-in-time read of the multi-source layer (app.canon.news_pit: PRODUCTION rows
+    knowable before as_of). Nothing is computed unless the registry holds the specs."""
+    specs = [f for f in FEATURES if NEWS_INPUT in f.inputs and snap.kind in f.snapshots]
+    ctx = [f for f in specs if f.scope == "CONTEXT"] if with_context else []
+    co = [f for f in specs if f.scope == "INSTRUMENT"]
+    if not ctx and not co:
+        return []
+    rows, state = await NF.snapshot_inputs(s, snap.as_of)
+    out: list[FeatureRow] = []
+    if ctx:
+        vals = NF.compute(rows, snap.as_of, state)
+        sha, kn = _news_provenance(rows, state)
+        out += [FeatureRow("CONTEXT", MARKET_KEY, f.id, *vals[f.id], sha, kn) for f in ctx]
+    if co:
+        by: dict[str, list[dict]] = {}
+        for r in rows:
+            for k in r["instruments"] or ():
+                by.setdefault(k, []).append(r)
+        for k in keys:
+            if not k.startswith("NSE_EQ|"):
+                continue
+            mine = by.get(k, [])
+            vals = NF.compute_company(mine, snap.as_of, state)
+            sha, kn = _news_provenance(mine, state)
+            out += [FeatureRow("INSTRUMENT", k, f.id, *vals[f.id], sha, kn) for f in co]
+    return out
+
+
 def _index_stale(bars: list, snap: Snapshot) -> bool:
     return bool(bars) and bars[-1].day != snap.previous_session
 
@@ -310,6 +356,7 @@ async def compute_snapshot(s: AsyncSession, snap: Snapshot, keys: list[str], *,
         res.rows.extend(await _sector_rows(s, snap, stock_keys, ret20))
     if with_context:
         res.rows.extend(await context_rows(s, snap))
+    res.rows.extend(await news_rows(s, snap, keys, with_context=with_context))
     for r in res.rows:     # defence in depth: every value is point-in-time
         if r.input_max_knowable_at is not None and r.input_max_knowable_at >= snap.as_of:
             raise I.LookAhead(f"{r.instrument_key} {r.feature_id}: input knowable at/after as_of")

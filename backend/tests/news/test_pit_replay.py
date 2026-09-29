@@ -129,3 +129,43 @@ async def test_shadow_rows_are_never_visible(db_session, unlocked):  # noqa: F81
     clock.freeze(at(8, 40))
     await poll_shadow(db_session, KEY, token=TOKEN, transport=feed(item(*A), item(*B)))
     assert await NP.items(db_session, at(15, 0)) == []
+
+
+async def test_stage3_news_rows_activation_rehearsal(db_session, production, monkeypatch):
+    """The engine's news step on the replayed day, with the v2 specs switched on for this
+    test only: market-wide rows under MARKET, per-company rows for the linked company,
+    real zeros for an unlinked one, STALE -> MISSING_INPUT, and nothing while inactive."""
+    from app.features import engine as E
+    from app.features import registry as R
+    from app.features.snapshots import Snapshot
+
+    async def poll(when, *items):
+        clock.freeze(when)
+        return await poll_shadow(db_session, KEY, token=TOKEN, mode="PRODUCTION",
+                                 transport=feed(*(item(*x) for x in items)))
+    await poll(at(8, 40), A, B)
+    await poll(at(8, 57), A2, B, C)
+    await poll(at(9, 5), A2, B, C, D, D2)
+
+    def snap(hh, mm):
+        return Snapshot(DAY, "PRE_SESSION", at(hh, mm), DAY - _dt.timedelta(days=3))
+
+    jma, other = "NSE_EQ|INE412C01023", "NSE_EQ|INE238A01034"            # linked / not
+    assert await E.news_rows(db_session, snap(9, 10), [jma, other]) == []  # v1: inactive
+    monkeypatch.setattr(E, "FEATURES", R.FEATURES_V1 + R.NEWS_V2_FEATURES)
+    rows = await E.news_rows(db_session, snap(9, 10), [jma, other])
+    ctx = {r.feature_id: r for r in rows if r.scope == "CONTEXT"}
+    co = {(r.instrument_key, r.feature_id): r for r in rows if r.scope == "INSTRUMENT"}
+    assert len(ctx) == 32 and {r.instrument_key for r in ctx.values()} == {"MARKET"}
+    assert ctx["mnews_news_count_24h"].value == 4.0          # A, B, C, D2 (D is a duplicate)
+    assert ctx["mnews_duplicate_count_24h"].value == 1.0
+    assert all(r.input_max_knowable_at < at(9, 10) for r in rows if r.input_max_knowable_at)
+    assert co[(jma, "mnews_company_count_24h")].value == 1.0                   # A only
+    assert co[(other, "mnews_company_count_24h")].value == 0.0                 # a real zero
+    assert co[(other, "mnews_company_time_since_last_s")].reason == "MISSING_INPUT"
+    # deterministic: the same snapshot again gives the same values and provenance
+    again = await E.news_rows(db_session, snap(9, 10), [jma, other])
+    assert [(r.feature_id, r.value, r.reason, r.inputs_sha256) for r in again] == \
+        [(r.feature_id, r.value, r.reason, r.inputs_sha256) for r in rows]
+    stale = await E.news_rows(db_session, snap(12, 0), [jma])                  # last poll 09:05
+    assert {r.reason for r in stale} == {"MISSING_INPUT"}

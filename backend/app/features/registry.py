@@ -50,7 +50,7 @@ CA_KINDS = ("any", "dividend", "split", "bonus")
 PRICE, LIQ, FUND, EVENT, CTX, PRE = ("price_technical", "volume_liquidity", "fundamental",
                                      "event", "market_context", "preopen")
 
-FEATURES: tuple[FeatureSpec, ...] = (
+FEATURES_V1: tuple[FeatureSpec, ...] = (
     # 1. price & technical
     _p("ret_1d", PRICE, "close / close 1 session earlier - 1", proposed=False, lookback=2),
     _p("ret_5d", PRICE, "close / close 5 sessions earlier - 1", proposed=False, lookback=6),
@@ -164,6 +164,67 @@ FEATURES: tuple[FeatureSpec, ...] = (
 )
 
 # Diagram items (stage 3) and what Prajna does with each. Every item appears once.
+# ── multi-source news, decision FEATURE-NEWS-V2 (APPROVED 2026-09-29; ACTIVATED only
+# after a production canary on a real scheduled snapshot). Inputs: app.canon.news_pit
+# (PRODUCTION rows, knowable_at < as_of), de-duplicated (dedup decisions), quality:
+# no proven coverage within 2 h (MISSING / STALE) -> MISSING_INPUT, never 0;
+# INVALID -> MALFORMED_INPUT. Windows are by knowable_at, never publication time.
+_MNEWS_CONTEXT = {
+    "mnews_news_count_1h": "articles knowable in the hour before as_of (all enabled sources)",
+    "mnews_news_count_4h": "articles knowable in the 4 h before as_of",
+    "mnews_news_count_24h": "articles knowable in the 24 h before as_of",
+    "mnews_news_count_3d": "articles knowable in the 3 days before as_of",
+    "mnews_unique_publishers_1h": "distinct publishers, 1 h",
+    "mnews_unique_publishers_24h": "distinct publishers, 24 h",
+    "mnews_breaking_news_count_24h": "assess-v1 breaking articles (observable rules), 24 h",
+    "mnews_high_relevance_news_count_24h": "assess-v1 potential_impact HIGH, 24 h",
+    "mnews_negative_news_count_24h": "headline direction words NEGATIVE (assess-v1), 24 h",
+    "mnews_positive_news_count_24h": "headline direction words POSITIVE (assess-v1), 24 h",
+    "mnews_mixed_news_count_24h": "headline direction words MIXED (assess-v1), 24 h",
+    "mnews_regulatory_news_count_24h": "assess-v1 event group REGULATORY, 24 h",
+    "mnews_corporate_news_count_24h": "assess-v1 event group CORPORATE, 24 h",
+    "mnews_macro_news_count_24h": "assess-v1 event group MACRO, 24 h",
+    "mnews_news_velocity_1h": "count 1 h / mean hourly count of the prior 23 h",
+    "mnews_news_velocity_24h": "count 24 h / mean daily count of the prior 48 h",
+    "mnews_publisher_diversity_24h": "distinct publishers / articles, 24 h",
+    "mnews_story_group_count_24h": "distinct stories (story-v2), 24 h",
+    "mnews_new_story_count_24h": "articles that founded a story, 24 h",
+    "mnews_updated_story_count_24h": "stories joined by a later article, 24 h",
+    "mnews_time_since_last_news_s": "seconds from the latest knowable article to as_of",
+    "mnews_time_since_last_high_relevance_news_s": "seconds since the latest HIGH article",
+    "mnews_market_wide_news_count_24h": "scope-v1 MARKET_WIDE, 24 h",
+    "mnews_macro_scope_news_count_24h": "scope-v1 MACRO, 24 h",
+    "mnews_geopolitical_news_count_24h": "scope-v1 GEOPOLITICAL, 24 h",
+    "mnews_commodity_news_count_24h": "scope-v1 COMMODITY, 24 h",
+    "mnews_currency_news_count_24h": "scope-v1 CURRENCY, 24 h",
+    "mnews_global_market_news_count_24h": "scope-v1 GLOBAL_MARKET, 24 h",
+    "mnews_correction_count_24h": "dedup STORY_CORRECTION articles, 24 h",
+    "mnews_edited_news_count_24h": "articles with a real edit observed before as_of, 24 h",
+    "mnews_duplicate_count_24h": "articles marked DUPLICATE_ARTICLE (never counted above), 24 h",
+    "mnews_unique_sources_24h": "distinct Prajna sources, 24 h",
+}
+_MNEWS_COMPANY = {
+    "mnews_company_count_1h": "articles linked to the company, knowable in the hour before as_of",
+    "mnews_company_count_4h": "linked articles, 4 h",
+    "mnews_company_count_24h": "linked articles, 24 h",
+    "mnews_company_count_3d": "linked articles, 3 days",
+    "mnews_company_story_count_24h": "distinct stories among linked articles, 24 h",
+    "mnews_company_correction_count_24h": "linked STORY_CORRECTION articles, 24 h",
+    "mnews_company_time_since_last_s": "seconds from the latest linked article to as_of "
+                                       "(none in 3 days -> MISSING_INPUT)",
+}
+NEWS_V2_FEATURES: tuple[FeatureSpec, ...] = (
+    *[_p(k, EVENT, v, inputs=("multi_news",), scope="CONTEXT")
+      for k, v in _MNEWS_CONTEXT.items()],
+    *[_p(k, EVENT, v, inputs=("multi_news",)) for k, v in _MNEWS_COMPANY.items()],
+)
+# False until the canary passes; flipping it is the activation (a new registry
+# version and hash; values computed under v1 keep their own hash)
+NEWS_V2_ACTIVE = False
+FEATURES: tuple[FeatureSpec, ...] = FEATURES_V1 + (NEWS_V2_FEATURES if NEWS_V2_ACTIVE else ())
+if NEWS_V2_ACTIVE:
+    VERSION = "features-v2"
+
 DIAGRAM: tuple[dict, ...] = (
     {"group": PRICE, "item": "Returns (1d, 5d, 20d)", "features": ["ret_1d", "ret_5d", "ret_20d"]},
     {"group": PRICE, "item": "Moving averages (SMA, EMA)",

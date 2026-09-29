@@ -201,3 +201,54 @@ async def snapshot(
         s, as_of, instrument_key=instrument_key, since=as_of - _dt.timedelta(days=3),
         limit=ROW_LIMIT)
     return compute(rows, as_of, await coverage_state(s, as_of))
+
+
+# ── Stage 3 wiring (v2 candidate): one read per snapshot, market-wide + per company ──
+COMPANY_FEATURES = (
+    "mnews_company_count_1h",
+    "mnews_company_count_4h",
+    "mnews_company_count_24h",
+    "mnews_company_count_3d",
+    "mnews_company_story_count_24h",
+    "mnews_company_correction_count_24h",
+    "mnews_company_time_since_last_s",
+)
+
+
+def compute_company(rows: list[dict[str, Any]], as_of: _dt.datetime, state: str
+                    ) -> dict[str, Result]:
+    """Pure: one company's news features from ITS linked rows (de-duplicated). The
+    quality state is the snapshot's (coverage is proven market-wide, not per company):
+    with coverage, no linked news is a real 0; without it, MISSING_INPUT."""
+    q = quality(rows, as_of, state)
+    if q == "INVALID":
+        return {f: miss(MALFORMED_INPUT) for f in COMPANY_FEATURES}
+    if q != "NORMAL":
+        return {f: miss(MISSING_INPUT) for f in COMPANY_FEATURES}
+    rows = [r for r in rows if r.get("dedup_decision") != "DUPLICATE_ARTICLE"]
+
+    def win(h: float) -> list[dict]:
+        return [r for r in rows if as_of - r["knowable_at"] <= H * h]
+
+    d24 = win(24)
+    last = max((r["knowable_at"] for r in rows), default=None)
+    return {
+        "mnews_company_count_1h": ok(len(win(1))),
+        "mnews_company_count_4h": ok(len(win(4))),
+        "mnews_company_count_24h": ok(len(d24)),
+        "mnews_company_count_3d": ok(len(win(72))),
+        "mnews_company_story_count_24h": ok(len({r["story_id"] for r in d24
+                                                 if r.get("story_id") is not None})),
+        "mnews_company_correction_count_24h": ok(sum(
+            1 for r in d24 if r.get("dedup_decision") == "STORY_CORRECTION")),
+        "mnews_company_time_since_last_s": (ok((as_of - last).total_seconds()) if last
+                                            else miss(MISSING_INPUT)),
+    }
+
+
+async def snapshot_inputs(s: AsyncSession, as_of: _dt.datetime
+                          ) -> tuple[list[dict[str, Any]], str]:
+    """Every PRODUCTION multi-source row of the 3 days before as_of (one read) and the
+    coverage state at as_of."""
+    rows = await NP.items(s, as_of, since=as_of - _dt.timedelta(days=3), limit=ROW_LIMIT)
+    return rows, await coverage_state(s, as_of)
