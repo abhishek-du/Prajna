@@ -100,8 +100,11 @@ async def test_shadow_poll_writes_items_knowable_at_discovery(db_session, unlock
     assert links["EXACT_SYMBOL"] >= 2 and links["UNRESOLVED"] >= 1
     assert (await q(db_session, """select count(*) from news_entity_link
         where method = 'UNRESOLVED' and reason is null"""))[0][0] == 0
-    cls = await q(db_session, "select count(*), min(knowable_at) from news_classification")
-    assert cls[0][0] == r["inserted"] and cls[0][1] >= T0
+    # one event category per item, plus one market scope (scope-v1) per item
+    cls = await q(db_session, """select count(*) filter (where method <> 'SCOPE_RULES'),
+        count(*) filter (where method = 'SCOPE_RULES'), min(knowable_at)
+        from news_classification""")
+    assert cls[0][0] == cls[0][1] == r["inserted"] and cls[0][2] >= T0
     run = await q(db_session, """select status, source from ingest_run where
         stream = 'news.NSE_ANNOUNCEMENTS'""")
     assert run == [("COMPLETE", KEY)]

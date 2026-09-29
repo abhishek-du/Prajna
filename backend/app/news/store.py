@@ -108,7 +108,8 @@ async def _stories(s: AsyncSession, at: _dt.datetime) -> ST.StoryIndex:
         select m.story_id, i.source, i.source_article_id, i.title, i.canonical_url,
                i.title_norm_hash, coalesce(i.published_at, i.discovered_at) as t_ref, m.knowable_at,
                (select c.category from news_classification c where c.item_id = i.id
-                  and c.knowable_at < :at order by c.knowable_at desc, c.id desc limit 1) as cat,
+                  and c.method <> 'SCOPE_RULES' and c.knowable_at < :at
+                  order by c.knowable_at desc, c.id desc limit 1) as cat,
                array(select l.instrument_key from news_entity_link l where l.item_id = i.id
                   and l.instrument_key is not null and l.knowable_at < :at) as cos,
                array(select e.entity_type || ':' || e.entity_id from news_entity_mention e
@@ -205,6 +206,11 @@ async def poll_shadow(s: AsyncSession, source_key: str, *, token: str | None,
             await s.execute(insert(NewsClassification).values(
                 item_id=iid, category=c.category, confidence=c.confidence, method=c.method,
                 version=c.version, classified_at=t, knowable_at=t))
+            if d.scope is not None:               # scope-v1: a second, versioned classification
+                sc = d.scope
+                await s.execute(insert(NewsClassification).values(
+                    item_id=iid, category=sc.primary, confidence=sc.confidence,
+                    method=sc.method, version=sc.version, classified_at=t, knowable_at=t))
             for ln in d.links:
                 await s.execute(insert(NewsEntityLink).values(
                     item_id=iid, instrument_key=ln.instrument_key, method=ln.method,
@@ -248,7 +254,11 @@ async def poll_shadow(s: AsyncSession, source_key: str, *, token: str | None,
                     item_id=iid, basis=a.basis, market_scope=a.market_scope,
                     potential_impact=a.potential_impact, impact_direction=a.impact_direction,
                     is_breaking=a.is_breaking, breaking_reason=a.breaking_reason,
-                    evidence={**a.evidence, "event_group": a.event_group},
+                    evidence={**a.evidence, "event_group": a.event_group,
+                              **({"scope": {"primary": d.scope.primary,
+                                            "secondary": list(d.scope.secondary),
+                                            "version": d.scope.version, **d.scope.evidence}}
+                                 if d.scope is not None else {})},
                     rule_version=a.version, assessed_at=t, knowable_at=t))
         if o.changed:
             ids = dict((await s.execute(select(NewsItem.source_article_id, NewsItem.id).where(

@@ -35,6 +35,7 @@ from app.news import assess as AS
 from app.news import enrich as EN
 from app.news import entities as X
 from app.news import http as H
+from app.news import scope as SC
 from app.news import stories as ST
 from app.news.model import ItemObs, canonical_url, title_hash
 from app.news.sources import SOURCES, Source
@@ -66,6 +67,7 @@ class Discovery:
     story_id: str | None = None
     story: ST.Assignment | None = None
     assessment: AS.Assessment | None = None
+    scope: SC.Scope | None = None
 
     @property
     def latency_class(self) -> str:
@@ -184,6 +186,8 @@ def _enrich_story_and_assess(d: Discovery, src: Source, stories: ST.StoryIndex |
             confirmed = sorted({c.source for c in stories.members if c.story_id == a.story_id
                                 and c.source != src.key
                                 and d.discovered_at - first <= _dt.timedelta(minutes=30)})
+    d.scope = SC.scope(title=it.title, category=d.classification.category, companies=companies,
+                       mentions=ments, source_kind=src.enrich)
     d.assessment = AS.assess(it.title, d.classification.category, companies=companies,
                              mentions=ments, backlog=d.backlog, published_at=it.published_at,
                              discovered_at=d.discovered_at,
@@ -290,6 +294,7 @@ class DryRunRecorder:
                           "story_id": d.story_id,
                           "story": asdict(d.story) if d.story else None,
                           "assessment": asdict(d.assessment) if d.assessment else None,
+                          "scope": asdict(d.scope) if d.scope else None,
                           "source_priority": self.src.priority,
                           "terms_status": self.src.compliance,
                           "content_fetch_status": "NOT_AVAILABLE",

@@ -7,8 +7,11 @@ Visibility at `as_of` (strict, like app.canon.pit):
                 first observation (a later edit never leaks backwards)
   enrichments   each classification / entity link / mention / story membership /
                 assessment / AI row only when ITS knowable_at < as_of: an article that
-                joins a story later is not in that story for an earlier snapshot
-  Upstox        optional projection of the Stage 1 Upstox news (include_upstox), with
+                joins a story later is not in that story for an earlier snapshot;
+                the event category (enrich) and the market scope (scope-v1, method
+                SCOPE_RULES) are separate classification rows and separate columns;
+                dedup_decision (dedup-v1) likewise only once knowable
+  Upstox       optional projection of the Stage 1 Upstox news (include_upstox), with
                 knowable_at = the article's FIRST FETCH (news_article.fetched_at),
                 never its published_at; instrument links from news_instrument
                 (knowable at their own fetch)
@@ -33,6 +36,8 @@ select i.id, i.source, i.source_article_id, i.url, i.canonical_url, i.publisher,
        i.discovered_at, i.knowable_at, i.processed_at, i.backlog, i.source_priority,
        i.terms_status, i.content_fetch_status, (o.id is not null) as edited,
        c.category, c.confidence as category_confidence, c.method as category_method,
+       sc.category as scope, sc.confidence as scope_confidence, sc.version as scope_version,
+       dd.decision as dedup_decision, dd.related_item_id as duplicate_of,
        a.market_scope, a.potential_impact, a.impact_direction, a.is_breaking, a.breaking_reason,
        a.rule_version as assessment_version, a.evidence as assessment_evidence,
        sm.story_id, sm.method as story_method, sm.score as story_score,
@@ -49,7 +54,16 @@ left join lateral (select * from news_item_observation x where x.item_id = i.id
                    and x.observed_at < :as_of order by x.observed_at desc, x.id desc limit 1) o
        on true
 left join lateral (select * from news_classification x where x.item_id = i.id
+                   and x.method <> 'SCOPE_RULES'
                    and x.knowable_at < :as_of order by x.knowable_at desc, x.id desc limit 1) c
+       on true
+left join lateral (select * from news_classification x where x.item_id = i.id
+                   and x.method = 'SCOPE_RULES'
+                   and x.knowable_at < :as_of order by x.knowable_at desc, x.id desc limit 1) sc
+       on true
+left join lateral (select * from news_decision x where x.item_id = i.id
+                   and x.observation_id is null
+                   and x.knowable_at < :as_of order by x.knowable_at desc, x.id desc limit 1) dd
        on true
 left join lateral (select * from news_assessment x where x.item_id = i.id and x.basis = 'RULES'
                    and x.knowable_at < :as_of order by x.knowable_at desc, x.id desc limit 1) a
@@ -72,6 +86,8 @@ select -a.id as id, 'UPSTOX' as source, a.id::text as source_article_id, a.url,
        null::boolean as backlog, 2 as source_priority, 'APPROVED' as terms_status,
        'NOT_AVAILABLE' as content_fetch_status, false as edited,
        null as category, null as category_confidence, null as category_method,
+       null as scope, null as scope_confidence, null as scope_version,
+       null as dedup_decision, null::bigint as duplicate_of,
        null as market_scope, null as potential_impact, null as impact_direction,
        null::boolean as is_breaking, null as breaking_reason, null as assessment_version,
        null::jsonb as assessment_evidence, null::bigint as story_id, null as story_method,
@@ -89,7 +105,8 @@ def _where(f: dict[str, Any]) -> tuple[str, dict[str, Any]]:
     clauses, params = [], {}
     simple = {"source": "source", "category": "category", "market_scope": "market_scope",
               "potential_impact": "potential_impact", "impact_direction": "impact_direction",
-              "publisher": "publisher", "story_id": "story_id"}
+              "publisher": "publisher", "story_id": "story_id", "scope": "scope",
+              "dedup_decision": "dedup_decision"}
     for k, col in simple.items():
         if f.get(k) is not None:
             clauses.append(f"{col} = :{k}")
