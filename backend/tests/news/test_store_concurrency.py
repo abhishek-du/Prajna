@@ -25,7 +25,7 @@ from tests.news.test_store import KEY, TOKEN, feed, unlocked  # noqa: F401 - fix
 
 pytestmark = [pytest.mark.db, pytest.mark.integration]
 
-ITEM_TABLES = ("news_story_member", "news_assessment", "news_entity_mention",
+ITEM_TABLES = ("news_decision", "news_story_member", "news_assessment", "news_entity_mention",
                "news_entity_link", "news_classification", "news_item_observation",
                "news_content", "news_ai_enrichment")
 EDITED = BODY.replace(b"Jullundur Motor Agency (Delhi) Limited has informed",

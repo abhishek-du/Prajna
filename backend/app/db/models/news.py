@@ -355,3 +355,45 @@ class NewsAIEnrichment(Base):
         UniqueConstraint("item_id", "model_id", "prompt_version", "input_sha256",
                          name="uq_news_ai"),
     )
+
+
+class NewsDecision(Base):
+    """Why an article or an edit was classified NEW / DUPLICATE / RELATED / UPDATE /
+    CORRECTION (rule, version, evidence). Marks only: nothing is ever deleted."""
+
+    __tablename__ = "news_decision"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    item_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("news_item.id", ondelete="RESTRICT"), nullable=False)
+    observation_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("news_item_observation.id", ondelete="RESTRICT"))
+    poll_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("news_poll.id", ondelete="RESTRICT"), nullable=False)
+    decision: Mapped[str] = mapped_column(String(20), nullable=False)
+    rule: Mapped[str] = mapped_column(String(32), nullable=False)
+    rule_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    related_item_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("news_item.id", ondelete="RESTRICT"))
+    story_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("news_story.id", ondelete="RESTRICT"))
+    evidence: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    decided_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+    knowable_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("decision in ('NEW_ARTICLE','DUPLICATE_ARTICLE','STORY_RELATED',"
+                        "'STORY_UPDATE','STORY_CORRECTION')", name="ck_news_decision_kind"),
+        CheckConstraint("observation_id is null or decision in ('STORY_UPDATE',"
+                        "'STORY_CORRECTION')", name="ck_news_decision_observation"),
+        CheckConstraint("decision <> 'STORY_UPDATE' or observation_id is not null",
+                        name="ck_news_decision_update"),
+        CheckConstraint("decision <> 'DUPLICATE_ARTICLE' or related_item_id is not null",
+                        name="ck_news_decision_duplicate_of"),
+        CheckConstraint("knowable_at >= decided_at", name="ck_news_decision_knowable"),
+        Index("uq_news_decision_item", "item_id", "rule_version", unique=True,
+              postgresql_where=text("observation_id is null")),
+        Index("uq_news_decision_observation", "observation_id", "rule_version", unique=True,
+              postgresql_where=text("observation_id is not null")),
+        Index("ix_news_decision_poll", "poll_id"),
+    )
