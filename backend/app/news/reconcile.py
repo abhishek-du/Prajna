@@ -13,7 +13,10 @@ Latency (seconds, LIVE items only - backlog excluded; never claimed "first"):
   A negative detection latency is CLOCK_SKEW: counted, never averaged.
 Invariants (each must be 0): duplicate (source, source_article_id); an item
 knowable before it was discovered; a stored item without a dedup decision;
-a decision knowable before it was made.
+a decision knowable before it was made or before its article; an enrichment
+(class, link, story, assessment) knowable before its article; anything
+knowable in the future. Decisions are counted as the CURRENT decision per
+article (an append-only re-decision supersedes; both rows stay).
 Monitoring states per source (several can apply; the first listed is primary):
   SOURCE_DOWN       the latest poll was BLOCKED / AUTH_FAILED, or no successful
                     poll for 3x the expected interval while polls continue
@@ -143,6 +146,21 @@ async def reconcile(s: AsyncSession, day: _dt.date, mode: str,
              and d.observation_id is null)""", a=start, b=end))[0][0],
         "decision_knowable_before_made": (await _rows(
             s, "select count(*) from news_decision where knowable_at < decided_at"))[0][0],
+        "decision_knowable_before_item": (await _rows(s, """select count(*) from news_decision d
+            join news_item i on i.id = d.item_id where d.knowable_at < i.knowable_at"""))[0][0],
+        "enrichment_knowable_before_item": (await _rows(s, """select
+            (select count(*) from news_classification c join news_item i on i.id = c.item_id
+             where c.knowable_at < i.knowable_at)
+          + (select count(*) from news_entity_link c join news_item i on i.id = c.item_id
+             where c.knowable_at < i.knowable_at)
+          + (select count(*) from news_story_member c join news_item i on i.id = c.item_id
+             where c.knowable_at < i.knowable_at)
+          + (select count(*) from news_assessment c join news_item i on i.id = c.item_id
+             where c.knowable_at < i.knowable_at)"""))[0][0],
+        # future data: nothing may be knowable after the moment it was written
+        "knowable_in_the_future": (await _rows(s, """select
+            (select count(*) from news_item where knowable_at > now())
+          + (select count(*) from news_decision where knowable_at > now())"""))[0][0],
     }
     out["invariants"] = {**inv, "ok": all(v == 0 for v in inv.values())}
     states: dict[str, list[str]] = {}
@@ -159,9 +177,11 @@ async def reconcile(s: AsyncSession, day: _dt.date, mode: str,
         kw = {"s": key, "m": mode, "a": start, "b": end}
         stored = (await _rows(s, f"select count(*), count(*) filter (where not i.backlog) {items}",
                               **kw))[0]
-        decisions = dict(await _rows(s, f"""select d.decision, count(*) from news_decision d
+        # the CURRENT decision per article (a later re-decision supersedes, both stay stored)
+        decisions = dict(await _rows(s, f"""select decision, count(*) from (
+            select distinct on (d.item_id) d.decision from news_decision d
             where d.observation_id is null and d.item_id in (select i.id {items})
-            group by 1""", **kw))
+            order by d.item_id, d.knowable_at desc, d.id desc) x group by 1""", **kw))
         edits = (await _rows(s, """select count(*), count(d.id) from news_item_observation o
             join news_poll p on p.id = o.poll_id and p.mode = :m
             left join news_decision d on d.observation_id = o.id

@@ -65,3 +65,8 @@ async def test_append_only_and_idempotent(db_session, unlocked, monkeypatch):  #
                                              ("STORY_RELATED", "dedup-v2")]   # old row kept
     assert rows[1][2] == T0 + _dt.timedelta(hours=1)          # knowable from the re-decision
     assert (await RD.redecide(s, token=TOKEN, commit=True))["changes"] == 0   # idempotent
+    # the reconciliation counts the CURRENT decision per article, not every version
+    from app.news import reconcile as NR
+    rep = await NR.reconcile(s, T0.date(), "SHADOW", at=T0 + _dt.timedelta(hours=2))
+    assert rep["sources"][KEY]["decisions"] == {"NEW_ARTICLE": 1, "STORY_RELATED": 1}
+    assert rep["invariants"]["ok"], rep["invariants"]
