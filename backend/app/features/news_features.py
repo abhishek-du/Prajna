@@ -14,6 +14,17 @@ Every input comes from app.canon.news_pit at the snapshot instant (knowable_at
 < as_of; enrichments by their own knowable_at). MISSING_INPUT - never 0 - when
 news coverage is not proven at as_of: no PRODUCTION news source had a
 successful poll within its staleness window. With coverage, 0 is a real zero.
+
+v2 candidate (built and tested; registered only at activation):
+  * de-duplicated: an article marked DUPLICATE_ARTICLE (dedup-v1) is never
+    counted (it is counted once, as mnews_duplicate_count_24h)
+  * scope-v1 counts (market-wide, macro, geopolitical, commodity, currency,
+    global market), corrections, edited articles, source diversity
+  * quality state per snapshot (quality()): NORMAL (coverage proven); MISSING
+    (no PRODUCTION poll ever before as_of) and STALE (polls exist, none
+    succeeded within COVERAGE_WINDOW) -> every feature MISSING_INPUT; INVALID
+    (a row not knowable before as_of, or the reader's row limit reached, so a
+    count could be silently short) -> every feature MALFORMED_INPUT
 """
 
 from __future__ import annotations
@@ -25,9 +36,10 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.canon import news_pit as NP
-from app.features.compute import MISSING_INPUT, Result, miss, ok
+from app.features.compute import MALFORMED_INPUT, MISSING_INPUT, Result, miss, ok
 
-VERSION = "news-features-v0-proposed"
+VERSION = "news-features-v2-candidate"
+ROW_LIMIT = 50000
 DECISION = {
     "FEATURE-NEWS-V2": {
         "status": "APPROVED",
@@ -63,28 +75,57 @@ FEATURES = (
     "mnews_updated_story_count_24h",
     "mnews_time_since_last_news_s",
     "mnews_time_since_last_high_relevance_news_s",
+    # v2
+    "mnews_market_wide_news_count_24h",
+    "mnews_macro_scope_news_count_24h",
+    "mnews_geopolitical_news_count_24h",
+    "mnews_commodity_news_count_24h",
+    "mnews_currency_news_count_24h",
+    "mnews_global_market_news_count_24h",
+    "mnews_correction_count_24h",
+    "mnews_edited_news_count_24h",
+    "mnews_duplicate_count_24h",
+    "mnews_unique_sources_24h",
 )
+_SCOPE = {"MARKET_WIDE": "market_wide", "MACRO": "macro_scope", "GEOPOLITICAL": "geopolitical",
+          "COMMODITY": "commodity", "CURRENCY": "currency", "GLOBAL_MARKET": "global_market"}
 _GROUP = {"REGULATORY": "regulatory", "CORPORATE": "corporate", "MACRO": "macro"}
 
 
 async def coverage(s: AsyncSession, as_of: _dt.datetime) -> bool:
     """A PRODUCTION news poll succeeded shortly before as_of (so absence means none)."""
-    return bool(
-        (
-            await s.execute(
-                text("""select 1 from news_poll where mode = 'PRODUCTION'
-        and outcome in ('OK', 'NOT_MODIFIED') and finished_at < :a and finished_at >= :b
-        limit 1"""),
-                {"a": as_of, "b": as_of - COVERAGE_WINDOW},
-            )
-        ).first()
-    )
+    return await coverage_state(s, as_of) == "NORMAL"
 
 
-def compute(rows: list[dict[str, Any]], as_of: _dt.datetime, covered: bool) -> dict[str, Result]:
-    """Pure: the feature values from the items visible at as_of."""
-    if not covered:
+async def coverage_state(s: AsyncSession, as_of: _dt.datetime) -> str:
+    """NORMAL / STALE (PRODUCTION polls exist before as_of, none succeeded within the
+    window) / MISSING (no PRODUCTION poll before as_of at all)."""
+    r = (await s.execute(text("""select
+        bool_or(outcome in ('OK', 'NOT_MODIFIED') and finished_at >= :b), count(*)
+        from news_poll where mode = 'PRODUCTION' and finished_at < :a"""),
+        {"a": as_of, "b": as_of - COVERAGE_WINDOW})).one()
+    return "NORMAL" if r[0] else ("STALE" if r[1] else "MISSING")
+
+
+def quality(rows: list[dict[str, Any]], as_of: _dt.datetime, state: str) -> str:
+    """The snapshot's quality: INVALID beats the coverage state."""
+    if len(rows) >= ROW_LIMIT or any(r["knowable_at"] >= as_of for r in rows):
+        return "INVALID"
+    return state
+
+
+def compute(rows: list[dict[str, Any]], as_of: _dt.datetime, covered: bool | str
+            ) -> dict[str, Result]:
+    """Pure: the feature values from the items visible at as_of. `covered`: a bool
+    (v0 callers) or the coverage state (NORMAL / STALE / MISSING)."""
+    state = ("NORMAL" if covered else "MISSING") if isinstance(covered, bool) else covered
+    q = quality(rows, as_of, state)
+    if q == "INVALID":
+        return {f: miss(MALFORMED_INPUT) for f in FEATURES}
+    if q != "NORMAL":
         return {f: miss(MISSING_INPUT) for f in FEATURES}
+    dups = [r for r in rows if r.get("dedup_decision") == "DUPLICATE_ARTICLE"]
+    rows = [r for r in rows if r.get("dedup_decision") != "DUPLICATE_ARTICLE"]
 
     def win(h: float) -> list[dict]:
         return [r for r in rows if as_of - r["knowable_at"] <= H * h]
@@ -141,6 +182,14 @@ def compute(rows: list[dict[str, Any]], as_of: _dt.datetime, covered: bool) -> d
     out["mnews_time_since_last_high_relevance_news_s"] = (
         ok((as_of - hi).total_seconds()) if hi else miss(MISSING_INPUT)
     )
+    for sc, name in _SCOPE.items():
+        out[f"mnews_{name}_news_count_24h"] = ok(sum(1 for r in d24 if r.get("scope") == sc))
+    out["mnews_correction_count_24h"] = ok(
+        sum(1 for r in d24 if r.get("dedup_decision") == "STORY_CORRECTION"))
+    out["mnews_edited_news_count_24h"] = ok(sum(1 for r in d24 if r.get("edited")))
+    out["mnews_duplicate_count_24h"] = ok(
+        sum(1 for r in dups if as_of - r["knowable_at"] <= H * 24))
+    out["mnews_unique_sources_24h"] = ok(len({r.get("source") for r in d24}))
     return out
 
 
@@ -149,6 +198,6 @@ async def snapshot(
 ) -> dict[str, Result]:
     """Features for one instrument (or market-wide when instrument_key is None)."""
     rows = await NP.items(
-        s, as_of, instrument_key=instrument_key, since=as_of - _dt.timedelta(days=3), limit=5000
-    )
-    return compute(rows, as_of, await coverage(s, as_of))
+        s, as_of, instrument_key=instrument_key, since=as_of - _dt.timedelta(days=3),
+        limit=ROW_LIMIT)
+    return compute(rows, as_of, await coverage_state(s, as_of))

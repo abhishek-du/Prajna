@@ -79,3 +79,49 @@ def test_not_in_the_approved_stage3_registry():
     # APPROVED 2026-09-29 with activation only after a production canary day: until
     # then no mnews_* feature is in the registry
     assert NF.DECISION["FEATURE-NEWS-V2"]["status"] == "APPROVED"
+
+
+# ── v2 candidate ─────────────────────────────────────────────────────────────
+def v2(minutes_ago, *, decision="NEW_ARTICLE", scope="MACRO", source="ET_STOCKS_RSS",
+       edited=False, **kw):
+    return {**row(minutes_ago, **kw), "dedup_decision": decision, "scope": scope,
+            "source": source, "edited": edited}
+
+
+def test_v2_duplicates_are_never_counted():
+    rows = [v2(10), v2(20, decision="DUPLICATE_ARTICLE"), v2(30, decision="STORY_RELATED")]
+    g = NF.compute(rows, AS_OF, covered=True)
+    assert g["mnews_news_count_1h"] == (2.0, None)                    # the duplicate is out
+    assert g["mnews_duplicate_count_24h"] == (1.0, None)
+
+
+def test_v2_scope_correction_edit_and_source_counts():
+    rows = [v2(10, scope="GEOPOLITICAL", source="CNBCTV18_NEWS_SITEMAP"),
+            v2(20, scope="CURRENCY", decision="STORY_CORRECTION"),
+            v2(30, scope="MARKET_WIDE", edited=True),
+            v2(40, scope="IRRELEVANT")]
+    g = NF.compute(rows, AS_OF, covered=True)
+    assert g["mnews_geopolitical_news_count_24h"] == (1.0, None)
+    assert g["mnews_currency_news_count_24h"] == (1.0, None)
+    assert g["mnews_market_wide_news_count_24h"] == (1.0, None)
+    assert g["mnews_commodity_news_count_24h"] == (0.0, None)            # a real zero
+    assert g["mnews_correction_count_24h"] == (1.0, None)
+    assert g["mnews_edited_news_count_24h"] == (1.0, None)
+    assert g["mnews_unique_sources_24h"] == (2.0, None)
+
+
+def test_v2_quality_states():
+    assert NF.quality([], AS_OF, "NORMAL") == "NORMAL"
+    for state in ("MISSING", "STALE"):                                 # never a false zero
+        got = NF.compute([v2(10)], AS_OF, covered=state)
+        assert all(v == (None, "MISSING_INPUT") for v in got.values())
+    future = [v2(-1)]                                                   # knowable AFTER as_of
+    assert NF.quality(future, AS_OF, "NORMAL") == "INVALID"
+    assert all(v == (None, "MALFORMED_INPUT")
+               for v in NF.compute(future, AS_OF, covered=True).values())
+
+
+def test_v2_a_truncated_read_is_invalid_not_a_short_count(monkeypatch):
+    monkeypatch.setattr(NF, "ROW_LIMIT", 3)
+    got = NF.compute([v2(1), v2(2), v2(3)], AS_OF, covered=True)
+    assert got["mnews_news_count_1h"] == (None, "MALFORMED_INPUT")

@@ -106,6 +106,18 @@ async def test_a_news_day_replayed_at_eight_instants(db_session, production):
     assert len(f) == 1 and f[0]["knowable_at"] == at(11, 0)    # never back-dated to 06:00
     assert len(v) == 6 and titles(await view(15, 0)) == titles(v)
 
+    # the Stage 3 news v2 candidate on the same day: duplicates never counted, and a
+    # collector silent for more than 2 h makes every feature MISSING_INPUT, not 0
+    from app.features import news_features as NF
+    g = await NF.snapshot(db_session, at(12, 0), None)
+    assert g["mnews_news_count_24h"] == (5.0, None)
+    assert g["mnews_duplicate_count_24h"] == (1.0, None)
+    assert await NF.coverage_state(db_session, at(12, 0)) == "NORMAL"
+    assert await NF.coverage_state(db_session, at(15, 0)) == "STALE"      # last poll 11:00
+    assert await NF.coverage_state(db_session, at(8, 30)) == "MISSING"    # before any poll
+    g = await NF.snapshot(db_session, at(15, 0), None)
+    assert set(g.values()) == {(None, "MISSING_INPUT")}
+
 
 async def test_shadow_rows_are_never_visible(db_session, unlocked):  # noqa: F811
     clock.freeze(at(8, 40))
