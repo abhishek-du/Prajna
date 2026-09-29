@@ -353,7 +353,8 @@ def _article(r: dict, at: _dt.datetime) -> S.NewsArticle:
            if r["published_at"] and not r["backlog"] and r["backlog"] is not None else None)
     return S.NewsArticle(
         id=r["id"], source=r["source"],
-        source_fact={"title": r["title"], "summary": r["summary"], "publisher": r["publisher"],
+        source_fact={"source_article_id": r["source_article_id"],
+                     "title": r["title"], "summary": r["summary"], "publisher": r["publisher"],
                      "author": r["author"], "url": r["url"], "published_at": r["published_at"],
                      "published_at_raw": r["published_at_raw"],
                      "updated_at": r["source_updated_at"], "category_raw": r["category_raw"]},
@@ -373,6 +374,10 @@ def _article(r: dict, at: _dt.datetime) -> S.NewsArticle:
                  "breaking_reason": r["breaking_reason"],
                  "assessment_version": r["assessment_version"],
                  "event_group": (r["assessment_evidence"] or {}).get("event_group"),
+                 "scope": r.get("scope"), "scope_confidence": _f(r.get("scope_confidence")),
+                 "scope_version": r.get("scope_version"),
+                 "dedup": None if r.get("dedup_decision") is None else {
+                     "decision": r["dedup_decision"], "duplicate_of": r.get("duplicate_of")},
                  "instruments": r["instruments"] or [], "entities": r["entities"] or [],
                  "story": None if r["story_id"] is None else {
                      "story_id": r["story_id"], "method": r["story_method"],
@@ -396,6 +401,7 @@ async def news_articles(
         potential_impact: str | None = None, impact_direction: str | None = None,
         breaking: bool | None = None, story_id: int | None = None,
         since: _dt.datetime | None = None, include_upstox: bool = False,
+        scope: str | None = None, dedup_decision: str | None = None,
         limit: Annotated[int, Query(ge=1, le=1000)] = 100,
         offset: Annotated[int, Query(ge=0)] = 0):
     """Multi-source news visible at as_of, newest knowable first, with filters
@@ -408,7 +414,8 @@ async def news_articles(
                           instrument_key=instrument_key, entity=entity, category=category,
                           market_scope=market_scope, potential_impact=potential_impact,
                           impact_direction=impact_direction, breaking=breaking,
-                          story_id=story_id, since=since)
+                          story_id=story_id, since=since, scope=scope,
+                          dedup_decision=dedup_decision)
     return S.Envelope(data=[_article(r, at) for r in rows], meta=_meta(at, True, *NEWS_NOTES))
 
 

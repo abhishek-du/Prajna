@@ -261,12 +261,14 @@ class NewsArticle(BaseModel):
     (optional AI output: never a fact)."""
     id: int = Field(description="negative ids are Upstox articles (news_article.id)")
     source: str
-    source_fact: dict[str, Any] = Field(description="title, summary, publisher, url, "
+    source_fact: dict[str, Any] = Field(description="source_article_id, title, summary, "
+                                        "publisher, url, "
                                         "published_at, updated_at, category_raw")
     observation: dict[str, Any] = Field(description="first_seen_at, knowable_at, processed_at, "
                                         "backlog, edited, latency_class, discovery_latency_s, "
                                         "seconds_since_first_observation")
-    derived: dict[str, Any] = Field(description="category, market_scope, potential_impact, "
+    derived: dict[str, Any] = Field(description="category, scope (scope-v1), dedup (decision, "
+                                    "duplicate_of), market_scope, potential_impact, "
                                     "impact_direction, is_breaking, breaking_reason, "
                                     "instruments, entities, story - with rule versions")
     ai_enrichment: dict[str, Any] | None = Field(None, description="AI output with model_id "

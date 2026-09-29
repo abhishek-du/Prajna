@@ -84,3 +84,18 @@ async def test_sources_report_locks_and_are_read_only(api):
 async def test_existing_upstox_endpoint_is_unchanged(api):
     r = (await api.get("/v1/news")).json()
     assert r["data"] == [] and "vendor serves 7 days" in r["meta"]["notes"][0]
+
+
+async def test_articles_carry_article_id_scope_and_dedup_decision(api):
+    got = (await api.get(f"/v1/news/articles?as_of={q(T(10, 30))}")).json()["data"]
+    et = next(a for a in got if a["source"] == "ET_STOCKS_RSS")
+    assert et["source_fact"]["source_article_id"]
+    assert et["derived"]["scope"] and et["derived"]["scope_version"] == "scope-v1"
+    assert et["derived"]["dedup"]["decision"] in ("NEW_ARTICLE", "STORY_RELATED")
+    # the filters apply after the point-in-time cut
+    rel = (await api.get(f"/v1/news/articles?as_of={q(T(10, 30))}"
+                         "&dedup_decision=STORY_RELATED")).json()["data"]
+    assert [a["source"] for a in rel] == ["MINT_MARKETS_RSS"]            # joined ET's story
+    sc = (await api.get(f"/v1/news/articles?as_of={q(T(10, 30))}"
+                        f"&scope={et['derived']['scope']}")).json()["data"]
+    assert et["id"] in [a["id"] for a in sc]
