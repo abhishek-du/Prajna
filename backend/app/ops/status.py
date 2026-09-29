@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import fcntl
+import json
 import pathlib
 import re
 import shutil
@@ -100,4 +101,19 @@ async def snapshot(s: AsyncSession, base: pathlib.Path) -> dict[str, Any]:
         "upstox_token": tok,
         "disk_free_gb": round(disk.free / 1e9, 1),
         "recent_markers": recent_markers(base / "var" / "logs" / "daily"),
+        "news_collector": news_health(base / "var" / "status" / "news_health.json", at),
     }
+
+
+def news_health(path: pathlib.Path, at: _dt.datetime) -> dict[str, Any]:
+    """The multi-source news monitoring states written by `prajna news reconcile`
+    (var/status/news_health.json); NOT_RUN until the collector is reconciled."""
+    try:
+        d = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return {"status": "NOT_RUN", "note": "no news reconciliation yet"}
+    gen = _dt.datetime.fromisoformat(d["generated_at"])
+    return {"generated_at": d["generated_at"], "day": d["day"], "mode": d["mode"],
+            "age_hours": round((at - gen).total_seconds() / 3600, 2),
+            "invariants_ok": d["invariants_ok"],
+            "not_healthy": {k: v for k, v in d["states"].items() if v != ["HEALTHY"]}}

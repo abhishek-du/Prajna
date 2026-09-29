@@ -1816,6 +1816,50 @@ def news_collect(
         raise typer.Exit(3)
 
 
+@news_app.command("reconcile")
+def news_reconcile(
+    day: str = typer.Option(None, "--day", help="IST date YYYY-MM-DD (default today)"),
+    mode: str = typer.Option("SHADOW", "--mode", help="SHADOW or PRODUCTION"),
+    md: str = typer.Option("", "--md", help="write the markdown report here ('' = no file)"),
+    json_out: str = typer.Option("", "--json", help="write the JSON report here"),
+):
+    """Daily reconciliation of the database collector (read-only): polls, failures,
+    fetched vs stored, dedup decisions, edits, scopes, latency, invariants and the
+    monitoring state per source (also written to var/status/news_health.json).
+    Exit 1 if an invariant is violated."""
+    import datetime as _dt
+    import json as _json
+    import pathlib as _pl
+
+    from sqlalchemy import text
+
+    from app.core.clock import IST
+    from app.core.clock import now as _now
+    from app.db.engine import get_sessionmaker
+    from app.news import reconcile as NR
+
+    d = _dt.date.fromisoformat(day) if day else _now().astimezone(IST).date()
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            await s.execute(text("set transaction read only"))
+            return await NR.reconcile(s, d, mode.upper())
+
+    rep = asyncio.run(_go())
+    NR.write_status(rep)
+    if md:
+        _pl.Path(md).write_text(NR.to_markdown(rep))
+    if json_out:
+        _pl.Path(json_out).write_text(_json.dumps(rep, indent=1, default=str))
+    for k, v in rep["sources"].items():
+        typer.echo(f"{k:28} {','.join(v['state']):22} polls={v['polls']} "
+                   f"stored={v['items_stored']} decisions={_json.dumps(v['decisions'])}")
+    typer.echo(f"invariants: {'OK' if rep['invariants']['ok'] else 'VIOLATED'} "
+               f"{_json.dumps({k: v for k, v in rep['invariants'].items() if k != 'ok'})}")
+    if not rep["invariants"]["ok"]:
+        raise typer.Exit(1)
+
+
 @news_app.command("kill")
 def news_kill(state: str = typer.Argument(..., help="on | off"),
               reason: str = typer.Option("", "--reason")):
