@@ -64,3 +64,16 @@ LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 #              regenerates it. Read-only on the prajna database, tests on prajna_test only;
 #              --md '' leaves docs/ untouched. A failed day leaves 6 days of margin.
 30 5 * * *    cd $B && .venv/bin/prajna acceptance stage2 --run-tests --md '' >> var/logs/cron.log 2>&1
+# ── multi-source news (production go-live 2026-09-29; user-approved) ─────────
+# 06:00-23:15 every 15 min  collection SUPERVISOR: news_collect.sh holds flock -n
+#              var/run/news_collect.lock, so while a collector runs each start only logs
+#              NEWS_COLLECT_SKIP; after a crash / kill / reboot the next start (<= 15 min)
+#              resumes, waiting out each source's interval since its last stored poll.
+#              7 sources that PASS acceptance (Indian Express: mapping FAIL, not enabled).
+#              Polls pace themselves (market / off-hours interval, never below the feed
+#              <ttl>); every poll re-checks the locks; token from .env via the environment.
+*/15 6-22 * * *  cd $B && ops/runbooks/news_collect.sh --mode PRODUCTION --sources NSE_ANNOUNCEMENTS,SEBI_RSS,ET_STOCKS_RSS,BS_MARKETS_RSS,BL_MARKETS_RSS,MINT_MARKETS_RSS,CNBCTV18_NEWS_SITEMAP --until 23:30 --token-from-dotenv >> var/logs/cron.log 2>&1
+0,15 23 * * *    cd $B && ops/runbooks/news_collect.sh --mode PRODUCTION --sources NSE_ANNOUNCEMENTS,SEBI_RSS,ET_STOCKS_RSS,BS_MARKETS_RSS,BL_MARKETS_RSS,MINT_MARKETS_RSS,CNBCTV18_NEWS_SITEMAP --until 23:30 --token-from-dotenv >> var/logs/cron.log 2>&1
+# 23:45 daily  reconciliation (read-only, separate from collection): exit 4 + marker
+#              NEWS_RECONCILE_VIOLATED if an invariant fails; states -> ops status
+45 23 * * *      cd $B && ops/runbooks/news_reconcile.sh --mode PRODUCTION >> var/logs/cron.log 2>&1
