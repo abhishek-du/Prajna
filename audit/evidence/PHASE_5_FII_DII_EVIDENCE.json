@@ -1,0 +1,140 @@
+{
+  "1_previous_session": {
+    "expected": [
+      60.0,
+      null
+    ],
+    "actual": [
+      60.0,
+      null
+    ],
+    "pass": true
+  },
+  "2_older_observation": {
+    "expected": [
+      null,
+      "MISSING_INPUT"
+    ],
+    "actual": [
+      null,
+      "MISSING_INPUT"
+    ],
+    "pass": true
+  },
+  "3_holiday_boundary": {
+    "expected": [
+      50.0,
+      null
+    ],
+    "actual": [
+      50.0,
+      null
+    ],
+    "pass": true
+  },
+  "4_late_publication": {
+    "before_as_of": {
+      "expected": [
+        null,
+        "MISSING_INPUT"
+      ],
+      "actual": [
+        null,
+        "MISSING_INPUT"
+      ],
+      "pass": true
+    },
+    "after_as_of": {
+      "expected": [
+        50.0,
+        null
+      ],
+      "actual": [
+        50.0,
+        null
+      ],
+      "pass": true
+    }
+  },
+  "5_publication_after_as_of": {
+    "expected": [
+      null,
+      "MISSING_INPUT"
+    ],
+    "actual": [
+      null,
+      "MISSING_INPUT"
+    ],
+    "pass": true
+  },
+  "6_missing_observation": {
+    "expected": [
+      null,
+      "MISSING_INPUT"
+    ],
+    "actual": [
+      null,
+      "MISSING_INPUT"
+    ],
+    "pass": true
+  },
+  "7_insufficient_history": {
+    "1d": {
+      "expected": [
+        30.0,
+        null
+      ],
+      "actual": [
+        30.0,
+        null
+      ],
+      "pass": true
+    },
+    "5d": {
+      "expected": [
+        null,
+        "INSUFFICIENT_HISTORY"
+      ],
+      "actual": [
+        null,
+        "INSUFFICIENT_HISTORY"
+      ],
+      "pass": true
+    }
+  },
+  "8_5d_window_ending_early": {
+    "expected": [
+      null,
+      "MISSING_INPUT"
+    ],
+    "actual": [
+      null,
+      "MISSING_INPUT"
+    ],
+    "pass": true
+  },
+  "9_malformed_data": {
+    "one_sided": {
+      "expected": [
+        null,
+        "MALFORMED_INPUT"
+      ],
+      "actual": [
+        null,
+        "MALFORMED_INPUT"
+      ],
+      "pass": true
+    },
+    "non_numeric": {
+      "expected": [
+        null,
+        "MALFORMED_INPUT"
+      ],
+      "actual": [
+        null,
+        "MALFORMED_INPUT"
+      ],
+      "pass": true
+    }
+  }
+}

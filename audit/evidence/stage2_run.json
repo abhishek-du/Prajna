@@ -1,0 +1,441 @@
+{
+  "generated_at": "2026-09-28T13:20:29.766989+00:00",
+  "overall": "PASS",
+  "criteria": [
+    {
+      "id": "A",
+      "question": "Can Stage 2 process Stage 1 data?",
+      "status": "PASS",
+      "evidence": {
+        "latest_commit_run": "d9dfb6ac-429b-40ca-b379-058cb57e310d",
+        "mode": "NOOP",
+        "seconds": 0.59,
+        "instruments_current/decided/included": [
+          3561,
+          3561,
+          3548
+        ],
+        "coverage_pairs": 14192,
+        "coverage_ranges": 113517
+      },
+      "notes": ""
+    },
+    {
+      "id": "B",
+      "question": "Is data normalized consistently?",
+      "status": "PASS",
+      "evidence": {
+        "duplicate_bars": 0,
+        "invalid_timeframe": 0,
+        "null_required_bar_fields": 0,
+        "coverage_contradicts_bars": 0,
+        "non_session_bars_exposed": 0
+      },
+      "notes": ""
+    },
+    {
+      "id": "C",
+      "question": "Are timestamps correct?",
+      "status": "PASS",
+      "evidence": {
+        "bar_knowable_before_event_end": 0,
+        "daily_bar_fetched_same_session": 0,
+        "daily_label_not_0000_ist": 0,
+        "daily_event_not_session_hours": 0,
+        "intraday_outside_session": 0,
+        "market_date_not_label_date": 0
+      },
+      "notes": "D4: daily label 00:00 IST; event = the session's own hours (Muhurat sessions included); knowable after it"
+    },
+    {
+      "id": "D",
+      "question": "Is knowable_at preserved?",
+      "status": "PASS",
+      "evidence": {
+        "canonical_vs_stage1_mismatches": 0,
+        "knowable_after_fetched": 0
+      },
+      "notes": ""
+    },
+    {
+      "id": "E",
+      "question": "Is future leakage impossible?",
+      "status": "PASS",
+      "evidence": {
+        "real_db_probes": {
+          "seed": 1747743726,
+          "instruments_probed": 40,
+          "rows_returned_after_boundary": 38704,
+          "boundary_behaviour_correct": 40,
+          "coverage_point_in_time": 40
+        },
+        "tests": [
+          "TestPointInTime",
+          "test_knowable_is_strictly_before"
+        ]
+      },
+      "notes": "every read requires as_of (coverage too); rows with knowable_at >= as_of are never returned"
+    },
+    {
+      "id": "F",
+      "question": "Is NSE filtering correct?",
+      "status": "PASS",
+      "evidence": {
+        "non_nse_included": 0,
+        "eligible_equity_excluded": 0,
+        "global_included": 0,
+        "stale_rules": 0,
+        "missing_reason": 0,
+        "rules_sha256": "911fa7abf926ed38736e815cdfb69aac4cba63bf654e345b8ceb2392515df5f6"
+      },
+      "notes": ""
+    },
+    {
+      "id": "G",
+      "question": "Is instrument mapping correct?",
+      "status": "PASS",
+      "evidence": {
+        "mapping_mismatches": 0,
+        "orphans": 0,
+        "missing_identifiers": 0
+      },
+      "notes": ""
+    },
+    {
+      "id": "H",
+      "question": "Is data enrichment traceable?",
+      "status": "PASS",
+      "evidence": {
+        "instruments_with_sector": 3192,
+        "sector_not_traceable_to_snapshot": 0
+      },
+      "notes": "sector coverage grows with the Stage 1 fundamentals sweep; PIT sector via pit.sector()"
+    },
+    {
+      "id": "I",
+      "question": "Is missing data represented correctly?",
+      "status": "PASS",
+      "evidence": {
+        "sessions_by_state": {
+          "QUARANTINED": 2,
+          "EMPTY": 2275744,
+          "DATA": 3684781,
+          "VENDOR_ERROR": 5,
+          "PENDING_BACKFILL": 8745924
+        },
+        "out_of_scope": "5m via pit.coverage/pit.bars (OutOfScope)"
+      },
+      "notes": "nothing is filled: no zero, no forward fill, no interpolation"
+    },
+    {
+      "id": "J",
+      "question": "Is bad data quarantined?",
+      "status": "PASS",
+      "evidence": {
+        "stage1_quarantined_bars_nse": 2,
+        "coverage_quarantined_sessions": 2,
+        "invalid_ohlc_visible": 0,
+        "non_session_placeholder_bars_excluded": 69
+      },
+      "notes": ""
+    },
+    {
+      "id": "K",
+      "question": "Is processing idempotent?",
+      "status": "PASS",
+      "evidence": {
+        "real_noop_reruns": [
+          "d0d449e5-ab3b-4b07-90d4-cf9243c1aca1",
+          "1a48ab3a-c905-4b1e-a612-988dd3a20249",
+          "d9dfb6ac-429b-40ca-b379-058cb57e310d"
+        ],
+        "tests": [
+          "test_idempotent_three_runs",
+          "test_stage1_ingest_is_processed_and_served_point_in_time"
+        ]
+      },
+      "notes": ""
+    },
+    {
+      "id": "L",
+      "question": "Can processing resume after failure?",
+      "status": "PASS",
+      "evidence": {
+        "tests": [
+          "test_crash_rolls_back_and_the_rerun_resumes"
+        ],
+        "failed_canon_runs": 0,
+        "note": "rows and checkpoint commit in one transaction"
+      },
+      "notes": ""
+    },
+    {
+      "id": "M",
+      "question": "Can Stage 2 process incremental Stage 1 updates?",
+      "status": "PASS",
+      "evidence": {
+        "real_incremental_runs": [
+          "caf0abb0-acc1-4d61-b9a0-ec4a30989b3b",
+          "3c60d7c9-8915-4c6b-94cc-61cfde058da6",
+          "3bcb7bef-5c86-4fef-9550-141cd1c19db7"
+        ],
+        "tests": [
+          "test_incremental_update_touches_only_the_new_pair"
+        ]
+      },
+      "notes": "real evidence needs a Stage 1 run finishing after a Stage 2 checkpoint"
+    },
+    {
+      "id": "N",
+      "question": "Are database constraints enforced?",
+      "status": "PASS",
+      "evidence": {
+        "missing_constraints": [],
+        "tests": [
+          "test_db_constraints"
+        ]
+      },
+      "notes": ""
+    },
+    {
+      "id": "O",
+      "question": "Can Stage 3 consume the canonical data safely?",
+      "status": "PASS",
+      "evidence": {
+        "seed": 1747749871,
+        "probed": 10,
+        "ok": 10,
+        "probes": {
+          "NSE_EQ|INE002A01018": {
+            "daily_bars": 250,
+            "corporate_actions": 1,
+            "news": 2,
+            "fundamentals": 12,
+            "sector": "Refineries",
+            "coverage_ranges": 1
+          },
+          "NSE_INDEX|Nifty 50": {
+            "daily_bars": 250,
+            "corporate_actions": 0,
+            "news": 0,
+            "fundamentals": 0,
+            "sector": null,
+            "coverage_ranges": 1
+          },
+          "NSE_EQ|INE804L01022": {
+            "daily_bars": 250,
+            "corporate_actions": 0,
+            "news": 0,
+            "fundamentals": 12,
+            "sector": "Pharmaceuticals",
+            "coverage_ranges": 2
+          },
+          "NSE_EQ|INE162A01010": {
+            "daily_bars": 250,
+            "corporate_actions": 1,
+            "news": 0,
+            "fundamentals": 12,
+            "sector": "Power",
+            "coverage_ranges": 1
+          },
+          "NSE_EQ|INF247L01GI5": {
+            "daily_bars": 210,
+            "corporate_actions": 0,
+            "news": 0,
+            "fundamentals": 10,
+            "sector": null,
+            "coverage_ranges": 4
+          },
+          "NSE_EQ|INE012G01022": {
+            "daily_bars": 3,
+            "corporate_actions": 0,
+            "news": 5,
+            "fundamentals": 12,
+            "sector": "Auto Ancillaries",
+            "coverage_ranges": 2
+          },
+          "NSE_EQ|INE20PL01012": {
+            "daily_bars": 103,
+            "corporate_actions": 0,
+            "news": 0,
+            "fundamentals": 12,
+            "sector": "Engineering",
+            "coverage_ranges": 2
+          },
+          "NSE_EQ|INE0STM01017": {
+            "daily_bars": 250,
+            "corporate_actions": 0,
+            "news": 0,
+            "fundamentals": 12,
+            "sector": "Engineering",
+            "coverage_ranges": 44
+          },
+          "NSE_EQ|INE590T01012": {
+            "daily_bars": 7,
+            "corporate_actions": 0,
+            "news": 0,
+            "fundamentals": 12,
+            "sector": "Capital Goods - Electrical Equipment",
+            "coverage_ranges": 2
+          },
+          "NSE_EQ|INE576I01022": {
+            "daily_bars": 250,
+            "corporate_actions": 1,
+            "news": 0,
+            "fundamentals": 12,
+            "sector": "Engineering",
+            "coverage_ranges": 1
+          }
+        },
+        "api": "app.canon.pit: bars, corporate_actions, news, fundamentals, sector, preopen, macro, global_bars, coverage(as_of), context"
+      },
+      "notes": ""
+    },
+    {
+      "id": "P",
+      "question": "Are all existing Stage 1 tests still passing?",
+      "status": "PASS",
+      "evidence": {
+        "exit": 0,
+        "summary": "1104 passed, 2 skipped in 330.11s (0:05:30)"
+      },
+      "notes": ""
+    }
+  ],
+  "quality": {
+    "status": "PASS",
+    "gates": [
+      {
+        "gate": "duplicate_bars",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      },
+      {
+        "gate": "invalid_ohlc",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      },
+      {
+        "gate": "negative_volume",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      },
+      {
+        "gate": "null_required_bar_fields",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      },
+      {
+        "gate": "knowable_after_fetched",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      },
+      {
+        "gate": "bar_knowable_before_event_end",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      },
+      {
+        "gate": "daily_bar_fetched_same_session",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      },
+      {
+        "gate": "non_session_bars_exposed",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      },
+      {
+        "gate": "orphan_instruments",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      },
+      {
+        "gate": "invalid_exchange",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      },
+      {
+        "gate": "invalid_timeframe",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      },
+      {
+        "gate": "missing_identifiers",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      },
+      {
+        "gate": "unexpected_gaps",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      },
+      {
+        "gate": "duplicate_corporate_actions",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      },
+      {
+        "gate": "duplicate_news_mappings",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      },
+      {
+        "gate": "invalid_fundamentals",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      },
+      {
+        "gate": "calendar_gaps_in_depth",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      },
+      {
+        "gate": "coverage_contradicts_bars",
+        "status": "PASS",
+        "count": 0,
+        "sample": [],
+        "diagnostic": ""
+      }
+    ],
+    "informational": {
+      "sector_null_rate_nse_eq": 0.0996,
+      "bars_excluded_non_session (canon_excluded_bar)": 69,
+      "fundamentals_period_label_after_fetch": 49
+    }
+  }
+}

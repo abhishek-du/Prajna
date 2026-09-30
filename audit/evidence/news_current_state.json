@@ -1,0 +1,301 @@
+{
+  "timestamp": "2026-09-28T14:52:01.351760+00:00",
+  "git": {
+    "head": "0fa483948404c32b78523df885acbf1fe7fbcd61",
+    "branch": "main",
+    "feature_news_v2_commits": [
+      "45cb3ac news: per-source acceptance gate, human mapping review, restart-safe politeness, status report",
+      "bba29b0 news: proposed point-in-time news features (dry-run only, decision FEATURE-NEWS-V2 pending)",
+      "144c9f3 news: multi-source news pilot, NSE corporate announcements (DRY_RUN; SHADOW locked)",
+      "747ab2e docs: multi-source news audit, source feasibility and proposed design"
+    ]
+  },
+  "decisions": {
+    "FEATURE-NEWS-V2": {
+      "status": "PENDING",
+      "decision": "Add these point-in-time news features to the Stage 3 registry as a new version (windows 1h/4h/24h/3d as listed); until approved they are dry-run only",
+      "ref": "news programme phase 11 (2026-09-28)"
+    },
+    "news_decisions": {
+      "NEWS-SOURCES": {
+        "status": "APPROVED",
+        "decision": "Constraint #1 (Upstox-only) is amended FOR NEWS ONLY: the feasible external sources may be polled - NSE corporate announcements RSS, Economic Times, Business Standard, BusinessLine, Livemint, CNBC-TV18. Moneycontrol and Zee Business (HTTP 403, bot protection) and Reuters (robots.txt Disallow /) are UNSUPPORTED; nothing bypasses a block",
+        "ref": "user 2026-09-28 ('All feasible'); extended the same day: 'add Indian Express and SEBI press release feeds' (robots.txt allows both; probed)"
+      },
+      "NEWS-CONTENT": {
+        "status": "APPROVED",
+        "decision": "Store metadata, URL, the feed's short description, and the article body where a source's pages are publicly accessible and allowed by robots.txt (never behind a paywall, login or bot protection); an AI description may be generated (AWS Bedrock) as a versioned enrichment, never as fact. Body collection and AI descriptions are separate, not yet built steps",
+        "ref": "user 2026-09-28 ('meta data url short description body data full news if possible and ai description using bedrock')"
+      },
+      "NEWS-PILOT": {
+        "status": "APPROVED",
+        "decision": "Pilot adapter: NSE corporate announcements RSS",
+        "ref": "user 2026-09-28"
+      },
+      "NEWS-KNOWABLE": {
+        "status": "APPROVED",
+        "decision": "knowable_at = Prajna's first observation (discovered_at) for every source; published_at is informational. Existing Upstox rows are not modified",
+        "ref": "user request 2026-09-28 (Phase 1: 'Never set knowable_at to published_at')"
+      },
+      "NEWS-CADENCE": {
+        "status": "PROPOSED",
+        "decision": "Per-source intervals from the source's own constraints (NSE RSS ttl = 5 min is honoured); revised after dry-run measurements",
+        "ref": "docs/NEWS_MULTI_SOURCE_DESIGN.md section 5"
+      },
+      "NEWS-COMPLIANCE": {
+        "status": "PENDING",
+        "decision": "Per-source terms-of-use review (not a legal opinion by Claude). Until APPROVED for a source, only DRY_RUN is allowed for it",
+        "ref": "docs/NEWS_MULTI_SOURCE_DESIGN.md section 9"
+      }
+    }
+  },
+  "stage3_registry": {
+    "version": "features-v1",
+    "hash": "9061d85b3696ab70e566d8257ecb13466930792a74f9b1d8308f232331e47188",
+    "total_features": 65,
+    "mnews_count": 0,
+    "registered_news_features": [
+      {
+        "id": "news_count_24h",
+        "group": "event",
+        "status": "IMPLEMENTED",
+        "inputs": [
+          "news"
+        ],
+        "lookback": 0
+      },
+      {
+        "id": "news_count_7d",
+        "group": "event",
+        "status": "IMPLEMENTED",
+        "inputs": [
+          "news"
+        ],
+        "lookback": 0
+      },
+      {
+        "id": "news_hours_since_last",
+        "group": "event",
+        "status": "IMPLEMENTED",
+        "inputs": [
+          "news"
+        ],
+        "lookback": 0
+      }
+    ],
+    "proposed_mnews_features": [
+      "mnews_news_count_1h",
+      "mnews_news_count_4h",
+      "mnews_news_count_24h",
+      "mnews_news_count_3d",
+      "mnews_unique_publishers_1h",
+      "mnews_unique_publishers_24h",
+      "mnews_breaking_news_count_24h",
+      "mnews_high_relevance_news_count_24h",
+      "mnews_negative_news_count_24h",
+      "mnews_positive_news_count_24h",
+      "mnews_mixed_news_count_24h",
+      "mnews_regulatory_news_count_24h",
+      "mnews_corporate_news_count_24h",
+      "mnews_macro_news_count_24h",
+      "mnews_news_velocity_1h",
+      "mnews_news_velocity_24h",
+      "mnews_publisher_diversity_24h",
+      "mnews_story_group_count_24h",
+      "mnews_new_story_count_24h",
+      "mnews_updated_story_count_24h",
+      "mnews_time_since_last_news_s",
+      "mnews_time_since_last_high_relevance_news_s"
+    ]
+  },
+  "multi_source_adapters": [
+    {
+      "key": "NSE_ANNOUNCEMENTS",
+      "name": "NSE corporate announcements",
+      "kind": "RSS",
+      "status": "PILOT",
+      "compliance": "PENDING",
+      "flag": null,
+      "priority": 3,
+      "body_allowed": false
+    },
+    {
+      "key": "ET_STOCKS_RSS",
+      "name": "Economic Times - stocks news",
+      "kind": "RSS",
+      "status": "ADAPTER",
+      "compliance": "PENDING",
+      "flag": null,
+      "priority": 3,
+      "body_allowed": false
+    },
+    {
+      "key": "BS_MARKETS_RSS",
+      "name": "Business Standard - markets",
+      "kind": "RSS",
+      "status": "ADAPTER",
+      "compliance": "PENDING",
+      "flag": null,
+      "priority": 3,
+      "body_allowed": false
+    },
+    {
+      "key": "BL_MARKETS_RSS",
+      "name": "Hindu BusinessLine - markets",
+      "kind": "RSS",
+      "status": "ADAPTER",
+      "compliance": "PENDING",
+      "flag": null,
+      "priority": 3,
+      "body_allowed": false
+    },
+    {
+      "key": "MINT_MARKETS_RSS",
+      "name": "Livemint - markets",
+      "kind": "RSS",
+      "status": "ADAPTER",
+      "compliance": "PENDING",
+      "flag": null,
+      "priority": 3,
+      "body_allowed": false
+    },
+    {
+      "key": "CNBCTV18_NEWS_SITEMAP",
+      "name": "CNBC-TV18 Google-News sitemap",
+      "kind": "SITEMAP",
+      "status": "ADAPTER",
+      "compliance": "PENDING",
+      "flag": null,
+      "priority": 3,
+      "body_allowed": false
+    },
+    {
+      "key": "INDIANEXPRESS_BUSINESS_RSS",
+      "name": "Indian Express - business",
+      "kind": "RSS",
+      "status": "ADAPTER",
+      "compliance": "PENDING",
+      "flag": null,
+      "priority": 3,
+      "body_allowed": false
+    },
+    {
+      "key": "SEBI_RSS",
+      "name": "SEBI - press releases, circulars, orders",
+      "kind": "RSS",
+      "status": "ADAPTER",
+      "compliance": "PENDING",
+      "flag": null,
+      "priority": 3,
+      "body_allowed": false
+    },
+    {
+      "key": "MONEYCONTROL",
+      "name": "Moneycontrol",
+      "kind": "RSS",
+      "status": "UNSUPPORTED",
+      "compliance": "REJECTED",
+      "flag": null,
+      "priority": 3,
+      "body_allowed": false
+    },
+    {
+      "key": "ZEE_BUSINESS",
+      "name": "Zee Business",
+      "kind": "RSS",
+      "status": "UNSUPPORTED",
+      "compliance": "REJECTED",
+      "flag": null,
+      "priority": 3,
+      "body_allowed": false
+    },
+    {
+      "key": "REUTERS",
+      "name": "Reuters",
+      "kind": "-",
+      "status": "UNSUPPORTED",
+      "compliance": "REJECTED",
+      "flag": null,
+      "priority": 3,
+      "body_allowed": false
+    }
+  ],
+  "database_counts": {
+    "news_article": 197,
+    "news_instrument": 604,
+    "canon_news": 604,
+    "news_story": 0,
+    "news_story_member": 0,
+    "news_entity_mention": 0,
+    "news_assessment": 0,
+    "news_content": 0,
+    "news_ai_enrichment": 0,
+    "news_poll": 0,
+    "news_item": 0,
+    "news_item_observation": 0,
+    "news_classification": 0,
+    "news_entity_link": 0,
+    "news_audit": 2,
+    "feature_value": 0,
+    "ingest_run_features": 0,
+    "stage3_event_total": 4,
+    "stage3_event_refused": 4
+  },
+  "dryrun_evidence": {
+    "running_pid": 2312405,
+    "sources": {
+      "BL_MARKETS_RSS": {
+        "polls": 8,
+        "seen_items": 75,
+        "last_poll_at": "2026-09-28T14:35:15.027033+00:00",
+        "last_ok": "2026-09-28T14:35:15.221883+00:00"
+      },
+      "BS_MARKETS_RSS": {
+        "polls": 19,
+        "seen_items": 58,
+        "last_poll_at": "2026-09-28T14:48:39.354310+00:00",
+        "last_ok": "2026-09-28T14:48:39.618634+00:00"
+      },
+      "CNBCTV18_NEWS_SITEMAP": {
+        "polls": 20,
+        "seen_items": 331,
+        "last_poll_at": "2026-09-28T14:39:13.942375+00:00",
+        "last_ok": "2026-09-28T14:39:14.416484+00:00"
+      },
+      "ET_STOCKS_RSS": {
+        "polls": 28,
+        "seen_items": 56,
+        "last_poll_at": "2026-09-28T14:51:15.040138+00:00",
+        "last_ok": "2026-09-28T14:51:15.253950+00:00"
+      },
+      "INDIANEXPRESS_BUSINESS_RSS": {
+        "polls": 16,
+        "seen_items": 204,
+        "last_poll_at": "2026-09-28T14:44:34.756142+00:00",
+        "last_ok": "2026-09-28T14:44:35.020860+00:00"
+      },
+      "MINT_MARKETS_RSS": {
+        "polls": 21,
+        "seen_items": 45,
+        "last_poll_at": "2026-09-28T14:49:22.745213+00:00",
+        "last_ok": "2026-09-28T14:49:22.896844+00:00"
+      },
+      "NSE_ANNOUNCEMENTS": {
+        "polls": 21,
+        "seen_items": 2713,
+        "last_poll_at": "2026-09-28T14:48:12.511062+00:00",
+        "last_ok": "2026-09-28T14:48:12.721131+00:00"
+      },
+      "SEBI_RSS": {
+        "polls": 6,
+        "seen_items": 50,
+        "last_poll_at": "2026-09-28T14:34:16.202453+00:00",
+        "last_ok": "2026-09-28T14:34:16.671118+00:00"
+      }
+    },
+    "stories": {
+      "next_id": 692,
+      "total_members": 1203
+    }
+  }
+}

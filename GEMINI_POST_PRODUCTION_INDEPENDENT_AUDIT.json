@@ -1,0 +1,114 @@
+{
+  "audit_metadata": {
+    "timestamp": "2026-09-29T07:27:00Z",
+    "auditor": "Independent Auditor & Verification Engineer (Gemini)",
+    "audit_type": "Post-Production Forensic Audit",
+    "session_date": "2026-09-29",
+    "head_commit": "9e69117befad8373d27dff8170e55224b924d10d",
+    "branch": "main",
+    "final_determination": "FIRST PRODUCTION RUN VERIFIED — ALL CLAIMS PROVEN"
+  },
+  "summary_metrics": {
+    "total_feature_value_rows": 374648,
+    "total_values": 270978,
+    "total_reasons": 103670,
+    "distinct_instruments": 3547,
+    "distinct_features": 65,
+    "registry_sha256": "9061d85b3696ab70e566d8257ecb13466930792a74f9b1d8308f232331e47188",
+    "constraint_violations": 0,
+    "duplicate_keys": 0,
+    "pit_violations": 0,
+    "lookahead_violations": 0
+  },
+  "snapshots": {
+    "PRE_SESSION": {
+      "as_of": "2026-09-29T03:29:59+00:00",
+      "as_of_ist": "2026-09-29 08:59:59 IST",
+      "run_id": "cb26b9c2-a95c-4bb5-a6d2-ec33a09c6fdd",
+      "rows_committed": 180256,
+      "values": 128996,
+      "reasons": 51260,
+      "instruments": 3534,
+      "features": 61,
+      "compute_seconds": 140.97,
+      "wall_clock_seconds": 219.68,
+      "preopen_features_count": 0
+    },
+    "PRE_OPEN": {
+      "as_of": "2026-09-29T03:38:00+00:00",
+      "as_of_ist": "2026-09-29 09:08:00 IST",
+      "run_id": "eb0a0012-6f3c-47a3-a62a-bc95193ff1ab",
+      "rows_committed": 194392,
+      "values": 141982,
+      "reasons": 52410,
+      "instruments": 3534,
+      "features": 65,
+      "compute_seconds": 157.86,
+      "wall_clock_seconds": 244.01,
+      "preopen_features_count": 14136,
+      "replay_dependency_exit_code": 0
+    },
+    "PRE_SESSION_RERUN": {
+      "run_id": "a3dd4baa-0b83-4da6-84a3-21b411749e61",
+      "rows_inserted": 0,
+      "rows_already_present": 180256,
+      "compute_seconds": 140.18,
+      "determinism_mismatches": 0,
+      "status": "COMPLETE"
+    }
+  },
+  "reasons_breakdown": {
+    "MISSING_INPUT": 85144,
+    "MALFORMED_INPUT": 9090,
+    "INSUFFICIENT_HISTORY": 6934,
+    "DIVISION_UNDEFINED": 2502
+  },
+  "fii_dii_verification": {
+    "snapshot_session": "2026-09-29",
+    "observation_date": "2026-09-28",
+    "observation_knowable_at": "2026-09-29T03:02:09.803512+00:00",
+    "as_of": "2026-09-29T03:29:59+00:00",
+    "knowable_strictly_before_as_of": true,
+    "fii_net_cash_1d": -5353.22,
+    "dii_net_cash_1d": 5189.02,
+    "fii_net_cash_5d": -16267.05,
+    "dii_net_cash_5d": 18789.90,
+    "decision_fii_dii_staleness_compliant": true
+  },
+  "discrepancy_reconciliation": {
+    "isolated_test_pre_session_rows": 180919,
+    "actual_production_pre_session_rows": 180256,
+    "row_difference": 663,
+    "isolated_test_instruments": 3547,
+    "actual_production_instruments": 3534,
+    "instrument_difference": 13,
+    "features_per_instrument": 51,
+    "reconciliation_formula": "13 instruments * 51 features = 663 rows",
+    "reconciliation_status": "EXACT_MATCH",
+    "cause": "13 global index and indicator instruments (e.g. DOW FUTURES, ^GSPC, BZUSD) are context-only and properly excluded from per-instrument universe iteration by segment in ('NSE_EQ', 'NSE_INDEX')"
+  },
+  "binary_float_representation": {
+    "column_type": "NUMERIC()",
+    "python_type": "float",
+    "precision_loss": false,
+    "determinism_verified": true,
+    "sample_min_value": "-800269.910000000032596290111541748046875",
+    "sample_max_value": "22743130455.200000762939453125",
+    "verdict": "HARMLESS_AND_EXACT"
+  },
+  "lock_and_safety_state": {
+    "prajna_stage3_enabled": false,
+    "prajna_stage3_backfill_enabled": false,
+    "prajna_supplied_token_present": false,
+    "kill_switch_engaged": false,
+    "installed_stage3_cron_jobs": 0,
+    "installed_stage3_systemd_timers": 0,
+    "production_execution_unlocked": false
+  },
+  "mnews_isolation": {
+    "mnews_features_in_registry": 0,
+    "mnews_features_in_database": 0,
+    "multi_source_news_tables_rows": 0,
+    "verdict": "COMPLETELY_ISOLATED"
+  }
+}

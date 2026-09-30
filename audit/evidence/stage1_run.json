@@ -1,0 +1,890 @@
+{
+  "generated_at": "2026-09-28T13:12:38.624212+00:00",
+  "overall": "NOT COMPLETE",
+  "live_readiness": "NOT PASS",
+  "waiting_for_evidence": [
+    "R",
+    "X"
+  ],
+  "deferred": [
+    "G",
+    "I",
+    "J",
+    "S"
+  ],
+  "failing": [
+    "K"
+  ],
+  "last_session": "2026-09-25",
+  "criteria": [
+    {
+      "id": "A",
+      "name": "Database isolation",
+      "status": "PASS",
+      "evidence": {
+        "current_database": "prajna",
+        "v1_database": "autotrade_pro (never used)"
+      },
+      "db_state": {},
+      "notes": "",
+      "decisions": []
+    },
+    {
+      "id": "B",
+      "name": "Provenance",
+      "status": "PASS",
+      "evidence": {
+        "violations": 0
+      },
+      "db_state": {
+        "ohlcv_bar": {
+          "rows": 6432010,
+          "bad_run": 0,
+          "no_payload": 0,
+          "no_basis": 0
+        },
+        "macro_observation": {
+          "rows": 4880,
+          "bad_run": 0,
+          "no_payload": 0,
+          "no_basis": 0
+        },
+        "news_article": {
+          "rows": 197,
+          "bad_run": 0,
+          "no_payload": 0,
+          "no_basis": 0
+        },
+        "news_instrument": {
+          "rows": 604,
+          "bad_run": 0,
+          "no_payload": 0,
+          "no_basis": 0
+        },
+        "corporate_action": {
+          "rows": 2323,
+          "bad_run": 0,
+          "no_payload": 0,
+          "no_basis": 0
+        },
+        "fundamental_snapshot": {
+          "rows": 41785,
+          "bad_run": 0,
+          "no_payload": 0,
+          "no_basis": 0
+        },
+        "instrument": {
+          "rows": 3561,
+          "bad_run": 0,
+          "no_payload": 0,
+          "no_basis": 0
+        },
+        "trading_session": {
+          "rows": 2557,
+          "bad_run": 0,
+          "no_payload": 0,
+          "no_basis": 0
+        },
+        "preopen_tick": {
+          "rows": 1161842,
+          "bad_run": 0,
+          "no_payload": 0,
+          "no_basis": 0
+        },
+        "preopen_session_status": {
+          "rows": 54,
+          "bad_run": 0,
+          "no_payload": 0,
+          "no_basis": 0
+        },
+        "instrument_universe_membership": {
+          "rows": 10599,
+          "bad_run": 0,
+          "no_payload": 0,
+          "no_basis": 0
+        },
+        "preopen_book": {
+          "orphans": 0
+        }
+      },
+      "notes": "",
+      "decisions": []
+    },
+    {
+      "id": "C",
+      "name": "Point-in-time safety (knowable_at <= fetched_at)",
+      "status": "PASS",
+      "evidence": {
+        "violations": {
+          "ohlcv_bar": 0,
+          "macro_observation": 0,
+          "news_article": 0,
+          "news_instrument": 0,
+          "corporate_action": 0,
+          "fundamental_snapshot": 0,
+          "instrument": 0,
+          "trading_session": 0,
+          "preopen_tick": 0,
+          "preopen_session_status": 0,
+          "instrument_universe_membership": 0
+        }
+      },
+      "db_state": {},
+      "notes": "",
+      "decisions": []
+    },
+    {
+      "id": "D",
+      "name": "Instrument master",
+      "status": "PASS",
+      "evidence": {
+        "sector_source": "fundamental_snapshot(profile).payload.sector",
+        "classification": "instrument_security_class (prajna classify securities)",
+        "listing_status": "instrument.lifecycle_status (daily master refresh, phase 2)"
+      },
+      "db_state": {
+        "active_nse_eq": 3544,
+        "nse_index": 3,
+        "global": 13,
+        "nse_eq_missing_isin_or_symbol": 0,
+        "eligible_stock_count": 3171,
+        "sector_present_count": 3171,
+        "sector_missing_count": 0,
+        "coverage_percentage": 100.0,
+        "review": 0,
+        "unclassified_beyond_grace": 0,
+        "unclassified_missing_row": 0,
+        "breakdown": {
+          "FUND_UNIT/-/CLASSIFIED": 351,
+          "OTHER/INVIT_UNIT/CLASSIFIED": 21,
+          "RIGHTS_ENTITLEMENT/-/CLASSIFIED": 1,
+          "STOCK/-/CLASSIFIED": 3171
+        }
+      },
+      "notes": "new rule: sector >= 90 % of ACTIVE STOCK instruments (old: of all NSE_EQ); REVIEW = 0; UNCLASSIFIED only within 7 days of first_seen",
+      "decisions": []
+    },
+    {
+      "id": "E",
+      "name": "Trading calendar",
+      "status": "PASS",
+      "evidence": {
+        "trading_day_without_nifty_bar": 0,
+        "non_trading_day_with_nifty_bar": 0
+      },
+      "db_state": {
+        "rows": 2557,
+        "from": "2020-01-01",
+        "to": "2026-12-31",
+        "contiguous": true,
+        "trading_days": 1739
+      },
+      "notes": "required: every date 2020-01-01 .. today+30, and agreement with the NIFTY 50 daily bars for past dates",
+      "decisions": []
+    },
+    {
+      "id": "F",
+      "name": "1D candles (from 2020-01-01)",
+      "status": "PASS",
+      "evidence": {
+        "failed_streams": [],
+        "quarantined_bars_Q1": 265
+      },
+      "db_state": {
+        "instruments": 3547,
+        "covered_to_depth": 3547,
+        "without_checkpoint": 0,
+        "bars": 3686469,
+        "instruments_with_bars": 3559,
+        "required_from": "2020-01-01",
+        "required_through": "2026-09-25",
+        "sample_missing": []
+      },
+      "notes": "instruments listed after 2020 are covered from their first bar; value-insane vendor bars are quarantined (Q1), never stored",
+      "decisions": []
+    },
+    {
+      "id": "G",
+      "name": "1m candles (last 6 months)",
+      "status": "DEFERRED",
+      "evidence": {
+        "quarantined_bars_Q1": 0,
+        "measures": "historical depth only"
+      },
+      "db_state": {
+        "instruments": 3547,
+        "covered_to_depth": 0,
+        "without_checkpoint": 3547,
+        "bars": 2448122,
+        "instruments_with_bars": 3456,
+        "required_from": "2026-03-29",
+        "required_through": "2026-09-25",
+        "sample_missing": [
+          "NSE_EQ|IN9175A01010",
+          "NSE_EQ|IN9623B01058",
+          "NSE_EQ|INE001B01026",
+          "NSE_EQ|INE001E01012",
+          "NSE_EQ|INE002A01018"
+        ]
+      },
+      "notes": "historical backfill (D1); DEFERRED_FOR_STAGE_1 by decision BACKFILL-DEFER (live same-day completeness: R)",
+      "decisions": [
+        "BACKFILL-DEFER"
+      ]
+    },
+    {
+      "id": "H",
+      "name": "5m candles",
+      "status": "OUT_OF_SCOPE",
+      "evidence": {
+        "decision": {
+          "status": "APPROVED",
+          "decision": "5m is EXCLUDED from Stage 1 (it is exactly the aggregation of 1m, measured 428/428); later-stage scope",
+          "ref": "user 2026-09-24 (D2-5m = B)"
+        }
+      },
+      "db_state": {
+        "bars": 12
+      },
+      "notes": "excluded from Stage 1 by decision D2-5m",
+      "decisions": []
+    },
+    {
+      "id": "I",
+      "name": "15m candles (from 2022-01)",
+      "status": "DEFERRED",
+      "evidence": {
+        "quarantined_bars_Q1": 0,
+        "measures": "historical depth only"
+      },
+      "db_state": {
+        "instruments": 3547,
+        "covered_to_depth": 0,
+        "without_checkpoint": 3547,
+        "bars": 246767,
+        "instruments_with_bars": 3486,
+        "required_from": "2022-01-03",
+        "required_through": "2026-09-25",
+        "sample_missing": [
+          "NSE_EQ|IN9175A01010",
+          "NSE_EQ|IN9623B01058",
+          "NSE_EQ|INE001B01026",
+          "NSE_EQ|INE001E01012",
+          "NSE_EQ|INE002A01018"
+        ]
+      },
+      "notes": "historical backfill (D1); DEFERRED_FOR_STAGE_1 by decision BACKFILL-DEFER (live same-day completeness: R)",
+      "decisions": [
+        "BACKFILL-DEFER"
+      ]
+    },
+    {
+      "id": "J",
+      "name": "1h candles (from 2022-01)",
+      "status": "DEFERRED",
+      "evidence": {
+        "quarantined_bars_Q1": 0,
+        "measures": "historical depth only"
+      },
+      "db_state": {
+        "instruments": 3547,
+        "covered_to_depth": 0,
+        "without_checkpoint": 3547,
+        "bars": 50640,
+        "instruments_with_bars": 3461,
+        "required_from": "2022-01-03",
+        "required_through": "2026-09-25",
+        "sample_missing": [
+          "NSE_EQ|IN9175A01010",
+          "NSE_EQ|IN9623B01058",
+          "NSE_EQ|INE001B01026",
+          "NSE_EQ|INE001E01012",
+          "NSE_EQ|INE002A01018"
+        ]
+      },
+      "notes": "historical backfill (D1); DEFERRED_FOR_STAGE_1 by decision BACKFILL-DEFER (live same-day completeness: R)",
+      "decisions": [
+        "BACKFILL-DEFER"
+      ]
+    },
+    {
+      "id": "K",
+      "name": "Pre-open",
+      "status": "FAIL",
+      "evidence": {},
+      "db_state": {
+        "ticks": 1161842,
+        "sessions_captured": 3,
+        "trading_sessions_missed_since_first": 0
+      },
+      "notes": "required: a PASS verdict (C6 is the only WARN, explained) and recurring daily capture (>= 2 sessions, none missed)",
+      "decisions": []
+    },
+    {
+      "id": "L",
+      "name": "Live WebSocket data (all-day persistence)",
+      "status": "OUT_OF_SCOPE",
+      "evidence": {
+        "recorder": "live-validated 2026-09-23/24: 2 connections, 3,527 keys, 5-level depth; archived; pre-open persisted"
+      },
+      "db_state": {
+        "tick_archive_rows": 0
+      },
+      "notes": "all-day persistence is Stage 7 per M0 unless D5 says otherwise",
+      "decisions": []
+    },
+    {
+      "id": "M",
+      "name": "Corporate actions",
+      "status": "PASS",
+      "evidence": {
+        "isins_swept": 3545,
+        "nse_isins": 3544
+      },
+      "db_state": {
+        "events": 2323,
+        "isins_with_events": 1553,
+        "announcement_range": [
+          "2024-12-18",
+          "2026-09-18"
+        ]
+      },
+      "notes": "vendor depth ~1 year; announcement is a date (knowable_at = fetched_at)",
+      "decisions": []
+    },
+    {
+      "id": "N",
+      "name": "News",
+      "status": "PASS",
+      "evidence": {
+        "last_complete_sweep": "2026-09-28 10:01:05.728931+00:00"
+      },
+      "db_state": {
+        "articles": 197,
+        "links": 604,
+        "published_range": [
+          "2026-09-17 02:58:30.938000+00:00",
+          "2026-09-28 09:40:03.474000+00:00"
+        ]
+      },
+      "notes": "vendor keeps 7 days: must be swept at least daily",
+      "decisions": []
+    },
+    {
+      "id": "O",
+      "name": "Fundamentals",
+      "status": "PASS",
+      "evidence": {
+        "isins_swept": 3545,
+        "nse_isins": 3544
+      },
+      "db_state": {
+        "snapshots": 41785,
+        "instruments": 3545,
+        "statement_types": 12
+      },
+      "notes": "",
+      "decisions": []
+    },
+    {
+      "id": "P",
+      "name": "FII/DII",
+      "status": "PASS",
+      "evidence": {
+        "required_through": ">= 2026-09-24 (one session publication lag)"
+      },
+      "db_state": {
+        "streams": {
+          "macro.FII.NSE_FO|STOCK_OPTIONS.1D": "2026-09-25",
+          "macro.DII.NSE_EQ|CASH.1D": "2026-09-25",
+          "macro.FII.NSE_EQ|CASH.1D": "2026-09-25",
+          "macro.FII.NSE_FO|INDEX_FUTURES.1D": "2026-09-25",
+          "macro.FII.NSE_FO|INDEX_OPTIONS.1D": "2026-09-25",
+          "macro.FII.NSE_FO|STOCK_FUTURES.1D": "2026-09-25"
+        },
+        "rows": 4880
+      },
+      "notes": "",
+      "decisions": []
+    },
+    {
+      "id": "Q",
+      "name": "Global / macro",
+      "status": "PASS",
+      "evidence": {
+        "contract": "per-instrument finality (migration 0010, global_instrument_contract)",
+        "failing": [],
+        "waiting_for_confirmation": [],
+        "bond_yields": "VENDOR_UNAVAILABLE (no Upstox instrument)"
+      },
+      "db_state": {
+        "per_instrument": {
+          "GLOBAL_INDEX|^DJI": {
+            "status": "PASS",
+            "measured": true,
+            "fetched_within_36h": true,
+            "last_final_label": "2026-09-25",
+            "final_age_days": 3,
+            "limit_days": 7,
+            "pending_unconfirmed": "None",
+            "withheld_revised_or_placeholder": 0,
+            "leaked": 0,
+            "vendor_absent_days": 129,
+            "weekend_label_share": "0.0076"
+          },
+          "GLOBAL_INDEX|DOW FUTURES": {
+            "status": "PASS",
+            "measured": true,
+            "fetched_within_36h": true,
+            "last_final_label": "2026-09-25",
+            "final_age_days": 3,
+            "limit_days": 6,
+            "pending_unconfirmed": "None",
+            "withheld_revised_or_placeholder": 0,
+            "leaked": 0,
+            "vendor_absent_days": 122,
+            "weekend_label_share": "0.0982"
+          },
+          "GLOBAL_INDEX|^FCHI": {
+            "status": "PASS",
+            "measured": true,
+            "fetched_within_36h": true,
+            "last_final_label": "2026-09-25",
+            "final_age_days": 3,
+            "limit_days": 7,
+            "pending_unconfirmed": "None",
+            "withheld_revised_or_placeholder": 0,
+            "leaked": 0,
+            "vendor_absent_days": 109,
+            "weekend_label_share": "0.0095"
+          },
+          "GLOBAL_INDEX|^FTSE": {
+            "status": "PASS",
+            "measured": true,
+            "fetched_within_36h": true,
+            "last_final_label": "2026-09-25",
+            "final_age_days": 3,
+            "limit_days": 7,
+            "pending_unconfirmed": "None",
+            "withheld_revised_or_placeholder": 0,
+            "leaked": 0,
+            "vendor_absent_days": 157,
+            "weekend_label_share": "0.0105"
+          },
+          "GLOBAL_INDEX|^GDAXI": {
+            "status": "PASS",
+            "measured": true,
+            "fetched_within_36h": true,
+            "last_final_label": "2026-09-25",
+            "final_age_days": 3,
+            "limit_days": 7,
+            "pending_unconfirmed": "None",
+            "withheld_revised_or_placeholder": 0,
+            "leaked": 0,
+            "vendor_absent_days": 106,
+            "weekend_label_share": "0.0121"
+          },
+          "GLOBAL_INDEX|^GSPC": {
+            "status": "PASS",
+            "measured": true,
+            "fetched_within_36h": true,
+            "last_final_label": "2026-09-25",
+            "final_age_days": 3,
+            "limit_days": 7,
+            "pending_unconfirmed": "None",
+            "withheld_revised_or_placeholder": 0,
+            "leaked": 0,
+            "vendor_absent_days": 111,
+            "weekend_label_share": "0.0055"
+          },
+          "GLOBAL_INDEX|^HSI": {
+            "status": "PASS",
+            "measured": true,
+            "fetched_within_36h": true,
+            "last_final_label": "2026-09-25",
+            "final_age_days": 3,
+            "limit_days": 7,
+            "pending_unconfirmed": "None",
+            "withheld_revised_or_placeholder": 0,
+            "leaked": 0,
+            "vendor_absent_days": 177,
+            "weekend_label_share": "0.0050"
+          },
+          "GLOBAL_INDEX|IXIX": {
+            "status": "PASS",
+            "measured": true,
+            "fetched_within_36h": true,
+            "last_final_label": "2026-09-25",
+            "final_age_days": 3,
+            "limit_days": 7,
+            "pending_unconfirmed": "None",
+            "withheld_revised_or_placeholder": 0,
+            "leaked": 0,
+            "vendor_absent_days": 115,
+            "weekend_label_share": "0.0102"
+          },
+          "GLOBAL_INDEX|^N225": {
+            "status": "PASS",
+            "measured": true,
+            "fetched_within_36h": true,
+            "last_final_label": "2026-09-22",
+            "final_age_days": 6,
+            "limit_days": 7,
+            "pending_unconfirmed": "2026-09-27",
+            "withheld_revised_or_placeholder": 3,
+            "leaked": 0,
+            "vendor_absent_days": 248,
+            "weekend_label_share": "0.0515"
+          },
+          "GLOBAL_INDEX|SGX NIFTY": {
+            "status": "PASS",
+            "measured": true,
+            "fetched_within_36h": true,
+            "last_final_label": "2026-09-25",
+            "final_age_days": 3,
+            "limit_days": 6,
+            "pending_unconfirmed": "None",
+            "withheld_revised_or_placeholder": 3,
+            "leaked": 0,
+            "vendor_absent_days": 92,
+            "weekend_label_share": "0.0342"
+          },
+          "GLOBAL_INDICATOR|BZUSD": {
+            "status": "PASS",
+            "measured": true,
+            "fetched_within_36h": true,
+            "last_final_label": "2026-09-25",
+            "final_age_days": 3,
+            "limit_days": 6,
+            "pending_unconfirmed": "None",
+            "withheld_revised_or_placeholder": 0,
+            "leaked": 0,
+            "vendor_absent_days": 124,
+            "weekend_label_share": "0.1149"
+          },
+          "GLOBAL_INDICATOR|CLUSD": {
+            "status": "PASS",
+            "measured": true,
+            "fetched_within_36h": true,
+            "last_final_label": "2026-09-25",
+            "final_age_days": 3,
+            "limit_days": 6,
+            "pending_unconfirmed": "None",
+            "withheld_revised_or_placeholder": 0,
+            "leaked": 0,
+            "vendor_absent_days": 114,
+            "weekend_label_share": "0.1142"
+          },
+          "GLOBAL_INDICATOR|USDINR": {
+            "status": "PASS",
+            "measured": true,
+            "fetched_within_36h": true,
+            "last_final_label": "2026-09-25",
+            "final_age_days": 3,
+            "limit_days": 7,
+            "pending_unconfirmed": "None",
+            "withheld_revised_or_placeholder": 20,
+            "leaked": 0,
+            "vendor_absent_days": 219,
+            "weekend_label_share": "0.1515"
+          }
+        }
+      },
+      "notes": "new rule: fresh COMPLETE fetch + a CONFIRMED label within the instrument's own p99 gap + 3 days + nothing revised/placeholder exposed (old: a bar on the previous NSE session)",
+      "decisions": []
+    },
+    {
+      "id": "R",
+      "name": "Daily incremental ingestion",
+      "status": "WAITING_FOR_EVIDENCE",
+      "evidence": {
+        "sessions_complete_all_intraday_tfs": [
+          "2026-09-25",
+          "2026-09-24"
+        ],
+        "rerun_checks": [],
+        "runbook": "ops/runbooks/close_then_backfill.sh --no-backfill"
+      },
+      "db_state": {
+        "active_instruments": 3547,
+        "complete_runs_by_session": {
+          "1m": {
+            "2026-09-25": 3531,
+            "2026-09-24": 3527,
+            "2026-09-23": 4
+          },
+          "15m": {
+            "2026-09-28": 3547,
+            "2026-09-25": 3531,
+            "2026-09-24": 3527
+          },
+          "1h": {
+            "2026-09-28": 653,
+            "2026-09-25": 3531,
+            "2026-09-24": 3527
+          }
+        }
+      },
+      "notes": "new rule: 1m + 15m + 1h complete for >= 99 % of ACTIVE instruments on a session AND a same-day rerun inserting nothing (old: 1m only)",
+      "decisions": []
+    },
+    {
+      "id": "S",
+      "name": "Historical backfill to the approved depth",
+      "status": "DEFERRED",
+      "evidence": {
+        "from": {
+          "F": "PASS",
+          "G": "DEFERRED",
+          "I": "DEFERRED",
+          "J": "DEFERRED"
+        }
+      },
+      "db_state": {},
+      "notes": "intraday depth DEFERRED_FOR_STAGE_1 (BACKFILL-DEFER); 1D depth (F) is required and measured",
+      "decisions": [
+        "BACKFILL-DEFER"
+      ]
+    },
+    {
+      "id": "T",
+      "name": "Replay (archive -> parser -> DB) + raw archive hashes",
+      "status": "PASS",
+      "evidence": {
+        "replay": {
+          "runs": 125,
+          "mismatches": 0,
+          "by_family": {
+            "candles": {
+              "runs": 25,
+              "rows": 1889,
+              "available": true
+            },
+            "fii_dii": {
+              "runs": 25,
+              "rows": 1884,
+              "available": true
+            },
+            "news": {
+              "runs": 25,
+              "rows": 14,
+              "available": true
+            },
+            "corporate_actions": {
+              "runs": 25,
+              "rows": 329,
+              "available": true
+            },
+            "fundamentals": {
+              "runs": 25,
+              "rows": 2978,
+              "available": true
+            }
+          },
+          "per_family": 25
+        },
+        "archive": {
+          "file_payloads_verified": 72269,
+          "frame_payloads_verified": 34379,
+          "frame_archives": 6,
+          "mismatched": 0,
+          "missing": 0
+        }
+      },
+      "db_state": {},
+      "notes": "",
+      "decisions": []
+    },
+    {
+      "id": "U",
+      "name": "Idempotency (no duplicate observations)",
+      "status": "PASS",
+      "evidence": {
+        "duplicates": {
+          "macro": 0,
+          "news": 0,
+          "corporate_action": 0,
+          "fundamentals_repeated_snapshot": 0,
+          "news_links": 0
+        }
+      },
+      "db_state": {},
+      "notes": "ohlcv_bar is keyed by its primary key; reruns inserted 0 (validation doc \u00a76, \u00a713, \u00a714)",
+      "decisions": []
+    },
+    {
+      "id": "V",
+      "name": "Crash recovery",
+      "status": "PASS",
+      "evidence": {
+        "stale_running_runs": 0,
+        "tests": "test_interrupted_insert_rolls_back_and_resume_completes, rate-limit abort tests (candles, news, corporate actions, fundamentals, FII/DII)"
+      },
+      "db_state": {},
+      "notes": "",
+      "decisions": []
+    },
+    {
+      "id": "W",
+      "name": "Coverage reconciliation",
+      "status": "PASS",
+      "evidence": {
+        "1d_without_outcome": 0,
+        "1d_failed": 0
+      },
+      "db_state": {},
+      "notes": "EMPTY windows are recorded outcomes (new listings)",
+      "decisions": []
+    },
+    {
+      "id": "X",
+      "name": "No look-ahead (incl. B1/B2 verified over >= 3 sessions)",
+      "status": "WAITING_FOR_EVIDENCE",
+      "evidence": {
+        "violations": {
+          "daily_nse_fetched_same_day": 0,
+          "intraday_before_end_plus_margin": 0,
+          "fii_dii_same_day": 0,
+          "news_published_after_knowable": 0,
+          "corporate_announced_after_fetch": 0
+        },
+        "timing": {
+          "B1": {
+            "status": "UNMEASURED",
+            "sessions_observed": [],
+            "sessions_agreeing": [],
+            "sessions_disagreeing": {}
+          },
+          "B2": {
+            "status": "UNMEASURED",
+            "sessions_observed": [],
+            "sessions_agreeing": [],
+            "sessions_disagreeing": {}
+          }
+        }
+      },
+      "db_state": {},
+      "notes": "0 violations required (FAIL otherwise); B1 and the revised B2 (TIMING-B2: timing-final at bar_end + margin) need >= 3 agreeing sessions (WAITING_FOR_EVIDENCE until then); any late revision (after the margin) or B1 contradiction: BLOCKED for contract review; knowable_at stays the fetch time regardless",
+      "decisions": []
+    },
+    {
+      "id": "Y",
+      "name": "Survivorship policy",
+      "status": "PASS",
+      "evidence": {
+        "policy": "survivorship-biased equity history accepted and documented: Upstox publishes no delisted/historical master (the 'suspended' file answers 403)",
+        "ref": "M4.5 plan approved 2026-09-23"
+      },
+      "db_state": {},
+      "notes": "",
+      "decisions": []
+    }
+  ],
+  "decisions": {
+    "D1": {
+      "status": "APPROVED",
+      "decision": "1D from 2020-01-01; 1h and 15m from 2022-01; 1m for the last 6 months",
+      "ref": "M4.5 plan approved 2026-09-23 (M4_DECISIONS)"
+    },
+    "D2": {
+      "status": "APPROVED",
+      "decision": "vendor-fetched 15m/1h (and 1m)",
+      "ref": "M4.5 plan approved 2026-09-23"
+    },
+    "D2-5m": {
+      "status": "APPROVED",
+      "decision": "5m is EXCLUDED from Stage 1 (it is exactly the aggregation of 1m, measured 428/428); later-stage scope",
+      "ref": "user 2026-09-24 (D2-5m = B)"
+    },
+    "D3": {
+      "status": "IN_FORCE",
+      "decision": "the first observation of a bar is immutable; a later different vendor value is classified (contracts.revision) and, when explained (CA_ADJUSTMENT / ROUNDING / SETTLEMENT / GLOBAL_REVISION), recorded in ohlcv_observation; an UNEXPLAINED change still FAILS",
+      "ref": "M1/M4 contracts; refined by PRICE-BASIS (hardening phase 6, 2026-09-25)"
+    },
+    "D5": {
+      "status": "APPROVED",
+      "decision": "all-day LTP/depth persistence stays in Stage 7; recorder capability kept; pre-open persisted",
+      "ref": "user 2026-09-24 (D5 confirmed)"
+    },
+    "S1": {
+      "status": "IN_FORCE",
+      "decision": "universe = NSE_EQ series EQ/BE/SM/BZ/ST/IV (REIT RR, D1/E1/IT/SZ/W1 excluded)",
+      "ref": "M1; not changed"
+    },
+    "S2": {
+      "status": "APPROVED",
+      "decision": "FII/DII, corporate actions, news, fundamentals, global (where Upstox has it) are in Stage 1",
+      "ref": "user 2026-09-23 (FII/DII) and Stage-1 completion mission 2026-09-24"
+    },
+    "P1": {
+      "status": "APPROVED",
+      "decision": "keep vendor currentTs as WebSocket knowable_at (M0 contract); consumers use fetched_at for local receipt ordering",
+      "ref": "user 2026-09-24 (P1 = A)"
+    },
+    "SURV": {
+      "status": "APPROVED",
+      "decision": "survivorship-biased equity history accepted and documented: Upstox publishes no delisted/historical master (the 'suspended' file answers 403)",
+      "ref": "M4.5 plan approved 2026-09-23"
+    },
+    "Q1": {
+      "status": "APPROVED",
+      "decision": "an invalid vendor bar (negative volume; OHLC outside [low, high]; non-positive price) is QUARANTINED: never stored, raw kept, one anomaly per bar; the rest of the window is stored",
+      "ref": "user 2026-09-24 (Q1 = A)"
+    },
+    "C6": {
+      "status": "APPROVED",
+      "decision": "pre-open completeness counts instruments with pre-open activity (an IEP at any point) as the denominator; instruments that never had an IEP are recorded as 'no pre-open activity', never fabricated",
+      "ref": "user 2026-09-24 (C6 accepted)"
+    },
+    "KN-CA": {
+      "status": "APPROVED",
+      "decision": "corporate actions: knowable_at = end of the announcement date in IST (23:59:59.999, unverified), never later than fetched_at",
+      "ref": "user 2026-09-24 (KN-CA = B)"
+    },
+    "CAL-FIX": {
+      "status": "APPROVED",
+      "decision": "delete the 1,096 calendar rows 2020-2022 written by the superseded timings rule and re-ingest with the NIFTY-50 rule",
+      "ref": "user 2026-09-24"
+    },
+    "PRICE-BASIS": {
+      "status": "APPROVED",
+      "decision": "Option B: raw observed prices are the canonical basis (ohlcv_payload_basis); our own corporate-action factors (ca_factor) derive PIT-adjusted views; vendor-adjusted history is never passed off as raw",
+      "ref": "user 2026-09-25 (hardening decisions 2-4)"
+    },
+    "SECCLASS": {
+      "status": "APPROVED",
+      "decision": "sector coverage (D) is measured over STOCK instruments only (instrument_security_class, >= 2 agreeing signals)",
+      "ref": "user 2026-09-25 (hardening decision 1)"
+    },
+    "LIFECYCLE": {
+      "status": "APPROVED",
+      "decision": "completeness gates use the ACTIVE universe (daily master refresh; REMOVED_FROM_MASTER / INELIGIBLE / VENDOR_REJECTED kept, not counted)",
+      "ref": "user 2026-09-25 (decision 7)"
+    },
+    "GLOBAL-FINALITY": {
+      "status": "APPROVED",
+      "decision": "global bars are exposed only once final (confirmed re-observation or history); revisions and placeholders withheld; Q per-instrument contract",
+      "ref": "user 2026-09-25 (decisions 6-8)"
+    },
+    "BACKFILL-DEFER": {
+      "status": "APPROVED",
+      "decision": "the historical intraday backfill (1m 6 months, 15m/1h from 2022; ~293k requests) is DEFERRED for Stage 1 (live readiness); capability kept, cron entries disabled; it belongs to Stage 3 preparation",
+      "ref": "user 2026-09-25 (hardening decision 1 / directive 10)"
+    },
+    "TIMING-B2": {
+      "status": "APPROVED",
+      "decision": "B2 REVISED. Original: '1m bars never change once listed'. Finding 2026-09-25: 90/1,125 NSE_INDEX|Nifty 50 1m bars revised, latest 95.6 s after the bar end (RELIANCE, HDFCBANK: none); 15m <= 110.9 s, 1h <= 111.0 s; 5m (out of scope) 145.9 s. New: a candle is timing-final from bar_end + completion_margin(timeframe) (1m/15m/1h 120 s; an engineering threshold chosen from observation, configurable, monitored, NOT a vendor SLA). A revision at/after the margin is a LATE_REVISION: recorded, X BLOCKED, explicit contract review; the margin is never enlarged silently. Timing finality never changes knowable_at (the fetch time)",
+      "ref": "user 2026-09-25 (master directive: B2/X contract change)"
+    },
+    "TIMING-REVIEW": {
+      "status": "PENDING",
+      "decision": "explicit contract review, required only when a late revision (after the TIMING-B2 margin) or a B1 contradiction is recorded; the margin is never enlarged silently",
+      "ref": "-"
+    },
+    "LOGIN": {
+      "status": "APPROVED",
+      "decision": "one automated Upstox TOTP login per day by the ops runbooks, until revoked",
+      "ref": "user 2026-09-24"
+    }
+  }
+}

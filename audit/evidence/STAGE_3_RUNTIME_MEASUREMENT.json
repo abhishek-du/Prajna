@@ -1,0 +1,28 @@
+{
+  "measured_at": "2026-09-28T19:05:04+05:30",
+  "session": "2026-09-28",
+  "snapshot": "PRE_SESSION",
+  "instruments": 3547,
+  "compute_seconds": 137.16,
+  "total_seconds": 137.3,
+  "rows": 180919,
+  "stats": {
+    "rows": 180919,
+    "values": 128944,
+    "nulls_by_reason": {
+      "DIVISION_UNDEFINED": 1149,
+      "INSUFFICIENT_HISTORY": 3480,
+      "MALFORMED_INPUT": 4567,
+      "MISSING_INPUT": 42779
+    },
+    "refused_bars": {
+      "reconstructed": 0,
+      "low_confidence": 154618
+    },
+    "seconds": 136.82,
+    "instruments": 3547
+  },
+  "persistence_status": "FAILED_ON_BATCH_SIZE_OVERFLOW",
+  "persistence_error": "asyncpg.exceptions._base.InterfaceError: the number of query arguments cannot exceed 32767",
+  "reproducibility": "CONFIRMED_COMPUTATION (claimed 142s, measured 137.16s)"
+}

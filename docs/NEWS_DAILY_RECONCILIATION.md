@@ -1,46 +1,46 @@
-# News daily reconciliation
+# News daily reconciliation: 2026-09-29 (PRODUCTION)
 
-**Status: no SHADOW or PRODUCTION collection day exists yet.**
+Generated 2026-09-29T14:38:47.110135+00:00 (as of 2026-09-29T14:38:47.110109+00:00), read-only, from the database. Produced by `prajna news reconcile`.
 
-- `news_item` and `news_poll` hold 0 rows in production (2026-09-29).
-- Every source is still locked: flags off, and the acceptance MAPPING criterion waits for the user's review.
-- **This file will be overwritten by the tool** on the first collection day:
+## Invariants (each must be 0)
 
-```
-cd backend
-.venv/bin/prajna news reconcile --day <YYYY-MM-DD> --mode SHADOW|PRODUCTION \
-    --md ../docs/NEWS_DAILY_RECONCILIATION.md \
-    --json ../audit/evidence/news_reconcile_<YYYY-MM-DD>.json
-```
-
-The command is read-only. It writes the monitoring states to `var/status/news_health.json`, which `prajna ops status` shows, and **exits 1 if an invariant is violated**.
-
-## What it reports (per source, for one IST day and one mode)
-
-| Field | Meaning |
+| Check | Count |
 |---|---|
-| state | the monitoring states (HEALTHY / COLLECTOR_DOWN / SOURCE_DOWN / RATE_LIMITED / FETCH_FAILURE / SOURCE_STALE / UNUSUAL_VOLUME / UNUSUAL_DUP_RATE) |
-| polls, outcomes, failures | every poll by outcome; each failure with time, HTTP status and error |
-| fetched | the sum of items presented by the feed in each poll (the same item counts once per poll) |
-| stored (live / backlog) | new `news_item` rows; backlog = present in the source's first successful poll |
-| decisions | NEW_ARTICLE / DUPLICATE_ARTICLE / STORY_RELATED / STORY_CORRECTION per stored article |
-| edits | observations stored; how many were material (STORY_UPDATE / STORY_CORRECTION) and how many not (only `source_updated_at` changed) |
-| scopes | the scope-v1 primary scope per stored article |
-| unresolved company links | articles whose company mention could not be mapped |
-| refusals | lock refusals recorded in `news_audit` |
-| latency | detection (discovered − published), ingestion (processed − discovered), end-to-end; p50 / p90 / p95 / p99; live items only; clock-skew items counted separately |
-| Upstox articles | Upstox `/v2/news` articles fetched the same day, for comparison |
+| duplicate_source_ids | 0 |
+| knowable_before_discovery | 0 |
+| items_without_decision | 0 |
+| decision_knowable_before_made | 0 |
+| decision_knowable_before_item | 0 |
+| enrichment_knowable_before_item | 0 |
+| knowable_in_the_future | 0 |
 
-**Invariants (each must be 0):**
+**Invariants: OK**
 
-- duplicate (source, source_article_id);
-- an item knowable before it was discovered;
-- a stored article without a dedup decision;
-- a decision knowable before it was made.
+## Per source
 
-## Reference: the DRY_RUN day 2026-09-29 (files, not the database)
+| Source | State | Polls | Failed | Fetched | Stored (live) | New | Duplicate | Related | Correction | Edits (material) | Refusals | Detection p50 / p95 s |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| NSE_ANNOUNCEMENTS | COLLECTOR_DOWN | 2 | 1 | 1376 | 1376 (0) | 1338 | 0 | 38 | 0 | 0 (0) | 0 | None / None |
+| ET_STOCKS_RSS | COLLECTOR_DOWN | 3 | 0 | 150 | 51 (1) | 51 | 0 | 0 | 0 | 0 (0) | 0 | 1605.2 / 1605.2 |
+| BS_MARKETS_RSS | COLLECTOR_DOWN | 2 | 0 | 70 | 35 (0) | 35 | 0 | 0 | 0 | 1 (1) | 0 | None / None |
+| BL_MARKETS_RSS | COLLECTOR_DOWN | 1 | 0 | 60 | 60 (0) | 60 | 0 | 0 | 0 | 0 (0) | 0 | None / None |
+| MINT_MARKETS_RSS | COLLECTOR_DOWN | 2 | 0 | 70 | 36 (1) | 36 | 0 | 0 | 0 | 34 (34) | 0 | None / None |
+| CNBCTV18_NEWS_SITEMAP | COLLECTOR_DOWN | 2 | 0 | 836 | 420 (4) | 420 | 0 | 0 | 0 | 1 (0) | 0 | 685.2 / 768.7 |
+| INDIANEXPRESS_BUSINESS_RSS | COLLECTOR_DOWN | 0 | 0 | 0 | 0 (0) | 0 | 0 | 0 | 0 | 0 (0) | 0 | None / None |
+| SEBI_RSS | HEALTHY | 1 | 0 | 30 | 30 (0) | 30 | 0 | 0 | 0 | 0 (0) | 0 | None / None |
 
-Until a database day exists, the measured DRY_RUN session is the reference. See `docs/NEWS_SOURCE_MATRIX.md`:
+Upstox `/v2/news` articles fetched the same day (production path 1): 27.
 
-- 1,365 live items;
-- per-source polls, failures, latency and edits.
+## Failures (first 50 per source)
+
+- NSE_ANNOUNCEMENTS 2026-09-29T12:18:08.170730+00:00 MALFORMED 200 not XML: unclosed token: line 1, column 566019
+
+## Scopes
+
+- NSE_ANNOUNCEMENTS: COMPANY 764, CORPORATE 324, MARKET_WIDE 191, COMMODITY 42, SECTOR 34, MACRO 12, GLOBAL_MARKET 9
+- ET_STOCKS_RSS: COMPANY 21, MARKET_WIDE 17, CORPORATE 7, SECTOR 3, IRRELEVANT 2, COMMODITY 1
+- BS_MARKETS_RSS: CORPORATE 9, MARKET_WIDE 8, IRRELEVANT 5, COMPANY 5, SECTOR 2, REGULATORY 2, COMMODITY 2, MACRO 1, GEOPOLITICAL 1
+- BL_MARKETS_RSS: COMMODITY 16, CORPORATE 13, MARKET_WIDE 8, REGULATORY 7, COMPANY 6, IRRELEVANT 5, CURRENCY 3, GEOPOLITICAL 1, GLOBAL_MARKET 1
+- MINT_MARKETS_RSS: MARKET_WIDE 11, COMPANY 7, CORPORATE 7, COMMODITY 4, IRRELEVANT 3, SECTOR 1, CURRENCY 1, GLOBAL_MARKET 1, MACRO 1
+- CNBCTV18_NEWS_SITEMAP: IRRELEVANT 168, CORPORATE 58, MARKET_WIDE 44, GEOPOLITICAL 37, COMPANY 29, REGULATORY 26, COMMODITY 20, MACRO 15, SECTOR 13, CURRENCY 7, GLOBAL_MARKET 3
+- SEBI_RSS: REGULATORY 30

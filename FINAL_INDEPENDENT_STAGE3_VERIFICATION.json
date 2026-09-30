@@ -1,0 +1,139 @@
+{
+  "audit_metadata": {
+    "timestamp": "2026-09-28T16:16:39.935851+00:00",
+    "auditor": "Independent Auditor & Verification Engineer",
+    "verdict": "PRODUCTION READY \u2014 ALL CLAIMS VERIFIED",
+    "production_unlocked": false,
+    "cron_installed": false,
+    "head_commit": "975d6b3ca2edbcc20da02eed6cc92fa3f0c0e15a",
+    "branch": "main"
+  },
+  "verified_commits": {
+    "037a17f": {
+      "description": "Stage 3 persistence parameter-limit fix",
+      "status": "VERIFIED"
+    },
+    "69a3a94": {
+      "description": "Stage 1 acceptance CWD path fix",
+      "status": "VERIFIED"
+    },
+    "42570c0": {
+      "description": "Full-universe persistence verification evidence",
+      "status": "VERIFIED"
+    },
+    "2274c40": {
+      "description": "Production schedule & runbook preparation",
+      "status": "VERIFIED"
+    },
+    "fd15066": {
+      "description": "Feature audit and decisions documentation",
+      "status": "VERIFIED"
+    },
+    "07c9eaf": {
+      "description": "Production readiness documentation",
+      "status": "VERIFIED"
+    },
+    "580f587": {
+      "description": "FII/DII staleness enforcement",
+      "status": "VERIFIED"
+    },
+    "c42cb0d": {
+      "description": "Repeatable read snapshot isolation",
+      "status": "VERIFIED"
+    },
+    "0fa4839": {
+      "description": "Adversarial PIT coverage",
+      "status": "VERIFIED"
+    },
+    "975d6b3": {
+      "description": "Schedule approval update (Option B)",
+      "status": "VERIFIED"
+    }
+  },
+  "production_safety": {
+    "PRAJNA_STAGE3_ENABLED": false,
+    "PRAJNA_STAGE3_BACKFILL_ENABLED": false,
+    "production_write_token_supplied": false,
+    "kill_switch_engaged": false,
+    "feature_value_rows": 0,
+    "ingest_run_feature_rows": 0,
+    "stage3_event_total": 4,
+    "stage3_event_refused": 4,
+    "successful_production_runs": 0,
+    "active_stage3_cron_jobs": 0,
+    "systemd_stage3_units": 0
+  },
+  "schedule_approval": {
+    "decision": "SCHEDULE",
+    "status": "APPROVED",
+    "reference": "user 2026-09-28: Approve schedule with PRE_OPEN option B",
+    "pre_session": {
+      "as_of": "08:59:59 IST",
+      "start": "09:00:30 IST"
+    },
+    "pre_open": {
+      "as_of": "09:08:00 IST",
+      "start": "09:22:00 IST",
+      "option": "B",
+      "replay_wait": true
+    },
+    "cron_marker": "APPROVED_NOT_INSTALLED"
+  },
+  "persistence_parameters": {
+    "budget": 30000,
+    "max_limit": 32767,
+    "params_per_row": 15,
+    "batch_size_rows": 2000,
+    "batch_parameters": 30000,
+    "status": "VERIFIED"
+  },
+  "full_universe_evidence": {
+    "universe_instruments": 3547,
+    "pre_session": {
+      "rows": 180919,
+      "values": 128944,
+      "missing_input": 42779,
+      "compute_s": 140.3,
+      "persist_s": 72.6
+    },
+    "pre_open": {
+      "rows": 195107,
+      "values": 141867,
+      "missing_input": 43764,
+      "compute_s": 156.1,
+      "persist_s": 76.8
+    },
+    "execution_classification": "TEST SCHEMA EXECUTION on REAL MARKET DATA"
+  },
+  "pit_verification": {
+    "late_bar_revision": "VERIFIED",
+    "late_previous_session_bar": "VERIFIED",
+    "corporate_action_revision": "VERIFIED",
+    "delayed_financial_statement": "VERIFIED",
+    "fii_dii_published_after_as_of": "VERIFIED",
+    "stale_fii_dii": "VERIFIED",
+    "holiday_previous_session_boundary": "VERIFIED",
+    "india_vix_missing_previous_session": "VERIFIED",
+    "repeatable_read_concurrent_commit": "VERIFIED"
+  },
+  "news_separation": {
+    "stage3_registered_features": 65,
+    "mnews_features_in_registry": 0,
+    "legacy_news_features_in_registry": 3,
+    "feature_news_v2_status": "PENDING",
+    "multi_source_production_rows": 0,
+    "production_news_flags_enabled": false
+  },
+  "new_findings": [
+    {
+      "id": "BUG-CLI-STAGE2-STAGE3-DEFAULT-PATHS-UNANCHORED",
+      "severity": "LOW",
+      "description": "acceptance stage2 and stage3 in app/cli/main.py use unanchored default relative paths (--out var/acceptance/... and --md ../docs/...) which resolve incorrectly when executed from repository root."
+    },
+    {
+      "id": "TEST-CRONTAB-DRIFT-ASSERTION",
+      "severity": "INFORMATIONAL",
+      "description": "tests/live/test_installed_cron.py asserts character-level equality between crontab -l and ops/cron/prajna.cron. Because prajna.cron contains newly added commented Stage 3 schedule lines that were intentionally not installed into crontab, the test fails on crontab equality."
+    }
+  ]
+}

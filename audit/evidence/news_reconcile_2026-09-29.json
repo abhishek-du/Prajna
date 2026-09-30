@@ -1,0 +1,697 @@
+{
+ "day": "2026-09-29",
+ "mode": "PRODUCTION",
+ "generated_at": "2026-09-29T14:38:47.110135+00:00",
+ "as_of": "2026-09-29T14:38:47.110109+00:00",
+ "sources": {
+  "NSE_ANNOUNCEMENTS": {
+   "state": [
+    "COLLECTOR_DOWN"
+   ],
+   "polls": 2,
+   "outcomes": {
+    "OK": 1,
+    "MALFORMED": 1
+   },
+   "failures": [
+    {
+     "at": "2026-09-29T12:18:08.170730+00:00",
+     "outcome": "MALFORMED",
+     "http_status": 200,
+     "error": "not XML: unclosed token: line 1, column 566019"
+    }
+   ],
+   "items_fetched": 1376,
+   "items_stored": 1376,
+   "live_items": 0,
+   "backlog_items": 1376,
+   "decisions": {
+    "NEW_ARTICLE": 1338,
+    "STORY_RELATED": 38
+   },
+   "edits": {
+    "stored": 0,
+    "with_decision": 0,
+    "decisions": {},
+    "not_material": 0
+   },
+   "scopes": {
+    "COMPANY": 764,
+    "CORPORATE": 324,
+    "MARKET_WIDE": 191,
+    "COMMODITY": 42,
+    "SECTOR": 34,
+    "MACRO": 12,
+    "GLOBAL_MARKET": 9
+   },
+   "unresolved_company_links": 499,
+   "refusals": 0,
+   "latency": {
+    "detection_s": {
+     "all": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     },
+     "market_hours": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     },
+     "off_hours": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     }
+    },
+    "ingestion_s": {
+     "n": 1376,
+     "p50": 14.0,
+     "p90": 20.9,
+     "p95": 21.7,
+     "p99": 22.3,
+     "max": 22.4
+    },
+    "end_to_end_s": {
+     "n": 0,
+     "p50": null,
+     "p90": null,
+     "p95": null,
+     "p99": null,
+     "max": null
+    },
+    "clock_skew_items": 0,
+    "note": "measured, never claimed first; backlog and date-only items excluded"
+   },
+   "norm_new_item_gap_s": null
+  },
+  "ET_STOCKS_RSS": {
+   "state": [
+    "COLLECTOR_DOWN"
+   ],
+   "polls": 3,
+   "outcomes": {
+    "OK": 3
+   },
+   "failures": [],
+   "items_fetched": 150,
+   "items_stored": 51,
+   "live_items": 1,
+   "backlog_items": 50,
+   "decisions": {
+    "NEW_ARTICLE": 51
+   },
+   "edits": {
+    "stored": 0,
+    "with_decision": 0,
+    "decisions": {},
+    "not_material": 0
+   },
+   "scopes": {
+    "COMPANY": 21,
+    "MARKET_WIDE": 17,
+    "CORPORATE": 7,
+    "SECTOR": 3,
+    "IRRELEVANT": 2,
+    "COMMODITY": 1
+   },
+   "unresolved_company_links": 26,
+   "refusals": 0,
+   "latency": {
+    "detection_s": {
+     "all": {
+      "n": 1,
+      "p50": 1605.2,
+      "p90": 1605.2,
+      "p95": 1605.2,
+      "p99": 1605.2,
+      "max": 1605.2
+     },
+     "market_hours": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     },
+     "off_hours": {
+      "n": 1,
+      "p50": 1605.2,
+      "p90": 1605.2,
+      "p95": 1605.2,
+      "p99": 1605.2,
+      "max": 1605.2
+     }
+    },
+    "ingestion_s": {
+     "n": 51,
+     "p50": 23.1,
+     "p90": 23.5,
+     "p95": 23.6,
+     "p99": 23.6,
+     "max": 23.6
+    },
+    "end_to_end_s": {
+     "n": 1,
+     "p50": 1605.5,
+     "p90": 1605.5,
+     "p95": 1605.5,
+     "p99": 1605.5,
+     "max": 1605.5
+    },
+    "clock_skew_items": 0,
+    "note": "measured, never claimed first; backlog and date-only items excluded"
+   },
+   "norm_new_item_gap_s": null
+  },
+  "BS_MARKETS_RSS": {
+   "state": [
+    "COLLECTOR_DOWN"
+   ],
+   "polls": 2,
+   "outcomes": {
+    "OK": 2
+   },
+   "failures": [],
+   "items_fetched": 70,
+   "items_stored": 35,
+   "live_items": 0,
+   "backlog_items": 35,
+   "decisions": {
+    "NEW_ARTICLE": 35
+   },
+   "edits": {
+    "stored": 1,
+    "with_decision": 1,
+    "decisions": {
+     "STORY_UPDATE": 1
+    },
+    "not_material": 0
+   },
+   "scopes": {
+    "CORPORATE": 9,
+    "MARKET_WIDE": 8,
+    "IRRELEVANT": 5,
+    "COMPANY": 5,
+    "SECTOR": 2,
+    "REGULATORY": 2,
+    "COMMODITY": 2,
+    "MACRO": 1,
+    "GEOPOLITICAL": 1
+   },
+   "unresolved_company_links": 28,
+   "refusals": 0,
+   "latency": {
+    "detection_s": {
+     "all": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     },
+     "market_hours": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     },
+     "off_hours": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     }
+    },
+    "ingestion_s": {
+     "n": 35,
+     "p50": 24.7,
+     "p90": 24.9,
+     "p95": 25.0,
+     "p99": 25.0,
+     "max": 25.0
+    },
+    "end_to_end_s": {
+     "n": 0,
+     "p50": null,
+     "p90": null,
+     "p95": null,
+     "p99": null,
+     "max": null
+    },
+    "clock_skew_items": 0,
+    "note": "measured, never claimed first; backlog and date-only items excluded"
+   },
+   "norm_new_item_gap_s": null
+  },
+  "BL_MARKETS_RSS": {
+   "state": [
+    "COLLECTOR_DOWN"
+   ],
+   "polls": 1,
+   "outcomes": {
+    "OK": 1
+   },
+   "failures": [],
+   "items_fetched": 60,
+   "items_stored": 60,
+   "live_items": 0,
+   "backlog_items": 60,
+   "decisions": {
+    "NEW_ARTICLE": 60
+   },
+   "edits": {
+    "stored": 0,
+    "with_decision": 0,
+    "decisions": {},
+    "not_material": 0
+   },
+   "scopes": {
+    "COMMODITY": 16,
+    "CORPORATE": 13,
+    "MARKET_WIDE": 8,
+    "REGULATORY": 7,
+    "COMPANY": 6,
+    "IRRELEVANT": 5,
+    "CURRENCY": 3,
+    "GEOPOLITICAL": 1,
+    "GLOBAL_MARKET": 1
+   },
+   "unresolved_company_links": 53,
+   "refusals": 0,
+   "latency": {
+    "detection_s": {
+     "all": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     },
+     "market_hours": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     },
+     "off_hours": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     }
+    },
+    "ingestion_s": {
+     "n": 60,
+     "p50": 2.6,
+     "p90": 3.0,
+     "p95": 3.0,
+     "p99": 3.1,
+     "max": 3.1
+    },
+    "end_to_end_s": {
+     "n": 0,
+     "p50": null,
+     "p90": null,
+     "p95": null,
+     "p99": null,
+     "max": null
+    },
+    "clock_skew_items": 0,
+    "note": "measured, never claimed first; backlog and date-only items excluded"
+   },
+   "norm_new_item_gap_s": null
+  },
+  "MINT_MARKETS_RSS": {
+   "state": [
+    "COLLECTOR_DOWN"
+   ],
+   "polls": 2,
+   "outcomes": {
+    "OK": 2
+   },
+   "failures": [],
+   "items_fetched": 70,
+   "items_stored": 36,
+   "live_items": 1,
+   "backlog_items": 35,
+   "decisions": {
+    "NEW_ARTICLE": 36
+   },
+   "edits": {
+    "stored": 34,
+    "with_decision": 34,
+    "decisions": {
+     "STORY_UPDATE": 34
+    },
+    "not_material": 0
+   },
+   "scopes": {
+    "MARKET_WIDE": 11,
+    "COMPANY": 7,
+    "CORPORATE": 7,
+    "COMMODITY": 4,
+    "IRRELEVANT": 3,
+    "SECTOR": 1,
+    "CURRENCY": 1,
+    "GLOBAL_MARKET": 1,
+    "MACRO": 1
+   },
+   "unresolved_company_links": 27,
+   "refusals": 0,
+   "latency": {
+    "detection_s": {
+     "all": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     },
+     "market_hours": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     },
+     "off_hours": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     }
+    },
+    "ingestion_s": {
+     "n": 36,
+     "p50": 1.0,
+     "p90": 1.2,
+     "p95": 1.2,
+     "p99": 1.3,
+     "max": 1.3
+    },
+    "end_to_end_s": {
+     "n": 0,
+     "p50": null,
+     "p90": null,
+     "p95": null,
+     "p99": null,
+     "max": null
+    },
+    "clock_skew_items": 0,
+    "note": "measured, never claimed first; backlog and date-only items excluded"
+   },
+   "norm_new_item_gap_s": null
+  },
+  "CNBCTV18_NEWS_SITEMAP": {
+   "state": [
+    "COLLECTOR_DOWN"
+   ],
+   "polls": 2,
+   "outcomes": {
+    "OK": 2
+   },
+   "failures": [],
+   "items_fetched": 836,
+   "items_stored": 420,
+   "live_items": 4,
+   "backlog_items": 416,
+   "decisions": {
+    "NEW_ARTICLE": 420
+   },
+   "edits": {
+    "stored": 1,
+    "with_decision": 0,
+    "decisions": {},
+    "not_material": 1
+   },
+   "scopes": {
+    "IRRELEVANT": 168,
+    "CORPORATE": 58,
+    "MARKET_WIDE": 44,
+    "GEOPOLITICAL": 37,
+    "COMPANY": 29,
+    "REGULATORY": 26,
+    "COMMODITY": 20,
+    "MACRO": 15,
+    "SECTOR": 13,
+    "CURRENCY": 7,
+    "GLOBAL_MARKET": 3
+   },
+   "unresolved_company_links": 372,
+   "refusals": 0,
+   "latency": {
+    "detection_s": {
+     "all": {
+      "n": 4,
+      "p50": 685.2,
+      "p90": 757.8,
+      "p95": 768.7,
+      "p99": 777.5,
+      "max": 779.7
+     },
+     "market_hours": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     },
+     "off_hours": {
+      "n": 4,
+      "p50": 685.2,
+      "p90": 757.8,
+      "p95": 768.7,
+      "p99": 777.5,
+      "max": 779.7
+     }
+    },
+    "ingestion_s": {
+     "n": 420,
+     "p50": 34.0,
+     "p90": 35.7,
+     "p95": 35.9,
+     "p99": 36.1,
+     "max": 36.1
+    },
+    "end_to_end_s": {
+     "n": 4,
+     "p50": 685.7,
+     "p90": 758.3,
+     "p95": 769.2,
+     "p99": 778.0,
+     "max": 780.2
+    },
+    "clock_skew_items": 0,
+    "note": "measured, never claimed first; backlog and date-only items excluded"
+   },
+   "norm_new_item_gap_s": null
+  },
+  "INDIANEXPRESS_BUSINESS_RSS": {
+   "state": [
+    "COLLECTOR_DOWN"
+   ],
+   "polls": 0,
+   "outcomes": {},
+   "failures": [],
+   "items_fetched": 0,
+   "items_stored": 0,
+   "live_items": 0,
+   "backlog_items": 0,
+   "decisions": {},
+   "edits": {
+    "stored": 0,
+    "with_decision": 0,
+    "decisions": {},
+    "not_material": 0
+   },
+   "scopes": {},
+   "unresolved_company_links": 0,
+   "refusals": 0,
+   "latency": {
+    "detection_s": {
+     "all": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     },
+     "market_hours": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     },
+     "off_hours": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     }
+    },
+    "ingestion_s": {
+     "n": 0,
+     "p50": null,
+     "p90": null,
+     "p95": null,
+     "p99": null,
+     "max": null
+    },
+    "end_to_end_s": {
+     "n": 0,
+     "p50": null,
+     "p90": null,
+     "p95": null,
+     "p99": null,
+     "max": null
+    },
+    "clock_skew_items": 0,
+    "note": "measured, never claimed first; backlog and date-only items excluded"
+   },
+   "norm_new_item_gap_s": null
+  },
+  "SEBI_RSS": {
+   "state": [
+    "HEALTHY"
+   ],
+   "polls": 1,
+   "outcomes": {
+    "OK": 1
+   },
+   "failures": [],
+   "items_fetched": 30,
+   "items_stored": 30,
+   "live_items": 0,
+   "backlog_items": 30,
+   "decisions": {
+    "NEW_ARTICLE": 30
+   },
+   "edits": {
+    "stored": 0,
+    "with_decision": 0,
+    "decisions": {},
+    "not_material": 0
+   },
+   "scopes": {
+    "REGULATORY": 30
+   },
+   "unresolved_company_links": 25,
+   "refusals": 0,
+   "latency": {
+    "detection_s": {
+     "all": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     },
+     "market_hours": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     },
+     "off_hours": {
+      "n": 0,
+      "p50": null,
+      "p90": null,
+      "p95": null,
+      "p99": null,
+      "max": null
+     }
+    },
+    "ingestion_s": {
+     "n": 30,
+     "p50": 36.6,
+     "p90": 36.8,
+     "p95": 36.8,
+     "p99": 36.9,
+     "max": 36.9
+    },
+    "end_to_end_s": {
+     "n": 0,
+     "p50": null,
+     "p90": null,
+     "p95": null,
+     "p99": null,
+     "max": null
+    },
+    "clock_skew_items": 0,
+    "note": "measured, never claimed first; backlog and date-only items excluded"
+   },
+   "norm_new_item_gap_s": null
+  }
+ },
+ "invariants": {
+  "duplicate_source_ids": 0,
+  "knowable_before_discovery": 0,
+  "items_without_decision": 0,
+  "decision_knowable_before_made": 0,
+  "decision_knowable_before_item": 0,
+  "enrichment_knowable_before_item": 0,
+  "knowable_in_the_future": 0,
+  "ok": true
+ },
+ "upstox_articles": 27,
+ "states": {
+  "NSE_ANNOUNCEMENTS": [
+   "COLLECTOR_DOWN"
+  ],
+  "ET_STOCKS_RSS": [
+   "COLLECTOR_DOWN"
+  ],
+  "BS_MARKETS_RSS": [
+   "COLLECTOR_DOWN"
+  ],
+  "BL_MARKETS_RSS": [
+   "COLLECTOR_DOWN"
+  ],
+  "MINT_MARKETS_RSS": [
+   "COLLECTOR_DOWN"
+  ],
+  "CNBCTV18_NEWS_SITEMAP": [
+   "COLLECTOR_DOWN"
+  ],
+  "INDIANEXPRESS_BUSINESS_RSS": [
+   "COLLECTOR_DOWN"
+  ],
+  "SEBI_RSS": [
+   "HEALTHY"
+  ]
+ }
+}
