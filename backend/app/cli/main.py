@@ -1931,5 +1931,94 @@ def acceptance_news(
     typer.echo(f"NEWS: {rep['overall']}")
     raise typer.Exit(0 if rep["overall"] == "PASS" else 1)
 
+
+# ── Stage 4 training data (historical replay + labels; never production rows) ──
+training_app = typer.Typer(help="Stage 4 training dataset: historical Stage 3 replay into "
+                           "training_feature_value and label-v1 into training_label. No model; "
+                           "never writes feature_value; no lock/cron involved.")
+app.add_typer(training_app, name="training")
+
+
+@training_app.command("policy")
+def training_policy():
+    """The frozen AS_IF_LIVE-v1 parameters (measured on the live period at first use)."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.training import policy as P
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await P.ensure_params(s)
+
+    typer.echo(_json.dumps(asyncio.run(_go()), indent=2))
+
+
+@training_app.command("build")
+def training_build(
+    dataset: str = typer.Option(..., "--dataset", help="strict | asif"),
+    start: str = typer.Option(..., "--from"),
+    end: str = typer.Option(..., "--to"),
+    limit: int = typer.Option(None, "--limit", help="pilot: N NSE_EQ instruments (md5 order)"),
+    shard: str = typer.Option("0/1", "--shard", help="i/n: this worker's share of snapshots"),
+    operator: str = typer.Option("cli", "--operator"),
+    pause: str = typer.Option("08:30-09:45", "--pause", help="IST window in which no snapshot "
+                              "starts (keeps the live Stage 3 runs uncontended); '' = none"),
+):
+    """Replay the Stage 3 engine over past sessions into the training dataset.
+    Resumable (done snapshots are skipped) and idempotent (a rerun inserts 0)."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.training import policy as P
+    from app.training import replay as RP
+
+    import dataclasses
+
+    ds = P.DATASETS[dataset]
+    if limit:                     # a pilot never marks sessions of the real dataset as done
+        ds = dataclasses.replace(ds, version=ds.version + "-pilot")
+    i, n = (int(x) for x in shard.split("/"))
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            snaps = (await RP.snapshots(s, ds, _date(start), _date(end)))[i::n]
+            run_id = await RP.open_run(s, ds, _date(start), _date(end), limit, operator)
+            typer.echo(_json.dumps({"run_id": str(run_id), "dataset": ds.version,
+                                    "policy": ds.policy, "snapshots": len(snaps)}))
+            try:
+                for snap in snaps:
+                    await RP.wait_outside(pause)
+                    r = await RP.replay_snapshot(s, ds, snap, run_id, limit=limit)
+                    typer.echo(_json.dumps({k: r[k] for k in r if k != "available"},
+                                           default=str))
+            except BaseException as e:
+                await RP.finish_run(s, run_id, "FAILED", f"{type(e).__name__}: {e}"[:500])
+                raise
+            await RP.finish_run(s, run_id, "COMPLETE")
+            return run_id
+
+    typer.echo(f"TRAINING_BUILD_DONE {asyncio.run(_go())}")
+
+
+@training_app.command("labels")
+def training_labels(
+    start: str = typer.Option(..., "--from"),
+    end: str = typer.Option(..., "--to"),
+    key: list[str] = typer.Option(None, "--key"),
+):
+    """label-v1 for the sessions in [from, to] (append-only; a rerun inserts 0)."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.training import labels as L
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await L.build(s, _date(start), _date(end), list(key) if key else None)
+
+    typer.echo(_json.dumps(asyncio.run(_go()), default=str))
+
+
 if __name__ == "__main__":
     app()
