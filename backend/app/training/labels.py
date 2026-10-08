@@ -75,8 +75,8 @@ async def build(s: AsyncSession, start: _dt.date, end: _dt.date,
         values = []
         for i, b in enumerate(bars):
             d = b["market_date"]
-            if d < start or d not in cal:
-                continue
+            if d < start or d not in cal or None in cal[d]:
+                continue              # a session without calendar times has no label window
             prev = bars[i - 1] if i else None
             res = compute(prev, b, prev_of[d])
             sha = hashlib.sha256(json.dumps(
@@ -112,5 +112,7 @@ async def build(s: AsyncSession, start: _dt.date, end: _dt.date,
                      if stored.get((v["session_date"], v["label_id"]), "absent") != v["value"])
         rows_total += len(values)
         await s.commit()
-    return {"label_version": VERSION, "instruments": len(keys), "rows": rows_total,
+    untimed = sorted(str(d) for d, t in cal.items() if None in t and d >= start)
+    return {"label_version": VERSION, "sessions_without_calendar_times": untimed,
+            "instruments": len(keys), "rows": rows_total,
             "inserted": inserted, "missing": missing, "drift_vs_stored": drift}

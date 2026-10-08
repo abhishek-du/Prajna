@@ -35,6 +35,13 @@ from app.db.models.market import (
     TickArchive,
 )
 from app.db.models.preopen import PreopenBook, PreopenSessionStatus, PreopenTick
+from app.db.models.training import (
+    TrainingDatasetRun,
+    TrainingFeatureValue,
+    TrainingLabel,
+    TrainingPolicyParam,
+    TrainingSessionDone,
+)
 from app.db.models.reference import (
     CaFactor,
     CorporateAction,
@@ -59,4 +66,6 @@ __all__ = [
     "NewsContent", "NewsAIEnrichment",
     "CorporateAction", "FundamentalSnapshot", "MacroObservation", "NewsArticle",
     "NewsInstrument", "CanonInstrument", "CanonCoverage",
+    "TrainingPolicyParam", "TrainingDatasetRun", "TrainingFeatureValue", "TrainingSessionDone",
+    "TrainingLabel",
 ]

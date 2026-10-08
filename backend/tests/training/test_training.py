@@ -83,7 +83,8 @@ async def add_stock_f(s, *, last_knowable=None, skip_last=False):
 
 async def asif_params(s):
     rows = [("daily_bar", "next_session_ist", 8 * 3600 + 33 * 60),
-            ("fii_dii", "next_session_ist", 8 * 3600 + 33 * 60)]
+            ("fii_dii", "next_session_ist", 8 * 3600 + 33 * 60),
+            ("corporate_action", "after_ex", 2 * 86400)]
     for wd in range(1, 8):
         rows += [("global", f"first_wd{wd}", 36 * 3600 + 40 * 60),
                  ("global", f"confirm_wd{wd}", 45 * 3600 + 11 * 60)]
@@ -187,7 +188,37 @@ class TestStrictReplay:
         assert E.batch_rows(len(L.COLUMNS)) * len(L.COLUMNS) <= E.PARAM_BUDGET
 
 
-# ── AS_IF_LIVE-v1: shadow views ─────────────────────────────────────────────────
+# ── corporate actions: knowable when Prajna observed them (STRICT_PIT-v2) ─────────
+class TestCorporateActionKnowability:
+    async def test_an_action_fetched_after_as_of_is_invisible(self, world):
+        """C's split goes ex on 2026-10-01; it was announced 09-01 (KN-CA: knowable at the
+        end of 09-01) but Prajna fetched it only on 09-30. Production views see it at
+        the 09-24 snapshot; STRICT does not; AS_IF_LIVE assumes ex-date + the lag."""
+        await asif_params(world)
+        rid = await _run(world, "facts.late_ca", source="UPSTOX_REST_V2")
+        sha = await _payload(world, rid, "UPSTOX_REST_V2")
+        await world.execute(text("""insert into corporate_action (isin, instrument_key,
+            trading_symbol, action_type, ex_date, announcement_date, content_sha256,
+            vendor_payload, source, run_id, payload_sha256, fetched_at, knowable_at,
+            knowable_at_verified, knowable_at_basis) values ('INE000C00001', :k, 'CCC',
+            'SPLIT', '2026-10-01', '2026-09-01', :c, '{}', 'UPSTOX_REST_V2', :r, :h, :f, :kn,
+            false, 'KN-CA')"""), {"k": W.C, "c": "c" * 64, "r": rid, "h": sha,
+                                 "f": W.ist(2026, 9, 30, 10), "kn": W.ist(2026, 9, 1, 23, 59, 59)})
+        await world.commit()
+        sn = await snap(world)
+        await E.consistent_read(world, read_only=True)
+        prod = await E.compute_snapshot(world, sn, [W.C], with_context=False)
+        await world.rollback()
+        assert {r.feature_id: r.value for r in prod.rows}["ca_days_to_split"] == 7.0
+        await run(world, STRICT, sn)
+        await run(world, ASIF, sn)
+        assert (await stored(world, STRICT))[(W.C, "ca_days_to_split")][:2] == (
+            None, "MISSING_INPUT")
+        assert (await stored(world, ASIF))[(W.C, "ca_days_to_split")][:2] == (
+            None, "MISSING_INPUT")                    # ex-date + 2 days is after as_of too
+
+
+# ── AS_IF_LIVE: shadow views ─────────────────────────────────────────────────────
 class TestAsIfLive:
     async def test_shadow_only_with_its_search_path(self, world):
         """F's 2026-09-23 bar was downloaded in bulk on 09-29. STRICT at 09-24 08:59:59
@@ -209,7 +240,7 @@ class TestAsIfLive:
         # after the replay the session is back on the production views
         assert (await world.execute(text("show search_path"))).scalar() == '"$user", public'
         assert (await world.execute(q, {"k": F})).one() == real
-        await world.execute(text("set local search_path = train_asif, public"))
+        await world.execute(text(f"set local search_path = {ASIF.search_path}"))
         shadow = (await world.execute(q, {"k": F})).one()
         await world.execute(text("set local search_path to default"))
         assert shadow[0] == W.ist(2026, 9, 24, 8, 33) and shadow[1].startswith("ASSUMED")

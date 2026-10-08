@@ -25,8 +25,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clock import now
 
-STRICT = "STRICT_PIT"
-ASIF = "AS_IF_LIVE-v1"
+STRICT = "STRICT_PIT-v2"
+ASIF = "AS_IF_LIVE-v2"
+# v1 (superseded 2026-10-08, kept stored): corporate actions were knowable from the
+# announcement date (production KN-CA) - earlier than Prajna observed them
+SUPERSEDED = {"stage4-ds-v1-strict": "STRICT_PIT", "stage4-ds-v1-asif": "AS_IF_LIVE-v1"}
 LIVE_FROM = _dt.date(2026, 9, 24)      # the first market date collected by the live schedule
 P_LIVE = 0.99                          # lag percentile of the live period (documented)
 
@@ -40,9 +43,11 @@ class Dataset:
 
 
 DATASETS = {
-    "strict": Dataset("stage4-ds-v1-strict", STRICT, None, ("PRE_SESSION", "PRE_OPEN")),
+    # train_strict: corporate actions knowable when Prajna observed them (migration 0017)
+    "strict": Dataset("stage4-ds-v2-strict", STRICT, "train_strict, public",
+                      ("PRE_SESSION", "PRE_OPEN")),
     # no historical pre-open data exists, so AS_IF_LIVE has PRE_SESSION only
-    "asif": Dataset("stage4-ds-v1-asif", ASIF, "train_asif, public", ("PRE_SESSION",)),
+    "asif": Dataset("stage4-ds-v2-asif", ASIF, "train_asif2, public", ("PRE_SESSION",)),
 }
 
 
@@ -84,6 +89,21 @@ async def measure(s: AsyncSession) -> list[dict[str, Any]]:
                     "basis": f"P{int(P_LIVE * 100)} of {n} live rows (market date >= "
                              f"{LIVE_FROM}): knowable_at after midnight IST of the next "
                              f"trading session, rounded up to the minute"})
+    # corporate actions: the Upstox endpoint lists an action around its ex-date, so the
+    # live lag is measured after the later of the announcement (KN-CA) and the ex-date,
+    # over actions first stored by the live schedule (after the 2026-09-24 bulk load)
+    v, n = (await s.execute(text("""
+        select percentile_cont(:p) within group (order by greatest(0, extract(epoch from
+                 fetched_at - greatest(knowable_at, ex_date::timestamp at time zone
+                 'Asia/Kolkata')))), count(*)
+        from canon_corporate_action where ex_date >= :f and fetched_at >= :live"""),
+        {"p": P_LIVE, "f": LIVE_FROM, "live": _dt.datetime(2026, 9, 25, tzinfo=_dt.UTC)})).one()
+    if v is None:
+        raise RuntimeError("corporate_action: no live-collected rows to measure the lag from")
+    out.append({"family": "corporate_action", "key": "after_ex", "seconds": _ceil_minute(v),
+                "basis": f"P{int(P_LIVE * 100)} of {n} actions first stored by the live "
+                         f"schedule (ex-date >= {LIVE_FROM}): fetched_at after the later of "
+                         "the announcement (KN-CA) and the ex-date midnight IST"})
     rows = (await s.execute(text("""
         select extract(isodow from label_date)::int,
                max(extract(epoch from first_fetched_at - (label_date::timestamp at time zone
