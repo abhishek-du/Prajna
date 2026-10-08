@@ -60,6 +60,9 @@ def _run(tmp_path, lines):
 
 
 D24, D25 = _dt.date(2026, 9, 24), _dt.date(2026, 9, 25)
+# the contract margin (TIMING-B2 120 s; TIMING-REVIEW 2026-10-08: 300 s) - the cases
+# below are stated against it, so a reviewed margin keeps their meaning
+M = T.margin("1m").total_seconds()
 
 
 # ── the unchanged sufficiency rule ──────────────────────────────────────────
@@ -80,35 +83,44 @@ def test_a_revision_inside_the_margin_satisfies_revised_b2_not_the_original(tmp_
     assert rep["B2"]["status"] == "UNVERIFIED"                     # 2 sessions: never PASS
     assert rep["B2"]["late_revisions"] == []
     assert rep["B2"]["per_timeframe"]["1m"]["revision_latency_s"]["max"] == 95.6
-    assert rep["B2"]["per_timeframe"]["1m"]["headroom_s"] == 24.4
+    assert rep["B2"]["per_timeframe"]["1m"]["headroom_s"] == round(M - 95.6, 1)
     start = _dt.datetime(2026, 9, 25, 3, 45, tzinfo=UTC)
     end = start + _dt.timedelta(minutes=1)
     assert not T.is_final(start, "1m", end + _dt.timedelta(seconds=60))   # not final at +60 s
-    assert T.is_final(start, "1m", end + _dt.timedelta(seconds=120))      # final at +120 s
+    assert T.is_final(start, "1m", end + _dt.timedelta(seconds=M))        # final at +margin
 
 
-# ── B. 1m revised at +121 s: contradiction, never a silent pass ─────────────
+def test_a2_the_reviewed_observation_at_200_4_s_is_inside_the_margin(tmp_path):
+    """TIMING-REVIEW (2026-10-08): the latest observed revision (NSE_INDEX|Nifty 50 1m)."""
+    lines = [x for d in (21, 22, 23) for x in _full(_dt.date(2026, 9, d))]
+    b2 = _run(tmp_path, lines + _full(D24, revise_first_at=200.4))["B2"]
+    assert b2["late_revisions"] == [] and b2["status"] == "VERIFIED"
+
+
+# ── B. 1m revised 1 s after the margin: contradiction, never a silent pass ──
 def test_b_a_late_1m_revision_contradicts_revised_b2(tmp_path):
     lines = [x for d in (21, 22, 23) for x in _full(_dt.date(2026, 9, d))]
-    lines += _full(D24, revise_first_at=121.0)
+    lines += _full(D24, revise_first_at=M + 1)
     b2 = _run(tmp_path, lines)["B2"]
     assert b2["status"] == "CONTRADICTED"                       # more sessions don't clear it
     (late,) = b2["late_revisions"]
-    assert late["timeframe"] == "1m" and late["seconds_after_end"] == 121.0
-    assert "revised 121.0 s after the end (margin 120 s)" in b2["sessions_disagreeing"]["2026-09-24"][0]
+    assert late["timeframe"] == "1m" and late["seconds_after_end"] == M + 1
+    assert (f"revised {M + 1:.1f} s after the end (margin {M:.0f} s)"
+            in b2["sessions_disagreeing"]["2026-09-24"][0])
 
 
 # ── C / D. 15m at +110.9 s, 1h at +111.0 s: inside the margin, headroom shown ─
 def test_c_15m_at_110_9_passes_the_margin(tmp_path):
     b2 = _run(tmp_path, _full(D25, tf="15m", revise_first_at=110.9))["B2"]
-    assert b2["late_revisions"] == [] and b2["per_timeframe"]["15m"]["headroom_s"] == 9.1
+    assert b2["late_revisions"] == []
+    assert b2["per_timeframe"]["15m"]["headroom_s"] == round(M - 110.9, 1)
 
 
 def test_d_1h_at_111_0_passes_with_its_headroom_reported(tmp_path):
     b2 = _run(tmp_path, _full(D25, tf="1h", revise_first_at=111.0))["B2"]
     assert b2["late_revisions"] == []
     assert b2["per_timeframe"]["1h"]["revision_latency_s"]["max"] == 111.0
-    assert b2["per_timeframe"]["1h"]["headroom_s"] == 9.0
+    assert b2["per_timeframe"]["1h"]["headroom_s"] == round(M - 111.0, 1)
 
 
 # ── E. 5m at +145.9 s: out of scope, does not affect X ──────────────────────

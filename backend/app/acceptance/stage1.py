@@ -31,6 +31,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.contracts import timing as T
 from app.core.clock import IST, now
 from app.core.config import BACKEND_ROOT
 
@@ -158,10 +159,21 @@ DECISIONS: dict[str, dict[str, str]] = {
                   "recorded, X BLOCKED, explicit contract review; the margin is never enlarged "
                   "silently. Timing finality never changes knowable_at (the fetch time)",
                   "ref": "user 2026-09-25 (master directive: B2/X contract change)"},
-    "TIMING-REVIEW": {"status": "PENDING", "decision": "explicit contract review, required "
-                      "only when a late revision (after the TIMING-B2 margin) or a B1 "
-                      "contradiction is recorded; the margin is never enlarged silently",
-                      "ref": "-"},
+    "D-NEW-LISTING-GRACE": {"status": "APPROVED", "decision": "A NEW listing (first seen "
+                            "within 7 days) in REVIEW only because the vendor has no "
+                            "financials yet (ISIN says company, no other signal contradicts) "
+                            "is in the same 7-day grace as an UNCLASSIFIED new listing; any "
+                            "other REVIEW still fails D, and so does this one after 7 days",
+                            "ref": "user 2026-10-08 ('Yes, extend the grace')"},
+    "TIMING-REVIEW": {"status": "APPROVED", "decision": "Contract review after B2 was "
+                      "CONTRADICTED: 23 late revisions, all NSE_INDEX|Nifty 50, on 4 of 9 "
+                      "sessions (2026-09-29..10-07), up to 200.4 s (1m) / 146.1 s (15m, 1h) "
+                      "after the bar end vs the 120 s margin; RELIANCE / HDFCBANK none. "
+                      "Margin 1m/15m/1h 120 s -> 300 s (1.5x the observed maximum), effective "
+                      "2026-10-08 18:30 IST; a fetch is judged by the margin in force at its "
+                      "time; still an engineering threshold, monitored - a revision after "
+                      "300 s blocks X again. knowable_at stays the fetch time",
+                      "ref": "user 2026-10-08 ('Margin 300 s')"},
     "LOGIN": {"status": "APPROVED", "decision": "one automated Upstox TOTP login per day by the "
               "ops runbooks, until revoked", "ref": "user 2026-09-24"},
 }
@@ -183,6 +195,22 @@ class Criterion:
     db_state: dict[str, Any] = field(default_factory=dict)
     notes: str = ""
     decisions: list[str] = field(default_factory=list)
+
+
+async def review_in_new_listing_grace(s: AsyncSession, grace: _dt.date) -> int:
+    """ACTIVE NSE_EQ instruments in REVIEW that are NEW listings (first seen on or after
+    `grace`) whose ONLY disagreement is that the vendor has no financials yet: the ISIN
+    says company and no other signal contradicts it (decision D-NEW-LISTING-GRACE)."""
+    return (await s.execute(text("""select count(*) from instrument i
+        join instrument_security_class c using (instrument_id)
+        where i.valid_to = 'infinity' and i.lifecycle_status = 'ACTIVE'
+          and i.segment = 'NSE_EQ' and c.status = 'REVIEW' and i.first_seen >= :grace
+          and c.signals -> 'financials' ->> 'vote' = 'NO_FINANCIALS'
+          and c.signals -> 'isin' ->> 'vote' = 'COMPANY'
+          and coalesce(c.signals -> 'series' ->> 'vote', 'COMPANY') = 'COMPANY'
+          and coalesce(c.signals -> 'suffix' ->> 'vote', 'COMPANY') = 'COMPANY'
+          and coalesce(c.signals -> 'name' ->> 'vote', 'COMPANY') = 'COMPANY'"""),
+        {"grace": grace})).scalar()
 
 
 async def _one(s: AsyncSession, sql: str, **kw) -> Any:
@@ -306,7 +334,11 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
     breakdown = {f"{c}/{sub}/{st}": n for c, sub, st, n, _, _ in cls}
     stocks = sum(n for c, _, st, n, _, _ in cls if c == "STOCK" and st == "CLASSIFIED")
     with_sector = sum(ws for *_, ws in cls)
-    review = sum(n for _, _, st, n, _, _ in cls if st == "REVIEW")
+    review_total = sum(n for _, _, st, n, _, _ in cls if st == "REVIEW")
+    # decision D-NEW-LISTING-GRACE: such a listing is in the 7-day grace like an
+    # UNCLASSIFIED one; every other REVIEW still fails D, and so does this one after 7 days
+    review_graced = await review_in_new_listing_grace(s, today - _dt.timedelta(days=7))
+    review = review_total - review_graced
     unclassified_old = sum(old for *_, old, _ in cls)
     missing = sum(n for _, _, st, n, _, _ in cls if st == "MISSING")
     coverage = with_sector / stocks if stocks else 0.0
@@ -320,6 +352,7 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
          "nse_eq_missing_isin_or_symbol": inst[3], "eligible_stock_count": stocks,
          "sector_present_count": with_sector, "sector_missing_count": stocks - with_sector,
          "coverage_percentage": round(100 * coverage, 2), "review": review,
+         "review_new_listing_no_financials_in_grace": review_graced,
          "unclassified_beyond_grace": unclassified_old, "unclassified_missing_row": missing,
          "breakdown": breakdown},
         "new rule: sector >= 90 % of ACTIVE STOCK instruments (old: of all NSE_EQ); "
@@ -636,7 +669,11 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
             where timeframe in ('1m','5m','15m','1h') and bar_start_utc + case timeframe
             when '1m' then interval '1 minute' when '5m' then interval '5 minutes'
             when '15m' then interval '15 minutes' else interval '1 hour' end
-            + interval '120 seconds' > fetched_at"""))[0],
+            + make_interval(secs => case when timeframe in ('1m','15m','1h') then
+                case when fetched_at < cast(:eff as timestamptz) then cast(:prev as float8)
+                else cast(:cur as float8) end else cast(:oos as float8) end)
+            > fetched_at""", eff=T.MARGIN_EFFECTIVE_FROM, prev=T.PREVIOUS_MARGIN_S,
+            cur=T.COMPLETION_MARGIN_S["1m"], oos=T.OUT_OF_SCOPE_MARGIN_S["5m"]))[0],
         "fii_dii_same_day": (await _one(s, """select count(*) from macro_observation
             where observation_date >= (fetched_at at time zone 'Asia/Kolkata')::date"""))[0],
         "news_published_after_knowable": (await _one(s, """select count(*) from news_article
@@ -819,7 +856,8 @@ async def replay_sample(s: AsyncSession, per_family: int = 25, seed: int | None 
 RULE_CHANGES: dict[str, tuple[str, str]] = {
     "D": ("sector >= 90 % of ALL current NSE_EQ (fund units / entitlements in the "
           "denominator)", "sector >= 90 % of ACTIVE instruments classified STOCK; REVIEW = 0; "
-          "UNCLASSIFIED only within 7 days"),
+          "UNCLASSIFIED only within 7 days (2026-10-08: also a new listing in REVIEW only "
+          "for missing vendor financials, decision D-NEW-LISTING-GRACE)"),
     "F": ("every current instrument's 1D checkpoint; any failed 1D stream fails",
           "ACTIVE instruments only; corporate-action-explained revisions are recorded, not "
           "failures (UNEXPLAINED still fails)"),

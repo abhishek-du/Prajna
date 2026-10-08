@@ -101,7 +101,9 @@ class TestCompleteness:
         s = ist(2026, 9, 23, 14, 33)          # ends 14:34:00
         assert C.intraday_state(s, "1m", ist(2026, 9, 23, 14, 33, 30)) is C.BarState.FORMING
         assert C.intraday_state(s, "1m", ist(2026, 9, 23, 14, 34, 36)) is C.BarState.SETTLING
-        assert C.intraday_state(s, "1m", ist(2026, 9, 23, 14, 36, 0)) is C.BarState.COMPLETE
+        # 120 s after the end: still settling under the reviewed 300 s margin (TIMING-REVIEW)
+        assert C.intraday_state(s, "1m", ist(2026, 9, 23, 14, 36, 0)) is C.BarState.SETTLING
+        assert C.intraday_state(s, "1m", ist(2026, 9, 23, 14, 39, 0)) is C.BarState.COMPLETE
 
     def test_the_5m_bar_that_changed_31s_after_its_end_is_not_complete(self):
         s = ist(2026, 9, 23, 15, 0)           # ends 15:05:00; seen changing at +30.9 s
@@ -124,8 +126,8 @@ class TestCompleteness:
 
     def test_margin_is_per_timeframe_and_an_engineering_threshold(self):
         from app.contracts import timing
-        for tf in ("1m", "15m", "1h"):
-            assert timing.margin(tf) == _dt.timedelta(seconds=120)
+        for tf in ("1m", "15m", "1h"):     # TIMING-REVIEW 2026-10-08: 120 s -> 300 s
+            assert timing.margin(tf) == _dt.timedelta(seconds=300)
         assert "NOT a vendor SLA" in timing.BASIS
         assert not hasattr(C, "COMPLETION_MARGIN")                  # no global constant
         assert "UNVERIFIED" in C.DAILY_COMPLETION_BASIS

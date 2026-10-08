@@ -57,7 +57,9 @@ EXPECTED = [
     ("empty_200", "EMPTY", 0, 0, 0, 0, None),
     ("err_400_udapi1148", "VENDOR_ERROR", 0, 0, 0, 0, "UDAPI1148"),
     ("err_400_udapi100011", "VENDOR_ERROR", 0, 0, 0, 0, "UDAPI100011"),
-    ("intraday_1m_1500", "DATA", 344, 343, 0, 1, None),
+    # TIMING-REVIEW (2026-10-08, margin 120 s -> 300 s): the 4 newest 1m bars of this
+    # 15:00 response are still settling (was 1 under the 120 s margin)
+    ("intraday_1m_1500", "DATA", 344, 340, 0, 4, None),
     ("intraday_5m_1500", "DATA", 69, 68, 0, 1, None),
     ("intraday_15m_1500", "DATA", 23, 22, 0, 1, None),
     ("intraday_1h_1500", "DATA", 6, 5, 1, 0, None),

@@ -220,8 +220,9 @@ class TestIngest:
         frozen(_dt.datetime.fromisoformat(MAN["intraday_1m_1500"]["fetched_at"]))
         rep = await _ingestor(db_session, Vendor(), tmp_path).run([CandleJob(R, "1m", None)])
         (res,) = rep.results
-        assert res.status == "COMPLETE" and res.inserted == 343      # the SETTLING bar is not
-        assert res.coverage["settling"] == 1 and res.complete_through is None
+        assert res.status == "COMPLETE" and res.inserted == 340      # the SETTLING bars are not
+        # TIMING-REVIEW (2026-10-08, margin 300 s): the 4 newest bars of this 15:00 response
+        assert res.coverage["settling"] == 4 and res.complete_through is None
         wm = await _q(db_session, "select last_logical_date from ingest_watermark where "
                       "stream=:st", st=f"ohlcv.1m.{R}")
         assert wm[0].last_logical_date is None

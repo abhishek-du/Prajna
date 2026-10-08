@@ -31,15 +31,29 @@ from dataclasses import dataclass
 from app.contracts.candles import bar_width
 
 BASIS = ("engineering threshold chosen from observation (2026-09-24/25: 1m <= 95.6 s, "
-         "15m <= 110.9 s, 1h <= 111.0 s after the bar end); configurable per timeframe; "
-         "monitored by ops/measure/analyze_timing.py; NOT a vendor SLA")
+         "15m <= 110.9 s, 1h <= 111.0 s after the bar end -> 120 s; contract review "
+         "TIMING-REVIEW 2026-10-08: 9 sessions, NSE_INDEX|Nifty 50 1m <= 200.4 s, 15m/1h <= "
+         "146.1 s -> 300 s); configurable per timeframe; monitored by "
+         "ops/measure/analyze_timing.py; NOT a vendor SLA")
 
 # seconds after the bar END; in-scope timeframes only carry a validated margin
-COMPLETION_MARGIN_S: dict[str, float] = {"1m": 120.0, "15m": 120.0, "1h": 120.0}
+# (TIMING-REVIEW 2026-10-08: 120 s -> 300 s, 1.5x the observed 200.4 s maximum)
+COMPLETION_MARGIN_S: dict[str, float] = {"1m": 300.0, "15m": 300.0, "1h": 300.0}
+# the margin in force at each instant: a fetch is judged by the contract of ITS time
+# (a rule set later never makes an earlier, correctly waited fetch a violation)
+MARGIN_EFFECTIVE_FROM = _dt.datetime(2026, 10, 8, 13, 0, tzinfo=_dt.UTC)   # 18:30 IST
+PREVIOUS_MARGIN_S = 120.0
 IN_SCOPE = frozenset(COMPLETION_MARGIN_S)
 # 5m is OUT_OF_SCOPE (decision D2-5m). It keeps an operational margin for ad-hoc
 # ingestion, explicitly NOT validated: 145.9 s was observed on 2026-09-25.
 OUT_OF_SCOPE_MARGIN_S: dict[str, float] = {"5m": 120.0}
+
+
+def margin_s_at(timeframe: str, at: _dt.datetime) -> float:
+    """The completion margin that was in force at `at` (in-scope timeframes)."""
+    if at < MARGIN_EFFECTIVE_FROM and timeframe in COMPLETION_MARGIN_S:
+        return PREVIOUS_MARGIN_S
+    return margin(timeframe).total_seconds()
 
 
 def margin(timeframe: str) -> _dt.timedelta:
