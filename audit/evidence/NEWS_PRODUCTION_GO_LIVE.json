@@ -1,0 +1,498 @@
+{
+ "generated_at": "2026-10-08T13:34:42.588703+00:00",
+ "git_head": "9df29999d8ceacd74aa8ac04d419783f2d2e4457",
+ "registry": {
+  "version": "features-v2",
+  "features": 104,
+  "news_v2": 39,
+  "sha256": "dd696ca66b022392877d6cf10bf752601de417931165c93b03bacb9ae3d3fa1a"
+ },
+ "news_db": {
+  "articles": 17025,
+  "per_source": {
+   "MINT_MARKETS_RSS": 523,
+   "BS_MARKETS_RSS": 282,
+   "SEBI_RSS": 91,
+   "CNBCTV18_NEWS_SITEMAP": 2033,
+   "ET_STOCKS_RSS": 742,
+   "NSE_ANNOUNCEMENTS": 13016,
+   "BL_MARKETS_RSS": 338
+  },
+  "duplicate_source_ids": 0,
+  "missing_decisions": 0,
+  "current_decisions": {
+   "STORY_RELATED": 535,
+   "NEW_ARTICLE": 16477,
+   "STORY_CORRECTION": 1,
+   "DUPLICATE_ARTICLE": 12
+  },
+  "edit_decisions": {
+   "STORY_UPDATE": 1290
+  },
+  "pit_violations": 0
+ },
+ "stage3_runs": {
+  "PRE_SESSION": {
+   "run_id": "0ea32099-7de7-482f-a641-38de445e5c12",
+   "status": "COMPLETE",
+   "started_at": "2026-10-08 13:08:46.118694+00:00",
+   "finished_at": "2026-10-08 13:12:34.784759+00:00",
+   "rows_inserted": 206281
+  },
+  "PRE_OPEN": {
+   "run_id": "520c8783-e7f3-4498-b305-acb0b55b93f4",
+   "status": "COMPLETE",
+   "started_at": "2026-10-08 13:23:09.397388+00:00",
+   "finished_at": "2026-10-08 13:27:27.663108+00:00",
+   "rows_inserted": 220505
+  },
+  "PRE_SESSION_rerun_idempotency": {
+   "run_id": "77fc9f5c-4d80-406a-bf90-f10203256aff",
+   "status": "COMPLETE",
+   "started_at": "2026-10-08 13:16:42.925460+00:00",
+   "finished_at": "2026-10-08 13:20:38.199872+00:00",
+   "rows_inserted": 0
+  },
+  "PRE_SESSION_rerun_lock_test": {
+   "run_id": "90649cb1-f5c0-416a-bf4b-bc9fa9193648",
+   "status": "COMPLETE",
+   "started_at": "2026-10-08 13:30:12.355930+00:00",
+   "finished_at": "2026-10-08 13:34:10.702948+00:00",
+   "rows_inserted": 0
+  }
+ },
+ "feature_value": {
+  "total": 801434,
+  "by_snapshot_2026_10_08": [
+   [
+    "PRE_OPEN",
+    "220505",
+    "32",
+    "24871",
+    "2129",
+    "0",
+    "1"
+   ],
+   [
+    "PRE_SESSION",
+    "206281",
+    "32",
+    "24871",
+    "2128",
+    "0",
+    "1"
+   ]
+  ],
+  "columns": [
+   "snapshot",
+   "rows",
+   "mnews_market_wide",
+   "mnews_company",
+   "mnews_company_missing_input",
+   "inputs_knowable_at_or_after_as_of",
+   "registry_hashes"
+  ],
+  "duplicate_rows": 0
+ },
+ "stage3_events_since_10_08": [
+  [
+   "REFUSED",
+   "2026-10-08 03:31:34.403729+00:00",
+   "None"
+  ],
+  [
+   "REFUSED",
+   "2026-10-08 04:03:06.343001+00:00",
+   "None"
+  ],
+  [
+   "RUN_COMPLETE",
+   "2026-10-08 13:12:34.862963+00:00",
+   "0ea32099-7de7-482f-a641-38de445e5c12"
+  ],
+  [
+   "RUN_COMPLETE",
+   "2026-10-08 13:20:38.286362+00:00",
+   "77fc9f5c-4d80-406a-bf90-f10203256aff"
+  ],
+  [
+   "RUN_COMPLETE",
+   "2026-10-08 13:27:27.749601+00:00",
+   "520c8783-e7f3-4498-b305-acb0b55b93f4"
+  ],
+  [
+   "RUN_COMPLETE",
+   "2026-10-08 13:34:10.787396+00:00",
+   "90649cb1-f5c0-416a-bf4b-bc9fa9193648"
+  ]
+ ],
+ "traces": [
+  {
+   "feature_id": "mnews_company_count_24h",
+   "instrument": "NSE_EQ|INE423A01024",
+   "symbol": "ADANIENT",
+   "as_of": "2026-10-08 03:29:59+00:00",
+   "value": 11.0,
+   "registry": "dd696ca66b02",
+   "recount": 11,
+   "duplicates_excluded": 0,
+   "match": true,
+   "all_knowable_before_as_of": true,
+   "input_max_knowable_at": "2026-10-08 02:52:03.451317+00:00",
+   "articles": [
+    {
+     "id": 15576,
+     "source": "ET_STOCKS_RSS",
+     "source_article_id": "https://economictimes.indiatimes.com/markets/stocks/news/adani-enterpr",
+     "title": "Adani Enterprises shares in focus as company gets CARE Ratings upgrade",
+     "published_at": "2026-10-08 02:34:03+00:00",
+     "discovered_at": "2026-10-08 02:52:03.451317+00:00",
+     "knowable_at": "2026-10-08 02:52:03.451317+00:00",
+     "decision": "NEW_ARTICLE"
+    },
+    {
+     "id": 15385,
+     "source": "ET_STOCKS_RSS",
+     "source_article_id": "https://economictimes.indiatimes.com/markets/stocks/news/care-upgrades",
+     "title": "CARE upgrades Adani Enterprises to \u2018AA\u2019, retains \u2018stable\u2019 outlook",
+     "published_at": "2026-10-07 15:24:20+00:00",
+     "discovered_at": "2026-10-08 01:17:50.569024+00:00",
+     "knowable_at": "2026-10-08 01:17:50.569024+00:00",
+     "decision": "STORY_RELATED"
+    },
+    {
+     "id": 15378,
+     "source": "ET_STOCKS_RSS",
+     "source_article_id": "https://economictimes.indiatimes.com/markets/stocks/news/stocks-in-new",
+     "title": "Stocks in news: TCS, Adani Enterprises, Ola Electric, HCL Tech, Tata P",
+     "published_at": "2026-10-08 00:30:00+00:00",
+     "discovered_at": "2026-10-08 00:58:21.723659+00:00",
+     "knowable_at": "2026-10-08 00:58:21.723659+00:00",
+     "decision": "NEW_ARTICLE"
+    }
+   ]
+  },
+  {
+   "feature_id": "mnews_company_count_24h",
+   "instrument": "NSE_EQ|INE467B01029",
+   "symbol": "TCS",
+   "as_of": "2026-10-08 03:29:59+00:00",
+   "value": 11.0,
+   "registry": "dd696ca66b02",
+   "recount": 11,
+   "duplicates_excluded": 0,
+   "match": true,
+   "all_knowable_before_as_of": true,
+   "input_max_knowable_at": "2026-10-08 03:23:54.749860+00:00",
+   "articles": [
+    {
+     "id": 15596,
+     "source": "MINT_MARKETS_RSS",
+     "source_article_id": "https://www.livemint.com/market/stock-market-news/tcs-q2-preview-resul",
+     "title": "TCS Q2 preview: Results 2026 today after stock market closing bell; ex",
+     "published_at": "2026-10-08 03:11:32+00:00",
+     "discovered_at": "2026-10-08 03:23:54.749860+00:00",
+     "knowable_at": "2026-10-08 03:23:54.749860+00:00",
+     "decision": "NEW_ARTICLE"
+    },
+    {
+     "id": 15579,
+     "source": "ET_STOCKS_RSS",
+     "source_article_id": "https://economictimes.indiatimes.com/markets/stocks/news/calm-or-chaos",
+     "title": "Calm or chaos? TCS shares in focus ahead of Q2 results. 5 things inves",
+     "published_at": "2026-10-08 02:30:23+00:00",
+     "discovered_at": "2026-10-08 02:52:03.451317+00:00",
+     "knowable_at": "2026-10-08 02:52:03.451317+00:00",
+     "decision": "NEW_ARTICLE"
+    },
+    {
+     "id": 15578,
+     "source": "ET_STOCKS_RSS",
+     "source_article_id": "https://economictimes.indiatimes.com/markets/stocks/news/tcs-q2-result",
+     "title": "TCS Q2 results: Ready for the big move? Here's how to trade the IT sto",
+     "published_at": "2026-10-08 02:31:37+00:00",
+     "discovered_at": "2026-10-08 02:52:03.451317+00:00",
+     "knowable_at": "2026-10-08 02:52:03.451317+00:00",
+     "decision": "NEW_ARTICLE"
+    }
+   ]
+  },
+  {
+   "feature_id": "mnews_company_count_24h",
+   "instrument": "NSE_EQ|INE245A01021",
+   "symbol": "TATAPOWER",
+   "as_of": "2026-10-08 03:29:59+00:00",
+   "value": 10.0,
+   "registry": "dd696ca66b02",
+   "recount": 10,
+   "duplicates_excluded": 0,
+   "match": true,
+   "all_knowable_before_as_of": true,
+   "input_max_knowable_at": "2026-10-08 03:03:56.701386+00:00",
+   "articles": [
+    {
+     "id": 15586,
+     "source": "BS_MARKETS_RSS",
+     "source_article_id": "https://www.business-standard.com/markets/news/stocks-to-watch-october",
+     "title": "Stocks to watch: Paytm, Tata Power, Ola Electric, Tata Steel, Varun Be",
+     "published_at": "2026-10-08 02:38:04+00:00",
+     "discovered_at": "2026-10-08 03:03:56.701386+00:00",
+     "knowable_at": "2026-10-08 03:03:56.701386+00:00",
+     "decision": "STORY_RELATED"
+    },
+    {
+     "id": 15569,
+     "source": "BL_MARKETS_RSS",
+     "source_article_id": "BusinessLine:article-71558184",
+     "title": "Stocks in focus today: Polycab, Tata Power, Tata Steel, Airtel, Ola El",
+     "published_at": "2026-10-08 02:26:51+00:00",
+     "discovered_at": "2026-10-08 02:36:55.527278+00:00",
+     "knowable_at": "2026-10-08 02:36:55.527278+00:00",
+     "decision": "NEW_ARTICLE"
+    },
+    {
+     "id": 15378,
+     "source": "ET_STOCKS_RSS",
+     "source_article_id": "https://economictimes.indiatimes.com/markets/stocks/news/stocks-in-new",
+     "title": "Stocks in news: TCS, Adani Enterprises, Ola Electric, HCL Tech, Tata P",
+     "published_at": "2026-10-08 00:30:00+00:00",
+     "discovered_at": "2026-10-08 00:58:21.723659+00:00",
+     "knowable_at": "2026-10-08 00:58:21.723659+00:00",
+     "decision": "NEW_ARTICLE"
+    }
+   ]
+  },
+  {
+   "feature_id": "mnews_company_count_24h",
+   "instrument": "NSE_EQ|INE280A01028",
+   "symbol": "TITAN",
+   "as_of": "2026-10-08 03:29:59+00:00",
+   "value": 10.0,
+   "registry": "dd696ca66b02",
+   "recount": 10,
+   "duplicates_excluded": 0,
+   "match": true,
+   "all_knowable_before_as_of": true,
+   "input_max_knowable_at": "2026-10-07 12:16:06.645641+00:00",
+   "articles": [
+    {
+     "id": 14855,
+     "source": "ET_STOCKS_RSS",
+     "source_article_id": "https://economictimes.indiatimes.com/markets/stocks/news/market-wrap-k",
+     "title": "Market wrap: Kotak Bank, Bharti Airtel, Titan Company, Adani Ent top g",
+     "published_at": "2026-10-07 11:51:13+00:00",
+     "discovered_at": "2026-10-07 12:16:06.645641+00:00",
+     "knowable_at": "2026-10-07 12:16:06.645641+00:00",
+     "decision": "NEW_ARTICLE"
+    },
+    {
+     "id": 14303,
+     "source": "MINT_MARKETS_RSS",
+     "source_article_id": "https://www.livemint.com/market/stock-market-news/titan-share-price-dr",
+     "title": "Titan share price drops 5% after Q2FY27 update - Should you buy this T",
+     "published_at": "2026-10-07 08:24:54+00:00",
+     "discovered_at": "2026-10-07 08:27:25.231090+00:00",
+     "knowable_at": "2026-10-07 08:27:25.231090+00:00",
+     "decision": "NEW_ARTICLE"
+    },
+    {
+     "id": 13919,
+     "source": "CNBCTV18_NEWS_SITEMAP",
+     "source_article_id": "https://www.cnbctv18.com/business/1111-rbi-hikes-repo-rate-for-first-t",
+     "title": "11:11 | RBI hikes repo rate for first time in 3.5 years, Titan in focu",
+     "published_at": "2026-10-07 05:29:11+00:00",
+     "discovered_at": "2026-10-07 05:30:14.142686+00:00",
+     "knowable_at": "2026-10-07 05:30:14.142686+00:00",
+     "decision": "NEW_ARTICLE"
+    }
+   ]
+  },
+  {
+   "feature_id": "mnews_company_count_24h",
+   "instrument": "NSE_EQ|INE081A01020",
+   "symbol": "TATASTEEL",
+   "as_of": "2026-10-08 03:29:59+00:00",
+   "value": 9.0,
+   "registry": "dd696ca66b02",
+   "recount": 9,
+   "duplicates_excluded": 0,
+   "match": true,
+   "all_knowable_before_as_of": true,
+   "input_max_knowable_at": "2026-10-08 03:03:56.701386+00:00",
+   "articles": [
+    {
+     "id": 15586,
+     "source": "BS_MARKETS_RSS",
+     "source_article_id": "https://www.business-standard.com/markets/news/stocks-to-watch-october",
+     "title": "Stocks to watch: Paytm, Tata Power, Ola Electric, Tata Steel, Varun Be",
+     "published_at": "2026-10-08 02:38:04+00:00",
+     "discovered_at": "2026-10-08 03:03:56.701386+00:00",
+     "knowable_at": "2026-10-08 03:03:56.701386+00:00",
+     "decision": "STORY_RELATED"
+    },
+    {
+     "id": 15569,
+     "source": "BL_MARKETS_RSS",
+     "source_article_id": "BusinessLine:article-71558184",
+     "title": "Stocks in focus today: Polycab, Tata Power, Tata Steel, Airtel, Ola El",
+     "published_at": "2026-10-08 02:26:51+00:00",
+     "discovered_at": "2026-10-08 02:36:55.527278+00:00",
+     "knowable_at": "2026-10-08 02:36:55.527278+00:00",
+     "decision": "NEW_ARTICLE"
+    },
+    {
+     "id": 15567,
+     "source": "BS_MARKETS_RSS",
+     "source_article_id": "https://www.business-standard.com/markets/news/rba-black-box-tata-stee",
+     "title": "RBA, Black Box, Tata Steel: Jatin Gedia shares 3 stock ideas for today",
+     "published_at": "2026-10-08 02:16:29+00:00",
+     "discovered_at": "2026-10-08 02:30:26.104423+00:00",
+     "knowable_at": "2026-10-08 02:30:26.104423+00:00",
+     "decision": "NEW_ARTICLE"
+    }
+   ]
+  },
+  {
+   "feature_id": "mnews_company_count_1h",
+   "instrument": "NSE_EQ|INE423A01024",
+   "symbol": "ADANIENT",
+   "as_of": "2026-10-08 03:29:59+00:00",
+   "value": 1.0,
+   "registry": "dd696ca66b02",
+   "recount": 1,
+   "duplicates_excluded": 0,
+   "match": true,
+   "all_knowable_before_as_of": true,
+   "input_max_knowable_at": "2026-10-08 02:52:03.451317+00:00",
+   "articles": [
+    {
+     "id": 15576,
+     "source": "ET_STOCKS_RSS",
+     "source_article_id": "https://economictimes.indiatimes.com/markets/stocks/news/adani-enterpr",
+     "title": "Adani Enterprises shares in focus as company gets CARE Ratings upgrade",
+     "published_at": "2026-10-08 02:34:03+00:00",
+     "discovered_at": "2026-10-08 02:52:03.451317+00:00",
+     "knowable_at": "2026-10-08 02:52:03.451317+00:00",
+     "decision": "NEW_ARTICLE"
+    }
+   ]
+  },
+  {
+   "feature_id": "mnews_company_count_3d",
+   "instrument": "NSE_EQ|INE467B01029",
+   "symbol": "TCS",
+   "as_of": "2026-10-08 03:29:59+00:00",
+   "value": 20.0,
+   "registry": "dd696ca66b02",
+   "recount": 20,
+   "duplicates_excluded": 0,
+   "match": true,
+   "all_knowable_before_as_of": true,
+   "input_max_knowable_at": "2026-10-08 03:23:54.749860+00:00",
+   "articles": [
+    {
+     "id": 15596,
+     "source": "MINT_MARKETS_RSS",
+     "source_article_id": "https://www.livemint.com/market/stock-market-news/tcs-q2-preview-resul",
+     "title": "TCS Q2 preview: Results 2026 today after stock market closing bell; ex",
+     "published_at": "2026-10-08 03:11:32+00:00",
+     "discovered_at": "2026-10-08 03:23:54.749860+00:00",
+     "knowable_at": "2026-10-08 03:23:54.749860+00:00",
+     "decision": "NEW_ARTICLE"
+    },
+    {
+     "id": 15579,
+     "source": "ET_STOCKS_RSS",
+     "source_article_id": "https://economictimes.indiatimes.com/markets/stocks/news/calm-or-chaos",
+     "title": "Calm or chaos? TCS shares in focus ahead of Q2 results. 5 things inves",
+     "published_at": "2026-10-08 02:30:23+00:00",
+     "discovered_at": "2026-10-08 02:52:03.451317+00:00",
+     "knowable_at": "2026-10-08 02:52:03.451317+00:00",
+     "decision": "NEW_ARTICLE"
+    },
+    {
+     "id": 15578,
+     "source": "ET_STOCKS_RSS",
+     "source_article_id": "https://economictimes.indiatimes.com/markets/stocks/news/tcs-q2-result",
+     "title": "TCS Q2 results: Ready for the big move? Here's how to trade the IT sto",
+     "published_at": "2026-10-08 02:31:37+00:00",
+     "discovered_at": "2026-10-08 02:52:03.451317+00:00",
+     "knowable_at": "2026-10-08 02:52:03.451317+00:00",
+     "decision": "NEW_ARTICLE"
+    }
+   ]
+  },
+  {
+   "feature_id": "mnews_news_count_1h",
+   "instrument": "MARKET",
+   "symbol": "MARKET",
+   "as_of": "2026-10-08 03:29:59+00:00",
+   "value": 32.0,
+   "registry": "dd696ca66b02",
+   "recount": 32,
+   "duplicates_excluded": 0,
+   "match": true,
+   "all_knowable_before_as_of": true,
+   "input_max_knowable_at": "2026-10-08 03:24:54.003969+00:00",
+   "articles": [
+    {
+     "id": 15597,
+     "source": "CNBCTV18_NEWS_SITEMAP",
+     "source_article_id": "https://www.cnbctv18.com/market/pb-fintech-share-price-nomura-cuts-tar",
+     "title": "PB Fintech share price target gets a 31% cut from Nomura - Here's why",
+     "published_at": "2026-10-08 03:07:01+00:00",
+     "discovered_at": "2026-10-08 03:24:54.003969+00:00",
+     "knowable_at": "2026-10-08 03:24:54.003969+00:00",
+     "decision": "NEW_ARTICLE"
+    },
+    {
+     "id": 15596,
+     "source": "MINT_MARKETS_RSS",
+     "source_article_id": "https://www.livemint.com/market/stock-market-news/tcs-q2-preview-resul",
+     "title": "TCS Q2 preview: Results 2026 today after stock market closing bell; ex",
+     "published_at": "2026-10-08 03:11:32+00:00",
+     "discovered_at": "2026-10-08 03:23:54.749860+00:00",
+     "knowable_at": "2026-10-08 03:23:54.749860+00:00",
+     "decision": "NEW_ARTICLE"
+    },
+    {
+     "id": 15595,
+     "source": "MINT_MARKETS_RSS",
+     "source_article_id": "https://www.livemint.com/market/emerging-stocks-halt-advance-as-hormuz",
+     "title": "Emerging Stocks Halt Advance as Hormuz Tensions Come Into Focus",
+     "published_at": "2026-10-08 03:18:31+00:00",
+     "discovered_at": "2026-10-08 03:23:54.749860+00:00",
+     "knowable_at": "2026-10-08 03:23:54.749860+00:00",
+     "decision": "NEW_ARTICLE"
+    }
+   ]
+  }
+ ],
+ "idempotency": {
+  "fingerprint_before": [
+   206281,
+   "2abc83c5e85f7bc00a64fb58a1e2a317"
+  ],
+  "fingerprint_after": [
+   206281,
+   "2abc83c5e85f7bc00a64fb58a1e2a317"
+  ],
+  "rerun": "77fc9f5c-4d80-406a-bf90-f10203256aff",
+  "inserted": 0,
+  "already_present": 206281
+ },
+ "lock_collision": "second run STAGE3_SKIP after 5 s (exit 1, nothing written); first DONE inserted 0",
+ "duplicate_exclusion": {
+  "articles_24h": 1990,
+  "duplicates": 1,
+  "mnews_news_count_24h": 1989,
+  "mnews_duplicate_count_24h": 1,
+  "example": "#13758 ET Hindalco live updates -> original #11852"
+ },
+ "canary": {
+  "real_snapshots": 12,
+  "pass": 12,
+  "production_vs_canary_market_wide_differences": 0,
+  "production_vs_sql_company_mismatches": 0
+ }
+}
