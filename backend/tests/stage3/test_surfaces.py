@@ -63,7 +63,8 @@ def q(dt: _dt.datetime) -> str:
 class TestReadAPI:
     async def test_registry(self, client):
         d = (await client.get("/v1/stage3/registry")).json()["data"]
-        assert d["summary"]["diagram_items"] == 31 and len(d["features"]) == 65
+        from app.features.registry import FEATURES
+        assert d["summary"]["diagram_items"] == 31 and len(d["features"]) == len(FEATURES)
         assert d["decisions"]["FEATURE-PARAMS"]["status"] == "APPROVED"
 
     async def test_status_is_locked_by_default(self, client):

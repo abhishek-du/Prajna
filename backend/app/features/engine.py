@@ -132,6 +132,9 @@ async def consistent_read(s: AsyncSession, *, read_only: bool) -> str:
     return (await s.execute(text("show transaction_isolation"))).scalar()
 
 
+NEWS_INPUT = "multi_news"          # registry input of the multi-source news features
+
+
 # ── per-instrument features ──────────────────────────────────────────────────
 def _daily_features(bars, nifty) -> dict[str, Result]:
     out: dict[str, Result] = {}
@@ -207,7 +210,9 @@ def instrument_rows(inp: I.InstrumentInputs, snap: Snapshot, nifty: list,
             **_event_features(inp, snap), **_preopen_features(inp, snap)}
     rows = []
     for spec in FEATURES:
-        if spec.scope != "INSTRUMENT" or spec.id == "sector_rs_20":
+        # computed by their own steps: sector_rs_20 (_sector_rows) and the multi-source
+        # news features (news_rows) - never also here, or a key would get two rows
+        if spec.scope != "INSTRUMENT" or spec.id == "sector_rs_20" or NEWS_INPUT in spec.inputs:
             continue
         if snap.kind not in spec.snapshots:
             continue
@@ -252,7 +257,6 @@ async def context_rows(s: AsyncSession, snap: Snapshot) -> list[FeatureRow]:
 
 
 # ── multi-source news (FEATURE-NEWS-V2; only specs present in the registry) ─────
-NEWS_INPUT = "multi_news"
 
 
 def _news_provenance(rows: list[dict], state: str) -> tuple[str, _dt.datetime | None]:

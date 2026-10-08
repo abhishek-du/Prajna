@@ -54,5 +54,15 @@ DECISIONS: dict[str, dict[str, str]] = {
                     "ACTIVATED only after a production canary day shows correct PIT, "
                     "de-duplication and coverage; until activation they are computed in "
                     "dry-run only",
-        "ref": "user 2026-09-29 ('After canary evidence')"},
+        "ref": "user 2026-09-29 ('After canary evidence')",
+        "activation": {
+            "status": "ACTIVATED", "registry": "features-v2", "effective": "2026-10-09 PRE_SESSION",
+            "evidence": "canary PASS on 12 real scheduled snapshots (2026-09-30, 10-01, 10-05, "
+                        "10-06, "
+                        "10-07, 10-08; PRE_SESSION and PRE_OPEN): coverage NORMAL, 0 inputs "
+                        "knowable at/after as_of, market-wide and per-company counts equal to an "
+                        "independent SQL recount, real zeros vs MISSING, deterministic, non-news "
+                        "features identical; audit/evidence/news_stage3_canary_*.json",
+            "activated_at": "2026-10-08 (after the 2026-10-08 PRE_OPEN run: a session boundary)"},
+    },
 }

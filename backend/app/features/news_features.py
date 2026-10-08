@@ -4,11 +4,11 @@ Ids carry the prefix "mnews_" (multi-source news): the approved registry already
 has Upstox-based news_count_24h / news_count_7d / news_hours_since_last, and one
 name must never mean two definitions.
 
-Not part of the approved Stage 3 registry (features-v1): adding them there would
-change the approved feature set and re-block Stage 3 production. They are
-computed in DRY-RUN only. Decision FEATURE-NEWS-V2 is APPROVED (2026-09-29) with
-activation after a production canary day; they then join the registry as a new
-version.
+Decision FEATURE-NEWS-V2 (APPROVED 2026-09-29, activation after a production
+canary): ACTIVATED 2026-10-08 after the canary passed on 12 real scheduled
+snapshots - the features are in the Stage 3 registry features-v2 (effective from
+the 2026-10-09 PRE_SESSION snapshot); values computed under features-v1 keep
+their own registry hash.
 
 Every input comes from app.canon.news_pit at the snapshot instant (knowable_at
 < as_of; enrichments by their own knowable_at). MISSING_INPUT - never 0 - when
@@ -39,7 +39,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.canon import news_pit as NP
 from app.features.compute import MALFORMED_INPUT, MISSING_INPUT, Result, miss, ok
 
-VERSION = "news-features-v2-candidate"
+VERSION = "news-features-v2"
 ROW_LIMIT = 50000
 DECISION = {
     "FEATURE-NEWS-V2": {
@@ -48,6 +48,15 @@ DECISION = {
         "version, ACTIVATED only after a production canary day (PIT, de-duplication and "
         "coverage evidenced); until activation they are computed in dry-run only",
         "ref": "user 2026-09-29 ('After canary evidence'); see app/news/decisions.py",
+        "activation": {
+            "status": "ACTIVATED", "registry": "features-v2", "effective": "2026-10-09 PRE_SESSION",
+            "evidence": "canary PASS on 12 real scheduled snapshots (2026-09-30, 10-01, 10-05, "
+                        "10-06, "
+                        "10-07, 10-08; PRE_SESSION and PRE_OPEN): coverage NORMAL, 0 inputs "
+                        "knowable at/after as_of, market-wide and per-company counts equal to an "
+                        "independent SQL recount, real zeros vs MISSING, deterministic, non-news "
+                        "features identical; audit/evidence/news_stage3_canary_*.json",
+            "activated_at": "2026-10-08 (after the 2026-10-08 PRE_OPEN run: a session boundary)"},
     }
 }
 COVERAGE_WINDOW = _dt.timedelta(hours=2)

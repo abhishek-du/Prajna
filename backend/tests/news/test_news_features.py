@@ -72,13 +72,19 @@ def test_counts_windows_and_recency():
     assert g["mnews_news_velocity_1h"] == (2 / (1 / 23), None)
 
 
-def test_not_in_the_approved_stage3_registry():
-    from app.features.registry import BY_ID
+def test_activated_in_the_stage3_registry_after_the_canary():
+    from app.features import registry as R
 
-    assert not set(NF.FEATURES) & set(BY_ID)
-    # APPROVED 2026-09-29 with activation only after a production canary day: until
-    # then no mnews_* feature is in the registry
-    assert NF.DECISION["FEATURE-NEWS-V2"]["status"] == "APPROVED"
+    # APPROVED 2026-09-29, ACTIVATED 2026-10-08 after the canary: every news v2 feature
+    # is registered exactly once, with the multi-source input and the right scope
+    assert R.NEWS_V2_ACTIVE and R.VERSION == "features-v2"
+    assert set(NF.FEATURES) | set(NF.COMPANY_FEATURES) <= set(R.BY_ID)
+    assert all(R.BY_ID[f].scope == "CONTEXT" for f in NF.FEATURES)
+    assert all(R.BY_ID[f].scope == "INSTRUMENT" for f in NF.COMPANY_FEATURES)
+    assert all(R.BY_ID[f].inputs == ("multi_news",) for f in (*NF.FEATURES, *NF.COMPANY_FEATURES))
+    assert len(R.FEATURES) == len(R.FEATURES_V1) + 39 == 104
+    d = NF.DECISION["FEATURE-NEWS-V2"]
+    assert d["status"] == "APPROVED" and d["activation"]["status"] == "ACTIVATED"
 
 
 # ── v2 candidate ─────────────────────────────────────────────────────────────

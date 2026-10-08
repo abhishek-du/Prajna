@@ -152,7 +152,8 @@ async def test_stage3_news_rows_activation_rehearsal(db_session, production, mon
         return Snapshot(DAY, "PRE_SESSION", at(hh, mm), DAY - _dt.timedelta(days=3))
 
     jma, other = "NSE_EQ|INE045601023", "NSE_EQ|INE238A01034"   # PARAS (C, D2) / not linked
-    assert await E.news_rows(db_session, snap(9, 10), [jma, other]) == []  # v1: inactive
+    monkeypatch.setattr(E, "FEATURES", R.FEATURES_V1)                         # a v1 registry
+    assert await E.news_rows(db_session, snap(9, 10), [jma, other]) == []      # emits nothing
     monkeypatch.setattr(E, "FEATURES", R.FEATURES_V1 + R.NEWS_V2_FEATURES)
     rows = await E.news_rows(db_session, snap(9, 10), [jma, other])
     ctx = {r.feature_id: r for r in rows if r.scope == "CONTEXT"}

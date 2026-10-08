@@ -219,9 +219,10 @@ NEWS_V2_FEATURES: tuple[FeatureSpec, ...] = (
       for k, v in _MNEWS_CONTEXT.items()],
     *[_p(k, EVENT, v, inputs=("multi_news",)) for k, v in _MNEWS_COMPANY.items()],
 )
-# False until the canary passes; flipping it is the activation (a new registry
-# version and hash; values computed under v1 keep their own hash)
-NEWS_V2_ACTIVE = False
+# the activation (a new registry version and hash; values computed under v1 keep
+# their own hash): ACTIVATED 2026-10-08 after the canary passed on 12 real scheduled
+# snapshots (audit/evidence/news_stage3_canary_*.json), effective 2026-10-09
+NEWS_V2_ACTIVE = True
 FEATURES: tuple[FeatureSpec, ...] = FEATURES_V1 + (NEWS_V2_FEATURES if NEWS_V2_ACTIVE else ())
 if NEWS_V2_ACTIVE:
     VERSION = "features-v2"
@@ -264,10 +265,14 @@ DIAGRAM: tuple[dict, ...] = (
     {"group": EVENT, "item": "Corporate actions",
      "features": [f"ca_days_since_{k}" for k in ("any", "dividend", "split", "bonus")]
      + [f"ca_days_to_{k}" for k in ("any", "dividend", "split", "bonus")]},
-    {"group": EVENT, "item": "News sentiment", "features": ["news_count_24h", "news_count_7d",
-                                                            "news_hours_since_last"],
+    {"group": EVENT, "item": "News sentiment", "features": [
+        "news_count_24h", "news_count_7d", "news_hours_since_last",
+        *([f.id for f in NEWS_V2_FEATURES] if NEWS_V2_ACTIVE else [])],
      "partial": "UNSUPPORTED: sentiment itself (no sentiment source or approved model); news "
-                "volume and recency are provided and are not sentiment"},
+                "volume and recency are provided and are not sentiment"
+                + ("; multi-source news (FEATURE-NEWS-V2): volume, recency, stories, scope, "
+                   "corrections and headline direction-word counts - also not sentiment"
+                   if NEWS_V2_ACTIVE else "")},
     {"group": EVENT, "item": "Analyst upgrades/downgrades", "features": [], "status": "UNSUPPORTED",
      "reason": "no analyst-rating source (Upstox provides none)"},
     {"group": EVENT, "item": "Sector/market events", "features": [], "status": "UNKNOWN",

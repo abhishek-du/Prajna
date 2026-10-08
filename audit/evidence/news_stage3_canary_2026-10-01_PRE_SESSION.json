@@ -1,0 +1,400 @@
+{
+ "session": "2026-10-01",
+ "kind": "PRE_SESSION",
+ "generated_at": "2026-10-08T11:30:48.978965+00:00",
+ "active_registry": {
+  "version": "features-v1",
+  "sha256": "9061d85b3696ab70e566d8257ecb13466930792a74f9b1d8308f232331e47188",
+  "features": 65
+ },
+ "checks": {
+  "coverage_state": {
+   "value": "NORMAL",
+   "pass": true
+  },
+  "point_in_time": {
+   "rows": 24903,
+   "inputs_knowable_at_or_after_as_of": 0,
+   "pass": true
+  },
+  "market_wide_vs_independent_sql": {
+   "values": {
+    "1h": {
+     "feature": 39.0,
+     "sql": 39
+    },
+    "4h": {
+     "feature": 288.0,
+     "sql": 288
+    },
+    "24h": {
+     "feature": 3223.0,
+     "sql": 3223
+    },
+    "3d": {
+     "feature": 4494.0,
+     "sql": 4494
+    },
+    "dup24h": {
+     "feature": 1.0,
+     "sql": 1
+    },
+    "corr24h": {
+     "feature": 0.0,
+     "sql": 0
+    }
+   },
+   "pass": true
+  },
+  "companies_vs_independent_sql": {
+   "companies": {
+    "NSE_EQ|INE148I01020": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 15.0,
+     "24h_sql": 15,
+     "3d_feature": 15.0,
+     "3d_sql": 15
+    },
+    "NSE_EQ|INE009A01021": {
+     "1h_feature": 1.0,
+     "1h_sql": 1,
+     "24h_feature": 13.0,
+     "24h_sql": 13,
+     "3d_feature": 15.0,
+     "3d_sql": 15
+    },
+    "NSE_EQ|INE0FLF01015": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 12.0,
+     "24h_sql": 12,
+     "3d_feature": 12.0,
+     "3d_sql": 12
+    },
+    "NSE_EQ|INE1QGM01024": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 11.0,
+     "24h_sql": 11,
+     "3d_feature": 11.0,
+     "3d_sql": 11
+    },
+    "NSE_EQ|INE040A01034": {
+     "1h_feature": 1.0,
+     "1h_sql": 1,
+     "24h_feature": 10.0,
+     "24h_sql": 10,
+     "3d_feature": 10.0,
+     "3d_sql": 10
+    },
+    "NSE_EQ|INE053F01010": {
+     "1h_feature": 1.0,
+     "1h_sql": 1,
+     "24h_feature": 10.0,
+     "24h_sql": 10,
+     "3d_feature": 10.0,
+     "3d_sql": 10
+    },
+    "NSE_EQ|INE243D01012": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 10.0,
+     "24h_sql": 10,
+     "3d_feature": 11.0,
+     "3d_sql": 11
+    },
+    "NSE_EQ|INE632X01030": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 10.0,
+     "24h_sql": 10,
+     "3d_feature": 10.0,
+     "3d_sql": 10
+    },
+    "NSE_EQ|INE075A01022": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 9.0,
+     "24h_sql": 9,
+     "3d_feature": 12.0,
+     "3d_sql": 12
+    },
+    "NSE_EQ|INE084A01016": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 8.0,
+     "24h_sql": 8,
+     "3d_feature": 8.0,
+     "3d_sql": 8
+    },
+    "NSE_EQ|INE147X01013": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 8.0,
+     "24h_sql": 8,
+     "3d_feature": 10.0,
+     "3d_sql": 10
+    },
+    "NSE_EQ|INE217L01019": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 8.0,
+     "24h_sql": 8,
+     "3d_feature": 8.0,
+     "3d_sql": 8
+    },
+    "NSE_EQ|INE367G01038": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 8.0,
+     "24h_sql": 8,
+     "3d_feature": 8.0,
+     "3d_sql": 8
+    },
+    "NSE_EQ|INE018A01030": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 7.0,
+     "24h_sql": 7,
+     "3d_feature": 7.0,
+     "3d_sql": 7
+    },
+    "NSE_EQ|INE141K01013": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 7.0,
+     "24h_sql": 7,
+     "3d_feature": 7.0,
+     "3d_sql": 7
+    },
+    "NSE_EQ|INE148G01016": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 7.0,
+     "24h_sql": 7,
+     "3d_feature": 9.0,
+     "3d_sql": 9
+    },
+    "NSE_EQ|INE417T01026": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 7.0,
+     "24h_sql": 7,
+     "3d_feature": 7.0,
+     "3d_sql": 7
+    },
+    "NSE_EQ|INE467B01029": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 7.0,
+     "24h_sql": 7,
+     "3d_feature": 8.0,
+     "3d_sql": 8
+    },
+    "NSE_EQ|INE530B01024": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 7.0,
+     "24h_sql": 7,
+     "3d_feature": 7.0,
+     "3d_sql": 7
+    },
+    "NSE_EQ|INE542W01025": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 7.0,
+     "24h_sql": 7,
+     "3d_feature": 14.0,
+     "3d_sql": 14
+    },
+    "NSE_EQ|INE813V01022": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 7.0,
+     "24h_sql": 7,
+     "3d_feature": 9.0,
+     "3d_sql": 9
+    },
+    "NSE_EQ|INE002A01018": {
+     "1h_feature": 1.0,
+     "1h_sql": 1,
+     "24h_feature": 6.0,
+     "24h_sql": 6,
+     "3d_feature": 6.0,
+     "3d_sql": 6
+    },
+    "NSE_EQ|INE060X01034": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 6.0,
+     "24h_sql": 6,
+     "3d_feature": 6.0,
+     "3d_sql": 6
+    },
+    "NSE_EQ|INE0H9F01037": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 6.0,
+     "24h_sql": 6,
+     "3d_feature": 6.0,
+     "3d_sql": 6
+    },
+    "NSE_EQ|INE0LCL01028": {
+     "1h_feature": 0.0,
+     "1h_sql": 0,
+     "24h_feature": 6.0,
+     "24h_sql": 6,
+     "3d_feature": 7.0,
+     "3d_sql": 7
+    }
+   },
+   "pass": true
+  },
+  "no_news_is_a_real_zero_with_coverage": {
+   "instruments_with_zero": 2213,
+   "time_since_missing": 2213,
+   "pass": true
+  },
+  "deterministic": {
+   "pass": true
+  },
+  "non_news_features_unchanged": {
+   "instruments": 10,
+   "rows": 525,
+   "pass": true
+  }
+ },
+ "as_of": "2026-10-01T03:29:59+00:00",
+ "market_wide_features": {
+  "mnews_breaking_news_count_24h": [
+   98.0,
+   null
+  ],
+  "mnews_commodity_news_count_24h": [
+   65.0,
+   null
+  ],
+  "mnews_corporate_news_count_24h": [
+   625.0,
+   null
+  ],
+  "mnews_correction_count_24h": [
+   0.0,
+   null
+  ],
+  "mnews_currency_news_count_24h": [
+   11.0,
+   null
+  ],
+  "mnews_duplicate_count_24h": [
+   1.0,
+   null
+  ],
+  "mnews_edited_news_count_24h": [
+   103.0,
+   null
+  ],
+  "mnews_geopolitical_news_count_24h": [
+   21.0,
+   null
+  ],
+  "mnews_global_market_news_count_24h": [
+   6.0,
+   null
+  ],
+  "mnews_high_relevance_news_count_24h": [
+   124.0,
+   null
+  ],
+  "mnews_macro_news_count_24h": [
+   48.0,
+   null
+  ],
+  "mnews_macro_scope_news_count_24h": [
+   42.0,
+   null
+  ],
+  "mnews_market_wide_news_count_24h": [
+   260.0,
+   null
+  ],
+  "mnews_mixed_news_count_24h": [
+   6.0,
+   null
+  ],
+  "mnews_negative_news_count_24h": [
+   45.0,
+   null
+  ],
+  "mnews_new_story_count_24h": [
+   3094.0,
+   null
+  ],
+  "mnews_news_count_1h": [
+   39.0,
+   null
+  ],
+  "mnews_news_count_24h": [
+   3223.0,
+   null
+  ],
+  "mnews_news_count_3d": [
+   4494.0,
+   null
+  ],
+  "mnews_news_count_4h": [
+   288.0,
+   null
+  ],
+  "mnews_news_velocity_1h": [
+   0.281721105528,
+   null
+  ],
+  "mnews_news_velocity_24h": [
+   5.07159716758,
+   null
+  ],
+  "mnews_positive_news_count_24h": [
+   68.0,
+   null
+  ],
+  "mnews_publisher_diversity_24h": [
+   0.0021718895439,
+   null
+  ],
+  "mnews_regulatory_news_count_24h": [
+   49.0,
+   null
+  ],
+  "mnews_story_group_count_24h": [
+   3094.0,
+   null
+  ],
+  "mnews_time_since_last_high_relevance_news_s": [
+   1550.708044,
+   null
+  ],
+  "mnews_time_since_last_news_s": [
+   33.557118,
+   null
+  ],
+  "mnews_unique_publishers_1h": [
+   6.0,
+   null
+  ],
+  "mnews_unique_publishers_24h": [
+   7.0,
+   null
+  ],
+  "mnews_unique_sources_24h": [
+   7.0,
+   null
+  ],
+  "mnews_updated_story_count_24h": [
+   109.0,
+   null
+  ]
+ },
+ "pass": true
+}
