@@ -36,14 +36,36 @@ class FeedDecodeError(ValueError):
     """Not a feed of the expected kind (the raw bytes stay archived)."""
 
 
-def _root(body: bytes, want: str) -> ET.Element:
-    # untrusted XML: feeds need no DTD, so any DOCTYPE/ENTITY declaration is refused
+# a "&" that does not start a character or entity reference (publishers emit bare
+# ampersands: Business Standard, 2026-10-06, "T&D sector" in <media:title> made the
+# whole feed unparseable for most of the day)
+_BARE_AMP = re.compile(rb"&(?!#[0-9]+;|#x[0-9A-Fa-f]+;|[A-Za-z][A-Za-z0-9._-]*;)")
+
+
+def parse_xml(body: bytes) -> tuple[ET.Element, bool]:
+    """Untrusted XML -> (root, repaired). Feeds need no DTD: any DOCTYPE / ENTITY
+    declaration is refused before parsing. A strict parse comes first; only if it
+    fails, ONE retry with bare ampersands escaped (no entity is ever expanded, no
+    other repair is attempted). Anything else that is malformed stays MALFORMED."""
     if b"<!doctype" in body[:4096].lower() or b"<!entity" in body.lower():
         raise FeedDecodeError("DTD/entity declarations are refused")
     try:
-        root = ET.fromstring(body)  # noqa: S314 - guarded above
+        return ET.fromstring(body), False  # noqa: S314 - guarded above
     except ET.ParseError as e:
-        raise FeedDecodeError(f"not XML: {e}") from None
+        first = e
+    fixed = _BARE_AMP.sub(b"&amp;", body)
+    if fixed != body:
+        try:
+            return ET.fromstring(fixed), True  # noqa: S314 - guarded above
+        except ET.ParseError:
+            pass
+    raise FeedDecodeError(f"not XML: {first}") from None
+
+
+def _root(body: bytes, want: str, issues: list | None = None) -> ET.Element:
+    root, repaired = parse_xml(body)
+    if repaired and issues is not None:
+        issues.append(ParseIssue("REPAIRED_XML", "bare '&' escaped before parsing"))
     if root.tag.split("}")[-1] != want:
         raise FeedDecodeError(f"expected <{want}>, got <{root.tag}>")
     return root
@@ -78,10 +100,10 @@ def iso(raw: str | None) -> _dt.datetime | None:
 
 def rss_parser(publisher: str) -> Callable[[bytes], ParsedFeed]:
     def parse(body: bytes) -> ParsedFeed:
-        ch = _root(body, "rss").find("channel")
+        out = ParsedFeed()
+        ch = _root(body, "rss", out.issues).find("channel")
         if ch is None:
             raise FeedDecodeError("RSS without <channel>")
-        out = ParsedFeed()
         ttl = (ch.findtext("ttl") or "").strip()
         out.ttl_minutes = int(ttl) if ttl.isdigit() else None
         seen: set[str] = set()
@@ -118,8 +140,8 @@ def rss_parser(publisher: str) -> Callable[[bytes], ParsedFeed]:
 
 def news_sitemap_parser(publisher: str) -> Callable[[bytes], ParsedFeed]:
     def parse(body: bytes) -> ParsedFeed:
-        root = _root(body, "urlset")
         out = ParsedFeed()
+        root = _root(body, "urlset", out.issues)
         seen: set[str] = set()
         for u in root.findall("sm:url", NS):
             loc = (u.findtext("sm:loc", namespaces=NS) or "").strip() or None
@@ -168,10 +190,10 @@ def sebi_parser() -> Callable[[bytes], ParsedFeed]:
     no latency can be claimed) and the raw date is kept. category_raw is the
     site section from the URL (e.g. "enforcement/orders")."""
     def parse(body: bytes) -> ParsedFeed:
-        ch = _root(body, "rss").find("channel")
+        out = ParsedFeed()
+        ch = _root(body, "rss", out.issues).find("channel")
         if ch is None:
             raise FeedDecodeError("RSS without <channel>")
-        out = ParsedFeed()
         ttl = (ch.findtext("ttl") or "").strip()
         out.ttl_minutes = int(ttl) if ttl.isdigit() else None
         seen: set[str] = set()

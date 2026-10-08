@@ -182,3 +182,36 @@ class TestFlappingFeeds:
         (item, changed), = o.changed
         assert changed == ["title"]
         assert item.published_at is not None                    # not recorded as removed
+
+
+class TestXmlRepair:
+    """Regression (2026-10-06): Business Standard emitted a bare '&' ("T&D sector") in
+    <media:title>; the whole feed was MALFORMED for most of the day (57 polls)."""
+
+    def test_a_bare_ampersand_is_repaired_and_recorded(self):
+        _, o, _ = run(rss(it(title="GEC-III boosts outlook for T&D sector")))
+        assert o.fetch.outcome == "OK" and o.new[0].item.title == \
+            "GEC-III boosts outlook for T&D sector"
+        assert "REPAIRED_XML" in [i["kind"] for i in o.issues]
+
+    def test_valid_entities_are_untouched_and_no_repair_is_recorded(self):
+        _, o, _ = run(rss(it(title="M&amp;M &#38; L&#x26;T &lt;b&gt;")))
+        assert o.new[0].item.title == "M&M & L&T" and "REPAIRED_XML" not in [
+            i["kind"] for i in o.issues]
+
+    @pytest.mark.parametrize("body", [
+        b"<rss version='2.0'><channel><item><title>x &amp; y</title>",       # truncated
+        b"<rss version='2.0'><channel><item><title>a < b</title></item></channel></rss>",
+        b'<!DOCTYPE r [<!ENTITY a "x">]><rss><channel/></rss>',            # DTD refused
+    ])
+    def test_only_the_ampersand_is_repaired(self, body):
+        _, o, _ = run(body)
+        assert o.fetch.outcome == "MALFORMED"
+
+    def test_nse_uses_the_same_repair(self):
+        from app.news.sources import nse_announcements as NSE
+        body = (b"<rss version='2.0'><channel><item><title>A&B Ltd</title><link>"
+                b"https://nsearchives.nseindia.com/corporate/AB_29092026101010_x.pdf</link>"
+                b"<pubDate>29-Sep-2026 10:10:10</pubDate></item></channel></rss>")
+        f = NSE.parse(body)
+        assert f.items[0].title == "A&B Ltd" and f.issues[0].kind == "REPAIRED_XML"

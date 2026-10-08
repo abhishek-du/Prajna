@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import datetime as _dt
 import re
-import xml.etree.ElementTree as ET
 
 from app.core.clock import IST, UTC
 from app.news.model import ItemObs, ParsedFeed, ParseIssue, stable_id
@@ -61,17 +60,17 @@ def parse(body: bytes) -> ParsedFeed:
     # untrusted XML: RSS needs no DTD, so any DOCTYPE/ENTITY declaration is refused
     # before parsing (entity expansion); expat >= 2.4 also limits amplification and
     # ElementTree never resolves external entities
-    head = body[:4096].lower()
-    if b"<!doctype" in head or b"<!entity" in body.lower():
-        raise FeedDecodeError("DTD/entity declarations are refused")
+    from app.news.sources.rss import parse_xml  # the same guards and repair
     try:
-        root = ET.fromstring(body)  # noqa: S314 - guarded above
-    except ET.ParseError as e:
-        raise FeedDecodeError(f"not XML: {e}") from None
+        root, repaired = parse_xml(body)
+    except ValueError as e:
+        raise FeedDecodeError(str(e)) from None
     ch = root.find("channel")
     if root.tag != "rss" or ch is None:
         raise FeedDecodeError(f"not an RSS channel (root <{root.tag}>)")
     out = ParsedFeed()
+    if repaired:
+        out.issues.append(ParseIssue("REPAIRED_XML", "bare '&' escaped before parsing"))
     ttl = (ch.findtext("ttl") or "").strip()
     out.ttl_minutes = int(ttl) if ttl.isdigit() else None
     seen: set[str] = set()
