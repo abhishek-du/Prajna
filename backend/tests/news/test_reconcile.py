@@ -119,3 +119,21 @@ def test_an_hourly_ttl_feed_is_not_collector_down():
     last = [(night - _dt.timedelta(minutes=51), "OK")]
     assert NR.monitor_states(k, last, [], [], 0, 0, night, None) == ["COLLECTOR_DOWN"]
     assert NR.monitor_states(k, last, [], [], 0, 0, night, None, feed_ttl_s=3600) == ["HEALTHY"]
+
+
+def test_volume_is_compared_like_with_like():
+    """Regression (2026-10-05..07): a Monday after a holiday weekend was UNUSUAL_VOLUME
+    against a median dominated by 2 Oct (holiday) and the weekend."""
+    d = _dt.date
+    per_day = {d(2026, 9, 30): 112, d(2026, 10, 1): 104, d(2026, 10, 2): 11,
+               d(2026, 10, 3): 17, d(2026, 10, 4): 17}
+    trading = {d(2026, 9, 30): True, d(2026, 10, 1): True, d(2026, 10, 2): False,
+               d(2026, 10, 3): False, d(2026, 10, 4): False, d(2026, 10, 5): True}
+    assert NR.comparable_days(per_day, trading, d(2026, 10, 5)) == [112, 104]
+    assert NR.comparable_days(per_day, trading, d(2026, 10, 4)) == [11, 17]
+    assert NR.comparable_days(per_day, {}, d(2026, 10, 5)) == []        # unknown: never
+    same = NR.comparable_days(per_day, trading, d(2026, 10, 5))
+    st = NR.monitor_states("ET_STOCKS_RSS", polls("OK"), [], same, 102, 0, AT, None)
+    assert "UNUSUAL_VOLUME" not in st                       # 2 comparable days: not judged
+    st = NR.monitor_states("ET_STOCKS_RSS", polls("OK"), [], [100, 110, 105], 400, 0, AT, None)
+    assert "UNUSUAL_VOLUME" in st                           # a real spike still is

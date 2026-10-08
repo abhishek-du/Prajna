@@ -26,7 +26,8 @@ Monitoring states per source (several can apply; the first listed is primary):
   SOURCE_STALE      market hours, polls succeed, but no new item for longer than
                     the source's norm (4x its median gap between new items over
                     the trailing days, at least 2 h)
-  UNUSUAL_VOLUME    today's stored items > 3x the trailing daily median (>= 3 days)
+  UNUSUAL_VOLUME    today's live items > 3x the median of the trailing 14 days of the
+                    same kind (trading / non-trading, by the session calendar; >= 3 days)
   UNUSUAL_DUP_RATE  duplicates > 30% of today's stored items (>= 10 items)
   HEALTHY           none of the above
 There is no alert channel (none exists in Prajna): states go to the status file,
@@ -56,6 +57,7 @@ STATUS_FILE = BASE / "var" / "status" / "news_health.json"
 STATES = ("SOURCE_DOWN", "COLLECTOR_DOWN", "RATE_LIMITED", "FETCH_FAILURE", "SOURCE_STALE",
           "UNUSUAL_VOLUME", "UNUSUAL_DUP_RATE", "HEALTHY")
 OK = ("OK", "NOT_MODIFIED")
+RECONCILE_AT = _dt.time(23, 45)           # ops/cron/prajna.cron: news_reconcile.sh
 
 
 def day_bounds(day: _dt.date) -> tuple[_dt.datetime, _dt.datetime]:
@@ -103,6 +105,15 @@ def feed_ttl(key: str) -> int | None:
         return None
 
 
+def comparable_days(per_day: dict[_dt.date, int], trading: dict[_dt.date, bool],
+                    day: _dt.date) -> list[int]:
+    """Trailing daily counts of the same kind as `day` (trading / non-trading); a day
+    the calendar does not know is never compared."""
+    kind = trading.get(day)
+    return [n for d, n in sorted(per_day.items())
+            if d != day and kind is not None and trading.get(d) == kind]
+
+
 def monitor_states(src_key: str, polls: list[tuple], new_times: list[_dt.datetime],
                    trailing_counts: list[int], today_items: int, today_dups: int,
                    at: _dt.datetime, norm_gap_s: float | None,
@@ -142,7 +153,9 @@ def monitor_states(src_key: str, polls: list[tuple], new_times: list[_dt.datetim
 async def reconcile(s: AsyncSession, day: _dt.date, mode: str,
                     at: _dt.datetime | None = None) -> dict[str, Any]:
     """The day's reconciliation for every implemented source. Read-only."""
-    at = at or min(now(), day_bounds(day)[1])
+    # the monitoring instant: now, but for a past day the scheduled reconciliation time -
+    # the collector pauses 23:30-06:00 by design, so end-of-day is not "collector down"
+    at = at or min(now(), _dt.datetime.combine(day, RECONCILE_AT, tzinfo=IST))
     start, end = day_bounds(day)
     out: dict[str, Any] = {"day": str(day), "mode": mode, "generated_at": now().isoformat(),
                            "as_of": at.isoformat(), "sources": {}}
@@ -175,6 +188,8 @@ async def reconcile(s: AsyncSession, day: _dt.date, mode: str,
     }
     out["invariants"] = {**inv, "ok": all(v == 0 for v in inv.values())}
     states: dict[str, list[str]] = {}
+    trading = dict(await _rows(s, """select session_date, is_trading_day from trading_session
+        where session_date between :a and :b""", a=day - _dt.timedelta(days=15), b=day))
     for key, src in SOURCES.items():
         if src.parse is None or src.status == "UNSUPPORTED":
             continue
@@ -212,14 +227,17 @@ async def reconcile(s: AsyncSession, day: _dt.date, mode: str,
         trail = await _rows(s, """select i.discovered_at from news_item i
             join news_poll p on p.id = i.first_poll_id and p.mode = :m
             where i.source = :s and not i.backlog and i.discovered_at >= :t and i.discovered_at < :a
-            order by 1""", s=key, m=mode, a=start, t=start - _dt.timedelta(days=5))
+            order by 1""", s=key, m=mode, a=start, t=start - _dt.timedelta(days=14))
         mh = [r[0] for r in trail if market_hours(r[0])]
         gaps = [(b - a).total_seconds() for a, b in pairwise(mh)
                 if a.astimezone(IST).date() == b.astimezone(IST).date()]
         norm = statistics.median(gaps) if len(gaps) >= 5 else None
+        # like with like: a trading day against trading days, a weekend / holiday against
+        # non-trading days (a Monday after a holiday weekend is not "unusual volume")
         per_day = collections.Counter(r[0].astimezone(IST).date() for r in trail)
-        st = monitor_states(key, [(p[0], p[1]) for p in polls], new_times, list(per_day.values()),
-                            stored[0], decisions.get("DUPLICATE_ARTICLE", 0), at, norm,
+        same = comparable_days(per_day, trading, day)
+        st = monitor_states(key, [(p[0], p[1]) for p in polls], new_times, same,
+                            stored[1], decisions.get("DUPLICATE_ARTICLE", 0), at, norm,
                             feed_ttl(key))
         states[key] = st
         refusals = (await _rows(s, """select count(*) from news_audit where source = :s
