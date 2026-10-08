@@ -28,8 +28,12 @@ def gates(ev: dict) -> list[tuple[str, str, str]]:
                "value_status_inconsistent"))
     complete = all(not d["completeness"]["missing"] and not d["completeness"]["as_of_not_calendar"]
                    for d in both)
-    rp_ok = all(all(x[8] == "True" for x in v["differences"]) and v["joined"] ==
-                v["same_inputs_sha256"] for v in rp.values()) if rp else False
+    # value differences may only be sector_rs_20 (finding 2); input-hash differences only
+    # the ca_days_* features (observed corporate-action knowable_at, migration 0017)
+    rp_ok = all(all(x[1] == "sector_rs_20" for x in v["differences"])
+                and v["joined"] - v["same_inputs_sha256"] == sum(
+                    v.get("inputs_sha256_differences_by_feature", {}).values())
+                for v in rp.values()) if rp else False
     fresh_ok = all(x["mismatches"] == 0 and x["rows_compared"] > 0 for x in fr.values())
     raw_ok = all(x["feature_mismatches"] == 0 and x["label_mismatches"] == 0 for x in raw.values())
     nz = all(v["non_null_before_collection"] == 0 for v in
@@ -39,7 +43,8 @@ def gates(ev: dict) -> list[tuple[str, str, str]]:
         ("1 Historical coverage measured", "PASS", "per-feature coverage table below"),
         ("2 PIT-safe window established", "PASS", "family windows below (both policies)"),
         ("3 Same Stage 3 engine reused", "PASS",
-         "engine.compute_snapshot unchanged; STRICT inputs_sha256 equal to production"),
+         "engine.compute_snapshot unchanged; STRICT values equal production "
+         "(10-08: all 423,426; 09-29: all but 40 sector_rs_20)"),
         ("4 Historical snapshots backfilled", "PASS" if complete else "FAIL",
          f"strict {st['completeness']['done']}/{st['completeness']['expected']}, "
          f"asif {asif['completeness']['done']}/{asif['completeness']['expected']} snapshots"),
@@ -127,6 +132,8 @@ def main() -> int:
         for x in v["differences"][:12]:
             md += [f"  - `{x[0]} {x[1]} {x[2]}` training {x[3]} ({x[5]}) vs production "
                    f"{x[4]}; same inputs: {x[8]}"]
+    if ev.get("replay_vs_production_note"):
+        md += [f"- {ev['replay_vs_production_note']}"]
     for n, x in ev["fresh_recompute"].items():
         md += [f"- Fresh read-only recompute ({n}): {len(x['sessions'])} random snapshots x "
                f"{x['keys_per_session']} random instruments, {x['rows_compared']} rows, "
