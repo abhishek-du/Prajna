@@ -1,0 +1,5023 @@
+{
+ "generated_at": "2026-10-09T12:16:07.500681+05:30",
+ "read_only": true,
+ "kn_ca": {
+  "stored_actions": [
+   2336,
+   2336,
+   2336,
+   0,
+   "5 days, 15:53:43.497665",
+   "134 days, 15:22:36.235887",
+   "644 days, 15:23:08.919205"
+  ],
+  "stored_actions_cols": [
+   "actions",
+   "knowable_before_fetch",
+   "more_than_1d_before",
+   "knowable_eq_fetch",
+   "min_lag",
+   "median_lag",
+   "max_lag"
+  ],
+  "fetch_vs_ex_date": [
+   [
+    "2026-09-24",
+    2320,
+    "2025-09-24",
+    "2026-09-24",
+    "2024-12-18",
+    "2026-09-18"
+   ],
+   [
+    "2026-09-26",
+    2,
+    "2026-09-25",
+    "2026-09-25",
+    "2026-05-12",
+    "2026-05-29"
+   ],
+   [
+    "2026-09-28",
+    1,
+    "2026-09-28",
+    "2026-09-28",
+    "2026-07-23",
+    "2026-07-23"
+   ],
+   [
+    "2026-10-03",
+    8,
+    "2026-09-22",
+    "2026-10-01",
+    "2026-05-22",
+    "2026-09-25"
+   ],
+   [
+    "2026-10-06",
+    3,
+    "2026-02-13",
+    "2026-10-06",
+    "2026-02-05",
+    "2026-08-06"
+   ],
+   [
+    "2026-10-08",
+    2,
+    "2026-06-24",
+    "2026-10-08",
+    "2026-05-19",
+    "2026-08-06"
+   ]
+  ],
+  "factor_vs_action": [
+   2336,
+   2336,
+   0,
+   2336,
+   143
+  ],
+  "factor_vs_action_cols": [
+   "factors",
+   "knowable_equal_action",
+   "ex_date_differs",
+   "derived_after_fetch",
+   "exact"
+  ],
+  "production_runs": [
+   {
+    "run_id": "cb26b9c2-a95c-4bb5-a6d2-ec33a09c6fdd",
+    "session": "2026-09-29",
+    "snapshot": "PRE_SESSION",
+    "status": "COMPLETE",
+    "as_of": "2026-09-29T03:29:59+00:00",
+    "started_at": "2026-09-29T05:05:19.635721+00:00",
+    "run_minus_as_of_min": 95.3,
+    "actions_fetched_between_as_of_and_run": 0,
+    "examples": []
+   },
+   {
+    "run_id": "eb0a0012-6f3c-47a3-a62a-bc95193ff1ab",
+    "session": "2026-09-29",
+    "snapshot": "PRE_OPEN",
+    "status": "COMPLETE",
+    "as_of": "2026-09-29T03:38:00+00:00",
+    "started_at": "2026-09-29T05:10:12.525627+00:00",
+    "run_minus_as_of_min": 92.2,
+    "actions_fetched_between_as_of_and_run": 0,
+    "examples": []
+   },
+   {
+    "run_id": "a3dd4baa-0b83-4da6-84a3-21b411749e61",
+    "session": "2026-09-29",
+    "snapshot": "PRE_SESSION",
+    "status": "COMPLETE",
+    "as_of": "2026-09-29T03:29:59+00:00",
+    "started_at": "2026-09-29T05:16:19.861459+00:00",
+    "run_minus_as_of_min": 106.3,
+    "actions_fetched_between_as_of_and_run": 0,
+    "examples": []
+   },
+   {
+    "run_id": "90e42bd9-0385-48c2-9e19-61eecd4d8269",
+    "session": "2026-09-29",
+    "snapshot": "PRE_SESSION",
+    "status": "FAILED",
+    "as_of": "2026-09-29T03:29:59+00:00",
+    "started_at": "2026-09-29T08:49:34.658665+00:00",
+    "run_minus_as_of_min": 319.6,
+    "actions_fetched_between_as_of_and_run": 0,
+    "examples": []
+   },
+   {
+    "run_id": "8f2a59ea-f5ce-44e8-8dbe-4249e45b1069",
+    "session": "2026-09-29",
+    "snapshot": "PRE_OPEN",
+    "status": "FAILED",
+    "as_of": "2026-09-29T03:38:00+00:00",
+    "started_at": "2026-09-29T08:54:31.805340+00:00",
+    "run_minus_as_of_min": 316.5,
+    "actions_fetched_between_as_of_and_run": 0,
+    "examples": []
+   },
+   {
+    "run_id": "84c73a5d-cb9d-4d50-ab9d-0cfba998c9ae",
+    "session": "2026-09-29",
+    "snapshot": "PRE_SESSION",
+    "status": "COMPLETE",
+    "as_of": "2026-09-29T03:29:59+00:00",
+    "started_at": "2026-09-29T10:07:56.511690+00:00",
+    "run_minus_as_of_min": 398.0,
+    "actions_fetched_between_as_of_and_run": 0,
+    "examples": []
+   },
+   {
+    "run_id": "0ea32099-7de7-482f-a641-38de445e5c12",
+    "session": "2026-10-08",
+    "snapshot": "PRE_SESSION",
+    "status": "COMPLETE",
+    "as_of": "2026-10-08T03:29:59+00:00",
+    "started_at": "2026-10-08T13:08:46.118694+00:00",
+    "run_minus_as_of_min": 578.8,
+    "actions_fetched_between_as_of_and_run": 0,
+    "examples": []
+   },
+   {
+    "run_id": "77fc9f5c-4d80-406a-bf90-f10203256aff",
+    "session": "2026-10-08",
+    "snapshot": "PRE_SESSION",
+    "status": "COMPLETE",
+    "as_of": "2026-10-08T03:29:59+00:00",
+    "started_at": "2026-10-08T13:16:42.925460+00:00",
+    "run_minus_as_of_min": 586.7,
+    "actions_fetched_between_as_of_and_run": 0,
+    "examples": []
+   },
+   {
+    "run_id": "520c8783-e7f3-4498-b305-acb0b55b93f4",
+    "session": "2026-10-08",
+    "snapshot": "PRE_OPEN",
+    "status": "COMPLETE",
+    "as_of": "2026-10-08T03:38:00+00:00",
+    "started_at": "2026-10-08T13:23:09.397388+00:00",
+    "run_minus_as_of_min": 585.2,
+    "actions_fetched_between_as_of_and_run": 0,
+    "examples": []
+   },
+   {
+    "run_id": "90649cb1-f5c0-416a-bf4b-bc9fa9193648",
+    "session": "2026-10-08",
+    "snapshot": "PRE_SESSION",
+    "status": "COMPLETE",
+    "as_of": "2026-10-08T03:29:59+00:00",
+    "started_at": "2026-10-08T13:30:12.355930+00:00",
+    "run_minus_as_of_min": 600.2,
+    "actions_fetched_between_as_of_and_run": 0,
+    "examples": []
+   }
+  ],
+  "feature_value_snapshots": [
+   {
+    "session": "2026-09-29",
+    "snapshot": "PRE_OPEN",
+    "rows_written_by_run_started": "2026-09-29T05:10:12.525627+00:00",
+    "late_fetched_actions": 0,
+    "instruments": 0
+   },
+   {
+    "session": "2026-09-29",
+    "snapshot": "PRE_SESSION",
+    "rows_written_by_run_started": "2026-09-29T05:05:19.635721+00:00",
+    "late_fetched_actions": 0,
+    "instruments": 0
+   },
+   {
+    "session": "2026-10-08",
+    "snapshot": "PRE_OPEN",
+    "rows_written_by_run_started": "2026-10-08T13:23:09.397388+00:00",
+    "late_fetched_actions": 0,
+    "instruments": 0
+   },
+   {
+    "session": "2026-10-08",
+    "snapshot": "PRE_SESSION",
+    "rows_written_by_run_started": "2026-10-08T13:08:46.118694+00:00",
+    "late_fetched_actions": 0,
+    "instruments": 0
+   }
+  ],
+  "fetch_time_of_day": [
+   [
+    "06:30",
+    5
+   ],
+   [
+    "10:30",
+    1
+   ],
+   [
+    "10:31",
+    1
+   ],
+   [
+    "10:32",
+    1
+   ],
+   [
+    "10:33",
+    2
+   ],
+   [
+    "10:45",
+    1
+   ],
+   [
+    "11:01",
+    2
+   ],
+   [
+    "11:02",
+    1
+   ],
+   [
+    "11:31",
+    1
+   ],
+   [
+    "12:31",
+    1
+   ],
+   [
+    "14:52",
+    209
+   ],
+   [
+    "14:53",
+    235
+   ],
+   [
+    "14:54",
+    169
+   ],
+   [
+    "14:55",
+    170
+   ],
+   [
+    "15:22",
+    192
+   ],
+   [
+    "15:23",
+    257
+   ],
+   [
+    "15:24",
+    184
+   ],
+   [
+    "15:25",
+    250
+   ],
+   [
+    "15:26",
+    61
+   ],
+   [
+    "15:51",
+    117
+   ],
+   [
+    "15:52",
+    117
+   ],
+   [
+    "15:53",
+    126
+   ],
+   [
+    "15:54",
+    104
+   ],
+   [
+    "16:21",
+    101
+   ],
+   [
+    "16:22",
+    19
+   ],
+   [
+    "16:23",
+    6
+   ],
+   [
+    "16:24",
+    3
+   ]
+  ],
+  "factor_derived_time_of_day": [
+   [
+    "06",
+    2336
+   ]
+  ]
+ },
+ "v1_vs_v2": {
+  "strict": {
+   "common_sessions": [
+    "2026-09-24",
+    "2026-09-25",
+    "2026-09-28",
+    "2026-09-29",
+    "2026-09-30",
+    "2026-10-01",
+    "2026-10-05",
+    "2026-10-06",
+    "2026-10-07",
+    "2026-10-08"
+   ],
+   "by_feature": [
+    [
+     "ca_days_to_any",
+     70478,
+     7042,
+     30976,
+     3499,
+     5
+    ],
+    [
+     "ca_days_to_dividend",
+     70478,
+     7024,
+     30976,
+     3499,
+     5
+    ],
+    [
+     "ca_days_since_any",
+     70478,
+     7020,
+     30976,
+     3499,
+     5
+    ],
+    [
+     "ca_days_since_dividend",
+     70478,
+     7014,
+     30976,
+     3499,
+     4
+    ],
+    [
+     "ca_days_to_bonus",
+     70478,
+     7008,
+     30976,
+     3499,
+     5
+    ],
+    [
+     "ca_days_since_bonus",
+     70478,
+     7002,
+     30976,
+     3499,
+     3
+    ],
+    [
+     "ca_days_to_split",
+     70478,
+     6998,
+     30976,
+     3499,
+     1
+    ],
+    [
+     "ca_days_since_split",
+     70478,
+     6998,
+     30976,
+     3499,
+     1
+    ],
+    [
+     "close_to_sma_50",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "dist_high_20",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "dist_low_20",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "ema_12",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "ema_26",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "macd_histogram",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "macd_line",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "macd_trigger",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "preopen_gap_pct",
+     35239,
+     0,
+     115,
+     0,
+     0
+    ],
+    [
+     "preopen_ieq",
+     35239,
+     0,
+     115,
+     0,
+     0
+    ],
+    [
+     "preopen_ieq_to_avg_volume",
+     35239,
+     0,
+     115,
+     0,
+     0
+    ],
+    [
+     "preopen_imbalance",
+     35239,
+     0,
+     115,
+     0,
+     0
+    ],
+    [
+     "ret_1d",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "ret_20d",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "ret_5d",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "rsi_14",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "sector_rs_20",
+     70418,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "sma_20",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "sma_200",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "sma_50",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "turnover_20",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "volatility_20",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "atr_14",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "volume_spike_20",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "atr_pct_14",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "avg_volume_20",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "beta_60",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "breakdown_20",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "breakout_20",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "close_to_sma_20",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ],
+    [
+     "close_to_sma_200",
+     70478,
+     0,
+     230,
+     0,
+     0
+    ]
+   ],
+   "by_feature_cols": [
+    "feature_id",
+    "joined",
+    "value_or_status_diff",
+    "inputs_sha_diff",
+    "instruments",
+    "sessions"
+   ],
+   "status_transitions_v1_to_v2": [
+    [
+     "MISSING_INPUT",
+     "NOT_AVAILABLE_HISTORICALLY",
+     49728
+    ],
+    [
+     "VALID",
+     "NOT_AVAILABLE_HISTORICALLY",
+     6256
+    ],
+    [
+     "VALID",
+     "MISSING_INPUT",
+     104
+    ],
+    [
+     "VALID",
+     "VALID",
+     18
+    ]
+   ],
+   "non_ca_examples": []
+  },
+  "asif": {
+   "common_sessions": [
+    "2025-09-24",
+    "2025-09-25",
+    "2025-09-26",
+    "2025-09-29",
+    "2025-09-30",
+    "2025-10-01",
+    "2025-10-03",
+    "2025-10-06",
+    "2025-10-07",
+    "2025-10-08",
+    "2025-10-09",
+    "2025-10-10",
+    "2025-10-13",
+    "2025-10-14",
+    "2025-10-15",
+    "2025-10-16",
+    "2025-10-17",
+    "2025-10-20",
+    "2025-10-21",
+    "2025-10-23",
+    "2025-10-24",
+    "2025-10-27",
+    "2025-10-28",
+    "2025-10-29",
+    "2025-10-30",
+    "2025-10-31",
+    "2025-11-03",
+    "2025-11-04",
+    "2025-11-06",
+    "2025-11-07",
+    "2025-11-10",
+    "2025-11-11",
+    "2025-11-12",
+    "2025-11-13",
+    "2025-11-14",
+    "2025-11-17",
+    "2025-11-18",
+    "2025-11-19",
+    "2025-11-20",
+    "2025-11-21",
+    "2025-11-24",
+    "2025-11-25",
+    "2025-11-26",
+    "2025-11-27",
+    "2025-11-28",
+    "2025-12-01",
+    "2025-12-02",
+    "2025-12-03",
+    "2025-12-04",
+    "2025-12-05",
+    "2025-12-08",
+    "2025-12-09",
+    "2025-12-10",
+    "2025-12-11"
+   ],
+   "by_feature": [
+    [
+     "ca_days_to_any",
+     161335,
+     11184,
+     8044,
+     2943,
+     54
+    ],
+    [
+     "ca_days_to_dividend",
+     161335,
+     10002,
+     8044,
+     2942,
+     54
+    ],
+    [
+     "ca_days_since_any",
+     161335,
+     9417,
+     8044,
+     2942,
+     50
+    ],
+    [
+     "ca_days_to_split",
+     161335,
+     9327,
+     8044,
+     2941,
+     54
+    ],
+    [
+     "ca_days_to_bonus",
+     161335,
+     9306,
+     8044,
+     2942,
+     54
+    ],
+    [
+     "ca_days_since_dividend",
+     161335,
+     9305,
+     8044,
+     2942,
+     47
+    ],
+    [
+     "ca_days_since_bonus",
+     161335,
+     8867,
+     8044,
+     2941,
+     32
+    ],
+    [
+     "ca_days_since_split",
+     161335,
+     8858,
+     8044,
+     2941,
+     27
+    ],
+    [
+     "ret_5d",
+     161335,
+     70,
+     76,
+     28,
+     33
+    ],
+    [
+     "ema_12",
+     161335,
+     57,
+     76,
+     22,
+     27
+    ],
+    [
+     "ret_1d",
+     161335,
+     55,
+     76,
+     29,
+     30
+    ],
+    [
+     "atr_pct_14",
+     161335,
+     44,
+     76,
+     20,
+     24
+    ],
+    [
+     "rsi_14",
+     161335,
+     44,
+     76,
+     20,
+     24
+    ],
+    [
+     "atr_14",
+     161335,
+     44,
+     76,
+     20,
+     24
+    ],
+    [
+     "dist_high_20",
+     161335,
+     29,
+     76,
+     12,
+     21
+    ],
+    [
+     "avg_volume_20",
+     161335,
+     29,
+     76,
+     12,
+     21
+    ],
+    [
+     "close_to_sma_20",
+     161335,
+     29,
+     76,
+     12,
+     21
+    ],
+    [
+     "dist_low_20",
+     161335,
+     29,
+     76,
+     12,
+     21
+    ],
+    [
+     "sma_20",
+     161335,
+     29,
+     76,
+     12,
+     21
+    ],
+    [
+     "turnover_20",
+     161335,
+     29,
+     76,
+     12,
+     21
+    ],
+    [
+     "ret_20d",
+     161335,
+     28,
+     76,
+     12,
+     20
+    ],
+    [
+     "breakdown_20",
+     161335,
+     28,
+     76,
+     12,
+     20
+    ],
+    [
+     "volume_spike_20",
+     161335,
+     28,
+     76,
+     12,
+     20
+    ],
+    [
+     "volatility_20",
+     161335,
+     28,
+     76,
+     12,
+     20
+    ],
+    [
+     "breakout_20",
+     161335,
+     28,
+     76,
+     12,
+     20
+    ],
+    [
+     "ema_26",
+     161335,
+     24,
+     76,
+     10,
+     17
+    ],
+    [
+     "macd_line",
+     161335,
+     24,
+     76,
+     10,
+     17
+    ],
+    [
+     "macd_trigger",
+     161335,
+     20,
+     76,
+     8,
+     14
+    ],
+    [
+     "macd_histogram",
+     161335,
+     20,
+     76,
+     8,
+     14
+    ],
+    [
+     "close_to_sma_50",
+     161335,
+     5,
+     76,
+     2,
+     4
+    ],
+    [
+     "sma_50",
+     161335,
+     5,
+     76,
+     2,
+     4
+    ],
+    [
+     "close_to_sma_200",
+     161335,
+     0,
+     76,
+     0,
+     0
+    ],
+    [
+     "beta_60",
+     161335,
+     0,
+     76,
+     0,
+     0
+    ],
+    [
+     "sector_rs_20",
+     161173,
+     0,
+     76,
+     0,
+     0
+    ],
+    [
+     "sma_200",
+     161335,
+     0,
+     76,
+     0,
+     0
+    ]
+   ],
+   "by_feature_cols": [
+    "feature_id",
+    "joined",
+    "value_or_status_diff",
+    "inputs_sha_diff",
+    "instruments",
+    "sessions"
+   ],
+   "status_transitions_v1_to_v2": [
+    [
+     "MISSING_INPUT",
+     "NOT_AVAILABLE_HISTORICALLY",
+     70324
+    ],
+    [
+     "VALID",
+     "MISSING_INPUT",
+     6418
+    ],
+    [
+     "VALID",
+     "NOT_AVAILABLE_HISTORICALLY",
+     236
+    ],
+    [
+     "VALID",
+     "VALID",
+     14
+    ]
+   ],
+   "non_ca_examples": [
+    [
+     "2025-10-30",
+     "PRE_SESSION",
+     "NSE_EQ|INE669X01032",
+     "breakdown_20",
+     "0.0",
+     "VALID",
+     "None",
+     "MISSING_INPUT"
+    ],
+    [
+     "2025-10-31",
+     "PRE_SESSION",
+     "NSE_EQ|INE669X01032",
+     "breakdown_20",
+     "0.0",
+     "VALID",
+     "None",
+     "MISSING_INPUT"
+    ],
+    [
+     "2025-11-19",
+     "PRE_SESSION",
+     "NSE_EQ|INE0MEG01014",
+     "rsi_14",
+     "41.6635066056",
+     "VALID",
+     "None",
+     "MISSING_INPUT"
+    ],
+    [
+     "2025-11-20",
+     "PRE_SESSION",
+     "NSE_EQ|INE0MEG01014",
+     "rsi_14",
+     "50.874213476",
+     "VALID",
+     "None",
+     "MISSING_INPUT"
+    ],
+    [
+     "2025-11-21",
+     "PRE_SESSION",
+     "NSE_EQ|INE0MEG01014",
+     "rsi_14",
+     "50.5349314044",
+     "VALID",
+     "None",
+     "MISSING_INPUT"
+    ],
+    [
+     "2025-11-28",
+     "PRE_SESSION",
+     "NSE_EQ|INE127D01025",
+     "turnover_20",
+     "2155772357.1",
+     "VALID",
+     "None",
+     "MISSING_INPUT"
+    ],
+    [
+     "2025-11-26",
+     "PRE_SESSION",
+     "NSE_EQ|INE127D01025",
+     "turnover_20",
+     "2780723017.5",
+     "VALID",
+     "None",
+     "MISSING_INPUT"
+    ],
+    [
+     "2025-11-27",
+     "PRE_SESSION",
+     "NSE_EQ|INE127D01025",
+     "turnover_20",
+     "2713190012.4",
+     "VALID",
+     "None",
+     "MISSING_INPUT"
+    ],
+    [
+     "2025-12-08",
+     "PRE_SESSION",
+     "NSE_EQ|INE112X01025",
+     "volume_spike_20",
+     "0.568732107212",
+     "VALID",
+     "None",
+     "MISSING_INPUT"
+    ],
+    [
+     "2025-12-09",
+     "PRE_SESSION",
+     "NSE_EQ|INE112X01025",
+     "volume_spike_20",
+     "0.320169169226",
+     "VALID",
+     "None",
+     "MISSING_INPUT"
+    ],
+    [
+     "2025-12-10",
+     "PRE_SESSION",
+     "NSE_EQ|INE112X01025",
+     "volume_spike_20",
+     "0.521683737055",
+     "VALID",
+     "None",
+     "MISSING_INPUT"
+    ],
+    [
+     "2025-12-11",
+     "PRE_SESSION",
+     "NSE_EQ|INE112X01025",
+     "volume_spike_20",
+     "1.44963131423",
+     "VALID",
+     "None",
+     "MISSING_INPUT"
+    ]
+   ]
+  }
+ },
+ "views_0017": {
+  "strict_ca": [
+   2336,
+   2336
+  ],
+  "strict_factor": [
+   2336,
+   2336
+  ],
+  "asif_after_ex_seconds": 297180,
+  "asif_ca": [
+   2336,
+   2336,
+   0,
+   0
+  ],
+  "asif_ca_cols": [
+   "rows",
+   "formula_matches",
+   "earlier_than_kn_ca",
+   "later_than_fetch"
+  ],
+  "asif_factor_vs_action": [
+   2336,
+   2336
+  ],
+  "policy_params_per_dataset": [
+   [
+    "stage4-ds-v1-asif",
+    "AS_IF_LIVE-v1",
+    6,
+    1,
+    1,
+    "SUPERSEDED"
+   ],
+   [
+    "stage4-ds-v1-asif-pilot",
+    "AS_IF_LIVE-v1",
+    2,
+    1,
+    1,
+    "SUPERSEDED"
+   ],
+   [
+    "stage4-ds-v1-strict",
+    "STRICT_PIT",
+    5,
+    1,
+    1,
+    "SUPERSEDED"
+   ],
+   [
+    "stage4-ds-v1-strict-pilot",
+    "STRICT_PIT",
+    1,
+    1,
+    1,
+    "SUPERSEDED"
+   ],
+   [
+    "stage4-ds-v2-asif",
+    "AS_IF_LIVE-v2",
+    7,
+    1,
+    1,
+    "COMPLETE"
+   ],
+   [
+    "stage4-ds-v2-strict",
+    "STRICT_PIT-v2",
+    5,
+    1,
+    1,
+    "COMPLETE"
+   ]
+  ],
+  "param_rows": [
+   [
+    "AS_IF_LIVE-v1",
+    16,
+    "2026-10-08 14:11:36.555285+00:00",
+    "2026-10-08 14:11:36.555285+00:00"
+   ],
+   [
+    "AS_IF_LIVE-v2",
+    17,
+    "2026-10-08 15:28:43.950543+00:00",
+    "2026-10-08 15:28:43.950543+00:00"
+   ]
+  ],
+  "horizon_min_ex_date": "2025-09-24",
+  "horizon_first_fetched": "2026-09-24 09:22:22.282310+00:00"
+ },
+ "readiness": {
+  "stage4-ds-v2-strict": {
+   "feature_status": {
+    "atr_14|PRE_OPEN": {
+     "MISSING_INPUT": 291,
+     "STALE_INPUT": 4507,
+     "VALID": 30441
+    },
+    "atr_14|PRE_SESSION": {
+     "MISSING_INPUT": 291,
+     "STALE_INPUT": 4507,
+     "VALID": 30441
+    },
+    "atr_pct_14|PRE_OPEN": {
+     "MISSING_INPUT": 291,
+     "STALE_INPUT": 4507,
+     "VALID": 30441
+    },
+    "atr_pct_14|PRE_SESSION": {
+     "MISSING_INPUT": 291,
+     "STALE_INPUT": 4507,
+     "VALID": 30441
+    },
+    "avg_volume_20|PRE_OPEN": {
+     "MISSING_INPUT": 383,
+     "STALE_INPUT": 4507,
+     "VALID": 30349
+    },
+    "avg_volume_20|PRE_SESSION": {
+     "MISSING_INPUT": 383,
+     "STALE_INPUT": 4507,
+     "VALID": 30349
+    },
+    "beta_60|PRE_OPEN": {
+     "MISSING_INPUT": 2306,
+     "STALE_INPUT": 4507,
+     "VALID": 28426
+    },
+    "beta_60|PRE_SESSION": {
+     "MISSING_INPUT": 2306,
+     "STALE_INPUT": 4507,
+     "VALID": 28426
+    },
+    "breakdown_20|PRE_OPEN": {
+     "MISSING_INPUT": 409,
+     "STALE_INPUT": 4507,
+     "VALID": 30323
+    },
+    "breakdown_20|PRE_SESSION": {
+     "MISSING_INPUT": 409,
+     "STALE_INPUT": 4507,
+     "VALID": 30323
+    },
+    "breakout_20|PRE_OPEN": {
+     "MISSING_INPUT": 409,
+     "STALE_INPUT": 4507,
+     "VALID": 30323
+    },
+    "breakout_20|PRE_SESSION": {
+     "MISSING_INPUT": 409,
+     "STALE_INPUT": 4507,
+     "VALID": 30323
+    },
+    "ca_days_since_any|PRE_OPEN": {
+     "MISSING_INPUT": 17810,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 13930
+    },
+    "ca_days_since_any|PRE_SESSION": {
+     "MISSING_INPUT": 17810,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 13930
+    },
+    "ca_days_since_bonus|PRE_OPEN": {
+     "MISSING_INPUT": 31139,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 601
+    },
+    "ca_days_since_bonus|PRE_SESSION": {
+     "MISSING_INPUT": 31139,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 601
+    },
+    "ca_days_since_dividend|PRE_OPEN": {
+     "MISSING_INPUT": 18832,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 12908
+    },
+    "ca_days_since_dividend|PRE_SESSION": {
+     "MISSING_INPUT": 18832,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 12908
+    },
+    "ca_days_since_split|PRE_OPEN": {
+     "MISSING_INPUT": 31079,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 661
+    },
+    "ca_days_since_split|PRE_SESSION": {
+     "MISSING_INPUT": 31079,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 661
+    },
+    "ca_days_to_any|PRE_OPEN": {
+     "MISSING_INPUT": 31740,
+     "NOT_AVAILABLE_HISTORICALLY": 3499
+    },
+    "ca_days_to_any|PRE_SESSION": {
+     "MISSING_INPUT": 31740,
+     "NOT_AVAILABLE_HISTORICALLY": 3499
+    },
+    "ca_days_to_bonus|PRE_OPEN": {
+     "MISSING_INPUT": 31740,
+     "NOT_AVAILABLE_HISTORICALLY": 3499
+    },
+    "ca_days_to_bonus|PRE_SESSION": {
+     "MISSING_INPUT": 31740,
+     "NOT_AVAILABLE_HISTORICALLY": 3499
+    },
+    "ca_days_to_dividend|PRE_OPEN": {
+     "MISSING_INPUT": 31740,
+     "NOT_AVAILABLE_HISTORICALLY": 3499
+    },
+    "ca_days_to_dividend|PRE_SESSION": {
+     "MISSING_INPUT": 31740,
+     "NOT_AVAILABLE_HISTORICALLY": 3499
+    },
+    "ca_days_to_split|PRE_OPEN": {
+     "MISSING_INPUT": 31740,
+     "NOT_AVAILABLE_HISTORICALLY": 3499
+    },
+    "ca_days_to_split|PRE_SESSION": {
+     "MISSING_INPUT": 31740,
+     "NOT_AVAILABLE_HISTORICALLY": 3499
+    },
+    "close_to_sma_200|PRE_OPEN": {
+     "MISSING_INPUT": 5367,
+     "STALE_INPUT": 4507,
+     "VALID": 25365
+    },
+    "close_to_sma_200|PRE_SESSION": {
+     "MISSING_INPUT": 5367,
+     "STALE_INPUT": 4507,
+     "VALID": 25365
+    },
+    "close_to_sma_20|PRE_OPEN": {
+     "MISSING_INPUT": 383,
+     "STALE_INPUT": 4507,
+     "VALID": 30349
+    },
+    "close_to_sma_20|PRE_SESSION": {
+     "MISSING_INPUT": 383,
+     "STALE_INPUT": 4507,
+     "VALID": 30349
+    },
+    "close_to_sma_50|PRE_OPEN": {
+     "MISSING_INPUT": 2186,
+     "STALE_INPUT": 4507,
+     "VALID": 28546
+    },
+    "close_to_sma_50|PRE_SESSION": {
+     "MISSING_INPUT": 2186,
+     "STALE_INPUT": 4507,
+     "VALID": 28546
+    },
+    "dii_net_cash_1d|PRE_OPEN": {
+     "MISSING_INPUT": 1,
+     "VALID": 9
+    },
+    "dii_net_cash_1d|PRE_SESSION": {
+     "MISSING_INPUT": 1,
+     "VALID": 9
+    },
+    "dii_net_cash_5d|PRE_OPEN": {
+     "MISSING_INPUT": 1,
+     "VALID": 9
+    },
+    "dii_net_cash_5d|PRE_SESSION": {
+     "MISSING_INPUT": 1,
+     "VALID": 9
+    },
+    "dist_high_20|PRE_OPEN": {
+     "MISSING_INPUT": 383,
+     "STALE_INPUT": 4507,
+     "VALID": 30349
+    },
+    "dist_high_20|PRE_SESSION": {
+     "MISSING_INPUT": 383,
+     "STALE_INPUT": 4507,
+     "VALID": 30349
+    },
+    "dist_low_20|PRE_OPEN": {
+     "MISSING_INPUT": 383,
+     "STALE_INPUT": 4507,
+     "VALID": 30349
+    },
+    "dist_low_20|PRE_SESSION": {
+     "MISSING_INPUT": 383,
+     "STALE_INPUT": 4507,
+     "VALID": 30349
+    },
+    "ema_12|PRE_OPEN": {
+     "MISSING_INPUT": 235,
+     "STALE_INPUT": 4507,
+     "VALID": 30497
+    },
+    "ema_12|PRE_SESSION": {
+     "MISSING_INPUT": 235,
+     "STALE_INPUT": 4507,
+     "VALID": 30497
+    },
+    "ema_26|PRE_OPEN": {
+     "MISSING_INPUT": 548,
+     "STALE_INPUT": 4507,
+     "VALID": 30184
+    },
+    "ema_26|PRE_SESSION": {
+     "MISSING_INPUT": 548,
+     "STALE_INPUT": 4507,
+     "VALID": 30184
+    },
+    "eps_yoy|PRE_OPEN": {
+     "MISSING_INPUT": 13092,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 18648
+    },
+    "eps_yoy|PRE_SESSION": {
+     "MISSING_INPUT": 13176,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 18564
+    },
+    "ev_ebitda|PRE_OPEN": {
+     "MISSING_INPUT": 4343,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 27397
+    },
+    "ev_ebitda|PRE_SESSION": {
+     "MISSING_INPUT": 4457,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 27283
+    },
+    "fii_net_cash_1d|PRE_OPEN": {
+     "MISSING_INPUT": 1,
+     "VALID": 9
+    },
+    "fii_net_cash_1d|PRE_SESSION": {
+     "MISSING_INPUT": 1,
+     "VALID": 9
+    },
+    "fii_net_cash_5d|PRE_OPEN": {
+     "MISSING_INPUT": 1,
+     "VALID": 9
+    },
+    "fii_net_cash_5d|PRE_SESSION": {
+     "MISSING_INPUT": 1,
+     "VALID": 9
+    },
+    "global_ret_1d|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 13,
+     "VALID": 117
+    },
+    "global_ret_1d|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 13,
+     "VALID": 117
+    },
+    "index_close_to_sma_50|PRE_OPEN": {
+     "STALE_INPUT": 2,
+     "VALID": 18
+    },
+    "index_close_to_sma_50|PRE_SESSION": {
+     "STALE_INPUT": 2,
+     "VALID": 18
+    },
+    "index_ret_1d|PRE_OPEN": {
+     "STALE_INPUT": 2,
+     "VALID": 18
+    },
+    "index_ret_1d|PRE_SESSION": {
+     "STALE_INPUT": 2,
+     "VALID": 18
+    },
+    "index_ret_5d|PRE_OPEN": {
+     "STALE_INPUT": 2,
+     "VALID": 18
+    },
+    "index_ret_5d|PRE_SESSION": {
+     "STALE_INPUT": 2,
+     "VALID": 18
+    },
+    "india_vix_change_5d|PRE_OPEN": {
+     "STALE_INPUT": 1,
+     "VALID": 9
+    },
+    "india_vix_change_5d|PRE_SESSION": {
+     "STALE_INPUT": 1,
+     "VALID": 9
+    },
+    "india_vix_level|PRE_OPEN": {
+     "STALE_INPUT": 1,
+     "VALID": 9
+    },
+    "india_vix_level|PRE_SESSION": {
+     "STALE_INPUT": 1,
+     "VALID": 9
+    },
+    "liabilities_to_assets|PRE_OPEN": {
+     "MISSING_INPUT": 10129,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 21611
+    },
+    "liabilities_to_assets|PRE_SESSION": {
+     "MISSING_INPUT": 10225,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 21515
+    },
+    "macd_histogram|PRE_OPEN": {
+     "MISSING_INPUT": 1560,
+     "STALE_INPUT": 4507,
+     "VALID": 29172
+    },
+    "macd_histogram|PRE_SESSION": {
+     "MISSING_INPUT": 1560,
+     "STALE_INPUT": 4507,
+     "VALID": 29172
+    },
+    "macd_line|PRE_OPEN": {
+     "MISSING_INPUT": 548,
+     "STALE_INPUT": 4507,
+     "VALID": 30184
+    },
+    "macd_line|PRE_SESSION": {
+     "MISSING_INPUT": 548,
+     "STALE_INPUT": 4507,
+     "VALID": 30184
+    },
+    "macd_trigger|PRE_OPEN": {
+     "MISSING_INPUT": 1560,
+     "STALE_INPUT": 4507,
+     "VALID": 29172
+    },
+    "macd_trigger|PRE_SESSION": {
+     "MISSING_INPUT": 1560,
+     "STALE_INPUT": 4507,
+     "VALID": 29172
+    },
+    "mnews_breaking_news_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_breaking_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_commodity_news_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_commodity_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_company_correction_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 14025,
+     "VALID": 21184
+    },
+    "mnews_company_correction_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 14025,
+     "VALID": 21184
+    },
+    "mnews_company_count_1h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 14025,
+     "VALID": 21184
+    },
+    "mnews_company_count_1h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 14025,
+     "VALID": 21184
+    },
+    "mnews_company_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 14025,
+     "VALID": 21184
+    },
+    "mnews_company_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 14025,
+     "VALID": 21184
+    },
+    "mnews_company_count_3d|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 14025,
+     "VALID": 21184
+    },
+    "mnews_company_count_3d|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 14025,
+     "VALID": 21184
+    },
+    "mnews_company_count_4h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 14025,
+     "VALID": 21184
+    },
+    "mnews_company_count_4h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 14025,
+     "VALID": 21184
+    },
+    "mnews_company_story_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 14025,
+     "VALID": 21184
+    },
+    "mnews_company_story_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 14025,
+     "VALID": 21184
+    },
+    "mnews_company_time_since_last_s|PRE_OPEN": {
+     "MISSING_INPUT": 15899,
+     "NOT_AVAILABLE_HISTORICALLY": 14025,
+     "VALID": 5285
+    },
+    "mnews_company_time_since_last_s|PRE_SESSION": {
+     "MISSING_INPUT": 15905,
+     "NOT_AVAILABLE_HISTORICALLY": 14025,
+     "VALID": 5279
+    },
+    "mnews_corporate_news_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_corporate_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_correction_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_correction_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_currency_news_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_currency_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_duplicate_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_duplicate_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_edited_news_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_edited_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_geopolitical_news_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_geopolitical_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_global_market_news_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_global_market_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_high_relevance_news_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_high_relevance_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_macro_news_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_macro_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_macro_scope_news_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_macro_scope_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_market_wide_news_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_market_wide_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_mixed_news_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_mixed_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_negative_news_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_negative_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_new_story_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_new_story_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_news_count_1h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_news_count_1h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_news_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_news_count_3d|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_news_count_3d|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_news_count_4h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_news_count_4h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_news_velocity_1h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_news_velocity_1h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_news_velocity_24h|PRE_OPEN": {
+     "MISSING_INPUT": 1,
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 5
+    },
+    "mnews_news_velocity_24h|PRE_SESSION": {
+     "MISSING_INPUT": 1,
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 5
+    },
+    "mnews_positive_news_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_positive_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_publisher_diversity_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_publisher_diversity_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_regulatory_news_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_regulatory_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_story_group_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_story_group_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_time_since_last_high_relevance_news_s|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_time_since_last_high_relevance_news_s|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_time_since_last_news_s|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_time_since_last_news_s|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_unique_publishers_1h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_unique_publishers_1h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_unique_publishers_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_unique_publishers_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_unique_sources_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_unique_sources_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_updated_story_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "mnews_updated_story_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 4,
+     "VALID": 6
+    },
+    "news_count_24h|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 31740
+    },
+    "news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 31740
+    },
+    "news_count_7d|PRE_OPEN": {
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 31740
+    },
+    "news_count_7d|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 31740
+    },
+    "news_hours_since_last|PRE_OPEN": {
+     "MISSING_INPUT": 30048,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 1692
+    },
+    "news_hours_since_last|PRE_SESSION": {
+     "MISSING_INPUT": 30042,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 1698
+    },
+    "pat_yoy_q|PRE_OPEN": {
+     "INVALID": 21510,
+     "MISSING_INPUT": 10207,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 23
+    },
+    "pat_yoy_q|PRE_SESSION": {
+     "INVALID": 21412,
+     "MISSING_INPUT": 10305,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 23
+    },
+    "pat_yoy|PRE_OPEN": {
+     "MISSING_INPUT": 13123,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 18617
+    },
+    "pat_yoy|PRE_SESSION": {
+     "MISSING_INPUT": 13208,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 18532
+    },
+    "pb_to_sector|PRE_OPEN": {
+     "MISSING_INPUT": 3627,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 28113
+    },
+    "pb_to_sector|PRE_SESSION": {
+     "MISSING_INPUT": 3744,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 27996
+    },
+    "pb|PRE_OPEN": {
+     "MISSING_INPUT": 3498,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 28242
+    },
+    "pb|PRE_SESSION": {
+     "MISSING_INPUT": 3615,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 28125
+    },
+    "pe_to_sector|PRE_OPEN": {
+     "MISSING_INPUT": 7780,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 23960
+    },
+    "pe_to_sector|PRE_SESSION": {
+     "MISSING_INPUT": 7876,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 23864
+    },
+    "pe|PRE_OPEN": {
+     "MISSING_INPUT": 3618,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 28122
+    },
+    "pe|PRE_SESSION": {
+     "MISSING_INPUT": 3735,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 28005
+    },
+    "preopen_gap_pct|PRE_OPEN": {
+     "MISSING_INPUT": 3354,
+     "STALE_INPUT": 4507,
+     "VALID": 27378
+    },
+    "preopen_ieq_to_avg_volume|PRE_OPEN": {
+     "MISSING_INPUT": 410,
+     "STALE_INPUT": 4507,
+     "VALID": 30322
+    },
+    "preopen_ieq|PRE_OPEN": {
+     "MISSING_INPUT": 27,
+     "STALE_INPUT": 4507,
+     "VALID": 30705
+    },
+    "preopen_imbalance|PRE_OPEN": {
+     "MISSING_INPUT": 2419,
+     "STALE_INPUT": 4507,
+     "VALID": 28313
+    },
+    "ret_1d|PRE_OPEN": {
+     "MISSING_INPUT": 24,
+     "STALE_INPUT": 4507,
+     "VALID": 30708
+    },
+    "ret_1d|PRE_SESSION": {
+     "MISSING_INPUT": 24,
+     "STALE_INPUT": 4507,
+     "VALID": 30708
+    },
+    "ret_20d|PRE_OPEN": {
+     "MISSING_INPUT": 409,
+     "STALE_INPUT": 4507,
+     "VALID": 30323
+    },
+    "ret_20d|PRE_SESSION": {
+     "MISSING_INPUT": 409,
+     "STALE_INPUT": 4507,
+     "VALID": 30323
+    },
+    "ret_5d|PRE_OPEN": {
+     "MISSING_INPUT": 116,
+     "STALE_INPUT": 4507,
+     "VALID": 30616
+    },
+    "ret_5d|PRE_SESSION": {
+     "MISSING_INPUT": 116,
+     "STALE_INPUT": 4507,
+     "VALID": 30616
+    },
+    "revenue_yoy_q|PRE_OPEN": {
+     "INVALID": 19528,
+     "MISSING_INPUT": 12180,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 32
+    },
+    "revenue_yoy_q|PRE_SESSION": {
+     "INVALID": 19437,
+     "MISSING_INPUT": 12271,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 32
+    },
+    "revenue_yoy|PRE_OPEN": {
+     "MISSING_INPUT": 12322,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 19418
+    },
+    "revenue_yoy|PRE_SESSION": {
+     "MISSING_INPUT": 12413,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 19327
+    },
+    "roce_pct|PRE_OPEN": {
+     "INVALID": 18,
+     "MISSING_INPUT": 3901,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 27821
+    },
+    "roce_pct|PRE_SESSION": {
+     "INVALID": 18,
+     "MISSING_INPUT": 4015,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 27707
+    },
+    "roe_pct|PRE_OPEN": {
+     "INVALID": 9,
+     "MISSING_INPUT": 3541,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 28190
+    },
+    "roe_pct|PRE_SESSION": {
+     "INVALID": 9,
+     "MISSING_INPUT": 3658,
+     "NOT_AVAILABLE_HISTORICALLY": 3499,
+     "VALID": 28073
+    },
+    "rsi_14|PRE_OPEN": {
+     "MISSING_INPUT": 291,
+     "STALE_INPUT": 4507,
+     "VALID": 30441
+    },
+    "rsi_14|PRE_SESSION": {
+     "MISSING_INPUT": 291,
+     "STALE_INPUT": 4507,
+     "VALID": 30441
+    },
+    "sector_rs_20|PRE_OPEN": {
+     "MISSING_INPUT": 4248,
+     "NOT_AVAILABLE_HISTORICALLY": 3496,
+     "STALE_INPUT": 1008,
+     "VALID": 26457
+    },
+    "sector_rs_20|PRE_SESSION": {
+     "MISSING_INPUT": 4365,
+     "NOT_AVAILABLE_HISTORICALLY": 3496,
+     "STALE_INPUT": 1008,
+     "VALID": 26340
+    },
+    "sma_200|PRE_OPEN": {
+     "MISSING_INPUT": 5367,
+     "STALE_INPUT": 4507,
+     "VALID": 25365
+    },
+    "sma_200|PRE_SESSION": {
+     "MISSING_INPUT": 5367,
+     "STALE_INPUT": 4507,
+     "VALID": 25365
+    },
+    "sma_20|PRE_OPEN": {
+     "MISSING_INPUT": 383,
+     "STALE_INPUT": 4507,
+     "VALID": 30349
+    },
+    "sma_20|PRE_SESSION": {
+     "MISSING_INPUT": 383,
+     "STALE_INPUT": 4507,
+     "VALID": 30349
+    },
+    "sma_50|PRE_OPEN": {
+     "MISSING_INPUT": 2186,
+     "STALE_INPUT": 4507,
+     "VALID": 28546
+    },
+    "sma_50|PRE_SESSION": {
+     "MISSING_INPUT": 2186,
+     "STALE_INPUT": 4507,
+     "VALID": 28546
+    },
+    "turnover_20|PRE_OPEN": {
+     "MISSING_INPUT": 383,
+     "STALE_INPUT": 4507,
+     "VALID": 30349
+    },
+    "turnover_20|PRE_SESSION": {
+     "MISSING_INPUT": 383,
+     "STALE_INPUT": 4507,
+     "VALID": 30349
+    },
+    "volatility_20|PRE_OPEN": {
+     "MISSING_INPUT": 409,
+     "STALE_INPUT": 4507,
+     "VALID": 30323
+    },
+    "volatility_20|PRE_SESSION": {
+     "MISSING_INPUT": 409,
+     "STALE_INPUT": 4507,
+     "VALID": 30323
+    },
+    "volume_spike_20|PRE_OPEN": {
+     "MISSING_INPUT": 436,
+     "STALE_INPUT": 4507,
+     "VALID": 30296
+    },
+    "volume_spike_20|PRE_SESSION": {
+     "MISSING_INPUT": 436,
+     "STALE_INPUT": 4507,
+     "VALID": 30296
+    }
+   },
+   "first_session_valid_ge_80pct_thereafter": {
+    "atr_14": "2026-09-25",
+    "atr_pct_14": "2026-09-25",
+    "avg_volume_20": "2026-09-25",
+    "beta_60": "2026-09-25",
+    "breakdown_20": "2026-09-25",
+    "breakout_20": "2026-09-25",
+    "ca_days_since_any": null,
+    "ca_days_since_bonus": null,
+    "ca_days_since_dividend": null,
+    "ca_days_since_split": null,
+    "ca_days_to_any": null,
+    "ca_days_to_bonus": null,
+    "ca_days_to_dividend": null,
+    "ca_days_to_split": null,
+    "close_to_sma_20": "2026-09-25",
+    "close_to_sma_200": null,
+    "close_to_sma_50": "2026-09-25",
+    "dii_net_cash_1d": "2026-09-25",
+    "dii_net_cash_5d": "2026-09-25",
+    "dist_high_20": "2026-09-25",
+    "dist_low_20": "2026-09-25",
+    "ema_12": "2026-09-25",
+    "ema_26": "2026-09-25",
+    "eps_yoy": null,
+    "ev_ebitda": "2026-09-25",
+    "fii_net_cash_1d": "2026-09-25",
+    "fii_net_cash_5d": "2026-09-25",
+    "global_ret_1d": "2026-09-25",
+    "index_close_to_sma_50": "2026-09-25",
+    "index_ret_1d": "2026-09-25",
+    "index_ret_5d": "2026-09-25",
+    "india_vix_change_5d": "2026-09-25",
+    "india_vix_level": "2026-09-25",
+    "liabilities_to_assets": null,
+    "macd_histogram": "2026-09-25",
+    "macd_line": "2026-09-25",
+    "macd_trigger": "2026-09-25",
+    "mnews_breaking_news_count_24h": "2026-09-30",
+    "mnews_commodity_news_count_24h": "2026-09-30",
+    "mnews_company_correction_count_24h": "2026-09-30",
+    "mnews_company_count_1h": "2026-09-30",
+    "mnews_company_count_24h": "2026-09-30",
+    "mnews_company_count_3d": "2026-09-30",
+    "mnews_company_count_4h": "2026-09-30",
+    "mnews_company_story_count_24h": "2026-09-30",
+    "mnews_company_time_since_last_s": null,
+    "mnews_corporate_news_count_24h": "2026-09-30",
+    "mnews_correction_count_24h": "2026-09-30",
+    "mnews_currency_news_count_24h": "2026-09-30",
+    "mnews_duplicate_count_24h": "2026-09-30",
+    "mnews_edited_news_count_24h": "2026-09-30",
+    "mnews_geopolitical_news_count_24h": "2026-09-30",
+    "mnews_global_market_news_count_24h": "2026-09-30",
+    "mnews_high_relevance_news_count_24h": "2026-09-30",
+    "mnews_macro_news_count_24h": "2026-09-30",
+    "mnews_macro_scope_news_count_24h": "2026-09-30",
+    "mnews_market_wide_news_count_24h": "2026-09-30",
+    "mnews_mixed_news_count_24h": "2026-09-30",
+    "mnews_negative_news_count_24h": "2026-09-30",
+    "mnews_news_count_1h": "2026-09-30",
+    "mnews_news_count_24h": "2026-09-30",
+    "mnews_news_count_3d": "2026-09-30",
+    "mnews_news_count_4h": "2026-09-30",
+    "mnews_new_story_count_24h": "2026-09-30",
+    "mnews_news_velocity_1h": "2026-09-30",
+    "mnews_news_velocity_24h": "2026-10-01",
+    "mnews_positive_news_count_24h": "2026-09-30",
+    "mnews_publisher_diversity_24h": "2026-09-30",
+    "mnews_regulatory_news_count_24h": "2026-09-30",
+    "mnews_story_group_count_24h": "2026-09-30",
+    "mnews_time_since_last_high_relevance_news_s": "2026-09-30",
+    "mnews_time_since_last_news_s": "2026-09-30",
+    "mnews_unique_publishers_1h": "2026-09-30",
+    "mnews_unique_publishers_24h": "2026-09-30",
+    "mnews_unique_sources_24h": "2026-09-30",
+    "mnews_updated_story_count_24h": "2026-09-30",
+    "news_count_24h": "2026-09-25",
+    "news_count_7d": "2026-09-25",
+    "news_hours_since_last": null,
+    "pat_yoy": null,
+    "pat_yoy_q": null,
+    "pb": "2026-09-25",
+    "pb_to_sector": "2026-09-25",
+    "pe": "2026-09-25",
+    "pe_to_sector": null,
+    "ret_1d": "2026-09-25",
+    "ret_20d": "2026-09-25",
+    "ret_5d": "2026-09-25",
+    "revenue_yoy": null,
+    "revenue_yoy_q": null,
+    "roce_pct": "2026-09-25",
+    "roe_pct": "2026-09-25",
+    "rsi_14": "2026-09-25",
+    "sector_rs_20": "2026-09-25",
+    "sma_20": "2026-09-25",
+    "sma_200": null,
+    "sma_50": "2026-09-25",
+    "turnover_20": "2026-09-25",
+    "volatility_20": "2026-09-25",
+    "volume_spike_20": "2026-09-25"
+   },
+   "family_valid_share_by_month": {
+    "bars": {
+     "2026-09": 0.7493,
+     "2026-10": 0.9348
+    },
+    "bars+sector": {
+     "2026-09": 0.6619,
+     "2026-10": 0.8337
+    },
+    "corporate_actions": {
+     "2026-09": 0.0888,
+     "2026-10": 0.1105
+    },
+    "fii_dii": {
+     "2026-09": 0.8,
+     "2026-10": 1.0
+    },
+    "fundamentals": {
+     "2026-09": 0.5174,
+     "2026-10": 0.6568
+    },
+    "global": {
+     "2026-09": 0.8,
+     "2026-10": 1.0
+    },
+    "legacy_news": {
+     "2026-09": 0.5498,
+     "2026-10": 0.6828
+    },
+    "multi_news": {
+     "2026-09": 0.1758,
+     "2026-10": 0.8961
+    }
+   },
+   "symbol_valid_share_core8": {
+    "symbols": 3549,
+    "p10": 0.8,
+    "p25": 0.9,
+    "p50": 0.9,
+    "p75": 0.9,
+    "p90": 0.9,
+    "below_50pct": 140,
+    "zero": 25
+   },
+   "universe_by_session": [
+    [
+     "2026-09-24",
+     3499
+    ],
+    [
+     "2026-09-25",
+     3502
+    ],
+    [
+     "2026-09-28",
+     3518
+    ],
+    [
+     "2026-09-29",
+     3518
+    ],
+    [
+     "2026-09-30",
+     3521
+    ],
+    [
+     "2026-10-01",
+     3528
+    ],
+    [
+     "2026-10-05",
+     3527
+    ],
+    [
+     "2026-10-06",
+     3540
+    ],
+    [
+     "2026-10-07",
+     3541
+    ],
+    [
+     "2026-10-08",
+     3545
+    ]
+   ]
+  },
+  "stage4-ds-v2-asif": {
+   "feature_status": {
+    "atr_14|PRE_SESSION": {
+     "MISSING_INPUT": 63623,
+     "STALE_INPUT": 25160,
+     "VALID": 726154
+    },
+    "atr_pct_14|PRE_SESSION": {
+     "MISSING_INPUT": 63623,
+     "STALE_INPUT": 25160,
+     "VALID": 726154
+    },
+    "avg_volume_20|PRE_SESSION": {
+     "MISSING_INPUT": 80705,
+     "STALE_INPUT": 25160,
+     "VALID": 709072
+    },
+    "beta_60|PRE_SESSION": {
+     "MISSING_INPUT": 215397,
+     "STALE_INPUT": 25160,
+     "VALID": 574380
+    },
+    "breakdown_20|PRE_SESSION": {
+     "MISSING_INPUT": 84123,
+     "STALE_INPUT": 25160,
+     "VALID": 705654
+    },
+    "breakout_20|PRE_SESSION": {
+     "MISSING_INPUT": 84123,
+     "STALE_INPUT": 25160,
+     "VALID": 705654
+    },
+    "ca_days_since_any|PRE_SESSION": {
+     "MISSING_INPUT": 675308,
+     "NOT_AVAILABLE_HISTORICALLY": 8820,
+     "VALID": 130809
+    },
+    "ca_days_since_bonus|PRE_SESSION": {
+     "MISSING_INPUT": 796934,
+     "NOT_AVAILABLE_HISTORICALLY": 8820,
+     "VALID": 9183
+    },
+    "ca_days_since_dividend|PRE_SESSION": {
+     "MISSING_INPUT": 695336,
+     "NOT_AVAILABLE_HISTORICALLY": 8820,
+     "VALID": 110781
+    },
+    "ca_days_since_split|PRE_SESSION": {
+     "MISSING_INPUT": 796275,
+     "NOT_AVAILABLE_HISTORICALLY": 8820,
+     "VALID": 9842
+    },
+    "ca_days_to_any|PRE_SESSION": {
+     "MISSING_INPUT": 806117,
+     "NOT_AVAILABLE_HISTORICALLY": 8820
+    },
+    "ca_days_to_bonus|PRE_SESSION": {
+     "MISSING_INPUT": 806117,
+     "NOT_AVAILABLE_HISTORICALLY": 8820
+    },
+    "ca_days_to_dividend|PRE_SESSION": {
+     "MISSING_INPUT": 806117,
+     "NOT_AVAILABLE_HISTORICALLY": 8820
+    },
+    "ca_days_to_split|PRE_SESSION": {
+     "MISSING_INPUT": 806117,
+     "NOT_AVAILABLE_HISTORICALLY": 8820
+    },
+    "close_to_sma_200|PRE_SESSION": {
+     "MISSING_INPUT": 635390,
+     "STALE_INPUT": 25160,
+     "VALID": 154387
+    },
+    "close_to_sma_20|PRE_SESSION": {
+     "MISSING_INPUT": 80705,
+     "STALE_INPUT": 25160,
+     "VALID": 709072
+    },
+    "close_to_sma_50|PRE_SESSION": {
+     "MISSING_INPUT": 180206,
+     "STALE_INPUT": 25160,
+     "VALID": 609571
+    },
+    "dii_net_cash_1d|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 127,
+     "VALID": 129
+    },
+    "dii_net_cash_5d|PRE_SESSION": {
+     "MISSING_INPUT": 4,
+     "NOT_AVAILABLE_HISTORICALLY": 127,
+     "VALID": 125
+    },
+    "dist_high_20|PRE_SESSION": {
+     "MISSING_INPUT": 80705,
+     "STALE_INPUT": 25160,
+     "VALID": 709072
+    },
+    "dist_low_20|PRE_SESSION": {
+     "MISSING_INPUT": 80705,
+     "STALE_INPUT": 25160,
+     "VALID": 709072
+    },
+    "ema_12|PRE_SESSION": {
+     "MISSING_INPUT": 53341,
+     "STALE_INPUT": 25160,
+     "VALID": 736436
+    },
+    "ema_26|PRE_SESSION": {
+     "MISSING_INPUT": 101161,
+     "STALE_INPUT": 25160,
+     "VALID": 688616
+    },
+    "eps_yoy|PRE_SESSION": {
+     "MISSING_INPUT": 13209,
+     "NOT_AVAILABLE_HISTORICALLY": 783164,
+     "VALID": 18564
+    },
+    "ev_ebitda|PRE_SESSION": {
+     "MISSING_INPUT": 4490,
+     "NOT_AVAILABLE_HISTORICALLY": 783164,
+     "VALID": 27283
+    },
+    "fii_net_cash_1d|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 127,
+     "VALID": 129
+    },
+    "fii_net_cash_5d|PRE_SESSION": {
+     "MISSING_INPUT": 4,
+     "NOT_AVAILABLE_HISTORICALLY": 127,
+     "VALID": 125
+    },
+    "global_ret_1d|PRE_SESSION": {
+     "VALID": 3328
+    },
+    "index_close_to_sma_50|PRE_SESSION": {
+     "VALID": 512
+    },
+    "index_ret_1d|PRE_SESSION": {
+     "VALID": 512
+    },
+    "index_ret_5d|PRE_SESSION": {
+     "VALID": 512
+    },
+    "india_vix_change_5d|PRE_SESSION": {
+     "VALID": 256
+    },
+    "india_vix_level|PRE_SESSION": {
+     "VALID": 256
+    },
+    "liabilities_to_assets|PRE_SESSION": {
+     "MISSING_INPUT": 10258,
+     "NOT_AVAILABLE_HISTORICALLY": 783164,
+     "VALID": 21515
+    },
+    "macd_histogram|PRE_SESSION": {
+     "MISSING_INPUT": 128246,
+     "STALE_INPUT": 25160,
+     "VALID": 661531
+    },
+    "macd_line|PRE_SESSION": {
+     "MISSING_INPUT": 101161,
+     "STALE_INPUT": 25160,
+     "VALID": 688616
+    },
+    "macd_trigger|PRE_SESSION": {
+     "MISSING_INPUT": 128246,
+     "STALE_INPUT": 25160,
+     "VALID": 661531
+    },
+    "mnews_breaking_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_commodity_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_company_correction_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 792977,
+     "VALID": 21192
+    },
+    "mnews_company_count_1h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 792977,
+     "VALID": 21192
+    },
+    "mnews_company_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 792977,
+     "VALID": 21192
+    },
+    "mnews_company_count_3d|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 792977,
+     "VALID": 21192
+    },
+    "mnews_company_count_4h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 792977,
+     "VALID": 21192
+    },
+    "mnews_company_story_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 792977,
+     "VALID": 21192
+    },
+    "mnews_company_time_since_last_s|PRE_SESSION": {
+     "MISSING_INPUT": 15913,
+     "NOT_AVAILABLE_HISTORICALLY": 792977,
+     "VALID": 5279
+    },
+    "mnews_corporate_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_correction_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_currency_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_duplicate_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_edited_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_geopolitical_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_global_market_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_high_relevance_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_macro_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_macro_scope_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_market_wide_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_mixed_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_negative_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_new_story_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_news_count_1h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_news_count_3d|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_news_count_4h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_news_velocity_1h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_news_velocity_24h|PRE_SESSION": {
+     "MISSING_INPUT": 1,
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 5
+    },
+    "mnews_positive_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_publisher_diversity_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_regulatory_news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_story_group_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_time_since_last_high_relevance_news_s|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_time_since_last_news_s|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_unique_publishers_1h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_unique_publishers_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_unique_sources_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "mnews_updated_story_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 250,
+     "VALID": 6
+    },
+    "news_count_24h|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 783164,
+     "VALID": 31773
+    },
+    "news_count_7d|PRE_SESSION": {
+     "NOT_AVAILABLE_HISTORICALLY": 783164,
+     "VALID": 31773
+    },
+    "news_hours_since_last|PRE_SESSION": {
+     "MISSING_INPUT": 30075,
+     "NOT_AVAILABLE_HISTORICALLY": 783164,
+     "VALID": 1698
+    },
+    "pat_yoy_q|PRE_SESSION": {
+     "INVALID": 21412,
+     "MISSING_INPUT": 10338,
+     "NOT_AVAILABLE_HISTORICALLY": 783164,
+     "VALID": 23
+    },
+    "pat_yoy|PRE_SESSION": {
+     "MISSING_INPUT": 13241,
+     "NOT_AVAILABLE_HISTORICALLY": 783164,
+     "VALID": 18532
+    },
+    "pb_to_sector|PRE_SESSION": {
+     "MISSING_INPUT": 3777,
+     "NOT_AVAILABLE_HISTORICALLY": 783164,
+     "VALID": 27996
+    },
+    "pb|PRE_SESSION": {
+     "MISSING_INPUT": 3648,
+     "NOT_AVAILABLE_HISTORICALLY": 783164,
+     "VALID": 28125
+    },
+    "pe_to_sector|PRE_SESSION": {
+     "MISSING_INPUT": 7909,
+     "NOT_AVAILABLE_HISTORICALLY": 783164,
+     "VALID": 23864
+    },
+    "pe|PRE_SESSION": {
+     "MISSING_INPUT": 3768,
+     "NOT_AVAILABLE_HISTORICALLY": 783164,
+     "VALID": 28005
+    },
+    "ret_1d|PRE_SESSION": {
+     "MISSING_INPUT": 18923,
+     "STALE_INPUT": 25160,
+     "VALID": 770854
+    },
+    "ret_20d|PRE_SESSION": {
+     "MISSING_INPUT": 84123,
+     "STALE_INPUT": 25160,
+     "VALID": 705654
+    },
+    "ret_5d|PRE_SESSION": {
+     "MISSING_INPUT": 32756,
+     "STALE_INPUT": 25160,
+     "VALID": 757021
+    },
+    "revenue_yoy_q|PRE_SESSION": {
+     "INVALID": 19437,
+     "MISSING_INPUT": 12304,
+     "NOT_AVAILABLE_HISTORICALLY": 783164,
+     "VALID": 32
+    },
+    "revenue_yoy|PRE_SESSION": {
+     "MISSING_INPUT": 12446,
+     "NOT_AVAILABLE_HISTORICALLY": 783164,
+     "VALID": 19327
+    },
+    "roce_pct|PRE_SESSION": {
+     "INVALID": 18,
+     "MISSING_INPUT": 4048,
+     "NOT_AVAILABLE_HISTORICALLY": 783164,
+     "VALID": 27707
+    },
+    "roe_pct|PRE_SESSION": {
+     "INVALID": 9,
+     "MISSING_INPUT": 3691,
+     "NOT_AVAILABLE_HISTORICALLY": 783164,
+     "VALID": 28073
+    },
+    "rsi_14|PRE_SESSION": {
+     "MISSING_INPUT": 63744,
+     "STALE_INPUT": 25160,
+     "VALID": 726033
+    },
+    "sector_rs_20|PRE_SESSION": {
+     "MISSING_INPUT": 4384,
+     "NOT_AVAILABLE_HISTORICALLY": 782423,
+     "STALE_INPUT": 1006,
+     "VALID": 26356
+    },
+    "sma_200|PRE_SESSION": {
+     "MISSING_INPUT": 635390,
+     "STALE_INPUT": 25160,
+     "VALID": 154387
+    },
+    "sma_20|PRE_SESSION": {
+     "MISSING_INPUT": 80705,
+     "STALE_INPUT": 25160,
+     "VALID": 709072
+    },
+    "sma_50|PRE_SESSION": {
+     "MISSING_INPUT": 180206,
+     "STALE_INPUT": 25160,
+     "VALID": 609571
+    },
+    "turnover_20|PRE_SESSION": {
+     "MISSING_INPUT": 80705,
+     "STALE_INPUT": 25160,
+     "VALID": 709072
+    },
+    "volatility_20|PRE_SESSION": {
+     "MISSING_INPUT": 84123,
+     "STALE_INPUT": 25160,
+     "VALID": 705654
+    },
+    "volume_spike_20|PRE_SESSION": {
+     "MISSING_INPUT": 84828,
+     "STALE_INPUT": 25160,
+     "VALID": 704949
+    }
+   },
+   "first_session_valid_ge_80pct_thereafter": {
+    "atr_14": "2025-10-16",
+    "atr_pct_14": "2025-10-16",
+    "avg_volume_20": "2025-10-24",
+    "beta_60": "2025-12-23",
+    "breakdown_20": "2025-10-27",
+    "breakout_20": "2025-10-27",
+    "ca_days_since_any": null,
+    "ca_days_since_bonus": null,
+    "ca_days_since_dividend": null,
+    "ca_days_since_split": null,
+    "ca_days_to_any": null,
+    "ca_days_to_bonus": null,
+    "ca_days_to_dividend": null,
+    "ca_days_to_split": null,
+    "close_to_sma_20": "2025-10-24",
+    "close_to_sma_200": null,
+    "close_to_sma_50": "2025-12-08",
+    "dii_net_cash_1d": "2026-04-02",
+    "dii_net_cash_5d": "2026-04-09",
+    "dist_high_20": "2025-10-24",
+    "dist_low_20": "2025-10-24",
+    "ema_12": "2025-10-13",
+    "ema_26": "2025-11-03",
+    "eps_yoy": null,
+    "ev_ebitda": "2026-09-25",
+    "fii_net_cash_1d": "2026-04-02",
+    "fii_net_cash_5d": "2026-04-09",
+    "global_ret_1d": "2025-09-24",
+    "index_close_to_sma_50": "2025-09-24",
+    "index_ret_1d": "2025-09-24",
+    "index_ret_5d": "2025-09-24",
+    "india_vix_change_5d": "2025-09-24",
+    "india_vix_level": "2025-09-24",
+    "liabilities_to_assets": null,
+    "macd_histogram": "2025-11-14",
+    "macd_line": "2025-11-03",
+    "macd_trigger": "2025-11-14",
+    "mnews_breaking_news_count_24h": "2026-09-30",
+    "mnews_commodity_news_count_24h": "2026-09-30",
+    "mnews_company_correction_count_24h": "2026-09-30",
+    "mnews_company_count_1h": "2026-09-30",
+    "mnews_company_count_24h": "2026-09-30",
+    "mnews_company_count_3d": "2026-09-30",
+    "mnews_company_count_4h": "2026-09-30",
+    "mnews_company_story_count_24h": "2026-09-30",
+    "mnews_company_time_since_last_s": null,
+    "mnews_corporate_news_count_24h": "2026-09-30",
+    "mnews_correction_count_24h": "2026-09-30",
+    "mnews_currency_news_count_24h": "2026-09-30",
+    "mnews_duplicate_count_24h": "2026-09-30",
+    "mnews_edited_news_count_24h": "2026-09-30",
+    "mnews_geopolitical_news_count_24h": "2026-09-30",
+    "mnews_global_market_news_count_24h": "2026-09-30",
+    "mnews_high_relevance_news_count_24h": "2026-09-30",
+    "mnews_macro_news_count_24h": "2026-09-30",
+    "mnews_macro_scope_news_count_24h": "2026-09-30",
+    "mnews_market_wide_news_count_24h": "2026-09-30",
+    "mnews_mixed_news_count_24h": "2026-09-30",
+    "mnews_negative_news_count_24h": "2026-09-30",
+    "mnews_news_count_1h": "2026-09-30",
+    "mnews_news_count_24h": "2026-09-30",
+    "mnews_news_count_3d": "2026-09-30",
+    "mnews_news_count_4h": "2026-09-30",
+    "mnews_new_story_count_24h": "2026-09-30",
+    "mnews_news_velocity_1h": "2026-09-30",
+    "mnews_news_velocity_24h": "2026-10-01",
+    "mnews_positive_news_count_24h": "2026-09-30",
+    "mnews_publisher_diversity_24h": "2026-09-30",
+    "mnews_regulatory_news_count_24h": "2026-09-30",
+    "mnews_story_group_count_24h": "2026-09-30",
+    "mnews_time_since_last_high_relevance_news_s": "2026-09-30",
+    "mnews_time_since_last_news_s": "2026-09-30",
+    "mnews_unique_publishers_1h": "2026-09-30",
+    "mnews_unique_publishers_24h": "2026-09-30",
+    "mnews_unique_sources_24h": "2026-09-30",
+    "mnews_updated_story_count_24h": "2026-09-30",
+    "news_count_24h": "2026-09-25",
+    "news_count_7d": "2026-09-25",
+    "news_hours_since_last": null,
+    "pat_yoy": null,
+    "pat_yoy_q": null,
+    "pb": "2026-09-25",
+    "pb_to_sector": "2026-09-25",
+    "pe": "2026-09-25",
+    "pe_to_sector": null,
+    "ret_1d": "2025-09-26",
+    "ret_20d": "2025-10-27",
+    "ret_5d": "2025-10-03",
+    "revenue_yoy": null,
+    "revenue_yoy_q": null,
+    "roce_pct": "2026-09-25",
+    "roe_pct": "2026-09-25",
+    "rsi_14": "2025-10-16",
+    "sector_rs_20": "2026-09-28",
+    "sma_20": "2025-10-24",
+    "sma_200": null,
+    "sma_50": "2025-12-08",
+    "turnover_20": "2025-10-24",
+    "volatility_20": "2025-10-27",
+    "volume_spike_20": "2025-10-27"
+   },
+   "family_valid_share_by_month": {
+    "bars": {
+     "2025-09": 0.0215,
+     "2025-10": 0.2474,
+     "2025-11": 0.7168,
+     "2025-12": 0.812,
+     "2026-01": 0.8616,
+     "2026-02": 0.866,
+     "2026-03": 0.8731,
+     "2026-04": 0.8644,
+     "2026-05": 0.8582,
+     "2026-06": 0.8742,
+     "2026-07": 0.9018,
+     "2026-08": 0.9232,
+     "2026-09": 0.9229,
+     "2026-10": 0.9345
+    },
+    "bars+sector": {
+     "2025-09": 0.0,
+     "2025-10": 0.0,
+     "2025-11": 0.0,
+     "2025-12": 0.0,
+     "2026-01": 0.0,
+     "2026-02": 0.0,
+     "2026-03": 0.0,
+     "2026-04": 0.0,
+     "2026-05": 0.0,
+     "2026-06": 0.0,
+     "2026-07": 0.0,
+     "2026-08": 0.0,
+     "2026-09": 0.1578,
+     "2026-10": 0.8335
+    },
+    "corporate_actions": {
+     "2025-09": 0.0001,
+     "2025-10": 0.0021,
+     "2025-11": 0.0112,
+     "2025-12": 0.0183,
+     "2026-01": 0.0196,
+     "2026-02": 0.0269,
+     "2026-03": 0.0338,
+     "2026-04": 0.0358,
+     "2026-05": 0.0374,
+     "2026-06": 0.0425,
+     "2026-07": 0.0538,
+     "2026-08": 0.0737,
+     "2026-09": 0.0943,
+     "2026-10": 0.1105
+    },
+    "fii_dii": {
+     "2025-09": 0.0,
+     "2025-10": 0.0,
+     "2025-11": 0.0,
+     "2025-12": 0.0,
+     "2026-01": 0.0,
+     "2026-02": 0.0,
+     "2026-03": 0.0,
+     "2026-04": 0.85,
+     "2026-05": 1.0,
+     "2026-06": 1.0,
+     "2026-07": 1.0,
+     "2026-08": 1.0,
+     "2026-09": 1.0,
+     "2026-10": 1.0
+    },
+    "fundamentals": {
+     "2025-09": 0.0,
+     "2025-10": 0.0,
+     "2025-11": 0.0,
+     "2025-12": 0.0,
+     "2026-01": 0.0,
+     "2026-02": 0.0,
+     "2026-03": 0.0,
+     "2026-04": 0.0,
+     "2026-05": 0.0,
+     "2026-06": 0.0,
+     "2026-07": 0.0,
+     "2026-08": 0.0,
+     "2026-09": 0.1232,
+     "2026-10": 0.6565
+    },
+    "global": {
+     "2025-09": 1.0,
+     "2025-10": 1.0,
+     "2025-11": 1.0,
+     "2025-12": 1.0,
+     "2026-01": 1.0,
+     "2026-02": 1.0,
+     "2026-03": 1.0,
+     "2026-04": 1.0,
+     "2026-05": 1.0,
+     "2026-06": 1.0,
+     "2026-07": 1.0,
+     "2026-08": 1.0,
+     "2026-09": 1.0,
+     "2026-10": 1.0
+    },
+    "legacy_news": {
+     "2025-09": 0.0,
+     "2025-10": 0.0,
+     "2025-11": 0.0,
+     "2025-12": 0.0,
+     "2026-01": 0.0,
+     "2026-02": 0.0,
+     "2026-03": 0.0,
+     "2026-04": 0.0,
+     "2026-05": 0.0,
+     "2026-06": 0.0,
+     "2026-07": 0.0,
+     "2026-08": 0.0,
+     "2026-09": 0.1312,
+     "2026-10": 0.6828
+    },
+    "multi_news": {
+     "2025-09": 0.0,
+     "2025-10": 0.0,
+     "2025-11": 0.0,
+     "2025-12": 0.0,
+     "2026-01": 0.0,
+     "2026-02": 0.0,
+     "2026-03": 0.0,
+     "2026-04": 0.0,
+     "2026-05": 0.0,
+     "2026-06": 0.0,
+     "2026-07": 0.0,
+     "2026-08": 0.0,
+     "2026-09": 0.0419,
+     "2026-10": 0.8961
+    }
+   },
+   "symbol_valid_share_core8": {
+    "symbols": 3566,
+    "p10": 0.6111,
+    "p25": 0.8906,
+    "p50": 0.9414,
+    "p75": 0.9414,
+    "p90": 0.9414,
+    "below_50pct": 203,
+    "zero": 7
+   },
+   "universe_by_session": [
+    [
+     "2025-09-24",
+     2939
+    ],
+    [
+     "2025-09-25",
+     2940
+    ],
+    [
+     "2025-09-26",
+     2941
+    ],
+    [
+     "2025-09-29",
+     2943
+    ],
+    [
+     "2025-09-30",
+     2946
+    ],
+    [
+     "2025-10-01",
+     2952
+    ],
+    [
+     "2025-10-03",
+     2953
+    ],
+    [
+     "2025-10-06",
+     2952
+    ],
+    [
+     "2025-10-07",
+     2956
+    ],
+    [
+     "2025-10-08",
+     2960
+    ],
+    [
+     "2025-10-09",
+     2965
+    ],
+    [
+     "2025-10-10",
+     2967
+    ],
+    [
+     "2025-10-13",
+     2968
+    ],
+    [
+     "2025-10-14",
+     2969
+    ],
+    [
+     "2025-10-15",
+     2971
+    ],
+    [
+     "2025-10-16",
+     2972
+    ],
+    [
+     "2025-10-17",
+     2978
+    ],
+    [
+     "2025-10-20",
+     2979
+    ],
+    [
+     "2025-10-21",
+     2981
+    ],
+    [
+     "2025-10-23",
+     2979
+    ],
+    [
+     "2025-10-24",
+     2980
+    ],
+    [
+     "2025-10-27",
+     2983
+    ],
+    [
+     "2025-10-28",
+     2984
+    ],
+    [
+     "2025-10-29",
+     2986
+    ],
+    [
+     "2025-10-30",
+     2986
+    ],
+    [
+     "2025-10-31",
+     2987
+    ],
+    [
+     "2025-11-03",
+     2987
+    ],
+    [
+     "2025-11-04",
+     2988
+    ],
+    [
+     "2025-11-06",
+     2987
+    ],
+    [
+     "2025-11-07",
+     2989
+    ],
+    [
+     "2025-11-10",
+     2989
+    ],
+    [
+     "2025-11-11",
+     2991
+    ],
+    [
+     "2025-11-12",
+     2991
+    ],
+    [
+     "2025-11-13",
+     2993
+    ],
+    [
+     "2025-11-14",
+     2997
+    ],
+    [
+     "2025-11-17",
+     2998
+    ],
+    [
+     "2025-11-18",
+     2999
+    ],
+    [
+     "2025-11-19",
+     3001
+    ],
+    [
+     "2025-11-20",
+     3004
+    ],
+    [
+     "2025-11-21",
+     3006
+    ],
+    [
+     "2025-11-24",
+     3007
+    ],
+    [
+     "2025-11-25",
+     3011
+    ],
+    [
+     "2025-11-26",
+     3013
+    ],
+    [
+     "2025-11-27",
+     3014
+    ],
+    [
+     "2025-11-28",
+     3019
+    ],
+    [
+     "2025-12-01",
+     3019
+    ],
+    [
+     "2025-12-02",
+     3023
+    ],
+    [
+     "2025-12-03",
+     3023
+    ],
+    [
+     "2025-12-04",
+     3023
+    ],
+    [
+     "2025-12-05",
+     3025
+    ],
+    [
+     "2025-12-08",
+     3025
+    ],
+    [
+     "2025-12-09",
+     3030
+    ],
+    [
+     "2025-12-10",
+     3032
+    ],
+    [
+     "2025-12-11",
+     3034
+    ],
+    [
+     "2025-12-12",
+     3037
+    ],
+    [
+     "2025-12-15",
+     3040
+    ],
+    [
+     "2025-12-16",
+     3042
+    ],
+    [
+     "2025-12-17",
+     3041
+    ],
+    [
+     "2025-12-18",
+     3043
+    ],
+    [
+     "2025-12-19",
+     3047
+    ],
+    [
+     "2025-12-22",
+     3049
+    ],
+    [
+     "2025-12-23",
+     3050
+    ],
+    [
+     "2025-12-24",
+     3049
+    ],
+    [
+     "2025-12-26",
+     3051
+    ],
+    [
+     "2025-12-29",
+     3049
+    ],
+    [
+     "2025-12-30",
+     3051
+    ],
+    [
+     "2025-12-31",
+     3056
+    ],
+    [
+     "2026-01-01",
+     3057
+    ],
+    [
+     "2026-01-02",
+     3057
+    ],
+    [
+     "2026-01-05",
+     3058
+    ],
+    [
+     "2026-01-06",
+     3060
+    ],
+    [
+     "2026-01-07",
+     3062
+    ],
+    [
+     "2026-01-08",
+     3060
+    ],
+    [
+     "2026-01-09",
+     3059
+    ],
+    [
+     "2026-01-12",
+     3059
+    ],
+    [
+     "2026-01-13",
+     3059
+    ],
+    [
+     "2026-01-14",
+     3062
+    ],
+    [
+     "2026-01-16",
+     3066
+    ],
+    [
+     "2026-01-19",
+     3064
+    ],
+    [
+     "2026-01-20",
+     3067
+    ],
+    [
+     "2026-01-21",
+     3071
+    ],
+    [
+     "2026-01-22",
+     3072
+    ],
+    [
+     "2026-01-23",
+     3071
+    ],
+    [
+     "2026-01-27",
+     3073
+    ],
+    [
+     "2026-01-28",
+     3072
+    ],
+    [
+     "2026-01-29",
+     3073
+    ],
+    [
+     "2026-01-30",
+     3076
+    ],
+    [
+     "2026-02-02",
+     3076
+    ],
+    [
+     "2026-02-03",
+     3077
+    ],
+    [
+     "2026-02-04",
+     3076
+    ],
+    [
+     "2026-02-05",
+     3075
+    ],
+    [
+     "2026-02-06",
+     3074
+    ],
+    [
+     "2026-02-09",
+     3075
+    ],
+    [
+     "2026-02-10",
+     3078
+    ],
+    [
+     "2026-02-11",
+     3079
+    ],
+    [
+     "2026-02-12",
+     3081
+    ],
+    [
+     "2026-02-13",
+     3080
+    ],
+    [
+     "2026-02-16",
+     3080
+    ],
+    [
+     "2026-02-17",
+     3085
+    ],
+    [
+     "2026-02-18",
+     3088
+    ],
+    [
+     "2026-02-19",
+     3089
+    ],
+    [
+     "2026-02-20",
+     3091
+    ],
+    [
+     "2026-02-23",
+     3093
+    ],
+    [
+     "2026-02-24",
+     3094
+    ],
+    [
+     "2026-02-25",
+     3094
+    ],
+    [
+     "2026-02-26",
+     3094
+    ],
+    [
+     "2026-02-27",
+     3095
+    ],
+    [
+     "2026-03-02",
+     3097
+    ],
+    [
+     "2026-03-04",
+     3102
+    ],
+    [
+     "2026-03-05",
+     3104
+    ],
+    [
+     "2026-03-06",
+     3108
+    ],
+    [
+     "2026-03-09",
+     3108
+    ],
+    [
+     "2026-03-10",
+     3112
+    ],
+    [
+     "2026-03-11",
+     3112
+    ],
+    [
+     "2026-03-12",
+     3114
+    ],
+    [
+     "2026-03-13",
+     3113
+    ],
+    [
+     "2026-03-16",
+     3112
+    ],
+    [
+     "2026-03-17",
+     3114
+    ],
+    [
+     "2026-03-18",
+     3114
+    ],
+    [
+     "2026-03-19",
+     3115
+    ],
+    [
+     "2026-03-20",
+     3118
+    ],
+    [
+     "2026-03-23",
+     3119
+    ],
+    [
+     "2026-03-24",
+     3120
+    ],
+    [
+     "2026-03-25",
+     3120
+    ],
+    [
+     "2026-03-27",
+     3120
+    ],
+    [
+     "2026-03-30",
+     3127
+    ],
+    [
+     "2026-04-01",
+     3128
+    ],
+    [
+     "2026-04-02",
+     3129
+    ],
+    [
+     "2026-04-06",
+     3129
+    ],
+    [
+     "2026-04-07",
+     3133
+    ],
+    [
+     "2026-04-08",
+     3133
+    ],
+    [
+     "2026-04-09",
+     3136
+    ],
+    [
+     "2026-04-10",
+     3133
+    ],
+    [
+     "2026-04-13",
+     3134
+    ],
+    [
+     "2026-04-15",
+     3131
+    ],
+    [
+     "2026-04-16",
+     3136
+    ],
+    [
+     "2026-04-17",
+     3135
+    ],
+    [
+     "2026-04-20",
+     3135
+    ],
+    [
+     "2026-04-21",
+     3234
+    ],
+    [
+     "2026-04-22",
+     3240
+    ],
+    [
+     "2026-04-23",
+     3242
+    ],
+    [
+     "2026-04-24",
+     3241
+    ],
+    [
+     "2026-04-27",
+     3243
+    ],
+    [
+     "2026-04-28",
+     3244
+    ],
+    [
+     "2026-04-29",
+     3243
+    ],
+    [
+     "2026-04-30",
+     3245
+    ],
+    [
+     "2026-05-04",
+     3241
+    ],
+    [
+     "2026-05-05",
+     3242
+    ],
+    [
+     "2026-05-06",
+     3241
+    ],
+    [
+     "2026-05-07",
+     3239
+    ],
+    [
+     "2026-05-08",
+     3241
+    ],
+    [
+     "2026-05-11",
+     3241
+    ],
+    [
+     "2026-05-12",
+     3244
+    ],
+    [
+     "2026-05-13",
+     3246
+    ],
+    [
+     "2026-05-14",
+     3245
+    ],
+    [
+     "2026-05-15",
+     3246
+    ],
+    [
+     "2026-05-18",
+     3245
+    ],
+    [
+     "2026-05-19",
+     3246
+    ],
+    [
+     "2026-05-20",
+     3247
+    ],
+    [
+     "2026-05-21",
+     3246
+    ],
+    [
+     "2026-05-22",
+     3247
+    ],
+    [
+     "2026-05-25",
+     3245
+    ],
+    [
+     "2026-05-26",
+     3249
+    ],
+    [
+     "2026-05-27",
+     3252
+    ],
+    [
+     "2026-05-29",
+     3253
+    ],
+    [
+     "2026-06-01",
+     3257
+    ],
+    [
+     "2026-06-02",
+     3257
+    ],
+    [
+     "2026-06-03",
+     3258
+    ],
+    [
+     "2026-06-04",
+     3257
+    ],
+    [
+     "2026-06-05",
+     3256
+    ],
+    [
+     "2026-06-08",
+     3253
+    ],
+    [
+     "2026-06-09",
+     3255
+    ],
+    [
+     "2026-06-10",
+     3257
+    ],
+    [
+     "2026-06-11",
+     3258
+    ],
+    [
+     "2026-06-12",
+     3257
+    ],
+    [
+     "2026-06-15",
+     3260
+    ],
+    [
+     "2026-06-16",
+     3265
+    ],
+    [
+     "2026-06-17",
+     3264
+    ],
+    [
+     "2026-06-18",
+     3266
+    ],
+    [
+     "2026-06-19",
+     3269
+    ],
+    [
+     "2026-06-22",
+     3268
+    ],
+    [
+     "2026-06-23",
+     3268
+    ],
+    [
+     "2026-06-24",
+     3267
+    ],
+    [
+     "2026-06-25",
+     3266
+    ],
+    [
+     "2026-06-29",
+     3267
+    ],
+    [
+     "2026-06-30",
+     3270
+    ],
+    [
+     "2026-07-01",
+     3269
+    ],
+    [
+     "2026-07-02",
+     3274
+    ],
+    [
+     "2026-07-03",
+     3276
+    ],
+    [
+     "2026-07-06",
+     3274
+    ],
+    [
+     "2026-07-07",
+     3277
+    ],
+    [
+     "2026-07-08",
+     3279
+    ],
+    [
+     "2026-07-09",
+     3280
+    ],
+    [
+     "2026-07-10",
+     3281
+    ],
+    [
+     "2026-07-13",
+     3283
+    ],
+    [
+     "2026-07-14",
+     3283
+    ],
+    [
+     "2026-07-15",
+     3284
+    ],
+    [
+     "2026-07-16",
+     3283
+    ],
+    [
+     "2026-07-17",
+     3286
+    ],
+    [
+     "2026-07-20",
+     3284
+    ],
+    [
+     "2026-07-21",
+     3286
+    ],
+    [
+     "2026-07-22",
+     3289
+    ],
+    [
+     "2026-07-23",
+     3291
+    ],
+    [
+     "2026-07-24",
+     3292
+    ],
+    [
+     "2026-07-27",
+     3293
+    ],
+    [
+     "2026-07-28",
+     3295
+    ],
+    [
+     "2026-07-29",
+     3298
+    ],
+    [
+     "2026-07-30",
+     3298
+    ],
+    [
+     "2026-07-31",
+     3300
+    ],
+    [
+     "2026-08-03",
+     3298
+    ],
+    [
+     "2026-08-04",
+     3301
+    ],
+    [
+     "2026-08-05",
+     3301
+    ],
+    [
+     "2026-08-06",
+     3306
+    ],
+    [
+     "2026-08-07",
+     3310
+    ],
+    [
+     "2026-08-10",
+     3310
+    ],
+    [
+     "2026-08-11",
+     3313
+    ],
+    [
+     "2026-08-12",
+     3317
+    ],
+    [
+     "2026-08-13",
+     3316
+    ],
+    [
+     "2026-08-14",
+     3315
+    ],
+    [
+     "2026-08-17",
+     3321
+    ],
+    [
+     "2026-08-18",
+     3457
+    ],
+    [
+     "2026-08-19",
+     3471
+    ],
+    [
+     "2026-08-20",
+     3475
+    ],
+    [
+     "2026-08-21",
+     3480
+    ],
+    [
+     "2026-08-24",
+     3482
+    ],
+    [
+     "2026-08-25",
+     3486
+    ],
+    [
+     "2026-08-26",
+     3489
+    ],
+    [
+     "2026-08-27",
+     3489
+    ],
+    [
+     "2026-08-28",
+     3489
+    ],
+    [
+     "2026-08-31",
+     3491
+    ],
+    [
+     "2026-09-01",
+     3495
+    ],
+    [
+     "2026-09-02",
+     3501
+    ],
+    [
+     "2026-09-03",
+     3503
+    ],
+    [
+     "2026-09-04",
+     3505
+    ],
+    [
+     "2026-09-07",
+     3506
+    ],
+    [
+     "2026-09-08",
+     3509
+    ],
+    [
+     "2026-09-09",
+     3509
+    ],
+    [
+     "2026-09-10",
+     3508
+    ],
+    [
+     "2026-09-11",
+     3507
+    ],
+    [
+     "2026-09-15",
+     3503
+    ],
+    [
+     "2026-09-16",
+     3508
+    ],
+    [
+     "2026-09-17",
+     3509
+    ],
+    [
+     "2026-09-18",
+     3518
+    ],
+    [
+     "2026-09-21",
+     3517
+    ],
+    [
+     "2026-09-22",
+     3518
+    ],
+    [
+     "2026-09-23",
+     3518
+    ],
+    [
+     "2026-09-24",
+     3522
+    ],
+    [
+     "2026-09-25",
+     3523
+    ],
+    [
+     "2026-09-28",
+     3520
+    ],
+    [
+     "2026-09-29",
+     3520
+    ],
+    [
+     "2026-09-30",
+     3523
+    ],
+    [
+     "2026-10-01",
+     3530
+    ],
+    [
+     "2026-10-05",
+     3529
+    ],
+    [
+     "2026-10-06",
+     3541
+    ],
+    [
+     "2026-10-07",
+     3542
+    ],
+    [
+     "2026-10-08",
+     3545
+    ]
+   ]
+  },
+  "strict_pre_session_vs_pre_open": [
+   [
+    "mnews_company_time_since_last_s",
+    35209,
+    5286,
+    21
+   ],
+   [
+    "sector_rs_20",
+    35209,
+    1894,
+    143
+   ],
+   [
+    "news_hours_since_last",
+    35239,
+    1698,
+    7
+   ],
+   [
+    "pb",
+    35239,
+    117,
+    143
+   ],
+   [
+    "roe_pct",
+    35239,
+    117,
+    143
+   ],
+   [
+    "pe",
+    35239,
+    117,
+    143
+   ],
+   [
+    "pb_to_sector",
+    35239,
+    117,
+    143
+   ],
+   [
+    "roce_pct",
+    35239,
+    114,
+    143
+   ],
+   [
+    "ev_ebitda",
+    35239,
+    114,
+    143
+   ],
+   [
+    "pat_yoy_q",
+    35239,
+    98,
+    143
+   ],
+   [
+    "liabilities_to_assets",
+    35239,
+    96,
+    143
+   ],
+   [
+    "pe_to_sector",
+    35239,
+    96,
+    143
+   ],
+   [
+    "revenue_yoy",
+    35239,
+    91,
+    143
+   ],
+   [
+    "revenue_yoy_q",
+    35239,
+    91,
+    143
+   ],
+   [
+    "pat_yoy",
+    35239,
+    85,
+    143
+   ],
+   [
+    "eps_yoy",
+    35239,
+    84,
+    143
+   ],
+   [
+    "mnews_company_story_count_24h",
+    35209,
+    28,
+    21
+   ],
+   [
+    "mnews_company_count_24h",
+    35209,
+    28,
+    21
+   ],
+   [
+    "mnews_company_count_1h",
+    35209,
+    23,
+    21
+   ],
+   [
+    "mnews_company_count_3d",
+    35209,
+    20,
+    21
+   ],
+   [
+    "mnews_company_count_4h",
+    35209,
+    15,
+    21
+   ],
+   [
+    "news_count_7d",
+    35239,
+    13,
+    7
+   ],
+   [
+    "mnews_news_velocity_1h",
+    10,
+    6,
+    6
+   ],
+   [
+    "mnews_publisher_diversity_24h",
+    10,
+    6,
+    6
+   ],
+   [
+    "mnews_story_group_count_24h",
+    10,
+    6,
+    6
+   ],
+   [
+    "mnews_time_since_last_high_relevance_news_s",
+    10,
+    6,
+    6
+   ],
+   [
+    "mnews_time_since_last_news_s",
+    10,
+    6,
+    6
+   ],
+   [
+    "mnews_corporate_news_count_24h",
+    10,
+    6,
+    6
+   ],
+   [
+    "mnews_news_count_1h",
+    10,
+    6,
+    6
+   ],
+   [
+    "mnews_news_count_24h",
+    10,
+    6,
+    6
+   ],
+   [
+    "mnews_news_count_3d",
+    10,
+    6,
+    6
+   ],
+   [
+    "mnews_news_count_4h",
+    10,
+    6,
+    6
+   ],
+   [
+    "mnews_new_story_count_24h",
+    10,
+    6,
+    6
+   ],
+   [
+    "mnews_macro_news_count_24h",
+    10,
+    5,
+    6
+   ],
+   [
+    "mnews_news_velocity_24h",
+    10,
+    5,
+    6
+   ],
+   [
+    "mnews_regulatory_news_count_24h",
+    10,
+    4,
+    6
+   ],
+   [
+    "mnews_high_relevance_news_count_24h",
+    10,
+    4,
+    6
+   ],
+   [
+    "mnews_breaking_news_count_24h",
+    10,
+    4,
+    6
+   ],
+   [
+    "mnews_edited_news_count_24h",
+    10,
+    4,
+    6
+   ],
+   [
+    "mnews_macro_scope_news_count_24h",
+    10,
+    3,
+    6
+   ],
+   [
+    "mnews_positive_news_count_24h",
+    10,
+    3,
+    6
+   ],
+   [
+    "mnews_geopolitical_news_count_24h",
+    10,
+    2,
+    6
+   ],
+   [
+    "mnews_unique_publishers_1h",
+    10,
+    2,
+    6
+   ],
+   [
+    "mnews_commodity_news_count_24h",
+    10,
+    2,
+    6
+   ],
+   [
+    "mnews_market_wide_news_count_24h",
+    10,
+    2,
+    6
+   ],
+   [
+    "news_count_24h",
+    35239,
+    1,
+    7
+   ]
+  ],
+  "strict_pre_open_only": [
+   [
+    "preopen_gap_pct",
+    35239
+   ],
+   [
+    "preopen_ieq",
+    35239
+   ],
+   [
+    "preopen_ieq_to_avg_volume",
+    35239
+   ],
+   [
+    "preopen_imbalance",
+    35239
+   ]
+  ],
+  "malformed": [
+   [
+    "stage4-ds-v2-asif",
+    "pat_yoy_q",
+    21412,
+    "52.383"
+   ],
+   [
+    "stage4-ds-v2-asif",
+    "revenue_yoy_q",
+    19437,
+    "47.551"
+   ],
+   [
+    "stage4-ds-v2-asif",
+    "roce_pct",
+    18,
+    "0.044"
+   ],
+   [
+    "stage4-ds-v2-asif",
+    "roe_pct",
+    9,
+    "0.022"
+   ],
+   [
+    "stage4-ds-v2-strict",
+    "pat_yoy_q",
+    42922,
+    "52.382"
+   ],
+   [
+    "stage4-ds-v2-strict",
+    "revenue_yoy_q",
+    38965,
+    "47.553"
+   ],
+   [
+    "stage4-ds-v2-strict",
+    "roce_pct",
+    36,
+    "0.044"
+   ],
+   [
+    "stage4-ds-v2-strict",
+    "roe_pct",
+    18,
+    "0.022"
+   ]
+  ],
+  "value_outliers_core": [
+   [
+    "atr_pct_14",
+    1.29213593609e-05,
+    0.798497069987,
+    0.00019262065257903598,
+    0.12524958071352285
+   ],
+   [
+    "beta_60",
+    -7.08388465798,
+    4.92521566473,
+    -1.6417749984306198,
+    3.2136950284262094
+   ],
+   [
+    "close_to_sma_20",
+    -0.862752749448,
+    1.07273668713,
+    -0.328496559203575,
+    0.42763107044699017
+   ],
+   [
+    "ret_1d",
+    -0.860312088738,
+    0.5,
+    -0.116040955631,
+    0.19896834625349596
+   ],
+   [
+    "ret_20d",
+    -0.877508964267,
+    2.3059566787,
+    -0.501540882587612,
+    0.888378061573018
+   ],
+   [
+    "rsi_14",
+    0.0,
+    100.0,
+    11.0250142515144,
+    100.0
+   ],
+   [
+    "volatility_20",
+    0.0,
+    6.98493038511,
+    0.000108952489747,
+    1.401994437391078
+   ],
+   [
+    "volume_spike_20",
+    4.07275570797e-05,
+    7525.5646491,
+    0.008151403116228799,
+    55.754016418424825
+   ]
+  ]
+ },
+ "labels": {
+  "by_label": [
+   [
+    "gap",
+    786399,
+    770646,
+    "0.002836",
+    "0.018576",
+    "2025-09-24",
+    "2026-10-07"
+   ],
+   [
+    "high_exc",
+    786399,
+    786399,
+    "0.018749",
+    "0.024647",
+    "2025-09-24",
+    "2026-10-07"
+   ],
+   [
+    "hit_dn_1",
+    786399,
+    786399,
+    "0.623667",
+    "0.484465",
+    "2025-09-24",
+    "2026-10-07"
+   ],
+   [
+    "hit_dn_2",
+    786399,
+    786399,
+    "0.396773",
+    "0.489228",
+    "2025-09-24",
+    "2026-10-07"
+   ],
+   [
+    "hit_up_1",
+    786399,
+    786399,
+    "0.525030",
+    "0.499373",
+    "2025-09-24",
+    "2026-10-07"
+   ],
+   [
+    "hit_up_2",
+    786399,
+    786399,
+    "0.331909",
+    "0.470899",
+    "2025-09-24",
+    "2026-10-07"
+   ],
+   [
+    "low_exc",
+    786399,
+    786399,
+    "-0.020320",
+    "0.021017",
+    "2025-09-24",
+    "2026-10-07"
+   ],
+   [
+    "ret_cc",
+    786399,
+    770646,
+    "0.000136",
+    "0.028418",
+    "2025-09-24",
+    "2026-10-07"
+   ],
+   [
+    "ret_oc",
+    786399,
+    786399,
+    "-0.002470",
+    "0.027580",
+    "2025-09-24",
+    "2026-10-07"
+   ]
+  ],
+  "join_with_features": [
+   [
+    "stage4-ds-v2-asif",
+    255,
+    786399
+   ],
+   [
+    "stage4-ds-v2-strict",
+    9,
+    30758
+   ]
+  ],
+  "sessions_without_labels": [
+   [
+    "stage4-ds-v2-asif",
+    "2026-10-08"
+   ],
+   [
+    "stage4-ds-v2-strict",
+    "2026-10-08"
+   ]
+  ],
+  "both_hits_same_day": [
+   64042,
+   261013,
+   312022,
+   786399
+  ],
+  "extreme_ret_cc": [
+   [
+    "2026-10-06",
+    "NSE_EQ|INE0IQ001011",
+    -0.860312088738
+   ],
+   [
+    "2025-09-26",
+    "NSE_EQ|INE0N7S01028",
+    0.788844621514
+   ],
+   [
+    "2026-09-02",
+    "NSE_EQ|INE560A01023",
+    -0.787532607718
+   ],
+   [
+    "2026-02-18",
+    "NSE_EQ|INE888C01040",
+    -0.704099821747
+   ],
+   [
+    "2025-12-26",
+    "NSE_EQ|INE843D01027",
+    -0.683317843866
+   ],
+   [
+    "2025-11-12",
+    "NSE_EQ|INE418H01029",
+    -0.649247121346
+   ],
+   [
+    "2026-04-30",
+    "NSE_EQ|INE205A01025",
+    -0.648978800414
+   ],
+   [
+    "2026-09-07",
+    "NSE_EQ|INE545A01024",
+    -0.626227257123
+   ],
+   [
+    "2026-03-20",
+    "NSE_EQ|INE843B01013",
+    -0.555161544523
+   ],
+   [
+    "2025-10-15",
+    "NSE_EQ|INE640A01023",
+    -0.547540132577
+   ],
+   [
+    "2026-09-30",
+    "NSE_EQ|INE06ZX20015",
+    0.5
+   ],
+   [
+    "2026-10-06",
+    "NSE_EQ|INE0NLT01028",
+    -0.495848347172
+   ],
+   [
+    "2026-02-27",
+    "NSE_EQ|INE0YRN01025",
+    -0.473882945249
+   ],
+   [
+    "2025-10-16",
+    "NSE_EQ|INE296Q01012",
+    -0.458648512355
+   ],
+   [
+    "2026-06-02",
+    "NSE_EQ|INE878E01021",
+    -0.443396226415
+   ]
+  ],
+  "extreme_ret_cc_count": 29,
+  "intraday_1m_bars_from": "2026-09-23"
+ },
+ "integrity": {
+  "alembic": "0017",
+  "runs": [
+   [
+    "stage4-ds-v1-asif",
+    "AS_IF_LIVE-v1",
+    "SUPERSEDED",
+    6,
+    54,
+    "9359212",
+    "dd696ca66b022392877d6cf10bf752601de417931165c93b03bacb9ae3d3fa1a"
+   ],
+   [
+    "stage4-ds-v1-asif-pilot",
+    "AS_IF_LIVE-v1",
+    "SUPERSEDED",
+    2,
+    3,
+    "9321",
+    "dd696ca66b022392877d6cf10bf752601de417931165c93b03bacb9ae3d3fa1a"
+   ],
+   [
+    "stage4-ds-v1-strict",
+    "STRICT_PIT",
+    "SUPERSEDED",
+    5,
+    20,
+    "4229340",
+    "dd696ca66b022392877d6cf10bf752601de417931165c93b03bacb9ae3d3fa1a"
+   ],
+   [
+    "stage4-ds-v1-strict-pilot",
+    "STRICT_PIT",
+    "SUPERSEDED",
+    1,
+    6,
+    "19278",
+    "dd696ca66b022392877d6cf10bf752601de417931165c93b03bacb9ae3d3fa1a"
+   ],
+   [
+    "stage4-ds-v2-asif",
+    "AS_IF_LIVE-v2",
+    "COMPLETE",
+    7,
+    256,
+    "47274794",
+    "dd696ca66b022392877d6cf10bf752601de417931165c93b03bacb9ae3d3fa1a"
+   ],
+   [
+    "stage4-ds-v2-strict",
+    "STRICT_PIT-v2",
+    "COMPLETE",
+    5,
+    20,
+    "4229340",
+    "dd696ca66b022392877d6cf10bf752601de417931165c93b03bacb9ae3d3fa1a"
+   ]
+  ],
+  "done_markers": [
+   [
+    "stage4-ds-v1-asif",
+    54,
+    9359212
+   ],
+   [
+    "stage4-ds-v1-asif-pilot",
+    3,
+    9321
+   ],
+   [
+    "stage4-ds-v1-strict",
+    20,
+    4229340
+   ],
+   [
+    "stage4-ds-v1-strict-pilot",
+    6,
+    19278
+   ],
+   [
+    "stage4-ds-v2-asif",
+    256,
+    47274794
+   ],
+   [
+    "stage4-ds-v2-strict",
+    20,
+    4229340
+   ]
+  ],
+  "rows_by_version": [
+   [
+    "stage4-ds-v1-asif",
+    9359212
+   ],
+   [
+    "stage4-ds-v1-asif-pilot",
+    9321
+   ],
+   [
+    "stage4-ds-v1-strict",
+    4229340
+   ],
+   [
+    "stage4-ds-v1-strict-pilot",
+    19278
+   ],
+   [
+    "stage4-ds-v2-asif",
+    47274794
+   ],
+   [
+    "stage4-ds-v2-strict",
+    4229340
+   ]
+  ],
+  "feature_value": {
+   "count": 801434,
+   "md5": "b45381f3c89664cdf3dbbfa95d70b1a5",
+   "baseline": [
+    801434,
+    "b45381f3c89664cdf3dbbfa95d70b1a5"
+   ],
+   "equal_baseline": true
+  },
+  "stage3_events_since_2026_10_09": [
+   [
+    35,
+    "2026-10-09 03:32:02.487918+00:00",
+    "REFUSED",
+    "RUN",
+    "{\"conditions\": [{\"ok\": true, \"name\": \"stage3_enabled\", \"detail\": \"PRAJNA_STAGE3_ENABLED=true\"}, {\"ok\": true, \"name\": \"kill_switch_off\", \"detail\": \"not engaged\"}"
+   ],
+   [
+    36,
+    "2026-10-09 04:04:32.760850+00:00",
+    "REFUSED",
+    "RUN",
+    "{\"conditions\": [{\"ok\": true, \"name\": \"stage3_enabled\", \"detail\": \"PRAJNA_STAGE3_ENABLED=true\"}, {\"ok\": true, \"name\": \"kill_switch_off\", \"detail\": \"not engaged\"}"
+   ]
+  ],
+  "registry": {
+   "version": "features-v2",
+   "sha256": "dd696ca66b022392877d6cf10bf752601de417931165c93b03bacb9ae3d3fa1a",
+   "features": 104
+  }
+ },
+ "files": {
+  "crontab_sha256": "dbc5b41bcaa14f5d8c5d2e6bb77c9fc6b27848b0260b8840c1d91d78df5869ca",
+  "crontab_stage3_lines": [
+   "0 9 * * 1-5   cd $B && sleep 30 && ops/runbooks/stage3_snapshot.sh PRE_SESSION --token-from-dotenv >> var/logs/cron.log 2>&1",
+   "22 9 * * 1-5  cd $B && ops/runbooks/stage3_snapshot.sh PRE_OPEN --after-replay --token-from-dotenv >> var/logs/cron.log 2>&1"
+  ],
+  "env_stage3_flags": {
+   "PRAJNA_STAGE3_ENABLED": "true",
+   "PRAJNA_STAGE3_BACKFILL_ENABLED": "false"
+  },
+  "report_lines_mentioning_v1": [
+   [
+    69,
+    "- Dataset **v1** (built first, through the production views) therefore saw actions before Prajna had them. In the STRICT replay of 2026-09-29, for example, 8 action rows were fetched on 10-03 but anno"
+   ],
+   [
+    70,
+    "- v1 is kept stored, and its 14 runs are marked **SUPERSEDED**. **v2** reads corporate actions and `ca_factor` as observed (STRICT) or at the measured live lag (AS_IF_LIVE)."
+   ],
+   [
+    128,
+    "### AS_IF_LIVE-v1"
+   ],
+   [
+    489,
+    "## Feature coverage: AS_IF_LIVE-v1"
+   ]
+  ]
+ },
+ "blse_production_feature_value_2026_10_08": {
+  "instrument": "NSE_EQ|INE0NLT01028 (BLSE)",
+  "split_ex": "2026-10-06",
+  "factor": 2,
+  "vendor_applied": "APPLIED",
+  "stored_pre_ex_closes": {
+   "2026-09-30": 328.6,
+   "2026-10-01": 322.05,
+   "2026-10-05": 319.15
+  },
+  "post_ex_closes": {
+   "2026-10-06": 160.9,
+   "2026-10-07": 158.2
+  },
+  "feature_value_PRE_SESSION": {
+   "ret_5d": -0.5073,
+   "ret_20d": -0.5048,
+   "close_to_sma_20": -0.4793,
+   "volatility_20": 2.4379,
+   "rsi_14": 12.2
+  },
+  "label_ret_cc_2026_10_06": -0.4958,
+  "cause": "bars_adjusted treats pre-ex payloads (basis_as_of 2026-10-06) as vendor-adjusted because the factor's vendor_applied=APPLIED comes from later observations; the stored bars are unadjusted",
+  "scope": "1 of 119 EXACT/APPLIED factors with an ex-day bar"
+ },
+ "findings": [
+  {
+   "id": "F1",
+   "severity": "MEDIUM",
+   "status": "VERIFIED",
+   "title": "KN-CA backdates corporate-action knowability",
+   "impact": "live: only actions stored between as_of and run start (0 in 4 committed snapshots); recompute/backfill: 56,066 ca_days_* rows (STRICT) and 6,418 price rows (AS_IF_LIVE) differ",
+   "remediation": "canon views knowable = greatest(KN-CA, fetched_at); feature version bump; approval required"
+  },
+  {
+   "id": "F2",
+   "severity": "MEDIUM",
+   "status": "VERIFIED code / INFERRED impact",
+   "title": "bars_adjusted corporate-action horizon not time-filtered",
+   "remediation": "horizon over actions stored before as_of"
+  },
+  {
+   "id": "F3",
+   "severity": "HIGH",
+   "status": "VERIFIED",
+   "title": "BLSE split: unadjusted pre-ex bars treated as vendor-adjusted (production feature_value 2026-10-08 wrong for BLSE)",
+   "remediation": "decide 'baked' per payload (fetched after the first CA_ADJUSTMENT observation); approval required"
+  },
+  {
+   "id": "F4",
+   "severity": "HIGH",
+   "status": "VERIFIED values / INFERRED event type",
+   "title": "events missing from the vendor CA feed (demergers) and UNSUPPORTED rights leave unadjusted jumps; 29 ret_cc labels beyond +-25%",
+   "remediation": "logged event mask in research; source for demergers later"
+  },
+  {
+   "id": "F5",
+   "severity": "MEDIUM",
+   "status": "VERIFIED",
+   "title": "pat_yoy_q / revenue_yoy_q INVALID for 61% / 55% of rows",
+   "remediation": "exclude; fix the quarterly parser separately"
+  },
+  {
+   "id": "F6",
+   "severity": "LOW",
+   "status": "VERIFIED",
+   "title": "dataset report headings say STRICT_PIT / AS_IF_LIVE-v1 over v2 data; PARTIAL class too coarse",
+   "remediation": "derive headings from evidence; split classes"
+  },
+  {
+   "id": "F7",
+   "severity": "LOW",
+   "status": "VERIFIED",
+   "title": "sector_rs_20 peer set from today's lifecycle"
+  },
+  {
+   "id": "F8",
+   "severity": "OPERATIONAL",
+   "status": "VERIFIED",
+   "title": "2026-10-09 scheduled Stage 3 REFUSED (Stage 1 F: MOLDTECH, MOLDTKPAC vendor bonus adjustment before the action is stored)",
+   "remediation": "awaiting user decision"
+  }
+ ],
+ "verdict": {
+  "DATASET_INTEGRITY": "PASS (structural; data-quality exceptions F3, F4, F5)",
+  "KN_CA_LIVE_IMPACT": "PASS (0 of 4 committed snapshots; mechanism exists for late runs)",
+  "MODEL_READINESS": "READY_FOR_RESEARCH",
+  "PRODUCTION_CHANGED": "NO"
+ },
+ "baseline_feature_set": [
+  "ret_1d",
+  "ret_5d",
+  "ret_20d",
+  "sma_20",
+  "sma_50",
+  "close_to_sma_20",
+  "close_to_sma_50",
+  "ema_12",
+  "ema_26",
+  "macd_line",
+  "macd_trigger",
+  "macd_histogram",
+  "rsi_14",
+  "atr_14",
+  "atr_pct_14",
+  "volatility_20",
+  "beta_60",
+  "dist_high_20",
+  "dist_low_20",
+  "breakout_20",
+  "breakdown_20",
+  "avg_volume_20",
+  "volume_spike_20",
+  "turnover_20",
+  "index_ret_1d",
+  "index_ret_5d",
+  "index_close_to_sma_50",
+  "india_vix_level",
+  "india_vix_change_5d",
+  "global_ret_1d"
+ ]
+}
