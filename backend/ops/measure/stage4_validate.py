@@ -192,25 +192,27 @@ async def family_windows(s, ds) -> list[dict]:
     return out
 
 
-async def label_checks(s) -> dict:
+async def label_checks(s, version: str = L.VERSION) -> dict:
     r = await one(s, """select count(*), count(*) filter (where status = 'VALID'),
         count(distinct session_date), count(distinct instrument_key), min(session_date),
         max(session_date), count(*) - count(distinct (session_date, instrument_key, label_id))
-        from training_label where label_version = :v""", v=L.VERSION)
+        from training_label where label_version = :v""", v=version)
     leak = await val(s, """select count(*) from training_label l join training_session_done d
-        on d.session_date = l.session_date where l.label_start_at <= d.as_of""")
+        on d.session_date = l.session_date where l.label_version = :v
+        and l.label_start_at <= d.as_of""", v=version)
     pairs = await val(s, """select count(*) from training_label l join training_session_done d
-        on d.session_date = l.session_date""")
-    nontrade = await val(s, """select count(*) from training_label l where not exists (
-        select 1 from trading_session t where t.session_date = l.session_date
-          and t.is_trading_day)""")
+        on d.session_date = l.session_date where l.label_version = :v""", v=version)
+    nontrade = await val(s, """select count(*) from training_label l where l.label_version = :v
+        and not exists (select 1 from trading_session t where t.session_date = l.session_date
+          and t.is_trading_day)""", v=version)
     by = dict((await s.execute(text("""select label_id, round(avg(value)::numeric, 6)
-        from training_label where status = 'VALID' group by 1 order by 1"""))).all())
-    return {"version": L.VERSION, "rows": r[0], "valid": r[1], "sessions": r[2],
+        from training_label where status = 'VALID' and label_version = :v group by 1 order by 1
+        """), {"v": version})).all())
+    return {"version": version, "rows": r[0], "valid": r[1], "sessions": r[2],
             "instruments": r[3], "first": str(r[4]), "last": str(r[5]), "duplicates": r[6],
             "leakage_label_start_le_as_of": leak, "label_snapshot_pairs_checked": pairs,
             "non_trading_dates": nontrade, "mean_by_label": {k: float(x) for k, x in by.items()},
-            "definitions": L.__doc__}
+            "definitions": L.V2_DOC if version == L.VERSION2 else L.__doc__}
 
 
 async def replay_vs_production(s) -> dict:
@@ -349,7 +351,7 @@ async def raw_sql_checks(s, ds, rng: random.Random) -> dict:
                                   where is_trading_day and session_date < l.session_date)
            where b1.instrument_key = l.instrument_key and b1.timeframe = '1d'
              and b1.market_date = l.session_date)
-        from l"""), {"lv": L.VERSION})).all()
+        from l"""), {"lv": L.VERSION2})).all()
     lbad = [x for x in lab if x[3] is None or abs(x[2] - x[3]) > 1e-9 * max(1.0, abs(x[3]))]
     return {"feature_rows_compared": checked, "feature_mismatches": bad,
             "feature_examples": examples, "sessions": [str(x[0]) for x in pick],
@@ -490,7 +492,7 @@ async def main() -> int:
     ap.add_argument("--baseline-count", type=int, default=801434)
     ap.add_argument("--baseline-md5", default="b45381f3c89664cdf3dbbfa95d70b1a5")
     ap.add_argument("--seed", type=int, default=7)
-    ap.add_argument("--out", default="../audit/evidence/stage4_training_dataset.json")
+    ap.add_argument("--out", default="../audit/evidence/stage4_dataset_v3_validation.json")
     a = ap.parse_args()
     rng = random.Random(a.seed)  # noqa: S311 - a reproducible sample, not security
     sm = get_sessionmaker()
@@ -516,7 +518,8 @@ async def main() -> int:
                                     **await dataset_checks(s, ds),
                                     "family_windows": await family_windows(s, ds),
                                     "coverage": await coverage_table(s, ds)}
-        ev["labels"] = await label_checks(s)
+        ev["labels"] = await label_checks(s, L.VERSION2)
+        ev["labels_v1_frozen"] = await label_checks(s, L.VERSION)
         ev["replay_vs_production"] = await replay_vs_production(s)
         ev["raw_sql"] = {n: await raw_sql_checks(s, ds, rng) for n, ds in P.DATASETS.items()}
         ev["scenarios"] = await scenarios(s)
