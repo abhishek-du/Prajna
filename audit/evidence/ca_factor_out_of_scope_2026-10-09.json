@@ -1,0 +1,86 @@
+{
+ "recorded": "2026-10-09",
+ "status": "DOCUMENTED, NOT REVERTED (user instruction: no manual revert)",
+ "cause": "prajna derive ca-factors (run 24575d9d-55fb-4072-9801-59c8c746b536, 2026-10-09 14:31:43 IST) is a global upsert; it re-evaluated every action with the data present at 14:31, while the previous values came from the scheduled maintenance derive (run e8f6d377-06b7-49bd-a3fa-173937265a65, 06:40:05 IST)",
+ "source_of_before_rows": "pg_restore --data-only -t ca_factor of var/backups/prajna_20261009T1415_moldtek_pre_ca_fix.dump (sha256 verified)",
+ "rows": {
+  "4096": {
+   "instrument": "NSE_EQ|INE0NLT01028 (BLSE)",
+   "action": "SPLIT ex 2026-10-06, factor 2",
+   "before": {
+    "status": "EXACT",
+    "factor_price": "2.000000000000",
+    "vendor_applied": "APPLIED",
+    "vendor_evidence": {
+     "why": "later vendor observations were exactly explained by this factor (CA_ADJUSTMENT)",
+     "factor": "2",
+     "ex_open": "163.7000",
+     "prev_close": "319.1500",
+     "prev_bar_basis_as_of": "2026-10-06",
+     "ca_adjustment_observations": 7
+    },
+    "derived_at": "2026-10-09 01:10:06.08412+00",
+    "run_id": "e8f6d377-06b7-49bd-a3fa-173937265a65"
+   },
+   "after": {
+    "status": "EXACT",
+    "factor_price": "2",
+    "vendor_applied": "APPLIED",
+    "vendor_evidence": {
+     "why": "later vendor observations were exactly explained by this factor (CA_ADJUSTMENT)",
+     "factor": "2",
+     "ex_open": "163.7000",
+     "prev_close": "319.1500",
+     "prev_bar_basis_as_of": "2026-10-06",
+     "ca_adjustment_observations": 9
+    },
+    "derived_at": "2026-10-09 09:01:43.296044+00",
+    "run_id": "24575d9d-55fb-4072-9801-59c8c746b536"
+   },
+   "value_change": "vendor_evidence.ca_adjustment_observations 7 -> 9 only; vendor_applied unchanged (APPLIED)",
+   "evidence": "2 CA_ADJUSTMENT observations (bars 2026-10-01, 2026-10-05) fetched 2026-10-09 07:02:24 IST, after the 06:40 derive",
+   "impact": "none on adjustment: APPLIED before and after; with F3-PAYLOAD-BASIS the BLSE payloads are raw (re-served) either way"
+  },
+  "4099": {
+   "instrument": "NSE_EQ|INE24OJ01029",
+   "action": "SPLIT ex 2026-10-08, face value 10 -> 2, factor 5 (stored 2026-10-08 06:30 IST)",
+   "before": {
+    "status": "EXACT",
+    "factor_price": "5.000000000000",
+    "vendor_applied": "UNKNOWN",
+    "vendor_evidence": {
+     "why": "no stored bar on one side of the ex-date",
+     "factor": "5",
+     "ex_open": "None",
+     "prev_close": "260.4000",
+     "prev_bar_basis_as_of": "2026-10-08",
+     "ca_adjustment_observations": 0
+    },
+    "derived_at": "2026-10-09 01:10:06.08412+00",
+    "run_id": "e8f6d377-06b7-49bd-a3fa-173937265a65"
+   },
+   "after": {
+    "status": "EXACT",
+    "factor_price": "5",
+    "vendor_applied": "APPLIED",
+    "vendor_evidence": {
+     "why": "the stored series is smooth across the ex-date",
+     "ratio": 1.0027,
+     "factor": "5",
+     "ex_open": "259.7000",
+     "prev_close": "260.4000",
+     "prev_bar_basis_as_of": "2026-10-08",
+     "ca_adjustment_observations": 0
+    },
+    "derived_at": "2026-10-09 09:01:43.296044+00",
+    "run_id": "24575d9d-55fb-4072-9801-59c8c746b536"
+   },
+   "value_change": "vendor_applied UNKNOWN -> APPLIED; vendor_evidence 'no stored bar on one side of the ex-date' -> 'the stored series is smooth across the ex-date' (ratio 1.0027 vs factor 5)",
+   "evidence": "the ex-day bar (2026-10-08, open 259.70) was stored 2026-10-09 07:32:12 IST, after the 06:40 derive; prev close 260.40 (payload c01b42cd... fetched 2026-10-08 06:30, basis 2026-10-08)",
+   "impact": "pit.bars_adjusted: the 183 pre-ex VENDOR_ADJUSTED bars (one payload, basis = the ex-date) were LOW-confidence refused under UNKNOWN; now all 184 bars AS_STORED (vendor-adjusted, factor baked). No stored feature_value (120 rows) or Stage 4 row (v1-strict 120, v2-strict 120, v2-asif 10,556) changed; future Stage 3 runs use the bars",
+   "correctness": "supported by evidence: an unadjusted series would jump by ~5x at the ex-date; the observed step is 0.27%"
+  }
+ },
+ "same_as_next_scheduled_derive": "INFERRED: the 2026-10-10 06:40 maintenance derive would compute the same values from the same data",
+ "revert_option": "restore the two rows from the backup (manual write, needs explicit approval); not done"
+}
