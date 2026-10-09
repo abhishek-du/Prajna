@@ -1,0 +1,192 @@
+{
+ "generated": "2026-10-09",
+ "read_only": true,
+ "gate": {
+  "F": "app/acceptance/stage1.py:389-403",
+  "S": "app/acceptance/stage1.py:607-613",
+  "stage1_overall": "NOT COMPLETE failing [F,S]",
+  "depth": "3554/3554 covered"
+ },
+ "instruments": {
+  "NSE_EQ|INE835B01035": {
+   "symbol": "MOLDTECH",
+   "instrument_id": 2849,
+   "tick": "0.01",
+   "failed_run": "2026-10-09 08:03:16 IST, window 2026-10-01..2026-10-08, rows_written 0",
+   "revised_bars": [
+    "2026-10-01",
+    "2026-10-05",
+    "2026-10-06",
+    "2026-10-07"
+   ],
+   "example": {
+    "2026-10-07": {
+     "stored_close": "220.99",
+     "vendor_close": "110.50",
+     "stored_volume": 64307,
+     "vendor_volume": 128614
+    },
+    "2026-10-01": {
+     "stored_close": "204.78",
+     "vendor_close": "102.39",
+     "stored_volume": 30948,
+     "vendor_volume": 61896
+    }
+   },
+   "vendor_2026_10_08_bar": {
+    "open": 110.5,
+    "high": 112.5,
+    "low": 104.98,
+    "close": 104.98,
+    "volume": 85060
+   },
+   "stored_corporate_actions": [
+    {
+     "id": 3849,
+     "type": "DIVIDEND",
+     "ex": "2026-09-11",
+     "fetched": "2026-09-24"
+    }
+   ],
+   "stored_payloads": "bulk 2020-01-01..2026-09-22 fetched 2026-09-23 20:30 IST + daily single-day payloads; last 2026-10-08 08:03 (bar 10-07)",
+   "archive": "backend/var/archive/UPSTOX_REST_V3/2026/10/09/1f9acf59eb672cc556d929a170e76668ced36963b9bf812ca30839be4cb66224.json.gz",
+   "feature_value_rows": {
+    "2026-09-29": {
+     "PRE_SESSION": 51,
+     "PRE_OPEN": 55
+    },
+    "2026-10-08": {
+     "PRE_SESSION": 58,
+     "PRE_OPEN": 62
+    }
+   },
+   "stage4_rows": {
+    "v2-strict": 1200,
+    "v2-asif": 14848,
+    "v1-strict": 1200,
+    "v1-asif": 3132,
+    "label_rows": 2295,
+    "label_last": "2026-10-07"
+   }
+  },
+  "NSE_EQ|INE893J01029": {
+   "symbol": "MOLDTKPAC",
+   "instrument_id": 2975,
+   "tick": "0.05",
+   "failed_run": "2026-10-09 08:03:28 IST, window 2026-10-01..2026-10-08, rows_written 0",
+   "revised_bars": [
+    "2026-10-01",
+    "2026-10-05",
+    "2026-10-06",
+    "2026-10-07"
+   ],
+   "example": {
+    "2026-10-07": {
+     "stored_close": "667.20",
+     "vendor_close": "333.60",
+     "stored_volume": 124269,
+     "vendor_volume": 248538
+    }
+   },
+   "vendor_2026_10_08_bar": {
+    "open": 335.0,
+    "high": 335.9,
+    "low": 322.5,
+    "close": 326.05,
+    "volume": 147900
+   },
+   "stored_corporate_actions": [
+    {
+     "id": 3940,
+     "type": "DIVIDEND",
+     "ex": "2026-09-11"
+    },
+    {
+     "id": 3941,
+     "type": "DIVIDEND",
+     "ex": "2026-04-24"
+    }
+   ],
+   "stored_payloads": "bulk 2020-01-01..2026-09-22 fetched 2026-09-23 20:32 IST + daily single-day payloads; last 2026-10-08 08:03 (bar 10-07)",
+   "archive": "backend/var/archive/UPSTOX_REST_V3/2026/10/09/dc0ab8cb06f3035d58dd6a12c5031e13bc7492dc92736dd4c8460e77b3ec1f89.json.gz",
+   "feature_value_rows": {
+    "2026-09-29": {
+     "PRE_SESSION": 51,
+     "PRE_OPEN": 55
+    },
+    "2026-10-08": {
+     "PRE_SESSION": 58,
+     "PRE_OPEN": 62
+    }
+   },
+   "stage4_rows": {
+    "v2-strict": 1200,
+    "v2-asif": 14848,
+    "v1-strict": 1200,
+    "v1-asif": 3132,
+    "label_rows": 2295,
+    "label_last": "2026-10-07"
+   }
+  }
+ },
+ "classifier_simulation": {
+  "method": "contracts.revision.classify (pure) on the 8 FAIL anomalies with a hypothetical EXACT factor-2 event, fetch_date 2026-10-09",
+  "ex_2026_10_08": "8/8 CA_ADJUSTMENT",
+  "ex_2026_10_09": "8/8 CA_ADJUSTMENT"
+ },
+ "vendor_adjustment_window": "after 2026-10-08 08:03 IST (last unadjusted fetch) and by 2026-10-09 08:03 IST (first adjusted)",
+ "findings": [
+  {
+   "id": 1,
+   "result": "FAIL",
+   "text": "F fails on 2 latest FAILED 1D runs; S fails only via F"
+  },
+  {
+   "id": 2,
+   "result": "CONFIRMED",
+   "text": "4 UNEXPLAINED revisions per instrument; run rolled back"
+  },
+  {
+   "id": 3,
+   "result": "CONFIRMED",
+   "text": "exact factor-2 adjustment (8/8)"
+  },
+  {
+   "id": 4,
+   "result": "CONFIRMED",
+   "text": "no SPLIT/BONUS stored; CA fetched weekly only"
+  },
+  {
+   "id": 5,
+   "result": "CONFIRMED",
+   "text": "every stored bar predates the vendor adjustment"
+  },
+  {
+   "id": 6,
+   "result": "CONFIRMED",
+   "text": "vendor 10-08 bar at the new level"
+  },
+  {
+   "id": 7,
+   "result": "UNPROVEN",
+   "text": "event type and exact ex-date (10-08 or 10-09)"
+  },
+  {
+   "id": 8,
+   "result": "PASS",
+   "text": "stored production features need no correction (pre-ex sessions)"
+  },
+  {
+   "id": 9,
+   "result": "PASS/RISK",
+   "text": "stored Stage 4 rows unaffected; a future 10-08 label needs the factor"
+  }
+ ],
+ "remediation": [
+  "prajna ingest corporate-actions --isin INE835B01035 --isin INE893J01029 --commit (STOP if no SPLIT/BONUS)",
+  "prajna ingest candles --timeframe 1d --key NSE_EQ|INE835B01035 --key NSE_EQ|INE893J01029 --from 2026-10-01 --to 2026-10-08 --commit",
+  "prajna derive price-basis --commit; prajna derive ca-factors --commit (after the re-ingest)",
+  "prajna acceptance stage1; prajna acceptance stage2 --run-tests; prajna acceptance stage3 --run-tests"
+ ],
+ "production_changed": false
+}
