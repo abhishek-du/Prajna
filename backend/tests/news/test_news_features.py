@@ -77,8 +77,9 @@ def test_activated_in_the_stage3_registry_after_the_canary():
 
     # APPROVED 2026-09-29, ACTIVATED 2026-10-08 after the canary: every news v2 feature
     # is registered exactly once, with the multi-source input and the right scope
-    # (features-v3, CA-OBSERVED, re-versions only CA-dependent features: news unchanged)
-    assert R.NEWS_V2_ACTIVE and R.VERSION == "features-v3"
+    # (features-v3 CA-OBSERVED and features-v4 F3-PAYLOAD-BASIS re-version only
+    # corporate-action / adjusted-bar features: the news features are unchanged)
+    assert R.NEWS_V2_ACTIVE and R.VERSION == "features-v4"
     assert all(R.BY_ID[f].version == 1 for f in (*NF.FEATURES, *NF.COMPANY_FEATURES))
     assert set(NF.FEATURES) | set(NF.COMPANY_FEATURES) <= set(R.BY_ID)
     assert all(R.BY_ID[f].scope == "CONTEXT" for f in NF.FEATURES)

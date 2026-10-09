@@ -53,4 +53,17 @@ DECISIONS: dict[str, dict[str, str]] = {
                     "version + 1; stored features-v1/v2 values are never re-labelled",
         "ref": "user 2026-10-09 ('option 1 aur F3 fix dono implement karo'); review "
                "docs/STAGE4_POST_BACKFILL_REVIEW.md F1/F2"},
+    "F3-PAYLOAD-BASIS": {
+        "status": "APPROVED",
+        "decision": "A factor the vendor applies (vendor_applied=APPLIED) counts as baked into a "
+                    "stored payload only if the vendor did not later re-serve any bar OF THAT "
+                    "PAYLOAD adjusted by THAT action (a CA_ADJUSTMENT observation naming it): "
+                    "such a payload was fetched before the vendor applied the action, so every "
+                    "bar in it is adjusted by Prajna instead. Found on BLSE (split ex "
+                    "2026-10-06; its whole history fetched that morning, only the last 4 bars "
+                    "re-served later). Registry "
+                    "features-v4: every per-instrument feature computed from adjusted bars gets "
+                    "version + 1; stored features-v1..v3 values are never re-labelled",
+        "ref": "user 2026-10-09 ('option 1 aur F3 fix dono implement karo'); review "
+               "docs/STAGE4_POST_BACKFILL_REVIEW.md F3"},
 }

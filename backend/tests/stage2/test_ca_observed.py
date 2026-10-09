@@ -139,12 +139,15 @@ class TestHistoricalRecompute:
 
 class TestRegistryV3:
     def test_versions_bumped_only_for_ca_dependent_features(self):
-        assert RG.VERSION == "features-v3" and RG.CA_OBSERVED_ACTIVE
+        # features-v3 introduced the bump; features-v4 (F3-PAYLOAD-BASIS) adds its own
+        assert RG.CA_OBSERVED_ACTIVE and RG.VERSION in ("features-v3", "features-v4")
+        f3 = getattr(RG, "F3_PAYLOAD_BASIS_ACTIVE", False)
         v1 = {f.id: f.version for f in RG.FEATURES_V1 + RG.NEWS_V2_FEATURES}
         for f in RG.FEATURES:
             dependent = f.scope == "INSTRUMENT" and bool(
                 {"daily_bars", "nifty_bars", "corporate_actions"} & set(f.inputs))
-            assert f.version == v1[f.id] + (1 if dependent else 0), f.id
+            later = 1 if f3 and RG._f3_payload_basis(f) else 0
+            assert f.version - later == v1[f.id] + (1 if dependent else 0), f.id
         bumped = {f.id for f in RG.FEATURES if f.version != v1[f.id]}
         assert {"ret_1d", "sma_200", "beta_60", "ca_days_to_any", "sector_rs_20",
                 "preopen_gap_pct"} <= bumped

@@ -247,6 +247,25 @@ if CA_OBSERVED_ACTIVE:
                      for f in FEATURES)
     VERSION = "features-v3"
 
+# features-v4 (decision F3-PAYLOAD-BASIS, user 2026-10-09): pit.bars_adjusted counts a
+# vendor-applied factor as baked into a stored payload only when the vendor did not
+# later re-serve a bar of that payload adjusted by it (CA_ADJUSTMENT evidence per
+# payload and action). Every
+# per-instrument feature computed from adjusted bars gets version + 1 again; values
+# stored under features-v1..v3 keep their own version and registry hash.
+F3_PAYLOAD_BASIS_INPUTS = frozenset({"daily_bars", "nifty_bars"})
+F3_PAYLOAD_BASIS_ACTIVE = True
+
+
+def _f3_payload_basis(f: FeatureSpec) -> bool:
+    return f.scope == "INSTRUMENT" and bool(F3_PAYLOAD_BASIS_INPUTS.intersection(f.inputs))
+
+
+if F3_PAYLOAD_BASIS_ACTIVE:
+    FEATURES = tuple(_replace(f, version=f.version + 1) if _f3_payload_basis(f) else f
+                     for f in FEATURES)
+    VERSION = "features-v4"
+
 DIAGRAM: tuple[dict, ...] = (
     {"group": PRICE, "item": "Returns (1d, 5d, 20d)", "features": ["ret_1d", "ret_5d", "ret_20d"]},
     {"group": PRICE, "item": "Moving averages (SMA, EMA)",

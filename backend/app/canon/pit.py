@@ -74,7 +74,12 @@ async def bars_adjusted(s: AsyncSession, instrument_key: str, timeframe: str,
                migration 0018: greatest(announcement end of day, fetched_at))
       baked  = product of F the vendor already applied to the stored value
                (vendor_applied = APPLIED, bar_date < ex_date <= the payload's
-               basis_as_of); RAW_OBSERVED payloads bake nothing
+               basis_as_of), EXCEPT in a payload of which the vendor later re-served a
+               bar adjusted by exactly F (a CA_ADJUSTMENT observation naming the
+               action): that payload was fetched before the vendor applied F, so F is
+               in none of its bars (F3-PAYLOAD-BASIS: BLSE's history, fetched on the
+               ex-date morning; only its last 4 bars were later re-served);
+               RAW_OBSERVED payloads bake nothing
       net    = target / baked:   1 -> as stored (AS_STORED)
                                 >1 -> price / net, volume * net (ADJUSTED, exact)
                                 <1 -> the stored value contains an action NOT yet
@@ -104,6 +109,18 @@ async def bars_adjusted(s: AsyncSession, instrument_key: str, timeframe: str,
         order by ex_date"""), {"k": instrument_key})).mappings().all()]
     horizon = (await s.execute(text("""select min(ex_date) from canon_corporate_action
         where knowable_at < :a"""), {"a": as_of_u})).scalar()
+    # (payload, action) pairs: the vendor later re-served a bar of that stored payload
+    # adjusted by the action's factor, so when the payload was fetched the vendor had
+    # not applied the action yet - every bar of that payload is raw for it
+    raw_for = {(r[0], int(r[1])) for r in (await s.execute(text("""
+        select distinct b.payload_sha256,
+               jsonb_array_elements_text(o.explained_by -> 'ca_ids')
+        from ohlcv_observation o
+        join ohlcv_bar b on b.instrument_id = o.instrument_id and b.timeframe = o.timeframe
+         and b.bar_start_utc = o.bar_start_utc and o.fetched_at > b.fetched_at
+        where o.instrument_key = :k and o.timeframe = :tf
+          and o.classification = 'CA_ADJUSTMENT'"""),
+        {"k": instrument_key, "tf": timeframe})).all()}
     known = [e for e in events if e["ex_date"] <= day and e["knowable_at"] < as_of_u]
     out, refused = [], {"reconstructed": 0, "low_confidence": 0}
     for r in rows:
@@ -119,7 +136,8 @@ async def bars_adjusted(s: AsyncSession, instrument_key: str, timeframe: str,
             for e in events:
                 if bd < e["ex_date"] <= bas:
                     if e["vendor_applied"] == "APPLIED":
-                        baked *= Decimal(e["factor_price"])
+                        if (r["payload_sha256"], e["ca_id"]) not in raw_for:
+                            baked *= Decimal(e["factor_price"])
                     elif e["vendor_applied"] == "UNKNOWN":
                         low = True
             low = low or horizon is None or bd < horizon

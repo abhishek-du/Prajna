@@ -1,0 +1,417 @@
+{
+ "generated_at": "2026-10-09T13:23:10.032694+05:30",
+ "read_only": true,
+ "registry": {
+  "version": "features-v4",
+  "sha256": "6f998a76c49462c3244b5eecb2d783e75c6fff9d26365ae3540c8e88dbb201c3"
+ },
+ "blse_bars": {
+  "2026-10-05": {
+   "raw_close": "319.1500",
+   "adjusted_close": "159.575000",
+   "status": "ADJUSTED",
+   "factor_applied": "2.000000000000"
+  },
+  "expected_2026_10_05": "159.575000",
+  "pre_ex_all_adjusted": true,
+  "jump_at_ex": "0.008303305655647814507284976",
+  "refused": {
+   "reconstructed": 0,
+   "low_confidence": 0
+  },
+  "pass": true
+ },
+ "blse_features_2026_10_08": {
+  "ret_1d": {
+   "stored_v2": [
+    -0.016780609074,
+    1
+   ],
+   "recomputed": -0.016780609074,
+   "new_version": 3,
+   "independent": -0.01678060907395898
+  },
+  "ret_5d": {
+   "stored_v2": [
+    -0.507318592339,
+    1
+   ],
+   "recomputed": -0.0146371846777,
+   "new_version": 3,
+   "independent": -0.014637184677670508
+  },
+  "ret_20d": {
+   "stored_v2": [
+    -0.50477383002,
+    1
+   ],
+   "recomputed": -0.00954766004069,
+   "new_version": 3,
+   "independent": -0.009547660040694945
+  },
+  "sma_20": {
+   "stored_v2": [
+    303.82,
+    1
+   ],
+   "recomputed": 159.8875,
+   "new_version": 3,
+   "independent": 159.8875
+  },
+  "close_to_sma_20": {
+   "stored_v2": [
+    -0.479296952143,
+    1
+   ],
+   "recomputed": -0.0105542959894,
+   "new_version": 3,
+   "independent": null
+  },
+  "volatility_20": {
+   "stored_v2": [
+    2.43790036634,
+    1
+   ],
+   "recomputed": 0.224743000308,
+   "new_version": 3,
+   "independent": null
+  },
+  "atr_pct_14": {
+   "stored_v2": [
+    0.12939471527,
+    1
+   ],
+   "recomputed": 0.0341939584245,
+   "new_version": 3,
+   "independent": null
+  },
+  "rsi_14": {
+   "stored_v2": [
+    12.2032252856,
+    1
+   ],
+   "recomputed": 48.0136319036,
+   "new_version": 3,
+   "independent": null
+  },
+  "dist_high_20": {
+   "stored_v2": [
+    -0.534432018835,
+    1
+   ],
+   "recomputed": -0.0688640376692,
+   "new_version": 3,
+   "independent": null
+  },
+  "breakdown_20": {
+   "stored_v2": [
+    1.0,
+    1
+   ],
+   "recomputed": 0.0,
+   "new_version": 3,
+   "independent": null
+  }
+ },
+ "blse_features_2026_10_08_pass": true,
+ "ca_adjustment_instruments": [
+  {
+   "instrument": "NSE_EQ|INE0NCC01015",
+   "status": {
+    "ADJUSTED": 12,
+    "AS_STORED": 2
+   },
+   "refused": {
+    "reconstructed": 0,
+    "low_confidence": 0
+   }
+  },
+  {
+   "instrument": "NSE_EQ|INE0NLT01028",
+   "status": {
+    "ADJUSTED": 23,
+    "AS_STORED": 3
+   },
+   "refused": {
+    "reconstructed": 0,
+    "low_confidence": 0
+   }
+  },
+  {
+   "instrument": "NSE_EQ|INE0PT101017",
+   "status": {
+    "ADJUSTED": 15,
+    "AS_STORED": 11
+   },
+   "refused": {
+    "reconstructed": 0,
+    "low_confidence": 0
+   }
+  },
+  {
+   "instrument": "NSE_EQ|INE2FMX01012",
+   "status": {
+    "ADJUSTED": 17,
+    "AS_STORED": 9
+   },
+   "refused": {
+    "reconstructed": 0,
+    "low_confidence": 0
+   }
+  }
+ ],
+ "snapshot_2026_10_08_pre_session": {
+  "rows_joined": 206281,
+  "value_or_reason_differences": {
+   "ret_5d": 1,
+   "ret_20d": 1,
+   "sma_20": 1,
+   "sma_50": 1,
+   "sma_200": 1,
+   "close_to_sma_20": 1,
+   "close_to_sma_50": 1,
+   "close_to_sma_200": 1,
+   "ema_12": 1,
+   "ema_26": 1,
+   "rsi_14": 1,
+   "macd_line": 1,
+   "macd_trigger": 1,
+   "macd_histogram": 1,
+   "atr_14": 1,
+   "atr_pct_14": 1,
+   "volatility_20": 1,
+   "beta_60": 1,
+   "dist_high_20": 1,
+   "dist_low_20": 1,
+   "breakdown_20": 1,
+   "avg_volume_20": 1,
+   "volume_spike_20": 1
+  },
+  "instruments_with_differences": 1,
+  "inputs_sha_differences": {
+   "ca_days_since_any": 1555,
+   "ca_days_since_dividend": 1555,
+   "ca_days_since_split": 1555,
+   "ca_days_since_bonus": 1555,
+   "ca_days_to_any": 1555,
+   "ca_days_to_dividend": 1555,
+   "ca_days_to_split": 1555,
+   "ca_days_to_bonus": 1555,
+   "ret_1d": 1,
+   "ret_5d": 1,
+   "ret_20d": 1,
+   "sma_20": 1,
+   "sma_50": 1,
+   "sma_200": 1,
+   "close_to_sma_20": 1,
+   "close_to_sma_50": 1,
+   "close_to_sma_200": 1,
+   "ema_12": 1,
+   "ema_26": 1,
+   "rsi_14": 1,
+   "macd_line": 1,
+   "macd_trigger": 1,
+   "macd_histogram": 1,
+   "atr_14": 1,
+   "atr_pct_14": 1,
+   "volatility_20": 1,
+   "beta_60": 1,
+   "dist_high_20": 1,
+   "dist_low_20": 1,
+   "breakout_20": 1,
+   "breakdown_20": 1,
+   "avg_volume_20": 1,
+   "volume_spike_20": 1,
+   "turnover_20": 1,
+   "sector_rs_20": 1
+  },
+  "examples": [
+   [
+    "NSE_EQ|INE0NLT01028",
+    "ret_5d",
+    -0.507318592339,
+    null,
+    -0.0146371846777,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "ret_20d",
+    -0.50477383002,
+    null,
+    -0.00954766004069,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "sma_20",
+    303.82,
+    null,
+    159.8875,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "sma_50",
+    309.7274,
+    null,
+    158.0547,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "sma_200",
+    223.30095,
+    null,
+    112.448225,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "close_to_sma_20",
+    -0.479296952143,
+    null,
+    -0.0105542959894,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "close_to_sma_50",
+    -0.489228269762,
+    null,
+    0.000919301988489,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "close_to_sma_200",
+    -0.291539064209,
+    null,
+    0.40686969492,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "ema_12",
+    275.551494239,
+    null,
+    160.417758954,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "ema_26",
+    295.967059109,
+    null,
+    159.360621461,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "rsi_14",
+    12.2032252856,
+    null,
+    48.0136319036,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "macd_line",
+    -20.4155648697,
+    null,
+    1.05713749276,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "macd_trigger",
+    -3.41238503396,
+    null,
+    1.57361767937,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "macd_histogram",
+    -17.0031798357,
+    null,
+    -0.51648018661,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "atr_14",
+    20.4702439557,
+    null,
+    5.40948422275,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "atr_pct_14",
+    0.12939471527,
+    null,
+    0.0341939584245,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "volatility_20",
+    2.43790036634,
+    null,
+    0.224743000308,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "beta_60",
+    -1.80703885832,
+    null,
+    0.690188693699,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "dist_high_20",
+    -0.534432018835,
+    null,
+    -0.0688640376692,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "dist_low_20",
+    0.0108626198083,
+    null,
+    0.0546666666667,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "breakdown_20",
+    1.0,
+    null,
+    0.0,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "avg_volume_20",
+    367300.05,
+    null,
+    703326.6,
+    null
+   ],
+   [
+    "NSE_EQ|INE0NLT01028",
+    "volume_spike_20",
+    0.919952953937,
+    null,
+    0.46903766643,
+    null
+   ]
+  ],
+  "stored_registry": "features-v2 (dd696ca6...)",
+  "recomputed_registry": "features-v4"
+ }
+}
