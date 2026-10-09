@@ -151,11 +151,16 @@ class TestPointInTime:
         assert D(2026, 9, 23) not in {r["market_date"] for r in got}
 
     async def test_corporate_action_announced_0924_is_invisible_on_0923(self, world):
+        """Announced 09-24 (KN-CA: end of that day), stored by Prajna 09-25 10:00.
+        CA-OBSERVED (2026-10-09): knowable only once observed - KN-CA made it visible
+        from 09-25 00:00, ten hours before Prajna had it."""
         s, _ = world
         await _process(s)
         assert await pit.corporate_actions(s, ist(2026, 9, 23, 23, 0), R) == []
         assert await pit.corporate_actions(s, ist(2026, 9, 24, 23, 59, 59, 999000), R) == []
-        assert len(await pit.corporate_actions(s, ist(2026, 9, 25, 0, 0), R)) == 1
+        assert await pit.corporate_actions(s, ist(2026, 9, 25, 0, 0), R) == []
+        assert await pit.corporate_actions(s, ist(2026, 9, 25, 10, 0), R) == []
+        assert len(await pit.corporate_actions(s, ist(2026, 9, 25, 10, 0, 0, 1), R)) == 1
 
     async def test_news_needs_both_publication_and_the_vendor_link(self, world):
         s, _ = world

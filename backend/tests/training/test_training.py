@@ -193,7 +193,8 @@ class TestCorporateActionKnowability:
     async def test_an_action_fetched_after_as_of_is_invisible(self, world):
         """C's split goes ex on 2026-10-01; it was announced 09-01 (KN-CA: knowable at the
         end of 09-01) but Prajna fetched it only on 09-30. Production views see it at
-        the 09-24 snapshot; STRICT does not; AS_IF_LIVE assumes ex-date + the lag."""
+        the 09-24 snapshot only under KN-CA; since CA-OBSERVED (features-v3) they do not,
+        like STRICT; AS_IF_LIVE assumes ex-date + the lag."""
         await asif_params(world)
         rid = await _run(world, "facts.late_ca", source="UPSTOX_REST_V2")
         sha = await _payload(world, rid, "UPSTOX_REST_V2")
@@ -209,7 +210,10 @@ class TestCorporateActionKnowability:
         await E.consistent_read(world, read_only=True)
         prod = await E.compute_snapshot(world, sn, [W.C], with_context=False)
         await world.rollback()
-        assert {r.feature_id: r.value for r in prod.rows}["ca_days_to_split"] == 7.0
+        assert {r.feature_id: r.reason for r in prod.rows}["ca_days_to_split"] == "MISSING_INPUT"
+        kn_ca = (await world.execute(text("""select count(*) from canon_corporate_action_kn_ca
+            where instrument_key = :k and knowable_at < :a"""), {"k": W.C, "a": sn.as_of})).scalar()
+        assert kn_ca == 1                        # under KN-CA it was visible (7 days to the split)
         await run(world, STRICT, sn)
         await run(world, ASIF, sn)
         assert (await stored(world, STRICT))[(W.C, "ca_days_to_split")][:2] == (

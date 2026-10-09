@@ -227,6 +227,26 @@ FEATURES: tuple[FeatureSpec, ...] = FEATURES_V1 + (NEWS_V2_FEATURES if NEWS_V2_A
 if NEWS_V2_ACTIVE:
     VERSION = "features-v2"
 
+# features-v3 (decision CA-OBSERVED, user 2026-10-09; migration 0018): a corporate
+# action and its factor are knowable when Prajna OBSERVED them, not at the end of
+# the announcement date (KN-CA), and the corporate-action horizon counts only
+# actions knowable before as_of. Every per-instrument feature that reads them
+# (pit.corporate_actions, or bars through pit.bars_adjusted) gets version + 1;
+# values stored under features-v1/v2 keep their own version and registry hash.
+CA_OBSERVED_INPUTS = frozenset({"daily_bars", "nifty_bars", "corporate_actions"})
+CA_OBSERVED_ACTIVE = True
+
+
+def _ca_observed(f: FeatureSpec) -> bool:
+    return f.scope == "INSTRUMENT" and bool(CA_OBSERVED_INPUTS.intersection(f.inputs))
+
+
+if CA_OBSERVED_ACTIVE:
+    from dataclasses import replace as _replace
+    FEATURES = tuple(_replace(f, version=f.version + 1) if _ca_observed(f) else f
+                     for f in FEATURES)
+    VERSION = "features-v3"
+
 DIAGRAM: tuple[dict, ...] = (
     {"group": PRICE, "item": "Returns (1d, 5d, 20d)", "features": ["ret_1d", "ret_5d", "ret_20d"]},
     {"group": PRICE, "item": "Moving averages (SMA, EMA)",

@@ -68,8 +68,10 @@ async def bars_adjusted(s: AsyncSession, instrument_key: str, timeframe: str,
     """Split/bonus-adjusted bars AS A TRADER KNEW THEM at as_of (phase 7).
 
     For each bar knowable before as_of (the same rows as bars()):
-      target = product of EXACT ca_factor F with  bar_date < ex_date <= market
-               date of as_of  AND  knowable_at < as_of  (KN-CA)
+      target = product of EXACT factors F (canon_ca_factor) with  bar_date <
+               ex_date <= market date of as_of  AND  knowable_at < as_of, where a
+               factor is knowable when Prajna OBSERVED its action (CA-OBSERVED,
+               migration 0018: greatest(announcement end of day, fetched_at))
       baked  = product of F the vendor already applied to the stored value
                (vendor_applied = APPLIED, bar_date < ex_date <= the payload's
                basis_as_of); RAW_OBSERVED payloads bake nothing
@@ -81,7 +83,9 @@ async def bars_adjusted(s: AsyncSession, instrument_key: str, timeframe: str,
                                       approximate) -> refused unless
                                       allow_reconstructed
     LOW confidence (refused unless allow_low_confidence): a vendor-adjusted row
-    older than the corporate-action horizon (earlier events are unknown), an
+    older than the corporate-action horizon (the earliest ex-date among actions
+    knowable before as_of; earlier events are unknown; no action knowable at all:
+    every vendor-adjusted row), an
     UNKNOWN vendor treatment inside (bar, basis_as_of], or no recorded basis.
     A future corporate action can never change what an earlier as_of sees.
     """
@@ -95,10 +99,11 @@ async def bars_adjusted(s: AsyncSession, instrument_key: str, timeframe: str,
         "where payload_sha256 = any(:h)"),
         {"h": list({r["payload_sha256"] for r in rows})})).all()}
     events = [dict(e) for e in (await s.execute(text("""
-        select ca_id, ex_date, factor_price, knowable_at, vendor_applied from ca_factor
+        select ca_id, ex_date, factor_price, knowable_at, vendor_applied from canon_ca_factor
         where instrument_key = :k and status = 'EXACT' and ex_date is not null
         order by ex_date"""), {"k": instrument_key})).mappings().all()]
-    horizon = (await s.execute(text("select min(ex_date) from corporate_action"))).scalar()
+    horizon = (await s.execute(text("""select min(ex_date) from canon_corporate_action
+        where knowable_at < :a"""), {"a": as_of_u})).scalar()
     known = [e for e in events if e["ex_date"] <= day and e["knowable_at"] < as_of_u]
     out, refused = [], {"reconstructed": 0, "low_confidence": 0}
     for r in rows:
@@ -117,7 +122,7 @@ async def bars_adjusted(s: AsyncSession, instrument_key: str, timeframe: str,
                         baked *= Decimal(e["factor_price"])
                     elif e["vendor_applied"] == "UNKNOWN":
                         low = True
-            low = low or (horizon is not None and bd < horizon)
+            low = low or horizon is None or bd < horizon
         net = target / baked
         status = "AS_STORED" if net == 1 else ("ADJUSTED" if net > 1 else "RECONSTRUCTED")
         if low and not allow_low_confidence:

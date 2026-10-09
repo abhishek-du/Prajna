@@ -41,4 +41,16 @@ DECISIONS: dict[str, dict[str, str]] = {
         "decision": "Diagram features without a data source in Prajna are registered UNSUPPORTED "
                     "with the missing source named; nothing is computed or approximated for them",
         "ref": "user 2026-09-28 ('Register UNSUPPORTED')"},
+    "CA-OBSERVED": {
+        "status": "APPROVED",
+        "decision": "Corporate actions and their factors are knowable when Prajna observed "
+                    "them: greatest(announcement end of day (KN-CA), fetched_at), through the "
+                    "views canon_corporate_action / canon_ca_factor (migration 0018; the KN-CA "
+                    "value stays in corporate_action and canon_corporate_action_kn_ca). The "
+                    "price-adjustment horizon counts only actions knowable before as_of (none: "
+                    "every vendor-adjusted bar is LOW confidence). Registry features-v3: every "
+                    "per-instrument feature reading corporate actions or adjusted bars gets "
+                    "version + 1; stored features-v1/v2 values are never re-labelled",
+        "ref": "user 2026-10-09 ('option 1 aur F3 fix dono implement karo'); review "
+               "docs/STAGE4_POST_BACKFILL_REVIEW.md F1/F2"},
 }

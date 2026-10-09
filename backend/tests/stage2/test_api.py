@@ -67,9 +67,12 @@ async def test_sector_as_of_is_historical_while_instrument_sector_is_current(cli
 
 async def test_a_corporate_action_is_invisible_before_it_was_knowable(client):
     now_ = (await client.get(f"/v1/instruments/{KEY}/corporate-actions?as_of={q(NOW)}")).json()
-    later = (await client.get(f"/v1/instruments/{KEY}/corporate-actions"
+    # CA-OBSERVED: announced 09-24, stored 09-25 10:00 -> invisible until it was stored
+    early = (await client.get(f"/v1/instruments/{KEY}/corporate-actions"
                               f"?as_of={q(ist(2026, 9, 25, 1))}")).json()
-    assert now_["data"] == [] and len(later["data"]) >= 1
+    later = (await client.get(f"/v1/instruments/{KEY}/corporate-actions"
+                              f"?as_of={q(ist(2026, 9, 25, 10, 1))}")).json()
+    assert now_["data"] == [] and early["data"] == [] and len(later["data"]) >= 1
 
 
 async def test_news_needs_the_instrument_link_to_be_knowable(client):
