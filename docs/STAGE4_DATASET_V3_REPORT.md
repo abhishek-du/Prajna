@@ -1,4 +1,4 @@
-# Stage 4 dataset builder v3: report (2026-10-09)
+# Stage 4 dataset builder v3: report (2026-10-09, final)
 
 **Research data only.**
 - No model was trained.
@@ -118,11 +118,13 @@ Missing values are empty cells plus a `*__status` column, never 0.
 | Check | Result |
 |---|---|
 | STRICT v3 build rerun | 22 of 22 snapshots skipped — **PASS** |
-| AS_IF_LIVE v3 build rerun | see the final block |
-| STRICT samples rerun | 0 inserted, same `build_sha256` — **PASS** |
-| label-v2 rerun at the recorded cutoff | see the final block |
-| Sample and label fingerprints recomputed from stored rows | match — **PASS** |
-| Frozen data before = after (v1/v2 per-session fingerprints, label-v1 `15f0cb45…`, `feature_value` `b45381f3…`, 26 frozen runs) | see the final block |
+| AS_IF_LIVE v3 build rerun | 257 of 257 snapshots skipped — **PASS** |
+| STRICT / AS_IF_LIVE samples rerun | 0 inserted; `build_sha256` `3651ab76…` / `62b67e84…` unchanged — **PASS** |
+| label-v2 rerun at the recorded cutoff (run `ad51acbe-2ba2-4ed6-8e4c-b1c6916516fe`, code `507d0ec`) | 0 inserted, drift 0, `rows_sha256` `f277f36c…` and source fingerprints (md5 `64dea26c…`) identical to run `5f20b363` (code `1f07d52`) — **PASS** |
+| Sample and label fingerprints recomputed from the stored rows | match — **PASS** |
+| Frozen data, before = after the v3 work | **PASS**: v1/v2 per-session fingerprints (e.g. v2-asif 47,274,794 `e7d3a893…`, v2-strict 4,229,340 `7161a1b4…`); label-v1 7,077,591 `15f0cb45…`; `feature_value` 801,434 `b45381f3…`; 26 frozen runs `acf24bec…` |
+| Frozen-version refusal (production CLI) | `prajna training labels` → "REFUSED: label-v1 is frozen"; a dirty-tree build → refused — **PASS** |
+| Crontab / flags | sha `dbc5b41b…`; `PRAJNA_STAGE3_ENABLED=true`, `PRAJNA_STAGE3_BACKFILL_ENABLED=false` (unchanged) |
 
 ## Baselines (NOT a model; no profitability claim)
 
