@@ -1,0 +1,5745 @@
+{
+ "generated_at": "2026-10-09T20:41:05.854576+05:30",
+ "seed": 7,
+ "production_feature_value": {
+  "count": 801434,
+  "md5": "b45381f3c89664cdf3dbbfa95d70b1a5",
+  "baseline_count": 801434,
+  "baseline_md5": "b45381f3c89664cdf3dbbfa95d70b1a5",
+  "untouched_since_baseline": true,
+  "note": "rows added after the baseline by the live Stage 3 cron change this; rows_before_baseline_identical checks the baseline rows themselves",
+  "rows_before_baseline_identical": true
+ },
+ "datasets": {
+  "strict": {
+   "version": "stage4-ds-v3-strict",
+   "policy": "STRICT_PIT-v2",
+   "snapshots": [
+    "PRE_SESSION",
+    "PRE_OPEN"
+   ],
+   "window": {
+    "first": "2026-09-24",
+    "last": "2026-10-09",
+    "snapshots_done": 22,
+    "rows_by_markers": 4655286
+   },
+   "completeness": {
+    "expected": 22,
+    "done": 22,
+    "missing": [],
+    "as_of_not_calendar": []
+   },
+   "sessions": 11,
+   "rows": 4655286,
+   "duplicates": 0,
+   "symbols": 3553,
+   "pit_violations": 0,
+   "nan_inf_values": 0,
+   "value_status_inconsistent": 0,
+   "future_timestamps": 0,
+   "rows_match_markers": true,
+   "duplicate_snapshots": 0,
+   "orphan_instruments": 0,
+   "non_trading_dates": 0,
+   "runs": [
+    {
+     "run_id": "e4a15390-8590-4f5a-b608-0196ffecb44c",
+     "status": "COMPLETE",
+     "registry": "features-v4",
+     "sessions_done": 5,
+     "rows": 1093411,
+     "started_at": "2026-10-09T11:04:41.204674+00:00",
+     "completed_at": "2026-10-09T11:28:14.830860+00:00"
+    },
+    {
+     "run_id": "d2839522-6fc9-4026-8e35-19fd6939eccf",
+     "status": "COMPLETE",
+     "registry": "features-v4",
+     "sessions_done": 6,
+     "rows": 1227188,
+     "started_at": "2026-10-09T11:04:41.210385+00:00",
+     "completed_at": "2026-10-09T11:29:36.268982+00:00"
+    },
+    {
+     "run_id": "918f9d9d-6b9f-476e-bb64-6af09d91ce10",
+     "status": "COMPLETE",
+     "registry": "features-v4",
+     "sessions_done": 6,
+     "rows": 1311808,
+     "started_at": "2026-10-09T11:04:41.225705+00:00",
+     "completed_at": "2026-10-09T11:31:32.190580+00:00"
+    },
+    {
+     "run_id": "51db5a2b-cfad-4e53-b647-efa0b98ec43a",
+     "status": "COMPLETE",
+     "registry": "features-v4",
+     "sessions_done": 5,
+     "rows": 1022879,
+     "started_at": "2026-10-09T11:04:41.236521+00:00",
+     "completed_at": "2026-10-09T11:26:18.204487+00:00"
+    },
+    {
+     "run_id": "4db521de-d8b5-4458-a768-e282d6772567",
+     "status": "COMPLETE",
+     "registry": "features-v4",
+     "sessions_done": 0,
+     "rows": 0,
+     "started_at": "2026-10-09T11:48:08.248013+00:00",
+     "completed_at": "2026-10-09T11:48:08.344529+00:00"
+    }
+   ],
+   "registry_hash_mismatch": 0,
+   "registry": {
+    "version": "features-v4",
+    "sha256": "6f998a76c49462c3244b5eecb2d783e75c6fff9d26365ae3540c8e88dbb201c3",
+    "features": 104
+   },
+   "policy_params": {},
+   "runtime_s": 5816.7,
+   "status_counts": {
+    "INVALID": 91153,
+    "MISSING_INPUT": 907985,
+    "NOT_AVAILABLE_HISTORICALLY": 371576,
+    "STALE_INPUT": 254306,
+    "VALID": 3030266
+   },
+   "reason_counts_invalid": {
+    "pat_yoy_q": 47746,
+    "revenue_yoy_q": 43347,
+    "roce_pct": 40,
+    "roe_pct": 20
+   },
+   "family_windows": [
+    {
+     "family": "event:corporate_actions",
+     "earliest_any_valid": "2026-09-25",
+     "stable_from_50pct": null,
+     "latest": "2026-10-09",
+     "usable_sessions": 10
+    },
+    {
+     "family": "event:legacy_news",
+     "earliest_any_valid": "2026-09-25",
+     "stable_from_50pct": "2026-09-25",
+     "latest": "2026-10-09",
+     "usable_sessions": 10
+    },
+    {
+     "family": "event:multi_news",
+     "earliest_any_valid": "2026-09-30",
+     "stable_from_50pct": "2026-09-30",
+     "latest": "2026-10-09",
+     "usable_sessions": 7
+    },
+    {
+     "family": "fundamental:fundamentals",
+     "earliest_any_valid": "2026-09-25",
+     "stable_from_50pct": "2026-09-25",
+     "latest": "2026-10-09",
+     "usable_sessions": 10
+    },
+    {
+     "family": "market_context:bars",
+     "earliest_any_valid": "2026-09-25",
+     "stable_from_50pct": "2026-09-25",
+     "latest": "2026-10-09",
+     "usable_sessions": 10
+    },
+    {
+     "family": "market_context:bars+sector",
+     "earliest_any_valid": "2026-09-25",
+     "stable_from_50pct": "2026-09-25",
+     "latest": "2026-10-09",
+     "usable_sessions": 10
+    },
+    {
+     "family": "market_context:fii_dii",
+     "earliest_any_valid": "2026-09-25",
+     "stable_from_50pct": "2026-09-25",
+     "latest": "2026-10-09",
+     "usable_sessions": 10
+    },
+    {
+     "family": "market_context:global",
+     "earliest_any_valid": "2026-09-25",
+     "stable_from_50pct": "2026-09-25",
+     "latest": "2026-10-09",
+     "usable_sessions": 10
+    },
+    {
+     "family": "preopen:bars+preopen",
+     "earliest_any_valid": "2026-09-25",
+     "stable_from_50pct": "2026-09-25",
+     "latest": "2026-10-09",
+     "usable_sessions": 10
+    },
+    {
+     "family": "preopen:preopen",
+     "earliest_any_valid": "2026-09-24",
+     "stable_from_50pct": "2026-09-24",
+     "latest": "2026-10-09",
+     "usable_sessions": 11
+    },
+    {
+     "family": "price_technical:bars",
+     "earliest_any_valid": "2026-09-25",
+     "stable_from_50pct": "2026-09-25",
+     "latest": "2026-10-09",
+     "usable_sessions": 10
+    },
+    {
+     "family": "volume_liquidity:bars",
+     "earliest_any_valid": "2026-09-25",
+     "stable_from_50pct": "2026-09-25",
+     "latest": "2026-10-09",
+     "usable_sessions": 10
+    }
+   ],
+   "coverage": [
+    {
+     "feature_id": "ret_1d",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 68284,
+     "coverage_pct": 88.02,
+     "missing_input": 52,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "ret_5d",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 68074,
+     "coverage_pct": 87.75,
+     "missing_input": 262,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "ret_20d",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 67428,
+     "coverage_pct": 86.92,
+     "missing_input": 908,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "sma_20",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 67480,
+     "coverage_pct": 86.99,
+     "missing_input": 856,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "sma_50",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 63464,
+     "coverage_pct": 81.81,
+     "missing_input": 4872,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "sma_200",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 56412,
+     "coverage_pct": 72.72,
+     "missing_input": 11924,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "close_to_sma_20",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 67480,
+     "coverage_pct": 86.99,
+     "missing_input": 856,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "close_to_sma_50",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 63464,
+     "coverage_pct": 81.81,
+     "missing_input": 4872,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "close_to_sma_200",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 56412,
+     "coverage_pct": 72.72,
+     "missing_input": 11924,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "ema_12",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 67806,
+     "coverage_pct": 87.41,
+     "missing_input": 530,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "ema_26",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 67118,
+     "coverage_pct": 86.52,
+     "missing_input": 1218,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "rsi_14",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 67688,
+     "coverage_pct": 87.25,
+     "missing_input": 648,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "macd_line",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 67118,
+     "coverage_pct": 86.52,
+     "missing_input": 1218,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "macd_trigger",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 65046,
+     "coverage_pct": 83.85,
+     "missing_input": 3290,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "macd_histogram",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 65046,
+     "coverage_pct": 83.85,
+     "missing_input": 3290,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "atr_14",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 67688,
+     "coverage_pct": 87.25,
+     "missing_input": 648,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "atr_pct_14",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 67688,
+     "coverage_pct": 87.25,
+     "missing_input": 648,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "volatility_20",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 67428,
+     "coverage_pct": 86.92,
+     "missing_input": 908,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "beta_60",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 63194,
+     "coverage_pct": 81.46,
+     "missing_input": 5142,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "dist_high_20",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 67480,
+     "coverage_pct": 86.99,
+     "missing_input": 856,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "dist_low_20",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 67480,
+     "coverage_pct": 86.99,
+     "missing_input": 856,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "breakout_20",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 67428,
+     "coverage_pct": 86.92,
+     "missing_input": 908,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "breakdown_20",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 67428,
+     "coverage_pct": 86.92,
+     "missing_input": 908,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "avg_volume_20",
+     "group": "volume_liquidity",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 67480,
+     "coverage_pct": 86.99,
+     "missing_input": 856,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "volume_spike_20",
+     "group": "volume_liquidity",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 67368,
+     "coverage_pct": 86.84,
+     "missing_input": 968,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "turnover_20",
+     "group": "volume_liquidity",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 67480,
+     "coverage_pct": 86.99,
+     "missing_input": 856,
+     "stale_input": 9240,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "pe",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 62445,
+     "coverage_pct": 80.5,
+     "missing_input": 8133,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "pb",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 62707,
+     "coverage_pct": 80.83,
+     "missing_input": 7871,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "roe_pct",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 62593,
+     "coverage_pct": 80.69,
+     "missing_input": 7965,
+     "stale_input": 0,
+     "invalid": 20,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "roce_pct",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 61776,
+     "coverage_pct": 79.63,
+     "missing_input": 8762,
+     "stale_input": 0,
+     "invalid": 40,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "ev_ebitda",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 60858,
+     "coverage_pct": 78.45,
+     "missing_input": 9720,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "pe_to_sector",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 53202,
+     "coverage_pct": 68.58,
+     "missing_input": 17376,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "pb_to_sector",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 62419,
+     "coverage_pct": 80.46,
+     "missing_input": 8159,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "revenue_yoy",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 43101,
+     "coverage_pct": 55.56,
+     "missing_input": 27477,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "pat_yoy",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 41323,
+     "coverage_pct": 53.27,
+     "missing_input": 29255,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "eps_yoy",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 41394,
+     "coverage_pct": 53.36,
+     "missing_input": 29184,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "revenue_yoy_q",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 70,
+     "coverage_pct": 0.09,
+     "missing_input": 27161,
+     "stale_input": 0,
+     "invalid": 43347,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "pat_yoy_q",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 50,
+     "coverage_pct": 0.06,
+     "missing_input": 22782,
+     "stale_input": 0,
+     "invalid": 47746,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "liabilities_to_assets",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 47978,
+     "coverage_pct": 61.85,
+     "missing_input": 22600,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "ca_days_since_any",
+     "group": "event",
+     "families": [
+      "corporate_actions"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 30962,
+     "coverage_pct": 39.91,
+     "missing_input": 39616,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "ca_days_since_dividend",
+     "group": "event",
+     "families": [
+      "corporate_actions"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 28692,
+     "coverage_pct": 36.99,
+     "missing_input": 41886,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "ca_days_since_split",
+     "group": "event",
+     "families": [
+      "corporate_actions"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 1472,
+     "coverage_pct": 1.9,
+     "missing_input": 69106,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "ca_days_since_bonus",
+     "group": "event",
+     "families": [
+      "corporate_actions"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 1336,
+     "coverage_pct": 1.72,
+     "missing_input": 69242,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "ca_days_to_any",
+     "group": "event",
+     "families": [
+      "corporate_actions"
+     ],
+     "earliest_valid": null,
+     "latest_valid": null,
+     "rows": 77576,
+     "valid": 0,
+     "coverage_pct": 0.0,
+     "missing_input": 70578,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 0,
+     "pit": "PASS",
+     "class": "UNAVAILABLE_HISTORICALLY"
+    },
+    {
+     "feature_id": "ca_days_to_dividend",
+     "group": "event",
+     "families": [
+      "corporate_actions"
+     ],
+     "earliest_valid": null,
+     "latest_valid": null,
+     "rows": 77576,
+     "valid": 0,
+     "coverage_pct": 0.0,
+     "missing_input": 70578,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 0,
+     "pit": "PASS",
+     "class": "UNAVAILABLE_HISTORICALLY"
+    },
+    {
+     "feature_id": "ca_days_to_split",
+     "group": "event",
+     "families": [
+      "corporate_actions"
+     ],
+     "earliest_valid": null,
+     "latest_valid": null,
+     "rows": 77576,
+     "valid": 0,
+     "coverage_pct": 0.0,
+     "missing_input": 70578,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 0,
+     "pit": "PASS",
+     "class": "UNAVAILABLE_HISTORICALLY"
+    },
+    {
+     "feature_id": "ca_days_to_bonus",
+     "group": "event",
+     "families": [
+      "corporate_actions"
+     ],
+     "earliest_valid": null,
+     "latest_valid": null,
+     "rows": 77576,
+     "valid": 0,
+     "coverage_pct": 0.0,
+     "missing_input": 70578,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 0,
+     "pit": "PASS",
+     "class": "UNAVAILABLE_HISTORICALLY"
+    },
+    {
+     "feature_id": "news_count_24h",
+     "group": "event",
+     "families": [
+      "legacy_news"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 70578,
+     "coverage_pct": 90.98,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "news_count_7d",
+     "group": "event",
+     "families": [
+      "legacy_news"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 70578,
+     "coverage_pct": 90.98,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "news_hours_since_last",
+     "group": "event",
+     "families": [
+      "legacy_news"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77576,
+     "valid": 3746,
+     "coverage_pct": 4.83,
+     "missing_input": 66832,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6998,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "index_ret_1d",
+     "group": "market_context",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 44,
+     "valid": 40,
+     "coverage_pct": 90.91,
+     "missing_input": 0,
+     "stale_input": 4,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "index_ret_5d",
+     "group": "market_context",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 44,
+     "valid": 40,
+     "coverage_pct": 90.91,
+     "missing_input": 0,
+     "stale_input": 4,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "index_close_to_sma_50",
+     "group": "market_context",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 44,
+     "valid": 40,
+     "coverage_pct": 90.91,
+     "missing_input": 0,
+     "stale_input": 4,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "india_vix_level",
+     "group": "market_context",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 20,
+     "coverage_pct": 90.91,
+     "missing_input": 0,
+     "stale_input": 2,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "india_vix_change_5d",
+     "group": "market_context",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 20,
+     "coverage_pct": 90.91,
+     "missing_input": 0,
+     "stale_input": 2,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "fii_net_cash_1d",
+     "group": "market_context",
+     "families": [
+      "fii_dii"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 20,
+     "coverage_pct": 90.91,
+     "missing_input": 2,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "fii_net_cash_5d",
+     "group": "market_context",
+     "families": [
+      "fii_dii"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 20,
+     "coverage_pct": 90.91,
+     "missing_input": 2,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "dii_net_cash_1d",
+     "group": "market_context",
+     "families": [
+      "fii_dii"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 20,
+     "coverage_pct": 90.91,
+     "missing_input": 2,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "dii_net_cash_5d",
+     "group": "market_context",
+     "families": [
+      "fii_dii"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 20,
+     "coverage_pct": 90.91,
+     "missing_input": 2,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "global_ret_1d",
+     "group": "market_context",
+     "families": [
+      "global"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 286,
+     "valid": 260,
+     "coverage_pct": 90.91,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 26,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "sector_rs_20",
+     "group": "market_context",
+     "families": [
+      "bars",
+      "sector"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 77510,
+     "valid": 58715,
+     "coverage_pct": 75.75,
+     "missing_input": 9561,
+     "stale_input": 2242,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 6992,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "preopen_gap_pct",
+     "group": "preopen",
+     "families": [
+      "bars",
+      "preopen"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 38788,
+     "valid": 30443,
+     "coverage_pct": 78.49,
+     "missing_input": 3725,
+     "stale_input": 4620,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "preopen_imbalance",
+     "group": "preopen",
+     "families": [
+      "preopen"
+     ],
+     "earliest_valid": "2026-09-24",
+     "latest_valid": "2026-10-09",
+     "rows": 38788,
+     "valid": 34663,
+     "coverage_pct": 89.37,
+     "missing_input": 2682,
+     "stale_input": 1443,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 11,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "preopen_ieq",
+     "group": "preopen",
+     "families": [
+      "preopen"
+     ],
+     "earliest_valid": "2026-09-24",
+     "latest_valid": "2026-10-09",
+     "rows": 38788,
+     "valid": 37633,
+     "coverage_pct": 97.02,
+     "missing_input": 30,
+     "stale_input": 1125,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 11,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "preopen_ieq_to_avg_volume",
+     "group": "preopen",
+     "families": [
+      "bars",
+      "preopen"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 38788,
+     "valid": 33710,
+     "coverage_pct": 86.91,
+     "missing_input": 458,
+     "stale_input": 4620,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "mnews_news_count_1h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_news_count_4h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_news_count_3d",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_unique_publishers_1h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_unique_publishers_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_breaking_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_high_relevance_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_negative_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_positive_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_mixed_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_regulatory_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_corporate_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_macro_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_news_velocity_1h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_news_velocity_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-10-01",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 12,
+     "coverage_pct": 54.55,
+     "missing_input": 2,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 6,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_publisher_diversity_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_story_group_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_new_story_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_updated_story_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_time_since_last_news_s",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_time_since_last_high_relevance_news_s",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_market_wide_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_macro_scope_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_geopolitical_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_commodity_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_currency_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_global_market_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_correction_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_edited_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_duplicate_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_unique_sources_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 22,
+     "valid": 14,
+     "coverage_pct": 63.64,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_company_count_1h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 77510,
+     "valid": 49460,
+     "coverage_pct": 63.81,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 28050,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_company_count_4h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 77510,
+     "valid": 49460,
+     "coverage_pct": 63.81,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 28050,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_company_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 77510,
+     "valid": 49460,
+     "coverage_pct": 63.81,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 28050,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_company_count_3d",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 77510,
+     "valid": 49460,
+     "coverage_pct": 63.81,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 28050,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_company_story_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 77510,
+     "valid": 49460,
+     "coverage_pct": 63.81,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 28050,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_company_correction_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 77510,
+     "valid": 49460,
+     "coverage_pct": 63.81,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 28050,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_company_time_since_last_s",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 77510,
+     "valid": 13654,
+     "coverage_pct": 17.62,
+     "missing_input": 35806,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 28050,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    }
+   ]
+  },
+  "asif": {
+   "version": "stage4-ds-v3-asif",
+   "policy": "AS_IF_LIVE-v2",
+   "snapshots": [
+    "PRE_SESSION"
+   ],
+   "window": {
+    "first": "2025-09-24",
+    "last": "2026-10-09",
+    "snapshots_done": 257,
+    "rows_by_markers": 47480669
+   },
+   "completeness": {
+    "expected": 257,
+    "done": 257,
+    "missing": [],
+    "as_of_not_calendar": []
+   },
+   "sessions": 257,
+   "rows": 47480669,
+   "duplicates": 0,
+   "symbols": 3569,
+   "pit_violations": 0,
+   "nan_inf_values": 0,
+   "value_status_inconsistent": 0,
+   "future_timestamps": 0,
+   "rows_match_markers": true,
+   "duplicate_snapshots": 0,
+   "orphan_instruments": 0,
+   "non_trading_dates": 0,
+   "runs": [
+    {
+     "run_id": "f9ae148f-978f-4f16-8efe-9bbdacb011a3",
+     "status": "COMPLETE",
+     "registry": "features-v4",
+     "sessions_done": 36,
+     "rows": 6653034,
+     "started_at": "2026-10-09T11:04:41.465790+00:00",
+     "completed_at": "2026-10-09T14:54:20.248396+00:00"
+    },
+    {
+     "run_id": "83569138-12d1-489b-b95e-33b6cd80c1d4",
+     "status": "COMPLETE",
+     "registry": "features-v4",
+     "sessions_done": 37,
+     "rows": 6847599,
+     "started_at": "2026-10-09T11:04:41.467153+00:00",
+     "completed_at": "2026-10-09T15:00:33.119379+00:00"
+    },
+    {
+     "run_id": "88882d16-2405-47d2-952a-1fa9026b2da4",
+     "status": "COMPLETE",
+     "registry": "features-v4",
+     "sessions_done": 37,
+     "rows": 6843713,
+     "started_at": "2026-10-09T11:04:41.467162+00:00",
+     "completed_at": "2026-10-09T15:00:14.663313+00:00"
+    },
+    {
+     "run_id": "57f4a862-1b5b-42f1-9d55-92a2b3a41283",
+     "status": "COMPLETE",
+     "registry": "features-v4",
+     "sessions_done": 37,
+     "rows": 6832461,
+     "started_at": "2026-10-09T11:04:41.469553+00:00",
+     "completed_at": "2026-10-09T14:59:45.204956+00:00"
+    },
+    {
+     "run_id": "a68e8bcf-4e31-4efc-83ad-73e7bf328119",
+     "status": "COMPLETE",
+     "registry": "features-v4",
+     "sessions_done": 37,
+     "rows": 6825675,
+     "started_at": "2026-10-09T11:04:41.491200+00:00",
+     "completed_at": "2026-10-09T14:59:22.853893+00:00"
+    },
+    {
+     "run_id": "a755abe6-cd05-4fd2-807f-80748ef67ce6",
+     "status": "COMPLETE",
+     "registry": "features-v4",
+     "sessions_done": 37,
+     "rows": 6828053,
+     "started_at": "2026-10-09T11:04:41.495123+00:00",
+     "completed_at": "2026-10-09T14:59:31.109482+00:00"
+    },
+    {
+     "run_id": "90bb26a6-eaaa-41b4-8e30-5d290da398cc",
+     "status": "COMPLETE",
+     "registry": "features-v4",
+     "sessions_done": 36,
+     "rows": 6650134,
+     "started_at": "2026-10-09T11:04:41.508314+00:00",
+     "completed_at": "2026-10-09T14:54:13.834247+00:00"
+    }
+   ],
+   "registry_hash_mismatch": 0,
+   "registry": {
+    "version": "features-v4",
+    "sha256": "6f998a76c49462c3244b5eecb2d783e75c6fff9d26365ae3540c8e88dbb201c3",
+    "features": 104
+   },
+   "policy_params": {
+    "global.first_wd1": {
+     "basis": "first fetch after label midnight IST, max over 17 live labels (label date >= 2026-09-24, ISO weekday 1)",
+     "seconds": 132060,
+     "measured_at": "2026-10-08T15:28:43.950543+00:00"
+    },
+    "global.first_wd2": {
+     "basis": "first fetch after label midnight IST, max over 25 live labels (label date >= 2026-09-24, ISO weekday 2)",
+     "seconds": 132060,
+     "measured_at": "2026-10-08T15:28:43.950543+00:00"
+    },
+    "global.first_wd3": {
+     "basis": "first fetch after label midnight IST, max over 13 live labels (label date >= 2026-09-24, ISO weekday 3)",
+     "seconds": 132060,
+     "measured_at": "2026-10-08T15:28:43.950543+00:00"
+    },
+    "global.first_wd4": {
+     "basis": "first fetch after label midnight IST, max over 25 live labels (label date >= 2026-09-24, ISO weekday 4)",
+     "seconds": 135720,
+     "measured_at": "2026-10-08T15:28:43.950543+00:00"
+    },
+    "global.first_wd5": {
+     "basis": "first fetch after label midnight IST, max over 23 live labels (label date >= 2026-09-24, ISO weekday 5)",
+     "seconds": 132060,
+     "measured_at": "2026-10-08T15:28:43.950543+00:00"
+    },
+    "global.first_wd6": {
+     "basis": "first fetch after label midnight IST, max over 8 live labels (label date >= 2026-09-24, ISO weekday 6)",
+     "seconds": 304860,
+     "measured_at": "2026-10-08T15:28:43.950543+00:00"
+    },
+    "global.first_wd7": {
+     "basis": "first fetch after label midnight IST, max over 2 live labels (label date >= 2026-09-24, ISO weekday 7)",
+     "seconds": 218460,
+     "measured_at": "2026-10-08T15:28:43.950543+00:00"
+    },
+    "global.confirm_wd1": {
+     "basis": "confirmed (unchanged re-observation) after label midnight IST, max over 17 live labels (label date >= 2026-09-24, ISO weekday 1)",
+     "seconds": 162660,
+     "measured_at": "2026-10-08T15:28:43.950543+00:00"
+    },
+    "global.confirm_wd2": {
+     "basis": "confirmed (unchanged re-observation) after label midnight IST, max over 25 live labels (label date >= 2026-09-24, ISO weekday 2)",
+     "seconds": 162660,
+     "measured_at": "2026-10-08T15:28:43.950543+00:00"
+    },
+    "global.confirm_wd3": {
+     "basis": "confirmed (unchanged re-observation) after label midnight IST, max over 13 live labels (label date >= 2026-09-24, ISO weekday 3)",
+     "seconds": 162660,
+     "measured_at": "2026-10-08T15:28:43.950543+00:00"
+    },
+    "global.confirm_wd4": {
+     "basis": "confirmed (unchanged re-observation) after label midnight IST, max over 25 live labels (label date >= 2026-09-24, ISO weekday 4)",
+     "seconds": 162660,
+     "measured_at": "2026-10-08T15:28:43.950543+00:00"
+    },
+    "global.confirm_wd5": {
+     "basis": "confirmed (unchanged re-observation) after label midnight IST, max over 23 live labels (label date >= 2026-09-24, ISO weekday 5)",
+     "seconds": 162660,
+     "measured_at": "2026-10-08T15:28:43.950543+00:00"
+    },
+    "global.confirm_wd6": {
+     "basis": "confirmed (unchanged re-observation) after label midnight IST, max over 8 live labels (label date >= 2026-09-24, ISO weekday 6)",
+     "seconds": 335460,
+     "measured_at": "2026-10-08T15:28:43.950543+00:00"
+    },
+    "global.confirm_wd7": {
+     "basis": "confirmed (unchanged re-observation) after label midnight IST, max over 2 live labels (label date >= 2026-09-24, ISO weekday 7)",
+     "seconds": 249060,
+     "measured_at": "2026-10-08T15:28:43.950543+00:00"
+    },
+    "fii_dii.next_session_ist": {
+     "basis": "P99 of 360 live rows (market date >= 2026-09-24): knowable_at after midnight IST of the next trading session, rounded up to the minute",
+     "seconds": 30780,
+     "measured_at": "2026-10-08T15:28:43.950543+00:00"
+    },
+    "corporate_action.after_ex": {
+     "basis": "P99 of 11 actions first stored by the live schedule (ex-date >= 2026-09-24): fetched_at after the later of the announcement (KN-CA) and the ex-date midnight IST",
+     "seconds": 297180,
+     "measured_at": "2026-10-08T15:28:43.950543+00:00"
+    },
+    "daily_bar.next_session_ist": {
+     "basis": "P99 of 30737 live rows (market date >= 2026-09-24): knowable_at after midnight IST of the next trading session, rounded up to the minute",
+     "seconds": 30780,
+     "measured_at": "2026-10-08T15:28:43.950543+00:00"
+    }
+   },
+   "runtime_s": 98110.7,
+   "status_counts": {
+    "INVALID": 45482,
+    "MISSING_INPUT": 9891134,
+    "NOT_AVAILABLE_HISTORICALLY": 18942954,
+    "STALE_INPUT": 658163,
+    "VALID": 17942936
+   },
+   "reason_counts_invalid": {
+    "pat_yoy_q": 23824,
+    "revenue_yoy_q": 21628,
+    "roce_pct": 20,
+    "roe_pct": 10
+   },
+   "family_windows": [
+    {
+     "family": "event:corporate_actions",
+     "earliest_any_valid": "2025-09-29",
+     "stable_from_50pct": null,
+     "latest": "2026-10-09",
+     "usable_sessions": 254
+    },
+    {
+     "family": "event:legacy_news",
+     "earliest_any_valid": "2026-09-25",
+     "stable_from_50pct": "2026-09-25",
+     "latest": "2026-10-09",
+     "usable_sessions": 10
+    },
+    {
+     "family": "event:multi_news",
+     "earliest_any_valid": "2026-09-30",
+     "stable_from_50pct": "2026-09-30",
+     "latest": "2026-10-09",
+     "usable_sessions": 7
+    },
+    {
+     "family": "fundamental:fundamentals",
+     "earliest_any_valid": "2026-09-25",
+     "stable_from_50pct": "2026-09-25",
+     "latest": "2026-10-09",
+     "usable_sessions": 10
+    },
+    {
+     "family": "market_context:bars",
+     "earliest_any_valid": "2025-09-24",
+     "stable_from_50pct": "2025-09-24",
+     "latest": "2026-10-09",
+     "usable_sessions": 257
+    },
+    {
+     "family": "market_context:bars+sector",
+     "earliest_any_valid": "2026-09-25",
+     "stable_from_50pct": "2026-09-25",
+     "latest": "2026-10-09",
+     "usable_sessions": 10
+    },
+    {
+     "family": "market_context:fii_dii",
+     "earliest_any_valid": "2026-04-02",
+     "stable_from_50pct": "2026-04-02",
+     "latest": "2026-10-09",
+     "usable_sessions": 130
+    },
+    {
+     "family": "market_context:global",
+     "earliest_any_valid": "2025-09-24",
+     "stable_from_50pct": "2025-09-24",
+     "latest": "2026-10-09",
+     "usable_sessions": 257
+    },
+    {
+     "family": "price_technical:bars",
+     "earliest_any_valid": "2025-09-29",
+     "stable_from_50pct": "2025-10-27",
+     "latest": "2026-10-09",
+     "usable_sessions": 254
+    },
+    {
+     "family": "volume_liquidity:bars",
+     "earliest_any_valid": "2025-10-24",
+     "stable_from_50pct": "2025-10-24",
+     "latest": "2026-10-09",
+     "usable_sessions": 237
+    }
+   ],
+   "coverage": [
+    {
+     "feature_id": "ret_1d",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-09-29",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 771833,
+     "coverage_pct": 94.3,
+     "missing_input": 21382,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 254,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "ret_5d",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-10-03",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 760689,
+     "coverage_pct": 92.94,
+     "missing_input": 32526,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 251,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "ret_20d",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-10-27",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 709277,
+     "coverage_pct": 86.66,
+     "missing_input": 83938,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 236,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "sma_20",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-10-24",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 712696,
+     "coverage_pct": 87.07,
+     "missing_input": 80519,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 237,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "sma_50",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-12-08",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 612960,
+     "coverage_pct": 74.89,
+     "missing_input": 180255,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 207,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "sma_200",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-07-20",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 157282,
+     "coverage_pct": 19.22,
+     "missing_input": 635933,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 58,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "close_to_sma_20",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-10-24",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 712696,
+     "coverage_pct": 87.07,
+     "missing_input": 80519,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 237,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "close_to_sma_50",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-12-08",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 612960,
+     "coverage_pct": 74.89,
+     "missing_input": 180255,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 207,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "close_to_sma_200",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2026-07-20",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 157282,
+     "coverage_pct": 19.22,
+     "missing_input": 635933,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 58,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "ema_12",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-10-13",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 740083,
+     "coverage_pct": 90.42,
+     "missing_input": 53132,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 245,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "ema_26",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-11-03",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 692218,
+     "coverage_pct": 84.57,
+     "missing_input": 100997,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 231,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "rsi_14",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-10-16",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 729674,
+     "coverage_pct": 89.15,
+     "missing_input": 63541,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 242,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "macd_line",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-11-03",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 692218,
+     "coverage_pct": 84.57,
+     "missing_input": 100997,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 231,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "macd_trigger",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-11-14",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 665101,
+     "coverage_pct": 81.26,
+     "missing_input": 128114,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 223,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "macd_histogram",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-11-14",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 665101,
+     "coverage_pct": 81.26,
+     "missing_input": 128114,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 223,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "atr_14",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-10-16",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 729795,
+     "coverage_pct": 89.16,
+     "missing_input": 63420,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 242,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "atr_pct_14",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-10-16",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 729795,
+     "coverage_pct": 89.16,
+     "missing_input": 63420,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 242,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "volatility_20",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-10-27",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 709277,
+     "coverage_pct": 86.66,
+     "missing_input": 83938,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 236,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "beta_60",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-12-23",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 577743,
+     "coverage_pct": 70.59,
+     "missing_input": 215472,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 196,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "dist_high_20",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-10-24",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 712696,
+     "coverage_pct": 87.07,
+     "missing_input": 80519,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 237,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "dist_low_20",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-10-24",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 712696,
+     "coverage_pct": 87.07,
+     "missing_input": 80519,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 237,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "breakout_20",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-10-27",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 709277,
+     "coverage_pct": 86.66,
+     "missing_input": 83938,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 236,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "breakdown_20",
+     "group": "price_technical",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-10-27",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 709277,
+     "coverage_pct": 86.66,
+     "missing_input": 83938,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 236,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "avg_volume_20",
+     "group": "volume_liquidity",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-10-24",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 712696,
+     "coverage_pct": 87.07,
+     "missing_input": 80519,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 237,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "volume_spike_20",
+     "group": "volume_liquidity",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-10-27",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 708569,
+     "coverage_pct": 86.57,
+     "missing_input": 84646,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 236,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "turnover_20",
+     "group": "volume_liquidity",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-10-24",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 712696,
+     "coverage_pct": 87.07,
+     "missing_input": 80519,
+     "stale_input": 25271,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 237,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "pe",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 31164,
+     "coverage_pct": 3.81,
+     "missing_input": 4158,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 783164,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "pb",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 31295,
+     "coverage_pct": 3.82,
+     "missing_input": 4027,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 783164,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "roe_pct",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 31238,
+     "coverage_pct": 3.82,
+     "missing_input": 4074,
+     "stale_input": 0,
+     "invalid": 10,
+     "not_applicable": 0,
+     "not_available_historically": 783164,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "roce_pct",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 30831,
+     "coverage_pct": 3.77,
+     "missing_input": 4471,
+     "stale_input": 0,
+     "invalid": 20,
+     "not_applicable": 0,
+     "not_available_historically": 783164,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "ev_ebitda",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 30372,
+     "coverage_pct": 3.71,
+     "missing_input": 4950,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 783164,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "pe_to_sector",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 26553,
+     "coverage_pct": 3.24,
+     "missing_input": 8769,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 783164,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "pb_to_sector",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 31151,
+     "coverage_pct": 3.81,
+     "missing_input": 4171,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 783164,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "revenue_yoy",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 21505,
+     "coverage_pct": 2.63,
+     "missing_input": 13817,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 783164,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "pat_yoy",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 20619,
+     "coverage_pct": 2.52,
+     "missing_input": 14703,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 783164,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "eps_yoy",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 20655,
+     "coverage_pct": 2.52,
+     "missing_input": 14667,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 783164,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "revenue_yoy_q",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 35,
+     "coverage_pct": 0.0,
+     "missing_input": 13659,
+     "stale_input": 0,
+     "invalid": 21628,
+     "not_applicable": 0,
+     "not_available_historically": 783164,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "pat_yoy_q",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 25,
+     "coverage_pct": 0.0,
+     "missing_input": 11473,
+     "stale_input": 0,
+     "invalid": 23824,
+     "not_applicable": 0,
+     "not_available_historically": 783164,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "liabilities_to_assets",
+     "group": "fundamental",
+     "families": [
+      "fundamentals"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 23941,
+     "coverage_pct": 2.93,
+     "missing_input": 11381,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 783164,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "ca_days_since_any",
+     "group": "event",
+     "families": [
+      "corporate_actions"
+     ],
+     "earliest_valid": "2025-09-29",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 132360,
+     "coverage_pct": 16.17,
+     "missing_input": 677306,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8820,
+     "sessions_with_valid": 254,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "ca_days_since_dividend",
+     "group": "event",
+     "families": [
+      "corporate_actions"
+     ],
+     "earliest_valid": "2025-09-29",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 112219,
+     "coverage_pct": 13.71,
+     "missing_input": 697447,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8820,
+     "sessions_with_valid": 254,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "ca_days_since_split",
+     "group": "event",
+     "families": [
+      "corporate_actions"
+     ],
+     "earliest_valid": "2025-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 9917,
+     "coverage_pct": 1.21,
+     "missing_input": 799749,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8820,
+     "sessions_with_valid": 253,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "ca_days_since_bonus",
+     "group": "event",
+     "families": [
+      "corporate_actions"
+     ],
+     "earliest_valid": "2025-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 9250,
+     "coverage_pct": 1.13,
+     "missing_input": 800416,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8820,
+     "sessions_with_valid": 253,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "ca_days_to_any",
+     "group": "event",
+     "families": [
+      "corporate_actions"
+     ],
+     "earliest_valid": null,
+     "latest_valid": null,
+     "rows": 818486,
+     "valid": 0,
+     "coverage_pct": 0.0,
+     "missing_input": 809666,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8820,
+     "sessions_with_valid": 0,
+     "pit": "PASS",
+     "class": "UNAVAILABLE_HISTORICALLY"
+    },
+    {
+     "feature_id": "ca_days_to_dividend",
+     "group": "event",
+     "families": [
+      "corporate_actions"
+     ],
+     "earliest_valid": null,
+     "latest_valid": null,
+     "rows": 818486,
+     "valid": 0,
+     "coverage_pct": 0.0,
+     "missing_input": 809666,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8820,
+     "sessions_with_valid": 0,
+     "pit": "PASS",
+     "class": "UNAVAILABLE_HISTORICALLY"
+    },
+    {
+     "feature_id": "ca_days_to_split",
+     "group": "event",
+     "families": [
+      "corporate_actions"
+     ],
+     "earliest_valid": null,
+     "latest_valid": null,
+     "rows": 818486,
+     "valid": 0,
+     "coverage_pct": 0.0,
+     "missing_input": 809666,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8820,
+     "sessions_with_valid": 0,
+     "pit": "PASS",
+     "class": "UNAVAILABLE_HISTORICALLY"
+    },
+    {
+     "feature_id": "ca_days_to_bonus",
+     "group": "event",
+     "families": [
+      "corporate_actions"
+     ],
+     "earliest_valid": null,
+     "latest_valid": null,
+     "rows": 818486,
+     "valid": 0,
+     "coverage_pct": 0.0,
+     "missing_input": 809666,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 8820,
+     "sessions_with_valid": 0,
+     "pit": "PASS",
+     "class": "UNAVAILABLE_HISTORICALLY"
+    },
+    {
+     "feature_id": "news_count_24h",
+     "group": "event",
+     "families": [
+      "legacy_news"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 35322,
+     "coverage_pct": 4.32,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 783164,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "news_count_7d",
+     "group": "event",
+     "families": [
+      "legacy_news"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 35322,
+     "coverage_pct": 4.32,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 783164,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "news_hours_since_last",
+     "group": "event",
+     "families": [
+      "legacy_news"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 818486,
+     "valid": 1876,
+     "coverage_pct": 0.23,
+     "missing_input": 33446,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 783164,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "index_ret_1d",
+     "group": "market_context",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-09-24",
+     "latest_valid": "2026-10-09",
+     "rows": 514,
+     "valid": 514,
+     "coverage_pct": 100.0,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 257,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "index_ret_5d",
+     "group": "market_context",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-09-24",
+     "latest_valid": "2026-10-09",
+     "rows": 514,
+     "valid": 514,
+     "coverage_pct": 100.0,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 257,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "index_close_to_sma_50",
+     "group": "market_context",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-09-24",
+     "latest_valid": "2026-10-09",
+     "rows": 514,
+     "valid": 514,
+     "coverage_pct": 100.0,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 257,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "india_vix_level",
+     "group": "market_context",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-09-24",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 257,
+     "coverage_pct": 100.0,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 257,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "india_vix_change_5d",
+     "group": "market_context",
+     "families": [
+      "bars"
+     ],
+     "earliest_valid": "2025-09-24",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 257,
+     "coverage_pct": 100.0,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 257,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "fii_net_cash_1d",
+     "group": "market_context",
+     "families": [
+      "fii_dii"
+     ],
+     "earliest_valid": "2026-04-02",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 130,
+     "coverage_pct": 50.58,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 127,
+     "sessions_with_valid": 130,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "fii_net_cash_5d",
+     "group": "market_context",
+     "families": [
+      "fii_dii"
+     ],
+     "earliest_valid": "2026-04-09",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 126,
+     "coverage_pct": 49.03,
+     "missing_input": 4,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 127,
+     "sessions_with_valid": 126,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "dii_net_cash_1d",
+     "group": "market_context",
+     "families": [
+      "fii_dii"
+     ],
+     "earliest_valid": "2026-04-02",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 130,
+     "coverage_pct": 50.58,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 127,
+     "sessions_with_valid": 130,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "dii_net_cash_5d",
+     "group": "market_context",
+     "families": [
+      "fii_dii"
+     ],
+     "earliest_valid": "2026-04-09",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 126,
+     "coverage_pct": 49.03,
+     "missing_input": 4,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 127,
+     "sessions_with_valid": 126,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "global_ret_1d",
+     "group": "market_context",
+     "families": [
+      "global"
+     ],
+     "earliest_valid": "2025-09-24",
+     "latest_valid": "2026-10-09",
+     "rows": 3341,
+     "valid": 3341,
+     "coverage_pct": 100.0,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 0,
+     "sessions_with_valid": 257,
+     "pit": "PASS",
+     "class": "BACKFILLED"
+    },
+    {
+     "feature_id": "sector_rs_20",
+     "group": "market_context",
+     "families": [
+      "bars",
+      "sector"
+     ],
+     "earliest_valid": "2026-09-25",
+     "latest_valid": "2026-10-09",
+     "rows": 817715,
+     "valid": 29315,
+     "coverage_pct": 3.58,
+     "missing_input": 4860,
+     "stale_input": 1117,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 782423,
+     "sessions_with_valid": 10,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_news_count_1h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_news_count_4h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_news_count_3d",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_unique_publishers_1h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_unique_publishers_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_breaking_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_high_relevance_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_negative_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_positive_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_mixed_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_regulatory_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_corporate_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_macro_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_news_velocity_1h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_news_velocity_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-10-01",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 6,
+     "coverage_pct": 2.33,
+     "missing_input": 1,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 6,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_publisher_diversity_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_story_group_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_new_story_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_updated_story_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_time_since_last_news_s",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_time_since_last_high_relevance_news_s",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_market_wide_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_macro_scope_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_geopolitical_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_commodity_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_currency_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_global_market_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_correction_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_edited_news_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_duplicate_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_unique_sources_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 257,
+     "valid": 7,
+     "coverage_pct": 2.72,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 250,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_company_count_1h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 817715,
+     "valid": 24738,
+     "coverage_pct": 3.03,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 792977,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_company_count_4h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 817715,
+     "valid": 24738,
+     "coverage_pct": 3.03,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 792977,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_company_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 817715,
+     "valid": 24738,
+     "coverage_pct": 3.03,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 792977,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_company_count_3d",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 817715,
+     "valid": 24738,
+     "coverage_pct": 3.03,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 792977,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_company_story_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 817715,
+     "valid": 24738,
+     "coverage_pct": 3.03,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 792977,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_company_correction_count_24h",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 817715,
+     "valid": 24738,
+     "coverage_pct": 3.03,
+     "missing_input": 0,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 792977,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    },
+    {
+     "feature_id": "mnews_company_time_since_last_s",
+     "group": "event",
+     "families": [
+      "multi_news"
+     ],
+     "earliest_valid": "2026-09-30",
+     "latest_valid": "2026-10-09",
+     "rows": 817715,
+     "valid": 6824,
+     "coverage_pct": 0.83,
+     "missing_input": 17914,
+     "stale_input": 0,
+     "invalid": 0,
+     "not_applicable": 0,
+     "not_available_historically": 792977,
+     "sessions_with_valid": 7,
+     "pit": "PASS",
+     "class": "PARTIAL_HISTORY"
+    }
+   ]
+  }
+ },
+ "labels": {
+  "version": "label-v2",
+  "rows": 7113528,
+  "valid": 7078555,
+  "sessions": 256,
+  "instruments": 3571,
+  "first": "2025-09-24",
+  "last": "2026-10-08",
+  "duplicates": 0,
+  "leakage_label_start_le_as_of": 0,
+  "label_snapshot_pairs_checked": 17753958,
+  "non_trading_dates": 0,
+  "mean_by_label": {
+   "gap": 0.002832,
+   "high_exc": 0.018723,
+   "hit_dn_1": 0.624632,
+   "hit_dn_2": 0.398188,
+   "hit_up_1": 0.524266,
+   "hit_up_2": 0.331415,
+   "low_exc": -0.020383,
+   "ret_cc": 4.7e-05,
+   "ret_oc": -0.002555
+  },
+  "definitions": "label-v2: the label-v1 definitions (the nine labels above, session T open -> T\nclose), with\n  price basis   pit.bars_adjusted as of a RECORDED knowledge cutoff, with the features-v4\n                code (corporate actions knowable when observed; per-payload vendor basis)\n  explicit rows instead of silence (status MISSING_INPUT, reason):\n                BAR_REFUSED          a canonical T bar the adjusted view refuses (LOW /\n                                     RECONSTRUCTED basis): every label of (T, instrument)\n                MALFORMED_BAR        a T bar with high < low, open/close outside [low, high]\n                                     or a non-positive price: every label\n                PREV_SESSION_MISSING no usable bar on the previous trading session: ret_cc,\n                                     gap (PREV_MALFORMED if that bar is malformed)\n  flags (on every label row of (T, instrument)):\n                CA_EX_T:<ca_id>:<factor>   an EXACT split/bonus factor with ex-date T,\n                                     knowable before the cutoff (applied to T-1)\n                UNSUPPORTED_CA_EX_T:<type> another action with ex-date T and no exact\n                                     factor (rights, unsupported): prices NOT adjusted for it\n                DIVIDEND_EX_T        a dividend goes ex on T (never a price factor)\n                EXTREME_UNEXPLAINED  |ret_cc| or |gap| > 25% and no CA_EX_T\n                AMBIGUOUS_ORDER_1/_2 the up and the down threshold were both touched on T:\n                                     daily OHLC cannot order them; any target/stop use of\n                                     these rows is undetermined\nNo target/stop (first-touch) label is defined (horizon, entry, exit, levels, ties and\ncosts are undecided)."
+ },
+ "labels_v1_frozen": {
+  "version": "label-v1",
+  "rows": 7077591,
+  "valid": 7046085,
+  "sessions": 255,
+  "instruments": 3567,
+  "first": "2025-09-24",
+  "last": "2026-10-07",
+  "duplicates": 0,
+  "leakage_label_start_le_as_of": 0,
+  "label_snapshot_pairs_checked": 17494371,
+  "non_trading_dates": 0,
+  "mean_by_label": {
+   "gap": 0.002836,
+   "high_exc": 0.018749,
+   "hit_dn_1": 0.623667,
+   "hit_dn_2": 0.396773,
+   "hit_up_1": 0.52503,
+   "hit_up_2": 0.331909,
+   "low_exc": -0.02032,
+   "ret_cc": 0.000136,
+   "ret_oc": -0.00247
+  },
+  "definitions": "label-v1: the outcome of session T for a snapshot taken before T opened.\n\nBoth snapshots of T (PRE_SESSION 08:59:59, PRE_OPEN 09:08 IST) precede T's open,\nso every label starts at T's open (label_start_at = T open, from the calendar)\nand ends at T's close: strictly after the snapshot. A label MAY use future data -\nit is the outcome; features never see it (their inputs are knowable before\nas_of and exclude the session's own bar, app.features.inputs).\n\nPrices: split/bonus-adjusted bars as known NOW (pit.bars_adjusted with as_of =\nnow), so a corporate action with ex-date T adjusts close(T-1) and every ratio\nbelow is on one basis. LOW-confidence history is refused there, as in Stage 3.\n\n  ret_cc    close(T) / close(T-1) - 1        T-1 = the previous trading session\n  gap       open(T)  / close(T-1) - 1\n  ret_oc    close(T) / open(T)    - 1\n  high_exc  high(T)  / open(T)    - 1\n  low_exc   low(T)   / open(T)    - 1\n  hit_up_1, hit_up_2   1 if high(T) >= open(T) * (1 + 1% / 2%) else 0\n  hit_dn_1, hit_dn_2   1 if low(T)  <= open(T) * (1 - 1% / 2%) else 0\n\nLimitation: from daily bars the ORDER of an up and a down hit within T is unknown.\nNo production target is chosen here (Stage 4 target selection is research).\n"
+ },
+ "replay_vs_production": {
+  "2026-09-29": {
+   "joined": 371256,
+   "same_inputs_sha256": 346520,
+   "same_reason": 371244,
+   "same_value": 370988,
+   "production_value_nulled_as_not_available": 0,
+   "production_rows_not_in_replay": 3392,
+   "differences": [
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|IN9175A01010",
+     "-0.0048453492781",
+     "-0.0049195893266",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|IN9175A01010",
+     "-0.0048453492781",
+     "-0.0049195893266",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|IN9623B01058",
+     "-0.0832264926921",
+     "-0.0833007327406",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|IN9623B01058",
+     "-0.0832264926921",
+     "-0.0833007327406",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE00GO01025",
+     "-0.134126872334",
+     "-0.134201112383",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE00GO01025",
+     "-0.134126872334",
+     "-0.134201112383",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE00UG01014",
+     "-0.0818505883311",
+     "-0.0819248283796",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE00UG01014",
+     "-0.0818505883311",
+     "-0.0819248283796",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE00WV01027",
+     "0.0474862556209",
+     "0.0473097019486",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE00WV01027",
+     "0.0474862556209",
+     "0.0473097019486",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE02KC01010",
+     "-0.0326082422121",
+     "-0.0539381144926",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE02KC01010",
+     "-0.0326082422121",
+     "-0.0539381144926",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE02S501018",
+     "-0.105927347393",
+     "-0.106001587442",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE02S501018",
+     "-0.105927347393",
+     "-0.106001587442",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE034D01049",
+     "0.0459725509215",
+     "0.0457959972492",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE034D01049",
+     "0.0459725509215",
+     "0.0457959972492",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE037A01022",
+     "-0.0204477155289",
+     "-0.0207749918087",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE037A01022",
+     "-0.0204477155289",
+     "-0.0207749918087",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE05HV01027",
+     "-0.0521846102411",
+     "-0.0522588502896",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE05HV01027",
+     "-0.0521846102411",
+     "-0.0522588502896",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE065D01027",
+     "-0.135358151027",
+     "-0.135685427306",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE065D01027",
+     "-0.135358151027",
+     "-0.135685427306",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE06HJ01020",
+     "0.0003250337693",
+     "0.000148480097",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE06HJ01020",
+     "0.0003250337693",
+     "0.000148480097",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE06ZX01015",
+     "0.247353386448",
+     "0.247176832775",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE06ZX01015",
+     "0.247353386448",
+     "0.247176832775",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE075I01017",
+     "0.0549990172023",
+     "0.05482246353",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE075I01017",
+     "0.0549990172023",
+     "0.05482246353",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE077P01034",
+     "-0.0384225143751",
+     "-0.0387497906549",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE077P01034",
+     "-0.0384225143751",
+     "-0.0387497906549",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE085D01033",
+     "-0.0379579964018",
+     "-0.0382852726816",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE085D01033",
+     "-0.0379579964018",
+     "-0.0382852726816",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE08NZ01012",
+     "0.31186972582",
+     "0.311693172147",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE08NZ01012",
+     "0.31186972582",
+     "0.311693172147",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE0A1E01018",
+     "-0.0003272762798",
+     "-0.0006545525596",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE0A1E01018",
+     "-0.0003272762798",
+     "-0.0006545525596",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE0ADB01012",
+     "0.080321424083",
+     "0.0801448704107",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE0ADB01012",
+     "0.080321424083",
+     "0.0801448704107",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_SESSION",
+     "sector_rs_20",
+     "NSE_EQ|INE0BHK01012",
+     "-0.604620205572",
+     "-0.604947481852",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ],
+    [
+     "PRE_OPEN",
+     "sector_rs_20",
+     "NSE_EQ|INE0BHK01012",
+     "-0.604620205572",
+     "-0.604947481852",
+     "VALID",
+     "None",
+     "None",
+     "True"
+    ]
+   ]
+  },
+  "2026-10-08": {
+   "joined": 423426,
+   "same_inputs_sha256": 398526,
+   "same_reason": 423376,
+   "same_value": 423329,
+   "production_value_nulled_as_not_available": 0,
+   "production_rows_not_in_replay": 3360,
+   "differences": [
+    [
+     "PRE_SESSION",
+     "atr_14",
+     "NSE_EQ|INE0NLT01028",
+     "5.40948422275",
+     "20.4702439557",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "atr_14",
+     "NSE_EQ|INE0NLT01028",
+     "5.40948422275",
+     "20.4702439557",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "atr_pct_14",
+     "NSE_EQ|INE0NLT01028",
+     "0.0341939584245",
+     "0.12939471527",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "atr_pct_14",
+     "NSE_EQ|INE0NLT01028",
+     "0.0341939584245",
+     "0.12939471527",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "avg_volume_20",
+     "NSE_EQ|INE0NLT01028",
+     "703326.6",
+     "367300.05",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "avg_volume_20",
+     "NSE_EQ|INE0NLT01028",
+     "703326.6",
+     "367300.05",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "beta_60",
+     "NSE_EQ|INE0NLT01028",
+     "0.690188693699",
+     "-1.80703885832",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "beta_60",
+     "NSE_EQ|INE0NLT01028",
+     "0.690188693699",
+     "-1.80703885832",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "breakdown_20",
+     "NSE_EQ|INE0NLT01028",
+     "0.0",
+     "1.0",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "breakdown_20",
+     "NSE_EQ|INE0NLT01028",
+     "0.0",
+     "1.0",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "close_to_sma_20",
+     "NSE_EQ|INE0NLT01028",
+     "-0.0105542959894",
+     "-0.479296952143",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "close_to_sma_20",
+     "NSE_EQ|INE0NLT01028",
+     "-0.0105542959894",
+     "-0.479296952143",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "close_to_sma_200",
+     "NSE_EQ|INE0NLT01028",
+     "0.40686969492",
+     "-0.291539064209",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "close_to_sma_200",
+     "NSE_EQ|INE0NLT01028",
+     "0.40686969492",
+     "-0.291539064209",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "close_to_sma_50",
+     "NSE_EQ|INE0NLT01028",
+     "0.000919301988489",
+     "-0.489228269762",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "close_to_sma_50",
+     "NSE_EQ|INE0NLT01028",
+     "0.000919301988489",
+     "-0.489228269762",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "dist_high_20",
+     "NSE_EQ|INE0NLT01028",
+     "-0.0688640376692",
+     "-0.534432018835",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "dist_high_20",
+     "NSE_EQ|INE0NLT01028",
+     "-0.0688640376692",
+     "-0.534432018835",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "dist_low_20",
+     "NSE_EQ|INE0NLT01028",
+     "0.0546666666667",
+     "0.0108626198083",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "dist_low_20",
+     "NSE_EQ|INE0NLT01028",
+     "0.0546666666667",
+     "0.0108626198083",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "ema_12",
+     "NSE_EQ|INE0NLT01028",
+     "160.417758954",
+     "275.551494239",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "ema_12",
+     "NSE_EQ|INE0NLT01028",
+     "160.417758954",
+     "275.551494239",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "ema_26",
+     "NSE_EQ|INE0NLT01028",
+     "159.360621461",
+     "295.967059109",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "ema_26",
+     "NSE_EQ|INE0NLT01028",
+     "159.360621461",
+     "295.967059109",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "macd_histogram",
+     "NSE_EQ|INE0NLT01028",
+     "-0.51648018661",
+     "-17.0031798357",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "macd_histogram",
+     "NSE_EQ|INE0NLT01028",
+     "-0.51648018661",
+     "-17.0031798357",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "macd_line",
+     "NSE_EQ|INE0NLT01028",
+     "1.05713749276",
+     "-20.4155648697",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "macd_line",
+     "NSE_EQ|INE0NLT01028",
+     "1.05713749276",
+     "-20.4155648697",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "macd_trigger",
+     "NSE_EQ|INE0NLT01028",
+     "1.57361767937",
+     "-3.41238503396",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "macd_trigger",
+     "NSE_EQ|INE0NLT01028",
+     "1.57361767937",
+     "-3.41238503396",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "preopen_ieq_to_avg_volume",
+     "NSE_EQ|INE0NLT01028",
+     "0.00091849220547",
+     "0.00175878004917",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "ret_20d",
+     "NSE_EQ|INE0NLT01028",
+     "-0.00954766004069",
+     "-0.50477383002",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "ret_20d",
+     "NSE_EQ|INE0NLT01028",
+     "-0.00954766004069",
+     "-0.50477383002",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "ret_5d",
+     "NSE_EQ|INE0NLT01028",
+     "-0.0146371846777",
+     "-0.507318592339",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "ret_5d",
+     "NSE_EQ|INE0NLT01028",
+     "-0.0146371846777",
+     "-0.507318592339",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "rsi_14",
+     "NSE_EQ|INE0NLT01028",
+     "48.0136319036",
+     "12.2032252856",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "rsi_14",
+     "NSE_EQ|INE0NLT01028",
+     "48.0136319036",
+     "12.2032252856",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "sma_20",
+     "NSE_EQ|INE0NLT01028",
+     "159.8875",
+     "303.82",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_SESSION",
+     "sma_20",
+     "NSE_EQ|INE0NLT01028",
+     "159.8875",
+     "303.82",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ],
+    [
+     "PRE_OPEN",
+     "sma_200",
+     "NSE_EQ|INE0NLT01028",
+     "112.448225",
+     "223.30095",
+     "VALID",
+     "None",
+     "None",
+     "False"
+    ]
+   ]
+  }
+ },
+ "raw_sql": {
+  "strict": {
+   "feature_rows_compared": 270,
+   "feature_mismatches": 0,
+   "feature_examples": [],
+   "sessions": [
+    "2026-09-24",
+    "2026-09-28",
+    "2026-09-29",
+    "2026-09-30",
+    "2026-10-01",
+    "2026-10-05",
+    "2026-10-06",
+    "2026-10-07",
+    "2026-10-08",
+    "2026-10-09"
+   ],
+   "labels_compared": 200,
+   "label_mismatches": 0,
+   "label_examples": [],
+   "tolerance": "relative 1e-9 (values are stored at 12 significant digits)"
+  },
+  "asif": {
+   "feature_rows_compared": 296,
+   "feature_mismatches": 0,
+   "feature_examples": [],
+   "sessions": [
+    "2025-11-28",
+    "2025-12-10",
+    "2025-12-17",
+    "2025-12-18",
+    "2026-02-04",
+    "2026-02-13",
+    "2026-04-27",
+    "2026-05-04",
+    "2026-05-29",
+    "2026-06-16"
+   ],
+   "labels_compared": 200,
+   "label_mismatches": 0,
+   "label_examples": [],
+   "tolerance": "relative 1e-9 (values are stored at 12 significant digits)"
+  }
+ },
+ "scenarios": {
+  "late_arriving_bars": {
+   "late_bars_found": 37,
+   "checked_in_strict": 20,
+   "never_used_before_knowable": 20,
+   "pass": true
+  },
+  "delayed_fundamentals_strict": [
+   [
+    "2026-09-24",
+    "PRE_OPEN",
+    "NOT_AVAILABLE_HISTORICALLY",
+    "3499"
+   ],
+   [
+    "2026-09-24",
+    "PRE_SESSION",
+    "NOT_AVAILABLE_HISTORICALLY",
+    "3499"
+   ],
+   [
+    "2026-09-25",
+    "PRE_OPEN",
+    "MISSING_INPUT",
+    "414"
+   ],
+   [
+    "2026-09-25",
+    "PRE_OPEN",
+    "VALID",
+    "3088"
+   ],
+   [
+    "2026-09-25",
+    "PRE_SESSION",
+    "MISSING_INPUT",
+    "531"
+   ],
+   [
+    "2026-09-25",
+    "PRE_SESSION",
+    "VALID",
+    "2971"
+   ]
+  ],
+  "delayed_fundamentals_pass": true,
+  "fii_dii": [
+   [
+    "stage4-ds-v3-asif",
+    "257",
+    "130",
+    "0"
+   ],
+   [
+    "stage4-ds-v3-strict",
+    "22",
+    "20",
+    "0"
+   ]
+  ],
+  "missing_news_never_zero": {
+   "stage4-ds-v3-asif": {
+    "rows_before_collection": 5558839,
+    "non_null_before_collection": 0
+   },
+   "stage4-ds-v3-strict": {
+    "rows_before_collection": 196606,
+    "non_null_before_collection": 0
+   }
+  },
+  "legacy_news_never_zero": {
+   "stage4-ds-v3-asif": {
+    "rows_before_collection": 1566328,
+    "non_null_before_collection": 0
+   },
+   "stage4-ds-v3-strict": {
+    "rows_before_collection": 13996,
+    "non_null_before_collection": 0
+   }
+  },
+  "corporate_action_knowable_later": {
+   "cas": 0,
+   "rows_before_knowable": 0,
+   "rows_equal_to_the_not_yet_knowable_ex_date": 0,
+   "pass": true
+  },
+  "strict_corporate_action_observed": {
+   "actions_stored_after_announcement": 0,
+   "rows_between_announcement_and_storage": 0,
+   "rows_reflecting_the_unobserved_action": 0,
+   "pass": true
+  },
+  "removed_from_master_present": {
+   "stage4-ds-v3-asif": 21,
+   "stage4-ds-v3-strict": 21
+  }
+ },
+ "survivorship": {
+  "universe_per_session": {
+   "first": [
+    "2025-09-24",
+    2939
+   ],
+   "last": [
+    "2026-10-09",
+    3549
+   ],
+   "min": 2939,
+   "max": 3549
+  },
+  "stocks_with_daily_bars": 3570,
+  "first_bar_after_2025_09_24_new_listings": 623,
+  "last_bar_before_2026_09_01_vanished": 12,
+  "history_from_2020": 1604,
+  "removed_from_master": [
+   "BGLOBAL",
+   "BLSE",
+   "BLUECHIP",
+   "BUILDPRO",
+   "CENTEXT-RE",
+   "CEREBRAINT",
+   "CLCIND",
+   "CMICABLES",
+   "EDUCOMP",
+   "IMPEXFERRO",
+   "LASA",
+   "MORARJEE",
+   "NAGAFERT",
+   "ORTEL",
+   "PARTY-RE",
+   "RAJVIR",
+   "RCDL-RE",
+   "SELMC",
+   "SKIL",
+   "SPELS",
+   "UNIVAFOODS"
+  ],
+  "delisted_never_in_master": "UNKNOWN: the instrument master (Upstox) lists only currently tradable instruments; companies delisted before 2026-09-23 were never downloaded, so their bars do not exist in Prajna (survivorship bias)"
+ },
+ "storage": {
+  "training_feature_value": "46 GB",
+  "training_label": "4906 MB",
+  "training_session_done": "944 kB",
+  "training_dataset_run": "136 kB"
+ },
+ "fresh_recompute": {
+  "strict": {
+   "sessions": [
+    "2026-09-24 PRE_OPEN",
+    "2026-09-24 PRE_SESSION",
+    "2026-09-25 PRE_SESSION",
+    "2026-09-29 PRE_SESSION",
+    "2026-10-05 PRE_OPEN",
+    "2026-10-05 PRE_SESSION",
+    "2026-10-06 PRE_OPEN",
+    "2026-10-08 PRE_OPEN",
+    "2026-10-08 PRE_SESSION",
+    "2026-10-09 PRE_OPEN"
+   ],
+   "keys_per_session": 10,
+   "rows_compared": 6260,
+   "mismatches": 0,
+   "examples": [],
+   "note": "sector_rs_20 excluded (peer set); every other feature recomputed"
+  },
+  "asif": {
+   "sessions": [
+    "2025-10-10 PRE_SESSION",
+    "2025-11-10 PRE_SESSION",
+    "2025-12-19 PRE_SESSION",
+    "2026-01-30 PRE_SESSION",
+    "2026-03-09 PRE_SESSION",
+    "2026-06-17 PRE_SESSION",
+    "2026-06-23 PRE_SESSION",
+    "2026-07-16 PRE_SESSION",
+    "2026-09-09 PRE_SESSION",
+    "2026-10-05 PRE_SESSION"
+   ],
+   "keys_per_session": 10,
+   "rows_compared": 6060,
+   "mismatches": 0,
+   "examples": [],
+   "note": "sector_rs_20 excluded (peer set); every other feature recomputed"
+  }
+ }
+}
