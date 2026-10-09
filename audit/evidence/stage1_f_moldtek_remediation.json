@@ -1,0 +1,175 @@
+{
+ "executed": "2026-10-09",
+ "backup": "var/backups/prajna_20261009T1415_moldtek_pre_ca_fix.dump",
+ "vendor_calls": [
+  {
+   "n": "1-2",
+   "run": "25ffb100-88ba-47cf-8578-0412edec138f",
+   "what": "corporate-actions INE835B01035, INE893J01029",
+   "seen": 5,
+   "inserted": 2
+  },
+  {
+   "n": 3,
+   "run": "f7eb21e4-1eeb-4352-9f70-fa53767ddf37",
+   "what": "1d NSE_EQ|INE835B01035 2026-10-01..10-08",
+   "status": "COMPLETE",
+   "inserted": 1
+  },
+  {
+   "n": 4,
+   "run": "6f6ef131-6cf8-42d9-99c3-c86422d83a8d",
+   "what": "1d NSE_EQ|INE893J01029 2026-10-01..10-08",
+   "status": "COMPLETE",
+   "inserted": 1
+  }
+ ],
+ "events": {
+  "4101": {
+   "key": "NSE_EQ|INE835B01035",
+   "type": "BONUS",
+   "ratio": "1:1",
+   "ex": "2026-10-09",
+   "announced": "2026-08-26",
+   "factor": "EXACT 2",
+   "vendor_applied": "APPLIED",
+   "observed": "2026-10-09T09:00:59.785572Z"
+  },
+  "4102": {
+   "key": "NSE_EQ|INE893J01029",
+   "type": "BONUS",
+   "ratio": "1:1",
+   "ex": "2026-10-09",
+   "announced": "2026-08-26",
+   "factor": "EXACT 2",
+   "vendor_applied": "APPLIED",
+   "observed": "2026-10-09T09:00:59.940893Z"
+  }
+ },
+ "pre": [
+  "   ('ca_two', 3, '3849:DIVIDEND:2026-09-11,3940:DIVIDEND:2026-09-11,3941:DIVIDEND:2026-04-24')",
+  "   ('caf_two', 3, '3849:UNSUPPORTED:N/A,3940:UNSUPPORTED:N/A,3941:UNSUPPORTED:N/A')",
+  "   ('bar_two', 'NSE_EQ|INE835B01035', 1681, datetime.date(2026, 10, 7), '62aee57ff999d86e45f364b8d218aaef')",
+  "   ('bar_two', 'NSE_EQ|INE893J01029', 1681, datetime.date(2026, 10, 7), 'f7c2cd78dbb5445e26c244fab85cc150')",
+  "   ('obs_two', 0)",
+  "   ('basis_two', 80)",
+  "   ('ca_others', 2333, 'd2ccd1955814da65bd79fb798073d421')",
+  "   ('caf_values_others', 2333, '42f1e1930ec2da10c78915d6d448cd33')",
+  "   ('bars_others', 17083468, Decimal('-85638016367'))",
+  "   ('obs_others', 1792)",
+  "   ('basis_all', 141032)",
+  "   ('feature_value', 801434, 'b45381f3c89664cdf3dbbfa95d70b1a5')",
+  "   ('labels', 7077591, '15f0cb45cd3871599764cc3c0d698737')",
+  "   ('stage3_event', 36, 36)"
+ ],
+ "post": [
+  "   ('ca_two', 5, '3849:DIVIDEND:2026-09-11,3940:DIVIDEND:2026-09-11,3941:DIVIDEND:2026-04-24,4101:BONUS:2026-10-09,4102:BONUS:2026-10-09')",
+  "   ('caf_two', 5, '3849:UNSUPPORTED:N/A,3940:UNSUPPORTED:N/A,3941:UNSUPPORTED:N/A,4101:EXACT:APPLIED,4102:EXACT:APPLIED')",
+  "   ('bar_two', 'NSE_EQ|INE835B01035', 1682, datetime.date(2026, 10, 8), '7df02d984c4093a9d56991602c394fb8')",
+  "   ('bar_two', 'NSE_EQ|INE893J01029', 1682, datetime.date(2026, 10, 8), '60d4305a0e785e4d3c6b8642bd0c22b2')",
+  "   ('obs_two', 8)",
+  "   ('basis_two', 82)",
+  "   ('ca_others', 2333, 'd2ccd1955814da65bd79fb798073d421')",
+  "   ('caf_values_others', 2333, '8f5ad57cfc816b0986b4bc5917b5a005')",
+  "   ('bars_others', 17083468, Decimal('-85638016367'))",
+  "   ('obs_others', 1792)",
+  "   ('basis_all', 141034)",
+  "   ('feature_value', 801434, 'b45381f3c89664cdf3dbbfa95d70b1a5')",
+  "   ('labels', 7077591, '15f0cb45cd3871599764cc3c0d698737')",
+  "   ('stage3_event', 36, 36)"
+ ],
+ "others_1d_pre_post": [
+  [
+   "   ('bars1d_others', 3711450, Decimal('-150788857566'))",
+   "   ('obs1d_others', 1792)"
+  ],
+  [
+   "   ('bars1d_others', 3711450, Decimal('-150788857566'))",
+   "   ('obs1d_others', 1792)"
+  ]
+ ],
+ "training_identical": true,
+ "ca_factor_out_of_scope_value_changes": [
+  {
+   "ca_id": 4096,
+   "key": "NSE_EQ|INE0NLT01028",
+   "change": "ca_adjustment_observations 7->9",
+   "vendor_applied": "APPLIED unchanged"
+  },
+  {
+   "ca_id": 4099,
+   "key": "NSE_EQ|INE24OJ01029",
+   "change": "vendor_applied UNKNOWN->APPLIED (smooth across ex-date, ratio 1.0027)"
+  }
+ ],
+ "pit_checks": {
+  "NSE_EQ|INE835B01035": {
+   "bonus_visible_before_fetch": false,
+   "bonus_visible_after_fetch": true,
+   "status_counts_since_0901": {
+    "ADJUSTED": 25,
+    "AS_STORED": 1
+   },
+   "refused": {
+    "reconstructed": 0,
+    "low_confidence": 0
+   },
+   "pre_ex_all_adjusted": true,
+   "close_1007_adj": "110.495000",
+   "close_1008": "104.980000",
+   "status_1008": "AS_STORED",
+   "max_abs_daily_change": 0.04999238694615033,
+   "full_history_refused": {
+    "reconstructed": 0,
+    "low_confidence": 1425
+   },
+   "full_rows": 257
+  },
+  "NSE_EQ|INE893J01029": {
+   "bonus_visible_before_fetch": false,
+   "bonus_visible_after_fetch": true,
+   "status_counts_since_0901": {
+    "ADJUSTED": 25,
+    "AS_STORED": 1
+   },
+   "refused": {
+    "reconstructed": 0,
+    "low_confidence": 0
+   },
+   "pre_ex_all_adjusted": true,
+   "close_1007_adj": "333.600000",
+   "close_1008": "326.050000",
+   "status_1008": "AS_STORED",
+   "max_abs_daily_change": 0.06250488319399954,
+   "full_history_refused": {
+    "reconstructed": 0,
+    "low_confidence": 1425
+   },
+   "full_rows": 257
+  },
+  "recompute_2026_10_08_PRE_SESSION": {
+   "compared": 114,
+   "differences": [],
+   "n_diff": 0
+  },
+  "recompute_2026_10_08_PRE_OPEN": {
+   "compared": 122,
+   "differences": [],
+   "n_diff": 0
+  }
+ },
+ "tests": {
+  "targeted": "45 passed",
+  "full": "1336 passed, 0 failed, 4 deselected (live)"
+ },
+ "idempotency": {
+  "derive_price_basis_rerun": "0 inserted",
+  "ingest_rerun": "NOT RUN (would exceed the 4 approved vendor calls)"
+ },
+ "gates": {
+  "stage1": "COMPLETE (F PASS, S DEFERRED)",
+  "stage2": "PASS A-P",
+  "stage3": "M PASS; E PENDING (sample actions not observable at the 2026-10-09 as_of); level TESTED",
+  "locks": "RUN UNLOCKED 7/7"
+ }
+}
