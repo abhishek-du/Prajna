@@ -88,18 +88,64 @@ def _families(feature_id: str) -> set[str]:
     return {A.FAMILY[i] for i in R.BY_ID[feature_id].inputs if i in A.FAMILY}
 
 
+class BuildContractError(RuntimeError):
+    """A build that would mix feature semantics inside one dataset version: refused."""
+
+
+def code_version() -> dict[str, Any]:
+    """The git commit the build runs from, and whether the working tree is dirty."""
+    import pathlib
+    import subprocess
+    root = pathlib.Path(__file__).resolve().parents[3]
+    try:
+        sha = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"],  # noqa: S603,S607
+                             capture_output=True, text=True, check=True).stdout.strip()
+        dirty = bool(subprocess.run(["git", "-C", str(root), "status", "--porcelain"],  # noqa: S603,S607
+                                    capture_output=True, text=True, check=True).stdout.strip())
+    except (OSError, subprocess.CalledProcessError):
+        sha, dirty = "unknown", True
+    return {"git_sha": sha, "dirty": dirty}
+
+
+async def check_contract(s: AsyncSession, ds: P.Dataset) -> None:
+    """Refuse a build that is not reproducible under one set of feature semantics:
+    a frozen version, a registry other than the version's declared one, or a version
+    whose existing (non-superseded) runs carry another registry hash."""
+    if ds.version in P.FROZEN:
+        raise BuildContractError(f"{ds.version} is frozen (built under earlier code); "
+                                 "build a new dataset version instead")
+    if R.VERSION != ds.registry_version:
+        raise BuildContractError(f"{ds.version} must be built with {ds.registry_version}; "
+                                 f"the active registry is {R.VERSION}")
+    other = (await s.execute(text("""select distinct registry_sha256 from training_dataset_run
+        where dataset_version = :v and status <> 'SUPERSEDED' and registry_sha256 <> :h"""),
+        {"v": ds.version, "h": R.REGISTRY_SHA256})).scalars().all()
+    if other:
+        raise BuildContractError(f"{ds.version} already holds rows of registry "
+                                 f"{other[0][:12]}...; refusing to add {R.REGISTRY_SHA256[:12]}...")
+
+
 async def open_run(s: AsyncSession, ds: P.Dataset, start: _dt.date, end: _dt.date,
-                   limit: int | None, operator: str) -> uuid.UUID:
+                   limit: int | None, operator: str, *,
+                   code: dict[str, Any] | None = None) -> uuid.UUID:
+    await check_contract(s, ds)
     params = await P.ensure_params(s) if ds.policy == P.ASIF else {}
+    code = code or code_version()
+    contract = {"policy": ds.policy, "search_path": ds.search_path,
+                "snapshots": list(ds.snapshots), "registry_version": R.VERSION,
+                "registry_sha256": R.REGISTRY_SHA256, "code_dirty": code["dirty"],
+                "universe_days": UNIVERSE_DAYS}
     run_id = uuid.uuid4()
     await s.execute(text("""insert into training_dataset_run (run_id, dataset_version,
         knowability_policy, policy_params, registry_version, registry_sha256, feature_count,
-        start_date, end_date, snapshots, instrument_limit, status, operator, started_at)
+        start_date, end_date, snapshots, instrument_limit, status, operator, started_at,
+        code_git_sha, build_contract)
         values (:r, :v, :p, cast(:pp as jsonb), :rv, :rh, :fc, :a, :b, :sn, :lim, 'RUNNING',
-                :op, :at)"""),
+                :op, :at, :git, cast(:bc as jsonb))"""),
         {"r": run_id, "v": ds.version, "p": ds.policy, "pp": json.dumps(params),
          "rv": R.VERSION, "rh": R.REGISTRY_SHA256, "fc": len(R.FEATURES), "a": start, "b": end,
-         "sn": list(ds.snapshots), "lim": limit, "op": operator, "at": now()})
+         "sn": list(ds.snapshots), "lim": limit, "op": operator, "at": now(),
+         "git": code["git_sha"], "bc": json.dumps(contract)})
     await s.commit()
     return run_id
 

@@ -39,8 +39,11 @@ from app.db.models.training import (
     TrainingDatasetRun,
     TrainingFeatureValue,
     TrainingLabel,
+    TrainingLabelRun,
     TrainingPolicyParam,
+    TrainingSample,
     TrainingSessionDone,
+    TrainingSplit,
 )
 from app.db.models.reference import (
     CaFactor,
@@ -67,5 +70,5 @@ __all__ = [
     "CorporateAction", "FundamentalSnapshot", "MacroObservation", "NewsArticle",
     "NewsInstrument", "CanonInstrument", "CanonCoverage",
     "TrainingPolicyParam", "TrainingDatasetRun", "TrainingFeatureValue", "TrainingSessionDone",
-    "TrainingLabel",
+    "TrainingLabel", "TrainingLabelRun", "TrainingSample", "TrainingSplit",
 ]

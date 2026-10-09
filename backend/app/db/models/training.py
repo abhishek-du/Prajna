@@ -10,11 +10,13 @@ import uuid
 from sqlalchemy import (
     CHAR,
     BigInteger,
+    Boolean,
     CheckConstraint,
     Date,
     Float,
     ForeignKey,
     Integer,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -71,6 +73,11 @@ class TrainingDatasetRun(Base):
     operator: Mapped[str] = mapped_column(String(64), nullable=False)
     started_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
     completed_at: Mapped[_dt.datetime | None] = mapped_column(TS)
+    # migration 0019 (builder v3): reproducibility
+    label_version: Mapped[str | None] = mapped_column(String(32))
+    code_git_sha: Mapped[str | None] = mapped_column(String(48))
+    source_fingerprints: Mapped[dict | None] = mapped_column(JSONB)
+    build_contract: Mapped[dict | None] = mapped_column(JSONB)
 
     __table_args__ = (
         CheckConstraint("status in ('RUNNING','COMPLETE','FAILED','SUPERSEDED')",
@@ -150,6 +157,12 @@ class TrainingLabel(Base):
     label_end_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
     inputs_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
     computed_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+    # migration 0019 (label-v2 onwards; label-v1 rows have none)
+    flags: Mapped[list[str] | None] = mapped_column(ARRAY(Text))
+    reason: Mapped[str | None] = mapped_column(String(64))
+    run_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("training_label_run.run_id", ondelete="RESTRICT",
+                                       deferrable=True, initially="DEFERRED"))
 
     __table_args__ = (
         UniqueConstraint("label_version", "session_date", "instrument_key", "label_id",
@@ -158,4 +171,88 @@ class TrainingLabel(Base):
         CheckConstraint("(status = 'VALID') = (value is not null)",
                         name="ck_training_label_value"),
         CheckConstraint("label_end_at > label_start_at", name="ck_training_label_window"),
+    )
+
+
+class TrainingLabelRun(Base):
+    """One label build: the knowledge cutoff its price basis was read at, the code and
+    registry, and the source fingerprints (migration 0019)."""
+
+    __tablename__ = "training_label_run"
+
+    run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    label_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    knowledge_cutoff: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+    registry_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    code_git_sha: Mapped[str] = mapped_column(String(48), nullable=False)
+    start_date: Mapped[_dt.date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[_dt.date] = mapped_column(Date, nullable=False)
+    instruments: Mapped[int] = mapped_column(Integer, nullable=False)
+    rows: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    rows_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    source_fingerprints: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    summary: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    started_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+    completed_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+
+
+class TrainingSample(Base):
+    """One research sample: feature eligibility, label validity, masks and exclusion
+    reasons of (dataset, label version, session, snapshot, instrument)."""
+
+    __tablename__ = "training_sample"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    dataset_version: Mapped[str] = mapped_column(String(48), nullable=False)
+    label_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    session_date: Mapped[_dt.date] = mapped_column(Date, nullable=False)
+    snapshot: Mapped[str] = mapped_column(String(16), nullable=False)
+    as_of: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+    instrument_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    core_valid: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    core_total: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    core_not_valid: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
+    feature_eligible: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    labels_valid: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
+    label_flags: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
+    masks: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
+    exclusion_reasons: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
+    eligible: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    label_start_at: Mapped[_dt.datetime | None] = mapped_column(TS)
+    build_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    built_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("dataset_version", "label_version", "session_date", "snapshot",
+                         "instrument_key", name="uq_training_sample"),
+        CheckConstraint("eligible = (cardinality(exclusion_reasons) = 0)",
+                        name="ck_training_sample_eligible"),
+        CheckConstraint("label_start_at is null or label_start_at > as_of",
+                        name="ck_training_sample_no_leak"),
+    )
+
+
+class TrainingSplit(Base):
+    """A chronological walk-forward fold block (TRAIN / VALID / TEST) with its embargo."""
+
+    __tablename__ = "training_split"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    dataset_version: Mapped[str] = mapped_column(String(48), nullable=False)
+    label_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    snapshot: Mapped[str] = mapped_column(String(16), nullable=False)
+    scheme: Mapped[str] = mapped_column(String(48), nullable=False)
+    fold: Mapped[int] = mapped_column(Integer, nullable=False)
+    role: Mapped[str] = mapped_column(String(8), nullable=False)
+    session_from: Mapped[_dt.date] = mapped_column(Date, nullable=False)
+    session_to: Mapped[_dt.date] = mapped_column(Date, nullable=False)
+    sessions: Mapped[int] = mapped_column(Integer, nullable=False)
+    embargo_sessions: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("dataset_version", "label_version", "snapshot", "scheme", "fold",
+                         "role", name="uq_training_split"),
+        CheckConstraint("role in ('TRAIN','VALID','TEST')", name="ck_training_split_role"),
+        CheckConstraint("session_to >= session_from", name="ck_training_split_window"),
     )

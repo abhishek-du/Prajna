@@ -1964,26 +1964,36 @@ def training_build(
     operator: str = typer.Option("cli", "--operator"),
     pause: str = typer.Option("08:30-09:45", "--pause", help="IST window in which no snapshot "
                               "starts (keeps the live Stage 3 runs uncontended); '' = none"),
+    allow_dirty: bool = typer.Option(False, "--allow-dirty", help="build from an uncommitted "
+                                     "working tree (recorded in the run's build contract)"),
 ):
     """Replay the Stage 3 engine over past sessions into the training dataset.
     Resumable (done snapshots are skipped) and idempotent (a rerun inserts 0)."""
+    import dataclasses
     import json as _json
 
     from app.db.engine import get_sessionmaker
     from app.training import policy as P
     from app.training import replay as RP
 
-    import dataclasses
-
     ds = P.DATASETS[dataset]
     if limit:                     # a pilot never marks sessions of the real dataset as done
         ds = dataclasses.replace(ds, version=ds.version + "-pilot")
     i, n = (int(x) for x in shard.split("/"))
+    code = RP.code_version()
+    if code["dirty"] and not allow_dirty:
+        typer.echo("REFUSED: the working tree is dirty; commit first (or --allow-dirty)")
+        raise typer.Exit(3)
 
     async def _go():
         async with get_sessionmaker()() as s:
             snaps = (await RP.snapshots(s, ds, _date(start), _date(end)))[i::n]
-            run_id = await RP.open_run(s, ds, _date(start), _date(end), limit, operator)
+            try:
+                run_id = await RP.open_run(s, ds, _date(start), _date(end), limit, operator,
+                                           code=code)
+            except RP.BuildContractError as e:
+                typer.echo(f"REFUSED: {e}")
+                raise typer.Exit(3) from e
             typer.echo(_json.dumps({"run_id": str(run_id), "dataset": ds.version,
                                     "policy": ds.policy, "snapshots": len(snaps)}))
             try:
@@ -2007,7 +2017,7 @@ def training_labels(
     end: str = typer.Option(..., "--to"),
     key: list[str] = typer.Option(None, "--key"),
 ):
-    """label-v1 for the sessions in [from, to] (append-only; a rerun inserts 0)."""
+    """label-v1 is FROZEN (built 2026-10-08 under features-v2 code): refused. Use labels-v2."""
     import json as _json
 
     from app.db.engine import get_sessionmaker
@@ -2017,7 +2027,84 @@ def training_labels(
         async with get_sessionmaker()() as s:
             return await L.build(s, _date(start), _date(end), list(key) if key else None)
 
-    typer.echo(_json.dumps(asyncio.run(_go()), default=str))
+    try:
+        typer.echo(_json.dumps(asyncio.run(_go()), default=str))
+    except L.FrozenLabelVersion as e:
+        typer.echo(f"REFUSED: {e}")
+        raise typer.Exit(3) from e
+
+
+@training_app.command("labels-v2")
+def training_labels_v2(
+    start: str = typer.Option(..., "--from"),
+    end: str = typer.Option(..., "--to"),
+    cutoff: str = typer.Option(None, "--cutoff", help="knowledge cutoff (ISO with offset); "
+                               "default: now. Reuse a recorded cutoff to reproduce a build"),
+    key: list[str] = typer.Option(None, "--key"),
+    allow_dirty: bool = typer.Option(False, "--allow-dirty"),
+):
+    """label-v2 (label-v1 definitions, features-v4 price basis, explicit validity and flags)
+    for the sessions in [from, to], read at the knowledge cutoff. Append-only; one run row."""
+    import datetime as _dt2
+    import json as _json
+
+    from app.core.clock import now as _now
+    from app.db.engine import get_sessionmaker
+    from app.training import labels as L
+    from app.training import replay as RP
+
+    code = RP.code_version()
+    if code["dirty"] and not allow_dirty:
+        typer.echo("REFUSED: the working tree is dirty; commit first (or --allow-dirty)")
+        raise typer.Exit(3)
+    at = _dt2.datetime.fromisoformat(cutoff) if cutoff else _now()
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await L.build_v2(s, _date(start), _date(end), cutoff=at,
+                                    keys=list(key) if key else None,
+                                    code_git_sha=code["git_sha"] + ("+dirty" if code["dirty"]
+                                                                    else ""))
+
+    typer.echo(_json.dumps(asyncio.run(_go()), default=str, indent=1))
+
+
+@training_app.command("samples")
+def training_samples(
+    dataset: str = typer.Option(..., "--dataset", help="strict | asif"),
+    label_version: str = typer.Option("label-v2", "--labels"),
+):
+    """Research samples (feature eligibility, label validity, masks, exclusions)."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.training import policy as P
+    from app.training import samples as SM
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await SM.build(s, P.DATASETS[dataset].version, label_version)
+
+    typer.echo(_json.dumps(asyncio.run(_go()), default=str, indent=1))
+
+
+@training_app.command("splits")
+def training_splits(
+    dataset: str = typer.Option(..., "--dataset", help="strict | asif"),
+    label_version: str = typer.Option("label-v2", "--labels"),
+):
+    """Chronological walk-forward folds with a 1-session embargo."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.training import policy as P
+    from app.training import splits as SP
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await SP.build(s, P.DATASETS[dataset].version, label_version)
+
+    typer.echo(_json.dumps(asyncio.run(_go()), default=str, indent=1))
 
 
 if __name__ == "__main__":

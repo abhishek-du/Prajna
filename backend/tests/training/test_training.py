@@ -266,7 +266,7 @@ class TestAsIfLive:
 class TestLabels:
     async def test_values_basis_and_timing(self, world):
         hist = W.history()
-        rep = await L.build(world, hist[0], hist[-1], [W.A, W.B])
+        rep = await L.build(world, hist[0], hist[-1], [W.A, W.B], frozen_ok=True)
         assert rep["inserted"] == rep["rows"] and rep["drift_vs_stored"] == 0
         lab = {(r[0], r[1], r[2]): (r[3], r[4], r[5]) for r in (await world.execute(text("""
             select instrument_key, session_date, label_id, value, label_start_at, label_end_at
@@ -283,5 +283,5 @@ class TestLabels:
         i = hist.index(W.BONUS_EX)
         assert lab[(W.B, W.BONUS_EX, "ret_cc")][0] == ok((100 + i) / (99 + i) - 1)[0]
         assert lab[(W.A, hist[0], "ret_cc")][0] is None              # no previous session
-        again = await L.build(world, hist[0], hist[-1], [W.A, W.B])
+        again = await L.build(world, hist[0], hist[-1], [W.A, W.B], frozen_ok=True)
         assert again["inserted"] == 0 and again["drift_vs_stored"] == 0

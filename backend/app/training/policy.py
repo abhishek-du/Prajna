@@ -40,15 +40,21 @@ class Dataset:
     policy: str
     search_path: str | None
     snapshots: tuple[str, ...]
+    registry_version: str = "features-v4"     # the only registry this version may be built with
 
 
 DATASETS = {
-    # train_strict: corporate actions knowable when Prajna observed them (migration 0017)
-    "strict": Dataset("stage4-ds-v2-strict", STRICT, "train_strict, public",
+    # builder v3 (2026-10-09): the active features-v4 code (CA-OBSERVED + F3-PAYLOAD-BASIS).
+    # train_strict: corporate actions knowable when Prajna observed them (0017/0018)
+    "strict": Dataset("stage4-ds-v3-strict", STRICT, "train_strict, public",
                       ("PRE_SESSION", "PRE_OPEN")),
     # no historical pre-open data exists, so AS_IF_LIVE has PRE_SESSION only
-    "asif": Dataset("stage4-ds-v2-asif", ASIF, "train_asif2, public", ("PRE_SESSION",)),
+    "asif": Dataset("stage4-ds-v3-asif", ASIF, "train_asif2, public", ("PRE_SESSION",)),
 }
+# Built under earlier code and registries: immutable. A build into any of them is refused
+# (it would append rows computed with different feature semantics).
+FROZEN = frozenset({"stage4-ds-v1-strict", "stage4-ds-v1-asif", "stage4-ds-v1-strict-pilot",
+                    "stage4-ds-v1-asif-pilot", "stage4-ds-v2-strict", "stage4-ds-v2-asif"})
 
 
 def _ceil_minute(seconds: float) -> int:
