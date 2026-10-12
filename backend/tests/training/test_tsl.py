@@ -95,8 +95,12 @@ class TestBuild:
         rid = await RP.open_run(db_session, STRICT, days[0], days[-1], None, "test",
                                 code={"git_sha": "t", "dirty": False})
         for d in days:
-            await RP.replay_snapshot(db_session, STRICT,
-                                     await SN.resolve(db_session, d, "PRE_SESSION"), rid)
+            for kind in ("PRE_SESSION", "PRE_OPEN"):
+                try:
+                    snap = await SN.resolve(db_session, d, kind)
+                except SN.NoSnapshot:                   # a session without a pre-open window
+                    continue
+                await RP.replay_snapshot(db_session, STRICT, snap, rid)
         db_session.info["days"] = days
         yield db_session
         clock.unfreeze()
@@ -138,6 +142,9 @@ class TestBuild:
         assert v2_after == v2_before                         # label-v2 untouched
         sm = await SM.build(world, STRICT.version, "label-tsl-long-v1-strict")
         assert sm["samples"] == sm["inserted"] > 0
+        kinds = set((await world.execute(text("""select distinct snapshot from training_sample
+            where label_version = 'label-tsl-long-v1-strict'"""))).scalars())
+        assert kinds == {"PRE_SESSION"}                     # PRE_OPEN is outside the contract
         assert (await IG.sample_checks(world, STRICT.version, "label-tsl-long-v1-strict"))["pass"]
 
     async def test_a_dataset_label_cannot_join_another_dataset(self, world):

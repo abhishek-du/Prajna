@@ -100,14 +100,22 @@ def check_versions(dataset: str, label_version: str) -> None:
             raise BuildContractError(f"{label_version} belongs to {ds.version}, not {dataset}")
 
 
+def label_snapshots(label_version: str) -> tuple[str, ...] | None:
+    """The snapshot types a label version's contract allows (None: every type). The
+    target/stop label is defined at the PRE_SESSION instant only (PRE_OPEN as_of falls
+    after pre-open order entry)."""
+    return ("PRE_SESSION",) if label_version.startswith("label-tsl-") else None
+
+
 async def build(s: AsyncSession, dataset: str, label_version: str) -> dict[str, Any]:
     """Compute every sample of (dataset, label version), then insert them in one
     transaction (append-only; a rerun inserts 0 and must reproduce the same digest)."""
     check_versions(dataset, label_version)
     await s.rollback()
-    snaps = (await s.execute(text("""select session_date, snapshot, as_of
+    allowed = label_snapshots(label_version)
+    snaps = [r for r in (await s.execute(text("""select session_date, snapshot, as_of
         from training_session_done where dataset_version = :v order by 1, 2"""),
-        {"v": dataset})).all()
+        {"v": dataset})).all() if allowed is None or r[1] in allowed]
     if not snaps:
         raise ValueError(f"{dataset}: no done snapshots")
     sessions = list((await s.execute(text("""select session_date from trading_session

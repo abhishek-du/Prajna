@@ -104,8 +104,12 @@ async def build(s: AsyncSession, dataset: str, label_version: str) -> dict[str, 
     await s.rollback()
     out: dict[str, Any] = {"dataset_version": dataset, "label_version": label_version,
                            "scheme": SCHEME, "snapshots": {}}
+    from app.training.samples import label_snapshots
+    allowed = label_snapshots(label_version)
     for (kind,) in (await s.execute(text("""select distinct snapshot from training_session_done
             where dataset_version = :v order by 1"""), {"v": dataset})).all():
+        if allowed is not None and kind not in allowed:
+            continue
         sessions = list((await s.execute(text("""select session_date from training_session_done
             where dataset_version = :v and snapshot = :k order by 1"""),
             {"v": dataset, "k": kind})).scalars())

@@ -13,6 +13,7 @@ training_sample
   feature_eligible    feature_eligible exactly when core_valid = core_total
   masks_from_flags    the EXTREME / AMBIGUOUS masks equal those label flags
   eligible_has_label  an eligible sample has at least one VALID label
+  snapshot_allowed    a target/stop (label-tsl-*) sample is a PRE_SESSION sample
 """
 
 from __future__ import annotations
@@ -70,6 +71,9 @@ _SAMPLE_CHECKS = {
           ('EXTREME_UNEXPLAINED', 'AMBIGUOUS_ORDER_1', 'AMBIGUOUS_ORDER_2') order by 1)""",
     "eligible_has_label": """select count(*) from training_sample where dataset_version = :v
         and label_version = :lv and eligible and cardinality(labels_valid) = 0""",
+    "snapshot_allowed": """select count(*) from training_sample where dataset_version = :v
+        and label_version = :lv and label_version like 'label-tsl-%%'
+        and snapshot <> 'PRE_SESSION'""",
 }
 
 
