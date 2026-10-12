@@ -2107,5 +2107,42 @@ def training_splits(
     typer.echo(_json.dumps(asyncio.run(_go()), default=str, indent=1))
 
 
+@training_app.command("status")
+def training_status(
+    reap_hours: float = typer.Option(None, "--reap-older-than-hours", help="mark RUNNING runs "
+                                     "older than this FAILED (default: report only)"),
+):
+    """Build state: stale RUNNING runs, completeness of each open dataset version against
+    its recorded window, label runs. Read-only unless --reap-older-than-hours."""
+    import datetime as _dt2
+    import json as _json
+
+    from sqlalchemy import text as _t
+
+    from app.db.engine import get_sessionmaker
+    from app.training import policy as P
+    from app.training import replay as RP
+
+    async def _go():
+        out: dict = {}
+        async with get_sessionmaker()() as s:
+            age = _dt2.timedelta(hours=reap_hours if reap_hours is not None else 12)
+            out["stale_running"] = (await RP.reap_runs(s, age) if reap_hours is not None
+                                    else await RP.stale_runs(s, age))
+            out["reaped"] = reap_hours is not None
+            for name, ds in P.DATASETS.items():
+                w = (await s.execute(_t("""select min(start_date), max(end_date) from
+                    training_dataset_run where dataset_version = :v and status <> 'SUPERSEDED'
+                    """), {"v": ds.version})).one()
+                out[name] = (await RP.completeness(s, ds, w[0], w[1]) if w[0] else
+                             {"dataset_version": ds.version, "runs": 0})
+            out["label_runs"] = [dict(r) for r in (await s.execute(_t("""select label_version,
+                run_id::text, knowledge_cutoff, rows, rows_sha256 from training_label_run
+                order by started_at"""))).mappings().all()]
+        return out
+
+    typer.echo(_json.dumps(asyncio.run(_go()), default=str, indent=1))
+
+
 if __name__ == "__main__":
     app()

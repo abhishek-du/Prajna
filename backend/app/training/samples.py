@@ -84,9 +84,22 @@ def digest(rows: list[dict]) -> str:
     return hashlib.sha256(json.dumps(body, default=str).encode()).hexdigest()
 
 
+def check_versions(dataset: str, label_version: str) -> None:
+    """Samples and splits are derived only for open (non-frozen) dataset and label
+    versions: a frozen version's semantics belong to its own era (builder contract)."""
+    from app.training import labels as L
+    from app.training import policy as P
+    from app.training.replay import BuildContractError
+    if dataset in P.FROZEN:
+        raise BuildContractError(f"{dataset} is frozen; samples are built for open versions")
+    if label_version in L.FROZEN_LABELS:
+        raise BuildContractError(f"{label_version} is frozen; use label-v2")
+
+
 async def build(s: AsyncSession, dataset: str, label_version: str) -> dict[str, Any]:
     """Compute every sample of (dataset, label version), then insert them in one
     transaction (append-only; a rerun inserts 0 and must reproduce the same digest)."""
+    check_versions(dataset, label_version)
     await s.rollback()
     snaps = (await s.execute(text("""select session_date, snapshot, as_of
         from training_session_done where dataset_version = :v order by 1, 2"""),

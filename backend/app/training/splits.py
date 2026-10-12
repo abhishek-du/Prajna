@@ -45,7 +45,62 @@ def folds(sessions: list[_dt.date], *, train_min: int = TRAIN_MIN, valid_n: int 
     return out
 
 
+def violations(sessions: list[_dt.date], blocks: list[dict]) -> list[str]:
+    """Pure: everything wrong with stored fold blocks against the dataset's sessions -
+    unknown boundaries, wrong counts, overlap, a wrong embargo, a TRAIN that does not
+    start at the first session, a non-expanding TRAIN."""
+    ss = sorted(set(sessions))
+    pos = {d: i for i, d in enumerate(ss)}
+    out = []
+    by: dict[int, dict[str, dict]] = {}
+    for b in blocks:
+        by.setdefault(b["fold"], {})[b["role"]] = b
+        a, z = pos.get(b["session_from"]), pos.get(b["session_to"])
+        if a is None or z is None:
+            out.append(f"fold {b['fold']} {b['role']}: a boundary is not a dataset session")
+        elif z - a + 1 != b["sessions"]:
+            out.append(f"fold {b['fold']} {b['role']}: {b['sessions']} sessions declared, "
+                       f"{z - a + 1} in the window")
+    prev_train = 0
+    for k, roles in sorted(by.items()):
+        if set(roles) != {"TRAIN", "VALID", "TEST"}:
+            out.append(f"fold {k}: roles {sorted(roles)}")
+            continue
+        tr, va, te = roles["TRAIN"], roles["VALID"], roles["TEST"]
+        if tr["session_from"] != ss[0]:
+            out.append(f"fold {k}: TRAIN does not start at the first session")
+        for x, y in ((tr, va), (va, te)):
+            if x["session_to"] in pos and y["session_from"] in pos:
+                gap = pos[y["session_from"]] - pos[x["session_to"]] - 1
+                if gap != y["embargo_sessions"] or gap < 1:
+                    out.append(f"fold {k}: {gap} embargo session(s) before {y['role']}")
+        if tr["sessions"] <= prev_train:
+            out.append(f"fold {k}: TRAIN does not expand")
+        prev_train = tr["sessions"]
+    return out
+
+
+async def verify(s: AsyncSession, dataset: str, label_version: str) -> dict[str, Any]:
+    """Read-only: the stored folds of every snapshot type against the dataset's sessions."""
+    out = {}
+    for (kind,) in (await s.execute(text("""select distinct snapshot from training_split
+            where dataset_version = :v and label_version = :lv order by 1"""),
+            {"v": dataset, "lv": label_version})).all():
+        sessions = list((await s.execute(text("""select session_date from training_session_done
+            where dataset_version = :v and snapshot = :k order by 1"""),
+            {"v": dataset, "k": kind})).scalars())
+        blocks = [dict(r) for r in (await s.execute(text("""select fold, role, session_from,
+            session_to, sessions, embargo_sessions from training_split where dataset_version = :v
+              and label_version = :lv and snapshot = :k order by fold, role"""),
+            {"v": dataset, "lv": label_version, "k": kind})).mappings().all()]
+        v = violations(sessions, blocks)
+        out[kind] = {"folds": len({b["fold"] for b in blocks}), "violations": v, "pass": not v}
+    return out
+
+
 async def build(s: AsyncSession, dataset: str, label_version: str) -> dict[str, Any]:
+    from app.training.samples import check_versions
+    check_versions(dataset, label_version)
     await s.rollback()
     out: dict[str, Any] = {"dataset_version": dataset, "label_version": label_version,
                            "scheme": SCHEME, "snapshots": {}}

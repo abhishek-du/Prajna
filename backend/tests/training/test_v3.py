@@ -257,3 +257,63 @@ class TestSplits:
     def test_too_few_sessions_gives_no_fold(self):
         ss = [_dt.date(2026, 9, 24) + _dt.timedelta(days=i) for i in range(10)]
         assert SP.folds(ss) == []
+
+
+# ── gap closure (2026-10-12): guards, split verification, integrity, recovery ───────
+class TestGapClosure:
+    async def test_samples_and_splits_refuse_frozen_versions(self, world):
+        for ds, lv in (("stage4-ds-v2-asif", L.VERSION2), (STRICT.version, L.VERSION)):
+            with pytest.raises(RP.BuildContractError, match="frozen"):
+                await SM.build(world, ds, lv)
+            with pytest.raises(RP.BuildContractError, match="frozen"):
+                await SP.build(world, ds, lv)
+
+    def test_split_violations_catch_overlap_and_embargo(self):
+        ss = [_dt.date(2025, 1, 1) + _dt.timedelta(days=i) for i in range(256)]
+        good = SP.folds(ss)
+        assert SP.violations(ss, good) == []
+        bad = [dict(b) for b in good]
+        va = next(b for b in bad if b["fold"] == 0 and b["role"] == "VALID")
+        va["session_from"] = next(b for b in bad if b["fold"] == 0 and b["role"] == "TRAIN"
+                                  )["session_to"]                      # overlaps TRAIN
+        v = SP.violations(ss, bad)
+        assert any("embargo" in x for x in v) and any("declared" in x for x in v)
+        assert SP.violations(ss, [b for b in good if b["role"] != "TEST"])
+
+    async def test_integrity_checks_pass_on_a_build_and_catch_a_bad_flag(self, world):
+        hist = W.history()
+        d = hist[-1]
+        rid = await RP.open_run(world, STRICT, d, d, None, "test",
+                                code={"git_sha": "t", "dirty": False})
+        await RP.replay_snapshot(world, STRICT, await SN.resolve(world, d, "PRE_SESSION"), rid)
+        await L.build_v2(world, hist[-3], d, cutoff=CUTOFF, keys=[W.A, W.B, W.C, W.DD, W.E])
+        await SM.build(world, STRICT.version, L.VERSION2)
+        from app.training import integrity as IG
+        assert (await IG.label_checks(world, L.VERSION2))["pass"]
+        assert (await IG.sample_checks(world, STRICT.version, L.VERSION2))["pass"]
+        # a label row flagged AMBIGUOUS although its thresholds were not both touched
+        for lid, v in (("hit_up_1", 1.0), ("hit_dn_1", 0.0)):
+            await world.execute(text("""insert into training_label (label_version, session_date,
+                instrument_key, label_id, value, status, label_start_at, label_end_at,
+                inputs_sha256, computed_at, flags) values ('label-x', :d, 'K', :l, :v, 'VALID',
+                :a, :b, :h, now(), '{AMBIGUOUS_ORDER_1}')"""),
+                {"d": d, "l": lid, "v": v, "a": W.ist(2026, 9, 23, 9, 15),
+                 "b": W.ist(2026, 9, 23, 15, 30), "h": "0" * 64})
+        bad = await IG.label_checks(world, "label-x")
+        assert bad["violations"]["ambiguous_flag"] == 1 and not bad["pass"]
+
+    async def test_stale_runs_are_reported_then_reaped_keeping_done_snapshots(self, world):
+        d = W.history()[-1]
+        rid = await RP.open_run(world, STRICT, d, d, None, "test",
+                                code={"git_sha": "t", "dirty": False})
+        await RP.replay_snapshot(world, STRICT, await SN.resolve(world, d, "PRE_SESSION"), rid)
+        clock.freeze(W.NOW + _dt.timedelta(hours=13))          # the worker never finished
+        stale = await RP.stale_runs(world, _dt.timedelta(hours=12))
+        assert [r["run_id"] for r in stale] == [str(rid)] and stale[0]["snapshots_done"] == 1
+        await RP.reap_runs(world, _dt.timedelta(hours=12))
+        st = (await world.execute(text("""select status, error, sessions_done from
+            training_dataset_run where run_id = :r"""), {"r": rid})).one()
+        assert st[0] == "FAILED" and st[1].startswith("reaped") and st[2] == 1
+        assert await RP.stale_runs(world, _dt.timedelta(hours=12)) == []
+        c = await RP.completeness(world, STRICT, d, d)
+        assert c["done"] == 1 and c["expected"] == 2 and c["missing"] == [f"{d} PRE_OPEN"]

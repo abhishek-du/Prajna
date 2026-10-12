@@ -161,6 +161,39 @@ async def finish_run(s: AsyncSession, run_id: uuid.UUID, status: str,
     await s.commit()
 
 
+async def stale_runs(s: AsyncSession, older_than: _dt.timedelta) -> list[dict[str, Any]]:
+    """Read-only: RUNNING runs started more than `older_than` ago (a killed worker leaves
+    its run RUNNING; its done snapshots are kept and a rerun resumes after them)."""
+    rows = (await s.execute(text("""select r.run_id, r.dataset_version, r.started_at,
+          r.operator, (select count(*) from training_session_done d where d.run_id = r.run_id)
+        from training_dataset_run r where r.status = 'RUNNING' and r.started_at < :t
+        order by r.started_at"""), {"t": now() - older_than})).all()
+    return [{"run_id": str(r[0]), "dataset_version": r[1], "started_at": r[2].isoformat(),
+             "operator": r[3], "snapshots_done": r[4]} for r in rows]
+
+
+async def reap_runs(s: AsyncSession, older_than: _dt.timedelta) -> list[dict[str, Any]]:
+    """Mark stale RUNNING runs FAILED (their done snapshots stay valid: every snapshot is
+    committed with its marker in one transaction, so nothing partial exists)."""
+    stale = await stale_runs(s, older_than)
+    for r in stale:
+        await finish_run(s, uuid.UUID(r["run_id"]), "FAILED",
+                         f"reaped: still RUNNING after {older_than} (worker gone); "
+                         f"{r['snapshots_done']} done snapshots kept")
+    return stale
+
+
+async def completeness(s: AsyncSession, ds: P.Dataset, start: _dt.date, end: _dt.date
+                       ) -> dict[str, Any]:
+    """Read-only: calendar snapshots of [start, end] vs done markers of the version."""
+    want = {(x.session_date, x.kind) for x in await snapshots(s, ds, start, end)}
+    done = {(r[0], r[1]) for r in (await s.execute(text("""select session_date, snapshot
+        from training_session_done where dataset_version = :v"""), {"v": ds.version})).all()}
+    missing = sorted(want - done)
+    return {"dataset_version": ds.version, "expected": len(want), "done": len(want & done),
+            "missing": [f"{d} {k}" for d, k in missing[:50]], "complete": not missing}
+
+
 def _rows_sha(rows: list[dict[str, Any]]) -> str:
     body = sorted((r["instrument_key"], r["feature_id"], r["value"], r["status"], r["reason"],
                    r["inputs_sha256"]) for r in rows)

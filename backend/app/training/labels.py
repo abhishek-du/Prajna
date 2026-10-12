@@ -61,6 +61,9 @@ class FrozenLabelVersion(RuntimeError):
     """label-v1 was built under features-v2 code (2026-10-08); it is never extended."""
 
 
+FROZEN_LABELS = frozenset({VERSION})          # label-v1
+
+
 async def build(s: AsyncSession, start: _dt.date, end: _dt.date,
                 keys: list[str] | None = None, *, frozen_ok: bool = False) -> dict[str, Any]:
     """label-v1 (FROZEN since builder v3: use build_v2). `frozen_ok` exists only for the

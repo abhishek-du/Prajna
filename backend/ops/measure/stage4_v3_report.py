@@ -254,12 +254,83 @@ async def export(s, dataset: str, lv: str, kind: str, out_dir: pathlib.Path) -> 
             "columns": head, "missing_values": "empty cell + the *__status column (never 0)"}
 
 
+async def build_manifest(s, lv: str) -> dict:
+    """Provenance of every open dataset version, the label runs and the export files
+    (re-hashed from disk), plus the split verification and integrity checks."""
+    from app.features import registry as R
+    from app.training import integrity as IG
+    from app.training import splits as SP
+    prev_path = ROOT / "var/stage4/exports/manifest.json"
+    prev = json.loads(prev_path.read_text()) if prev_path.exists() else {}
+    man: dict = {"generated_at": now().astimezone(IST).isoformat(),
+                 "registry": {"version": R.VERSION, "sha256": R.REGISTRY_SHA256},
+                 "alembic": (await s.execute(text("select version_num from alembic_version"))
+                             ).scalar(), "label_version": lv, "datasets": {}}
+    man["label_runs"] = [{k: (v.isoformat() if hasattr(v, "isoformat") else v)
+                          for k, v in dict(r).items()} for r in (await s.execute(text("""
+        select run_id::text, label_version, knowledge_cutoff, registry_sha256, code_git_sha,
+          start_date, end_date, instruments, rows, rows_sha256, source_fingerprints
+        from training_label_run where label_version = :v order by started_at"""),
+        {"v": lv})).mappings().all()]
+    man["label_integrity"] = await IG.label_checks(s, lv)
+    for name, ds in P.DATASETS.items():
+        d: dict = {"version": ds.version, "policy": ds.policy, "search_path": ds.search_path,
+                   "snapshots": list(ds.snapshots), "registry_version": ds.registry_version}
+        d["runs"] = [{k: (v.isoformat() if hasattr(v, "isoformat") else v)
+                      for k, v in dict(r).items()} for r in (await s.execute(text("""
+            select run_id::text, status, registry_sha256, code_git_sha, build_contract,
+              policy_params, start_date, end_date, sessions_done, row_count, started_at,
+              completed_at, operator from training_dataset_run where dataset_version = :v
+            order by started_at"""), {"v": ds.version})).mappings().all()]
+        d["done_snapshots"] = {k: n for k, n in (await s.execute(text("""select snapshot,
+            count(*) from training_session_done where dataset_version = :v group by 1"""),
+            {"v": ds.version})).all()}
+        d["samples"] = [dict(r) for r in (await s.execute(text("""select snapshot,
+            build_sha256, count(*) as rows, count(*) filter (where eligible) as eligible
+            from training_sample where dataset_version = :v and label_version = :lv
+            group by 1, 2 order by 1"""), {"v": ds.version, "lv": lv})).mappings().all()]
+        d["split_scheme"] = SP.SCHEME
+        d["split_verification"] = await SP.verify(s, ds.version, lv)
+        d["sample_integrity"] = await IG.sample_checks(s, ds.version, lv)
+        files = {}
+        for f in sorted((ROOT / "var/stage4/exports" / ds.version).glob("*.csv.gz")):
+            sha = hashlib.sha256(f.read_bytes()).hexdigest()
+            old = (prev.get("exports", {}).get(name, {}) or {}).get(f.name.split(".")[0]) or {}
+            files[f.name] = {"sha256": sha, "bytes": f.stat().st_size,
+                             "rows": old.get("rows") if old.get("sha256") == sha else None}
+        d["export_files"] = files
+        man["datasets"][name] = d
+    return man
+
+
 async def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--labels", default=L.VERSION2)
     ap.add_argument("--no-export", action="store_true")
+    ap.add_argument("--manifest-only", action="store_true", help="write the provenance "
+                    "manifest only (no recompute of the report, no export)")
     ap.add_argument("--out", default="../audit/evidence/stage4_dataset_v3.json")
     a = ap.parse_args()
+    if a.manifest_only:
+        async with get_sessionmaker()() as s:
+            await s.execute(text("set transaction isolation level repeatable read, read only"))
+            man = await build_manifest(s, a.labels)
+            await s.rollback()
+        path = ROOT / "var/stage4/exports/manifest.json"
+        if path.exists():
+            path.with_name("manifest.prev.json").write_text(path.read_text())
+        path.write_text(json.dumps(man, indent=1, default=str))
+        ok = man["label_integrity"]["pass"] and all(
+            d["sample_integrity"]["pass"] and all(v["pass"] for v in
+                                                  d["split_verification"].values())
+            for d in man["datasets"].values())
+        print(json.dumps({"manifest": str(path), "integrity_and_splits_pass": ok,
+                          "label_integrity": man["label_integrity"],
+                          "samples": {k: v["sample_integrity"] for k, v in
+                                      man["datasets"].items()},
+                          "splits": {k: v["split_verification"] for k, v in
+                                     man["datasets"].items()}}, indent=1, default=str))
+        return 0 if ok else 1
     ev: dict = {"generated_at": now().astimezone(IST).isoformat(), "label_version": a.labels,
                 "read_only_database": True, "datasets": {}}
     sm = get_sessionmaker()
