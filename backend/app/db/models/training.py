@@ -256,3 +256,28 @@ class TrainingSplit(Base):
         CheckConstraint("role in ('TRAIN','VALID','TEST')", name="ck_training_split_role"),
         CheckConstraint("session_to >= session_from", name="ck_training_split_window"),
     )
+
+
+class TrainingSampleQuarantine(Base):
+    """An out-of-contract training_sample slice, kept (append-only) but skipped by readers;
+    the count and fingerprint seen at recording detect later drift (migration 0020)."""
+
+    __tablename__ = "training_sample_quarantine"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    dataset_version: Mapped[str] = mapped_column(String(48), nullable=False)
+    label_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    snapshot: Mapped[str] = mapped_column(String(16), nullable=False)
+    rows: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    rows_md5: Mapped[str] = mapped_column(CHAR(32), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    approved_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    approval_ref: Mapped[str] = mapped_column(Text, nullable=False)
+    code_git_sha: Mapped[str] = mapped_column(String(48), nullable=False)
+    created_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("dataset_version", "label_version", "snapshot",
+                         name="uq_training_sample_quarantine"),
+        CheckConstraint("rows > 0", name="ck_training_sample_quarantine_rows"),
+    )

@@ -5,6 +5,7 @@ immutability of label-v2, integrity). Test database only."""
 
 from __future__ import annotations
 
+import asyncio
 import datetime as _dt
 import os
 from decimal import Decimal as D
@@ -18,6 +19,7 @@ from app.features import snapshots as SN
 from app.training import integrity as IG
 from app.training import labels as L
 from app.training import policy as P
+from app.training import quarantine as QR
 from app.training import replay as RP
 from app.training import samples as SM
 from app.training import tsl as TS
@@ -150,3 +152,75 @@ class TestBuild:
     async def test_a_dataset_label_cannot_join_another_dataset(self, world):
         with pytest.raises(RP.BuildContractError, match="belongs to"):
             await SM.build(world, STRICT.version, "label-tsl-long-v1-asif")
+
+    async def test_stored_out_of_contract_rows_are_detected_and_quarantined(self, world):
+        """A PRE_OPEN slice stored with a target/stop label (the 2026-10-12 strict build
+        before 69d752e) is reported by snapshot_allowed, blocks the samples rebuild until
+        quarantined, stays counted afterwards, and later rows in it are drift."""
+        days, lv = world.info["days"], "label-tsl-long-v1-strict"
+        await TS.build(world, "strict", days[0], days[-1], cutoff=W.NOW)
+        await SM.build(world, STRICT.version, lv)
+        assert (await IG.sample_checks(world, STRICT.version, lv))["status"] == "PASS"
+        keys = sorted(set((await world.execute(text("""select instrument_key
+            from training_sample where label_version = :lv"""), {"lv": lv})).scalars()))
+        copy = """insert into training_sample (dataset_version, label_version, session_date,
+            snapshot, as_of, instrument_key, core_valid, core_total, core_not_valid,
+            feature_eligible, labels_valid, label_flags, masks, exclusion_reasons, eligible,
+            label_start_at, build_sha256, built_at)
+            select dataset_version, label_version, session_date, 'PRE_OPEN',
+              as_of + interval '9 minutes', instrument_key, core_valid, core_total,
+              core_not_valid, feature_eligible, labels_valid, label_flags, masks,
+              exclusion_reasons, eligible, label_start_at, build_sha256, built_at
+            from training_sample where label_version = :lv and snapshot = 'PRE_SESSION'
+              and instrument_key = any(:k)
+              and coalesce(label_start_at > as_of + interval '9 minutes', true)"""
+        n = (await world.execute(text(copy), {"lv": lv, "k": keys[:-1]})).rowcount
+        await world.commit()
+        assert n > 0
+        c = await IG.sample_checks(world, STRICT.version, lv)
+        assert c["status"] == "FAIL" and not c["pass"]
+        assert c["violations"]["snapshot_allowed"] == n
+        assert c["violations"]["snapshot_allowed_unquarantined"] == n
+        with pytest.raises(RuntimeError, match="stored samples differ"):
+            await SM.build(world, STRICT.version, lv)
+        for bad in (("PRE_SESSION", lv), ("PRE_OPEN", "label-v2")):
+            with pytest.raises(QR.QuarantineError, match="inside the label's contract"):
+                await QR.record(world, STRICT.version, bad[1], bad[0], reason="t",
+                                approved_by="t", approval_ref="t", code_git_sha="t")
+        q = await QR.record(world, STRICT.version, lv, "PRE_OPEN", reason="t",
+                            approved_by="t", approval_ref="t", code_git_sha="t")
+        assert q["rows"] == n
+        with pytest.raises(QR.QuarantineError, match="already quarantined"):
+            await QR.record(world, STRICT.version, lv, "PRE_OPEN", reason="t",
+                            approved_by="t", approval_ref="t", code_git_sha="t")
+        c = await IG.sample_checks(world, STRICT.version, lv)
+        assert c["status"] == "PASS_WITH_QUARANTINE" and c["pass"]
+        assert c["violations"]["snapshot_allowed"] == n == c["quarantined_rows"]
+        assert c["violations"]["snapshot_allowed_unquarantined"] == 0
+        import sys
+        sys.path.insert(0, "ops/measure")
+        import stage4_v3_report as RPT
+        man = await RPT.build_manifest(world, lv)
+        assert list(man["datasets"]) == ["strict"]              # its own dataset only
+        d = man["datasets"]["strict"]
+        assert d["export_files"] == {} and "no export" in d["export_note"]   # not label-v2's
+        assert [q["snapshot"] for q in d["quarantine"]] == ["PRE_OPEN"]
+        assert d["sample_integrity"]["status"] == "PASS_WITH_QUARANTINE"
+        again = await SM.build(world, STRICT.version, lv)       # the rebuild works again
+        assert again["inserted"] == 0 and again["quarantined_snapshots"] == ["PRE_OPEN"]
+        with pytest.raises(Exception, match="append-only"):
+            await world.execute(text("delete from training_sample_quarantine"))
+        await world.rollback()
+        await world.execute(text(copy), {"lv": lv, "k": keys[-1:]})   # after recording
+        await world.commit()
+        c = await IG.sample_checks(world, STRICT.version, lv)
+        assert c["status"] == "FAIL" and c["violations"]["quarantine_drift"] == 1
+
+
+def test_full_report_refuses_other_label_versions(monkeypatch):
+    import sys
+
+    sys.path.insert(0, "ops/measure")
+    import stage4_v3_report as RPT
+    monkeypatch.setattr(sys, "argv", ["x", "--labels", "label-tsl-long-v1-strict"])
+    assert asyncio.run(RPT.main()) == 2

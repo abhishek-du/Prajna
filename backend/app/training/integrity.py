@@ -13,7 +13,10 @@ training_sample
   feature_eligible    feature_eligible exactly when core_valid = core_total
   masks_from_flags    the EXTREME / AMBIGUOUS masks equal those label flags
   eligible_has_label  an eligible sample has at least one VALID label
-  snapshot_allowed    a target/stop (label-tsl-*) sample is a PRE_SESSION sample
+  snapshot_allowed    a target/stop (label-tsl-*) sample is a PRE_SESSION sample (raw
+                      count, always reported; satisfied only by a matching quarantine)
+  snapshot_allowed_unquarantined   the same rows outside any quarantine record
+  quarantine_drift    quarantine records whose slice changed since recording
 """
 
 from __future__ import annotations
@@ -74,7 +77,15 @@ _SAMPLE_CHECKS = {
     "snapshot_allowed": """select count(*) from training_sample where dataset_version = :v
         and label_version = :lv and label_version like 'label-tsl-%%'
         and snapshot <> 'PRE_SESSION'""",
+    "snapshot_allowed_unquarantined": """select count(*) from training_sample sm
+        where sm.dataset_version = :v and sm.label_version = :lv
+          and sm.label_version like 'label-tsl-%%' and sm.snapshot <> 'PRE_SESSION'
+          and not exists (select 1 from training_sample_quarantine q
+            where q.dataset_version = sm.dataset_version
+              and q.label_version = sm.label_version and q.snapshot = sm.snapshot)""",
 }
+# counted and reported, but satisfied by a matching quarantine record (never hidden)
+_QUARANTINABLE = {"snapshot_allowed"}
 
 
 async def label_checks(s: AsyncSession, label_version: str) -> dict[str, Any]:
@@ -85,11 +96,24 @@ async def label_checks(s: AsyncSession, label_version: str) -> dict[str, Any]:
 
 
 async def sample_checks(s: AsyncSession, dataset: str, label_version: str) -> dict[str, Any]:
+    """status PASS (every check 0), PASS_WITH_QUARANTINE (the only non-zero checks are
+    quarantinable ones, fully covered by quarantine records that still match the stored
+    rows) or FAIL. The raw counts are always reported."""
+    from app.training import quarantine as QR
     out = {k: (await s.execute(text(q), {"v": dataset, "lv": label_version,
                                          "core": list(SM.CORE_INSTRUMENT)})).scalar()
            for k, q in _SAMPLE_CHECKS.items()}
+    qs = await QR.verify(s, dataset, label_version)
+    out["quarantine_drift"] = sum(1 for q in qs if not q["match"])
+    hard = all(v == 0 for k, v in out.items() if k not in _QUARANTINABLE)
+    soft = all(out[k] == 0 for k in _QUARANTINABLE)
+    status = "FAIL" if not hard else ("PASS" if soft else "PASS_WITH_QUARANTINE")
     return {"dataset_version": dataset, "label_version": label_version, "violations": out,
-            "pass": all(v == 0 for v in out.values())}
+            "quarantined_rows": sum(q["stored_rows"] for q in qs),
+            "quarantine": [{k: q[k] for k in ("snapshot", "rows", "rows_md5", "stored_rows",
+                                              "stored_md5", "match", "approval_ref")}
+                           for q in qs],
+            "status": status, "pass": status != "FAIL"}
 
 
 # ── label-tsl-long-v1 (one-session long target/stop, gross only) ─────────────────────

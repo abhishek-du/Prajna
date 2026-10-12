@@ -168,10 +168,14 @@ async def build(s: AsyncSession, dataset: str, label_version: str) -> dict[str, 
         inserted += (await s.execute(text(
             f"insert into training_sample ({', '.join(COLUMNS)}) values {', '.join(binds)} "  # noqa: S608
             "on conflict on constraint uq_training_sample do nothing"), params)).rowcount
+    # a quarantined (out-of-contract) slice stays stored but is not part of the build
+    from app.training import quarantine as QR
+    skip = sorted(await QR.snapshots(s, dataset, label_version))
     stored = [dict(r) for r in (await s.execute(text("""select session_date, snapshot,
         instrument_key, core_not_valid, labels_valid, label_flags, masks, exclusion_reasons
-        from training_sample where dataset_version = :v and label_version = :lv"""),
-        {"v": dataset, "lv": label_version})).mappings().all()]
+        from training_sample where dataset_version = :v and label_version = :lv
+          and snapshot <> all(:skip)"""),
+        {"v": dataset, "lv": label_version, "skip": skip})).mappings().all()]
     if len(stored) != len(rows) or digest(stored) != sha:
         await s.rollback()
         raise RuntimeError(f"{dataset}/{label_version}: stored samples differ from the "
@@ -184,4 +188,5 @@ async def build(s: AsyncSession, dataset: str, label_version: str) -> dict[str, 
             excl[e] = excl.get(e, 0) + 1
     return {"dataset_version": dataset, "label_version": label_version, "samples": len(rows),
             "inserted": inserted, "eligible": sum(r["eligible"] for r in rows),
-            "exclusions": dict(sorted(excl.items())), "build_sha256": sha}
+            "exclusions": dict(sorted(excl.items())), "build_sha256": sha,
+            "quarantined_snapshots": skip}

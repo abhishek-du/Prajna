@@ -42,6 +42,7 @@ from app.db.models.training import (
     TrainingLabelRun,
     TrainingPolicyParam,
     TrainingSample,
+    TrainingSampleQuarantine,
     TrainingSessionDone,
     TrainingSplit,
 )
@@ -70,5 +71,6 @@ __all__ = [
     "CorporateAction", "FundamentalSnapshot", "MacroObservation", "NewsArticle",
     "NewsInstrument", "CanonInstrument", "CanonCoverage",
     "TrainingPolicyParam", "TrainingDatasetRun", "TrainingFeatureValue", "TrainingSessionDone",
-    "TrainingLabel", "TrainingLabelRun", "TrainingSample", "TrainingSplit",
+    "TrainingLabel", "TrainingLabelRun", "TrainingSample", "TrainingSampleQuarantine",
+    "TrainingSplit",
 ]

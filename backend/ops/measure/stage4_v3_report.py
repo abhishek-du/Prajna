@@ -259,6 +259,7 @@ async def build_manifest(s, lv: str) -> dict:
     (re-hashed from disk), plus the split verification and integrity checks."""
     from app.features import registry as R
     from app.training import integrity as IG
+    from app.training import quarantine as QR
     from app.training import splits as SP
     prev_path = ROOT / "var/stage4/exports/manifest.json"
     prev = json.loads(prev_path.read_text()) if prev_path.exists() else {}
@@ -291,10 +292,19 @@ async def build_manifest(s, lv: str) -> dict:
             build_sha256, count(*) as rows, count(*) filter (where eligible) as eligible
             from training_sample where dataset_version = :v and label_version = :lv
             group by 1, 2 order by 1"""), {"v": ds.version, "lv": lv})).mappings().all()]
+        d["quarantine"] = [{k: (v.isoformat() if hasattr(v, "isoformat") else v)
+                            for k, v in q.items()} for q in await QR.verify(s, ds.version, lv)]
         d["split_scheme"] = SP.SCHEME
         d["split_verification"] = await SP.verify(s, ds.version, lv)
         d["sample_integrity"] = await IG.sample_checks(s, ds.version, lv)
         files = {}
+        if lv != L.VERSION2:
+            # var/stage4/exports/<dataset>/ holds the label-v2 export; no other label
+            # version has one, so none is attributed to it
+            d["export_files"] = {}
+            d["export_note"] = f"no export exists for {lv}"
+            man["datasets"][name] = d
+            continue
         for f in sorted((ROOT / "var/stage4/exports" / ds.version).glob("*.csv.gz")):
             sha = hashlib.sha256(f.read_bytes()).hexdigest()
             old = (prev.get("exports", {}).get(name, {}) or {}).get(f.name.split(".")[0]) or {}
@@ -324,17 +334,31 @@ async def main() -> int:
         if path.exists():
             path.with_name(path.name.replace(".json", ".prev.json")).write_text(path.read_text())
         path.write_text(json.dumps(man, indent=1, default=str))
+        status = {k: v["sample_integrity"]["status"] for k, v in man["datasets"].items()}
         ok = man["label_integrity"]["pass"] and all(
             d["sample_integrity"]["pass"] and all(v["pass"] for v in
                                                   d["split_verification"].values())
             for d in man["datasets"].values())
         print(json.dumps({"manifest": str(path), "integrity_and_splits_pass": ok,
+                          "sample_integrity_status": status,
                           "label_integrity": man["label_integrity"],
                           "samples": {k: v["sample_integrity"] for k, v in
                                       man["datasets"].items()},
                           "splits": {k: v["split_verification"] for k, v in
                                      man["datasets"].items()}}, indent=1, default=str))
         return 0 if ok else 1
+    if a.labels != L.VERSION2:
+        # the full report and export are label-v2 only (its label ids, its export paths,
+        # its evidence file); any other label version gets the manifest only
+        print(f"REFUSED: the full report supports {L.VERSION2} only; use --manifest-only "
+              f"for {a.labels}", file=sys.stderr)
+        return 2
+    async with get_sessionmaker()() as s:
+        if (await s.execute(text("""select count(*) from training_sample_quarantine
+                where label_version = :lv"""), {"lv": a.labels})).scalar():
+            print(f"REFUSED: {a.labels} has quarantined sample slices; the full report does "
+                  "not exclude them", file=sys.stderr)
+            return 2
     ev: dict = {"generated_at": now().astimezone(IST).isoformat(), "label_version": a.labels,
                 "read_only_database": True, "datasets": {}}
     sm = get_sessionmaker()

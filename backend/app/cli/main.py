@@ -2178,5 +2178,47 @@ def training_labels_tsl(
     typer.echo(_json.dumps(asyncio.run(_go()), default=str, indent=1))
 
 
+@training_app.command("quarantine-samples")
+def training_quarantine_samples(
+    dataset: str = typer.Option(..., "--dataset", help="strict | asif"),
+    labels: str = typer.Option(..., "--labels"),
+    snapshot: str = typer.Option(..., "--snapshot"),
+    reason: str = typer.Option(..., "--reason"),
+    approved_by: str = typer.Option(..., "--approved-by"),
+    approval_ref: str = typer.Option(..., "--approval-ref"),
+    expect_rows: int = typer.Option(..., "--expect-rows", help="refuse unless the stored "
+                                    "slice has exactly this many rows"),
+    allow_dirty: bool = typer.Option(False, "--allow-dirty"),
+):
+    """Quarantine one out-of-contract training_sample slice (append-only record; the rows
+    stay stored, readers skip them, integrity reports PASS_WITH_QUARANTINE)."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.training import policy as P
+    from app.training import quarantine as QR
+    from app.training import replay as RP
+
+    code = RP.code_version()
+    if code["dirty"] and not allow_dirty:
+        typer.echo("REFUSED: the working tree is dirty; commit first (or --allow-dirty)")
+        raise typer.Exit(3)
+    ds = P.DATASETS[dataset].version
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            n, _ = await QR.fingerprint(s, ds, labels, snapshot)
+            await s.rollback()
+            if n != expect_rows:
+                typer.echo(f"REFUSED: {ds}/{labels}/{snapshot} has {n} rows, expected "
+                           f"{expect_rows}")
+                raise typer.Exit(3)
+            return await QR.record(s, ds, labels, snapshot, reason=reason,
+                                   approved_by=approved_by, approval_ref=approval_ref,
+                                   code_git_sha=code["git_sha"] + ("+dirty" if code["dirty"]
+                                                                   else ""))
+
+    typer.echo(_json.dumps(asyncio.run(_go()), default=str, indent=1))
+
 if __name__ == "__main__":
     app()
