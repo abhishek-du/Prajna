@@ -318,9 +318,11 @@ async def main() -> int:
             await s.execute(text("set transaction isolation level repeatable read, read only"))
             man = await build_manifest(s, a.labels)
             await s.rollback()
-        path = ROOT / "var/stage4/exports/manifest.json"
+        # label-v2 keeps manifest.json; any other label version gets its own file
+        path = ROOT / "var/stage4/exports" / ("manifest.json" if a.labels == L.VERSION2
+                                              else f"manifest.{a.labels}.json")
         if path.exists():
-            path.with_name("manifest.prev.json").write_text(path.read_text())
+            path.with_name(path.name.replace(".json", ".prev.json")).write_text(path.read_text())
         path.write_text(json.dumps(man, indent=1, default=str))
         ok = man["label_integrity"]["pass"] and all(
             d["sample_integrity"]["pass"] and all(v["pass"] for v in
