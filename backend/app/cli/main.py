@@ -2144,5 +2144,39 @@ def training_status(
     typer.echo(_json.dumps(asyncio.run(_go()), default=str, indent=1))
 
 
+@training_app.command("labels-tsl")
+def training_labels_tsl(
+    dataset: str = typer.Option(..., "--dataset", help="strict | asif (its atr_pct_14 rows)"),
+    start: str = typer.Option(..., "--from"),
+    end: str = typer.Option(..., "--to"),
+    cutoff: str = typer.Option(None, "--cutoff", help="knowledge cutoff (ISO with offset); "
+                               "default: now. Reuse a recorded cutoff to reproduce a build"),
+    allow_dirty: bool = typer.Option(False, "--allow-dirty"),
+):
+    """label-tsl-long-v1-<dataset>: one-session long target/stop outcome (k = 1.5, gross
+    only; approved contract). Append-only; one run row."""
+    import datetime as _dt2
+    import json as _json
+
+    from app.core.clock import now as _now
+    from app.db.engine import get_sessionmaker
+    from app.training import replay as RP
+    from app.training import tsl as TS
+
+    code = RP.code_version()
+    if code["dirty"] and not allow_dirty:
+        typer.echo("REFUSED: the working tree is dirty; commit first (or --allow-dirty)")
+        raise typer.Exit(3)
+    at = _dt2.datetime.fromisoformat(cutoff) if cutoff else _now()
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await TS.build(s, dataset, _date(start), _date(end), cutoff=at,
+                                  code_git_sha=code["git_sha"] + ("+dirty" if code["dirty"]
+                                                                  else ""))
+
+    typer.echo(_json.dumps(asyncio.run(_go()), default=str, indent=1))
+
+
 if __name__ == "__main__":
     app()

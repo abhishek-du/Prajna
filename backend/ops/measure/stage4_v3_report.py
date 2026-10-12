@@ -272,8 +272,10 @@ async def build_manifest(s, lv: str) -> dict:
           start_date, end_date, instruments, rows, rows_sha256, source_fingerprints
         from training_label_run where label_version = :v order by started_at"""),
         {"v": lv})).mappings().all()]
-    man["label_integrity"] = await IG.label_checks(s, lv)
+    man["label_integrity"] = await IG.checks_for(s, lv)
     for name, ds in P.DATASETS.items():
+        if lv.startswith("label-tsl-") and not lv.endswith(f"-{name}"):
+            continue                  # a dataset-specific label covers its own dataset only
         d: dict = {"version": ds.version, "policy": ds.policy, "search_path": ds.search_path,
                    "snapshots": list(ds.snapshots), "registry_version": ds.registry_version}
         d["runs"] = [{k: (v.isoformat() if hasattr(v, "isoformat") else v)

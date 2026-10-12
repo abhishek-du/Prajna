@@ -86,3 +86,44 @@ async def sample_checks(s: AsyncSession, dataset: str, label_version: str) -> di
            for k, q in _SAMPLE_CHECKS.items()}
     return {"dataset_version": dataset, "label_version": label_version, "violations": out,
             "pass": all(v == 0 for v in out.values())}
+
+
+# ── label-tsl-long-v1 (one-session long target/stop, gross only) ─────────────────────
+_TSL_CHECKS = {
+    "outcome_codes": """select count(*) from training_label where label_version = :lv
+        and label_id = 'tsl_l_k1p5_outcome' and status = 'VALID' and value not in (-1, 0, 1)""",
+    "triplet_status": """select count(*) from (select session_date, instrument_key
+        from training_label where label_version = :lv group by 1, 2
+        having count(*) <> 3 or count(distinct status) > 1 or count(distinct reason) > 1) x""",
+    "geometry": """with p as (select session_date, instrument_key,
+              max(value) filter (where label_id = 'tsl_l_k1p5_outcome') o,
+              max(value) filter (where label_id = 'tsl_l_k1p5_gross_ret') g,
+              max(value) filter (where label_id = 'tsl_l_k1p5_r_multiple') r
+            from training_label where label_version = :lv and status = 'VALID' group by 1, 2)
+        select count(*) from p where not (
+          (o = 1 and g > 0 and r >= 2 - 1e-9) or (o = -1 and g < 0 and abs(r + 1) < 1e-9)
+          or (o = 0 and r > -1))""",
+    "resolution_flag": """select count(*) from training_label where label_version = :lv
+        and status = 'VALID' and not ('RESOLUTION_DAILY' = any(flags)
+          or 'RESOLUTION_1M' = any(flags))""",
+    "reason_status": """select count(*) from training_label where label_version = :lv
+        and (reason is not null) <> (status = 'MISSING_INPUT')""",
+    "ambiguous_reason": """select count(*) from training_label where label_version = :lv
+        and (reason = 'AMBIGUOUS_ORDER') <> exists (select 1 from unnest(flags) f
+          where f in ('RESOLUTION_NO_1M', 'RESOLUTION_1M_SAME_MINUTE',
+                      'RESOLUTION_1M_INCONSISTENT'))""",
+}
+
+
+async def tsl_checks(s: AsyncSession, label_version: str) -> dict[str, Any]:
+    out = {k: (await s.execute(text(q), {"lv": label_version})).scalar()
+           for k, q in _TSL_CHECKS.items()}
+    return {"label_version": label_version, "violations": out,
+            "pass": all(v == 0 for v in out.values())}
+
+
+async def checks_for(s: AsyncSession, label_version: str) -> dict[str, Any]:
+    """The integrity checks that belong to a label version."""
+    if label_version.startswith("label-tsl-"):
+        return await tsl_checks(s, label_version)
+    return await label_checks(s, label_version)

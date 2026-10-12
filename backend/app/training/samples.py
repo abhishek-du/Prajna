@@ -94,6 +94,10 @@ def check_versions(dataset: str, label_version: str) -> None:
         raise BuildContractError(f"{dataset} is frozen; samples are built for open versions")
     if label_version in L.FROZEN_LABELS:
         raise BuildContractError(f"{label_version} is frozen; use label-v2")
+    # a dataset-specific label (its inputs come from that dataset's feature rows)
+    for name, ds in P.DATASETS.items():
+        if label_version.endswith(f"-{name}") and dataset != ds.version:
+            raise BuildContractError(f"{label_version} belongs to {ds.version}, not {dataset}")
 
 
 async def build(s: AsyncSession, dataset: str, label_version: str) -> dict[str, Any]:
