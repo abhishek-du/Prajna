@@ -544,6 +544,141 @@
  ],
  "deviation": {
   "what": "38,755 stage4-ds-v3-strict PRE_OPEN training_sample rows joined to label-tsl-long-v1-strict (outside the PRE_SESSION-only contract); append-only table, not deleted; fixed in 69d752e; integrity check snapshot_allowed reports them",
-  "decision": "PENDING (user)"
+  "decision": "Option A approved 2026-10-12: quarantined (migration 0020, commit a0282dd)"
+ },
+ "quarantine": {
+  "backup": {
+   "file": "var/backups/prajna_20261012T1833_stage4_quarantine_pre_0020.dump",
+   "sha256": "afb49a1e57a3968d69200c305774b047aea73d252f4ca72f1f82a1454bb894a1",
+   "verified": true
+  },
+  "alembic": "0019 -> 0020",
+  "record": {
+   "dataset_version": "stage4-ds-v3-strict",
+   "label_version": "label-tsl-long-v1-strict",
+   "snapshot": "PRE_OPEN",
+   "rows": 38755,
+   "rows_md5": "44132dab83f98767f4c92a4c4cba9235",
+   "created_at": "2026-10-12T13:26:09.350263+00:00"
+  },
+  "sample_checks_after": [
+   {
+    "dataset_version": "stage4-ds-v3-strict",
+    "label_version": "label-tsl-long-v1-strict",
+    "status": "PASS_WITH_QUARANTINE",
+    "violations": {
+     "no_label": 0,
+     "core_valid": 0,
+     "feature_eligible": 0,
+     "masks_from_flags": 0,
+     "eligible_has_label": 0,
+     "snapshot_allowed": 38755,
+     "snapshot_allowed_unquarantined": 0,
+     "quarantine_drift": 0
+    },
+    "quarantined_rows": 38755
+   },
+   {
+    "dataset_version": "stage4-ds-v3-asif",
+    "label_version": "label-tsl-long-v1-asif",
+    "status": "PASS",
+    "violations": {
+     "no_label": 0,
+     "core_valid": 0,
+     "feature_eligible": 0,
+     "masks_from_flags": 0,
+     "eligible_has_label": 0,
+     "snapshot_allowed": 0,
+     "snapshot_allowed_unquarantined": 0,
+     "quarantine_drift": 0
+    },
+    "quarantined_rows": 0
+   },
+   {
+    "dataset_version": "stage4-ds-v3-strict",
+    "label_version": "label-v2",
+    "status": "PASS",
+    "violations": {
+     "no_label": 0,
+     "core_valid": 0,
+     "feature_eligible": 0,
+     "masks_from_flags": 0,
+     "eligible_has_label": 0,
+     "snapshot_allowed": 0,
+     "snapshot_allowed_unquarantined": 0,
+     "quarantine_drift": 0
+    },
+    "quarantined_rows": 0
+   },
+   {
+    "dataset_version": "stage4-ds-v3-asif",
+    "label_version": "label-v2",
+    "status": "PASS",
+    "violations": {
+     "no_label": 0,
+     "core_valid": 0,
+     "feature_eligible": 0,
+     "masks_from_flags": 0,
+     "eligible_has_label": 0,
+     "snapshot_allowed": 0,
+     "snapshot_allowed_unquarantined": 0,
+     "quarantine_drift": 0
+    },
+    "quarantined_rows": 0
+   }
+  ],
+  "strict_samples_rebuild": {
+   "dataset_version": "stage4-ds-v3-strict",
+   "label_version": "label-tsl-long-v1-strict",
+   "samples": 38755,
+   "inserted": 0,
+   "eligible": 31077,
+   "exclusions": {
+    "CORE_FEATURE_NOT_VALID": 7188,
+    "LABEL_AMBIGUOUS_ORDER": 4,
+    "LABEL_ATR_NOT_VALID": 4245,
+    "LABEL_BAR_REFUSED": 1234,
+    "LABEL_R_BELOW_TICK": 3
+   },
+   "build_sha256": "6ad3de91b2409a85a1c7cbc579a80e99dc508873785e01b58359853bb21e42ec",
+   "quarantined_snapshots": [
+    "PRE_OPEN"
+   ]
+  },
+  "manifests": {
+   "label-tsl-long-v1-strict": {
+    "strict": "PASS_WITH_QUARANTINE"
+   },
+   "label-tsl-long-v1-asif": {
+    "asif": "PASS"
+   }
+  },
+  "fingerprints_before": [
+   "('class_all', 3593, '478fa2d8dad1199af008d8f27878f53d')",
+   "('feature_value', 801434, 'b45381f3c89664cdf3dbbfa95d70b1a5')",
+   "('label_runs', 2, '3580280bad773cc00dadc493498b5528')",
+   "('label-v1', 7077591, '15f0cb45cd3871599764cc3c0d698737')",
+   "('label-v2', 7113528, 'c3f5fff7ba9b690ba3b5d9220378fd3b')",
+   "('runs_frozen', 26, 'acf24beca40c3984b7a3fa02fccddc5d')",
+   "('runs_v3', 13, '9a98b84c3d91353157a98d816f8ad7c9')",
+   "('samples_stage4-ds-v3-asif_label-tsl-long-v1-asif', 817715, 'eb93fa885b6108fa9a4e731ec457b90b')",
+   "('samples_stage4-ds-v3-asif_label-v2', 817715, '7d812425584540abbbf6be76bddd6fd8')",
+   "('samples_stage4-ds-v3-strict_label-tsl-long-v1-strict', 77510, '35c163f22bb0a74911d823303a223fef')",
+   "('samples_stage4-ds-v3-strict_label-v2', 77510, 'fd4bbf177bbb993ac85e57323338928d')",
+   "('slice_strict_tsl_PRE_OPEN', 38755, '44132dab83f98767f4c92a4c4cba9235')",
+   "('slice_strict_tsl_PRE_SESSION', 38755, '1b1ff2b709dddb9583119d2107c225f7')",
+   "('splits', 15, '202467d7a4d1f3a2b5a746d270c8e744')",
+   "('stage3_event', 38, 38)",
+   "('tfv_stage4-ds-v1-asif', Decimal('9359212'), 'c6a6f0f464eca7d726e3a1e9f6995cf5')",
+   "('tfv_stage4-ds-v1-asif-pilot', Decimal('9321'), '570d46d6a8d6e7c73eebdf48d9ffa803')",
+   "('tfv_stage4-ds-v1-strict', Decimal('4229340'), '86f60311245140c8d243edd50234b98d')",
+   "('tfv_stage4-ds-v1-strict-pilot', Decimal('19278'), '8992b0b991863a3209acf2f4d5fcfcbb')",
+   "('tfv_stage4-ds-v2-asif', Decimal('47274794'), 'e7d3a89341aa56965cbfd1aee00891f0')",
+   "('tfv_stage4-ds-v2-strict', Decimal('4229340'), '7161a1b4c2525926c39d9949044850cf')",
+   "('tfv_stage4-ds-v3-asif', Decimal('47480669'), 'acc651247a833ca607d3e07b3c6cf236')",
+   "('tfv_stage4-ds-v3-strict', Decimal('4655286'), '62e70a8167dbfd8bb49d3694e69c0124')",
+   "('tsl_labels', 2569410, '17a57beb55227f90772f3926862633c3')"
+  ],
+  "fingerprints_identical_after": true
  }
 }

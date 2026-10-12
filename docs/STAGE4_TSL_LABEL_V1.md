@@ -2,7 +2,7 @@
 
 **Status:** BUILT 2026-10-12 for both v3 datasets.
 - **Research only:** no model training, no orders, gross returns only.
-- **Open decision:** 38,755 out-of-contract STRICT sample rows. The cause is in §6.
+- **38,755 out-of-contract STRICT sample rows:** QUARANTINED (Option A, approved 2026-10-12; §6). Strict sample integrity reads PASS_WITH_QUARANTINE, never a plain PASS.
 - **Evidence:** `audit/evidence/stage4_tsl_label_v1.json`.
 - **Code:**
   - `backend/app/training/tsl.py`;
@@ -56,9 +56,9 @@
 |---|---|---|
 | Samples | 77,510 (38,755 PRE_SESSION + **38,755 PRE_OPEN**, see §6) | 817,715 (PRE_SESSION) |
 | Eligible | 62,154 | 569,151 |
-| Sample integrity | **FAIL** `snapshot_allowed` = 38,755; the other checks are 0 | PASS (all 0) |
+| Sample integrity | **PASS_WITH_QUARANTINE**: raw `snapshot_allowed` = 38,755, unquarantined 0, drift 0; the other checks are 0 (FAIL before the quarantine) | PASS (all 0) |
 | Splits `wf-exp-120-20-20-e1` | 0 folds: 11 sessions, fewer than the 162 needed | 5 folds; verify PASS |
-| Manifest | `manifest.label-tsl-long-v1-strict.json` (integrity false) | `manifest.label-tsl-long-v1-asif.json` (pass) |
+| Manifest | `manifest.label-tsl-long-v1-strict.json` (PASS_WITH_QUARANTINE; no export attributed) | `manifest.label-tsl-long-v1-asif.json` (PASS; no export attributed) |
 
 The label-v2 `manifest.json` was not modified; its md5 `1c7bae24…` is the same before and after.
 
@@ -91,22 +91,33 @@ These are identical before and after the build:
 
 The only differences are the new TSL label rows and sample rows.
 
-## 6. Deviation: STRICT PRE_OPEN samples (decision needed)
+## 6. Deviation: STRICT PRE_OPEN samples (resolved by quarantine)
 
 - **What happened:** the samples builder joined a label version to every done snapshot of a dataset.
 - **Effect:** `stage4-ds-v3-strict` has PRE_SESSION and PRE_OPEN snapshots, so 38,755 PRE_OPEN `training_sample` rows were built with `label-tsl-long-v1-strict`. That breaks the PRE_SESSION-only contract.
   - The label rows themselves are correct.
   - The asif dataset (PRE_SESSION only) is unaffected.
 - **Fix (69d752e):** `samples.label_snapshots()` restricts target/stop samples and splits to PRE_SESSION. A new integrity check, `snapshot_allowed`, counts out-of-contract rows. A test replays PRE_OPEN and fails without the fix.
-- **Not done:** the 38,755 rows are still stored. `training_sample` is append-only, enforced by a trigger, and removing rows needs your decision. Until then:
-  - the strict TSL sample integrity reports FAIL;
-  - a strict samples rerun refuses, because the stored rows differ from the recompute.
-
-  Consumers must filter `snapshot = 'PRE_SESSION'`.
+- **Resolution, Option A (approved 2026-10-12; a0282dd, migration 0020):**
+  - The new append-only register `training_sample_quarantine` holds one record: slice `stage4-ds-v3-strict` / `label-tsl-long-v1-strict` / `PRE_OPEN`, 38,755 rows, fingerprint `44132dab83f98767f4c92a4c4cba9235`, created 2026-10-12 13:26:09Z.
+  - The rows stay in `training_sample`. Nothing was deleted and no trigger was bypassed.
+  - `samples.build` leaves the quarantined slice out of its stored-vs-recompute check. The strict TSL rebuild works again: 38,755 samples, 0 inserted, quarantine reported.
+  - Integrity still reports the raw `snapshot_allowed` = 38,755. `snapshot_allowed_unquarantined` = 0 and `quarantine_drift` = 0, so the status is PASS_WITH_QUARANTINE. Any row added to the slice later makes the status FAIL (drift).
+  - The full report (`stage4_v3_report.py` without `--manifest-only`) refuses non-label-v2 versions and quarantined labels. Readers of `training_sample` for this label must skip quarantined slices.
+- **Build hash:** the stored rows still carry `build_sha256 6fb31b88…`, computed over the original 77,510-row build. The PRE_SESSION recompute now gives `6ad3de91…` (38,755 rows), and its digest matches the stored PRE_SESSION rows.
+- **Procedure:**
+  1. Backup `prajna_20261012T1833_stage4_quarantine_pre_0020.dump`, sha256 `afb49a1e…94a1`, verified.
+  2. `prajna db upgrade` 0019 → 0020.
+  3. `prajna training quarantine-samples … --expect-rows 38755`.
+- **Verified afterwards:** all 24 immutability fingerprints are identical before and after. They cover:
+  - every label version, TSL included, and production `feature_value`;
+  - all v1/v2/v3 runs and `training_feature_value` rows;
+  - every sample set, with both strict TSL slices separately, and every split set;
+  - classification and `stage3_event`.
+  The crontab and the Stage 3 flags are unchanged, and the label-v2 `manifest.json` md5 `1c7bae24…` is unchanged.
 
 ## 7. Not done / open
 
 - Cost model and net returns (needs approval).
 - k sensitivity and multi-session horizons (new versions only).
 - The STRICT window is too short for splits.
-- Removing the STRICT PRE_OPEN sample rows (§6).
