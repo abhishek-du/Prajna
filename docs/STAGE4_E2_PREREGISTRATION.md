@@ -18,8 +18,8 @@
   - reversal: per-session sd 0.40%; ridge24: 0.30%;
   - the minimum detectable mean daily excess at about 80% power is **0.08–0.19% per day** for ridge24 and **0.11–0.25% per day** for reversal (the range is independent periods vs fully overlapping).
 - **Costs to beat** (illustrative; the actual model is in the cost section):
-  - delivery charges at ₹1 L per order are about **27 bps per round trip**, before the half-spread;
-  - a fully rotated 5-tranche book trades about 20% of its value per side per day, so it pays roughly **5–8 bps per day**.
+  - delivery charges including DP are about **29 bps per round trip** at ₹1 L per order and about 51 bps at ₹25 k, before the half-spread;
+  - a 5-tranche book of 500 positions trades 10–20% of its value per side per day: **6.8–13.5 bps per day at ₹1 Cr** and 3.9–7.9 at ₹5 Cr (section 6).
 - **Implication:**
   - E1's gross matched excess was 0.05–0.08% per day (open to close).
   - Unless the 5-session effect is several times larger, the expected E2 verdict is **UNPROVEN** (CI includes 0), and possibly FAIL net of costs.
@@ -73,51 +73,78 @@
 
 ## 6. Transaction costs: rates PENDING APPROVAL
 
-### Source and date
+### Sources, in order of precedence
 
-- **Source:** Upstox `GET /v2/charges/brokerage`, fetched **2026-10-13T09:36:18Z**.
-  - 16 orders: delivery (D) and intraday (I) × BUY/SELL × ₹10 k–₹5 L, RELIANCE at ₹1,158.90.
-  - Raw responses are in `backend/var/stage4/costs/charges_20261013T093619Z.json`.
-- **Derived rates:** the rates below are derived from those responses.
-  - `order_cost_inr` reproduces all 16 totals to within ₹0.03 (`test_rates_reproduce_the_broker_charges_api`).
-  - Official NSE/SEBI/state circulars for the statutory parts are **not yet cross-checked**. That is part of the approval.
+1. **The account's own charges**, from Upstox `GET /v2/charges/brokerage`, fetched **2026-10-13T09:36:18Z**.
+   - 16 orders: delivery (D) and intraday (I) × BUY/SELL × ₹10 k–₹5 L, RELIANCE at ₹1,158.90.
+   - Raw responses are in `backend/var/stage4/costs/charges_20261013T093619Z.json`.
+   - `order_cost_inr` reproduces all 16 totals to within ₹0.03 (`test_rates_reproduce_the_broker_charges_api`).
+2. **The NSE transaction charge:** NSE circular of **2026-02-27, effective 2026-03-01**.
+   - Cash market: ₹306.99 charges + ₹0.01 IPFT = **₹307 per crore per side (0.00307%)**.
+   - Before that: ₹297 + ₹10 IPFT, also ₹307 in total.
+   - The circular PDF (`nsearchives.nseindia.com/content/circulars/FA73061.pdf`, number to be confirmed) timed out when fetched. The figures come from TeamLease RegTech's and Upstox News's summaries of it, and they agree with the API.
+3. **Upstox pricing page** (`upstox.com/brokerage-charges`, read 2026-10-13; it shows no last-updated date):
+   - delivery brokerage ₹20 per executed order;
+   - STT 0.1% buy and sell (from 2024-10-01);
+   - stamp duty 0.015% on the buy side;
+   - SEBI ₹10 per crore;
+   - GST 18% on brokerage + transaction + demat + IPFT;
+   - **DP ₹20 per scrip per day on sells, plus GST**.
 
-| Charge | Delivery (CNC) | Intraday (MIS) |
-|---|---|---|
-| Brokerage per order | ₹20 flat | min(₹20, 0.06% of value) |
-| STT | 0.1% buy and sell | 0.025% sell |
-| Stamp duty | 0.015% buy | 0.003% buy |
-| Exchange transaction | 0.00307% | 0.00307% |
-| SEBI fee | 0.0001% | 0.0001% |
-| GST | 18% on brokerage + exchange + SEBI | same |
-| DP charge | **Not in the API total.** The response names plan `DP4A`, `min_expense` ₹20 per scrip per sell day. **To confirm** (amount, GST). | n/a |
-
-### Round-trip examples (delivery, excluding DP)
-
-| Order size | Buy | Sell | Round trip |
+| Charge | Delivery (CNC) | Source | Intraday (MIS), reference only |
 |---|---|---|---|
-| ₹10 k | 34.5 bps | 33.0 bps | about 68 bps |
-| ₹1 L | 14.2 bps | 12.7 bps | about 27 bps |
-| ₹5 L | 12.3 bps | 10.8 bps | about 23 bps |
+| Brokerage | ₹20 per order, flat | API (all sizes) and the pricing page | min(₹20, 0.06%): API. **The page says 0.1%;** the API is account-specific and is used. |
+| STT | 0.1% buy and sell | API; the page (from 2024-10-01) | 0.025% sell |
+| Stamp duty | 0.015% buy | API; the page | 0.003% buy |
+| Exchange transaction (incl. IPFT) | 0.00307% each side | API; NSE circular 2026-02-27 | same |
+| SEBI fee | 0.0001% (₹10 per crore) | API; the page | same |
+| GST | 18% on brokerage + exchange + SEBI (+ DP) | API; the page | same |
+| **DP charge** | **₹20 + 18% GST = ₹23.60 per scrip per sell day** | The page. The API names plan `DP4A`, `min_expense` ₹20, and **excludes it from its total**, so it is added separately. | none |
 
-**The flat ₹20 makes cost depend on position size:** a ₹10 L book spread over 100 names × 5 tranches (₹2 k orders) pays more than 100 bps per side.
+**Still to confirm officially:** the Finance Act STT schedule and the Indian Stamp Act rate (effective 2020-07-01) have not been fetched from government sources. The figures above are the broker's, cross-checked against its live computation.
+
+### Order-size sensitivity (delivery, incl. DP; `e2.order_cost_inr`)
+
+| Order | Buy | Sell | Round trip |
+|---|---|---|---|
+| ₹2,000 | 129.9 bps | 246.4 bps | 376 bps |
+| ₹10,000 | 35.5 | 57.6 | 93 |
+| ₹25,000 | 21.3 | 29.3 | 51 |
+| ₹50,000 | 16.6 | 19.8 | 36 |
+| ₹1,00,000 | 14.2 | 15.1 | 29 |
+| ₹2,00,000 | 13.1 | 12.7 | 26 |
+| ₹5,00,000 | 12.4 | 11.3 | 24 |
+
+### Book cost per day by capital
+
+The book holds 100 names × 5 tranches (500 positions) with a 5 bps half-spread. Turnover is one-sided, at 10% (with netting) or 20% (no netting).
+
+| Capital | Order size | 10% turnover | 20% turnover |
+|---|---|---|---|
+| ₹10 L | ₹2,000 | 38.6 bps/day | 77.3 |
+| ₹50 L | ₹10,000 | 10.3 | 20.6 |
+| ₹1 Cr | ₹20,000 | 6.8 | 13.5 |
+| ₹5 Cr | ₹1 L | 3.9 | 7.9 |
+| ₹10 Cr | ₹2 L | 3.6 | 7.2 |
+
+**Below ₹5 Cr the flat brokerage and DP dominate.** At ₹1 Cr the costs alone are 6.8–13.5 bps per day, against E1's best gross matched excess of 5–8 bps per day.
 
 ### Spread and slippage (kept separate, never double counted)
 
 - **Half-spread at the open, measured:** from the pre-open capture between 09:15 and 09:20, top 500, median spread 9.9 bps, so the half-spread is about **5 bps**.
   - This is one day so far (2026-10-12); the shadow log extends it.
-  - The first-quote median is 27.7 bps, which is the pessimistic bound.
+  - The first-quote median is 27.7 bps, which is the pessimistic bound and is reported.
 - **Slippage:** impact *beyond* the half-spread, swept at 0 / 5 / 10 / 20 bps per side. It is a sensitivity, not part of A1.
 
 ### Decisions for you
 
 | # | Decision | Proposed |
 |---|---|---|
-| C1 | Book capital | ₹1 Cr. 100 names × 5 tranches gives about ₹2 L per position. |
-| C2 | DP charge per scrip per sell day | ₹20 + 18% GST, to confirm against the account plan |
-| C3 | Primary half-spread | 5 bps: the measured median over 09:15–09:20 |
-| C4 | Primary slippage | 0 bps; the 5/10/20 bps sweep is reported |
-| C5 | Statutory cross-check | Against the official NSE, SEBI and Maharashtra stamp duty sources |
+| C1 | Book capital, which sets the order size | **Your decision** (account size is not known to me). Placeholder: primary ₹1 Cr (₹20 k orders). Report ₹10 L, ₹50 L, ₹5 Cr and ₹10 Cr. *Correction: an earlier draft wrote "₹1 Cr ≈ ₹2 L per position"; that is ₹10 Cr.* |
+| C2 | DP charge | ₹20 + 18% GST per scrip per sell day (the pricing page; excluded from the API total) |
+| C3 | Primary half-spread | 5 bps (measured median 09:15–09:20); 13.9 bps (first quote) reported |
+| C4 | Primary slippage | 0 bps; 5/10/20 bps reported |
+| C5 | Statutory cross-check | Fetch the official STT and stamp-duty texts before the look; NSE is done (2026-02-27 circular) |
 
 ## 7. Inference
 
