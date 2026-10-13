@@ -141,7 +141,8 @@ class TestCloseThenBackfill:
 
 def _backfill(base, *, stage_rc: dict[str, int] | None = None, other_job: bool = False,
               now_hhmm: str = "2330", trading: str = "True", auth_failures: int = 0,
-              df_low_after: int | None = None, slow_tf: str | None = None):
+              df_low_after: int | None = None, slow_tf: str | None = None,
+              args: tuple[str, ...] = ("--login", "--until", None)):
     stage_rc = stage_rc or {}
     counter = base / "ingest_calls"
     calls = base / "calls.log"
@@ -185,10 +186,49 @@ exit 0
     env = {**os.environ, "PATH": f"{bin_}:{os.environ['PATH']}",
            "PRAJNA_UPSTOX_RATE_FRACTION": "0.5", "PRAJNA_TEST_NOW_HHMM": now_hhmm,
            "PRAJNA_BACKFILL_DISK_POLL_S": "0.2"}
-    p = subprocess.run(["bash", str(base / "ops/runbooks/backfill.sh"), "--login",
-                        "--until", UNTIL],
+    argv = [UNTIL if a is None else a for a in args]
+    p = subprocess.run(["bash", str(base / "ops/runbooks/backfill.sh"), *argv],
                        cwd=base, env=env, capture_output=True, text=True, timeout=60)
     return p, (calls.read_text() if calls.exists() else "")
+
+
+def _ingests(calls: str) -> list[str]:
+    return [ln.split("--timeframe ")[1].split(" ")[0] for ln in calls.splitlines()
+            if "ingest candles" in ln]
+
+
+class TestBackfillStages:
+    def test_stages_1h_never_proceeds_into_1m_or_15m(self, base):
+        p, calls = _backfill(base, args=("--login", "--until", None, "--stages", "1h"))
+        assert p.returncode == 0, p.stdout + p.stderr
+        assert _ingests(calls) == ["1h"]
+        assert "selected stages (1h) complete; others not run" in p.stdout
+        assert "BACKFILL_COMPLETED rc=0 status=selected_stages_complete" in p.stdout
+
+    def test_selected_stages_keep_the_approved_order_and_depths(self, base):
+        p, calls = _backfill(base, args=("--login", "--until", None, "--stages", "15m,1h"))
+        assert p.returncode == 0 and _ingests(calls) == ["1h", "15m"]
+        assert [ln.split("--from ")[1].split(" ")[0] for ln in calls.splitlines()
+                if "ingest candles" in ln] == ["2022-01-01", "2022-01-01"]
+
+    def test_default_still_runs_all_three(self, base):
+        p, calls = _backfill(base)
+        assert _ingests(calls) == ["1h", "1m", "15m"]
+        assert "status=all_stages_complete" in p.stdout
+
+    @pytest.mark.parametrize("bad", ["5m", "", "1h,1d"])
+    def test_unknown_stage_is_refused_before_anything(self, base, bad):
+        p, calls = _backfill(base, args=("--stages", bad))
+        assert p.returncode == 2 and calls == ""
+
+    def test_plan_prints_commands_and_touches_nothing(self, base):
+        p, calls = _backfill(base, args=("--stages", "1h", "--plan"), now_hhmm="1100")
+        assert p.returncode == 0, p.stdout + p.stderr
+        assert _ingests(calls) == [] and "token-status" not in calls and "LOGIN" not in calls
+        cmds = [ln for ln in p.stdout.splitlines() if "ingest candles" in ln]
+        assert len(cmds) == 1 and "--timeframe 1h --from 2022-01-01 --to 2026-09-24" in cmds[0]
+        assert "plan only: nothing fetched, nothing written" in p.stdout
+        assert "status=plan_only" in p.stdout
 
 
 class TestBackfillDiskGuard:

@@ -2,7 +2,12 @@
 # Stage-1 intraday history backfill to the approved depth (decision D1):
 #   1h since 2022-01, 1m for the last 6 months, 15m since 2022-01.
 #
-#   ops/runbooks/backfill.sh [--login] [--until HH:MM]
+#   ops/runbooks/backfill.sh [--login] [--until HH:MM] [--stages 1h[,1m[,15m]]] [--plan]
+#
+# --stages  run only these stages (approved order and depths kept; default all three).
+#           A run with --stages 1h never starts 1m or 15m.
+# --plan    print the exact bounded ingest commands and exit: no login, no token check,
+#           no vendor call, no write (one read-only query for the last session).
 #
 # Resumable and idempotent: every stage is `ingest candles --commit` with the
 # stream checkpoints ([covered_from, through]); rerunning it continues where it
@@ -20,9 +25,24 @@
 set -euo pipefail
 
 LOGIN=0
-if [[ "${1:-}" == "--login" ]]; then LOGIN=1; shift; fi
 UNTIL="06:50"
-if [[ "${1:-}" == "--until" ]]; then UNTIL="$2"; shift 2; fi
+SELECT="1h,1m,15m"
+PLAN=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --login) LOGIN=1; shift ;;
+    --until) UNTIL="$2"; shift 2 ;;
+    --stages) SELECT="$2"; shift 2 ;;
+    --plan) PLAN=1; shift ;;
+    *) echo "usage: $0 [--login] [--until HH:MM] [--stages 1h[,1m[,15m]]] [--plan]" >&2; exit 2 ;;
+  esac
+done
+IFS=, read -r -a WANT <<< "$SELECT"
+if (( ${#WANT[@]} == 0 )); then echo "--stages: empty" >&2; exit 2; fi
+for w in "${WANT[@]}"; do
+  case "$w" in 1h|1m|15m) ;; *) echo "--stages: unknown stage '$w' (1h, 1m, 15m)" >&2; exit 2 ;; esac
+done
+wanted() { local w; for w in "${WANT[@]}"; do [[ "$w" == "$1" ]] && return 0; done; return 1; }
 
 cd "$(dirname "$0")/../.."
 P=.venv/bin/python
@@ -49,6 +69,30 @@ progress() {  # progress <tf> <from>: instruments whose checkpoint reaches the d
   n="$("${CLI[@]}" db sql "select count(*) filter (where (r.request_params->'outcome'->'checkpoint'->>'covered_from')::date <= '$2'), count(*) from instrument i left join ingest_watermark w on w.source='UPSTOX_REST_V3' and w.stream='ohlcv.$1.'||i.instrument_key left join ingest_run r on r.run_id=w.last_run_id where i.valid_to='infinity' and i.segment in ('NSE_EQ','NSE_INDEX')" 2>/dev/null | sed -n 3p | awk '{print $1 "/" $2}')" || true
   say "BACKFILL_PROGRESS tf=$1 from=$2 covered=${n:-unknown}"
 }
+
+stage_list() {   # the approved stages (order, depth), filtered by --stages
+  local today last six
+  today="$(TZ=Asia/Kolkata date +%F)"
+  last="$("${CLI[@]}" db sql "select max(session_date) from trading_session where is_trading_day and session_date < '${today}'" | sed -n 3p | tr -d ' ')"
+  six="$(TZ=Asia/Kolkata date -d "${today} -183 days" +%F)"
+  LAST="$last"
+  STAGES=()
+  for st in "1h 2022-01-01" "1m ${six}" "15m 2022-01-01"; do
+    if wanted "${st%% *}"; then STAGES+=("$st"); fi
+  done
+  return 0
+}
+if [[ $PLAN -eq 1 ]]; then
+  stage_list
+  STATUS="plan_only"
+  say "BACKFILL_PLAN stages=${SELECT} until=${UNTIL} fraction=${PRAJNA_UPSTOX_RATE_FRACTION:-default}"
+  for st in "${STAGES[@]}"; do
+    set -- $st
+    say "  ${CLI[*]} ingest candles --timeframe $1 --from $2 --to ${LAST} --all-instruments --commit"
+  done
+  say "plan only: nothing fetched, nothing written"
+  exit 0
+fi
 
 # seconds until the next UNTIL (today or tomorrow), IST
 now_s=$(TZ=Asia/Kolkata date +%s)
@@ -77,10 +121,8 @@ if ! "${CLI[@]}" upstox token-status | grep -q '"valid": true'; then
   else STATUS="token_invalid"; say "ABORT: token invalid"; exit 3; fi
 fi
 
-TODAY="$(TZ=Asia/Kolkata date +%F)"
-LAST="$("${CLI[@]}" db sql "select max(session_date) from trading_session where is_trading_day and session_date < '${TODAY}'" | sed -n 3p | tr -d ' ')"
-SIX="$(TZ=Asia/Kolkata date -d "${TODAY} -183 days" +%F)"
-STAGES=("1h 2022-01-01" "1m ${SIX}" "15m 2022-01-01")
+stage_list
+say "stages selected: ${SELECT}"
 
 for st in "${STAGES[@]}"; do
   set -- $st; TF=$1; FROM=$2
@@ -148,5 +190,8 @@ for st in "${STAGES[@]}"; do
        say "stage ${TF} not complete (see log); stopping, resumable"; exit "$rc" ;;
   esac
 done
-STATUS="all_stages_complete"
-say "all stages complete to the approved depth"
+if [[ "$SELECT" == "1h,1m,15m" ]]; then
+  STATUS="all_stages_complete"; say "all stages complete to the approved depth"
+else
+  STATUS="selected_stages_complete"; say "selected stages (${SELECT}) complete; others not run"
+fi
