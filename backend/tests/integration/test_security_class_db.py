@@ -62,6 +62,38 @@ async def test_classify_idempotent_and_review_is_reported(db_session):
         clock.unfreeze()
 
 
+async def test_shareholding_statement_counts_as_financials(db_session):
+    """Regression (secclass-v2): a company whose vendor profile has no sector and no
+    key ratios, but which files share_holdings - the statement type the parser stores -
+    is a STOCK, not a REVIEW. v1 looked for 'shareholding' and never saw it."""
+    from app.ingest import security_class as SC
+    from app.parsers.upstox_fundamentals import VARIANTS
+    assert "share_holdings" in {v.statement_type for v in VARIANTS}
+    assert SC.METHOD_VERSION == "secclass-v2"
+    s = db_session
+    clock.freeze(NOW)
+    try:
+        await SEED.seed(s)
+        fr = await SEED._run(s, "facts2", source="UPSTOX_REST_V2")
+        sha = await SEED._payload(s, fr, "UPSTOX_REST_V2")
+        for st, payload in (("profile", {"sector": None}),
+                            ("share_holdings", [{"period": "Jun 2026", "promoters": 25.5}])):
+            await s.execute(text("""
+                insert into fundamental_snapshot (instrument_key, isin, statement_type,
+                  payload, source, run_id, payload_sha256, fetched_at, knowable_at,
+                  knowable_at_verified, knowable_at_basis) values (:k, 'INE040A01034', :st,
+                  cast(:p as jsonb), 'UPSTOX_REST_V2', :r, :h, :t, :t, false, 'fetched')"""),
+                {"k": H, "st": st, "p": json.dumps(payload), "r": fr, "h": sha, "t": NOW})
+        await classify_securities(s, commit=True, token=TOKEN)
+        assert (await _classes(s))[H] == ("STOCK", None, "CLASSIFIED")
+        sig = (await s.execute(text("select signals, method_version from "
+                                    "instrument_security_class where instrument_key=:k"),
+                               {"k": H})).one()
+        assert sig[0]["financials"]["vote"] == "FINANCIALS" and sig[1] == "secclass-v2"
+    finally:
+        clock.unfreeze()
+
+
 async def test_new_listing_grace_for_review_without_financials(db_session):
     """Decision D-NEW-LISTING-GRACE (2026-10-08): a NEW listing in REVIEW only because
     the vendor has no financials yet is in the 7-day grace; after 7 days, or with any

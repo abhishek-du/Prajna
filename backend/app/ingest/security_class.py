@@ -46,7 +46,10 @@ from app.core.clock import now
 from app.db.models import InstrumentSecurityClass
 from app.ingest.runner import IngestRunner
 
-METHOD_VERSION = "secclass-v1"
+# v2 (2026-10-13): the shareholding vote reads statement_type 'share_holdings', the
+# type the fundamentals parser stores (v1 looked for 'shareholding' and never matched;
+# measured on 3,593 instruments: 0 classifications change)
+METHOD_VERSION = "secclass-v2"
 SOURCE, STREAM = "PRAJNA_DERIVED", "derive.security_class"
 _FUND_NAME = re.compile(r"\bETF\b|^[A-Z0-9&_]+(AMC|AML|MF)\s*-\s*\S")
 
@@ -137,7 +140,7 @@ async def classify_securities(s: AsyncSession, *, commit: bool, token: str | Non
                    i.trading_symbol, i.name, p.sector, p.id is not null as has_profile,
                    exists (select 1 from fundamental_snapshot f
                            where f.instrument_key = i.instrument_key
-                             and f.statement_type in ('key_ratios', 'shareholding')) has_ratios
+                             and f.statement_type in ('key_ratios', 'share_holdings')) has_ratios
             from instrument i
             left join lateral (
                 select f.id, nullif(f.payload->>'sector', '') as sector from fundamental_snapshot f
