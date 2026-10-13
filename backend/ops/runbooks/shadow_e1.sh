@@ -14,7 +14,14 @@ ts() { TZ=Asia/Kolkata date '+%F %T IST'; }
   echo "[$(ts)] SHADOW_E1_START $PHASE"
   case "$PHASE" in
     picks) .venv/bin/python ops/measure/shadow_e1.py picks; rc=$? ;;
-    open)  .venv/bin/python ops/measure/shadow_e1.py open; rc=$?
+    open)  # the replay of today's capture may still be running: wait for its result
+           # (up to SHADOW_REPLAY_WAIT s); shadow_e1.py itself refuses an incomplete one
+           PLOG="var/logs/preopen_$(TZ=Asia/Kolkata date +%F).log"
+           deadline=$(( $(date +%s) + ${SHADOW_REPLAY_WAIT:-1800} ))
+           until grep -q "replay exit" "$PLOG" 2>/dev/null || (( $(date +%s) >= deadline )); do
+             sleep 20
+           done
+           .venv/bin/python ops/measure/shadow_e1.py open; rc=$?
            .venv/bin/python ops/measure/shadow_e1.py outcomes; rc2=$?
            [ "$rc" -eq 0 ] && rc=$rc2 ;;
     *) echo "unknown phase $PHASE"; rc=2 ;;

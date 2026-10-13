@@ -7,7 +7,9 @@ app/training/shadow.py.
   picks [--date D] 09:06 IST: universe, scores and picks from D's production
                    PRE_SESSION features; refused unless the features carry the active
                    registry; a file written at or after 09:15 IST is flagged LATE
-  open  [--date D] 09:45 IST: real level-1 quotes at the open from the pre-open capture
+  open  [--date D] 09:45 IST: real level-1 quotes at the open from the pre-open capture;
+                   refused (nothing written, exit != 0) unless D's pre-open replay is
+                   COMPLETE: var/logs/replay_<D>.json and every one of its shard runs
   outcomes         every logged day before today whose canonical daily bars exist
   summary          the pooled E1 metrics over all days with outcomes (forward, strict)
 
@@ -46,6 +48,21 @@ E1_P2_CONFIG = "82e828c87e2a581048bac4a140c0e69c7e15056bd57ec4dd8324becfad2ad472
 P2_WINDOW = (_dt.date(2025, 9, 24), _dt.date(2026, 7, 20))
 P2_ALPHA = 100.0
 WAIT_UNTIL = _dt.time(9, 13)
+REPLAY_LOGS = ROOT / "var/logs"
+# the code a shadow file depends on; other paths (frontend/, docs/, another tool's
+# worktree) never refuse a run, they are only recorded in stamp()["dirty"]
+CODE_PATHS = ("app", "ops", "pyproject.toml")
+
+
+def code_dirty(root: pathlib.Path = ROOT, paths: tuple[str, ...] = CODE_PATHS) -> bool:
+    """Uncommitted changes under `paths` (relative to root). Unknown = dirty."""
+    import subprocess
+    try:
+        out = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--", *paths],  # noqa: S603,S607
+                             capture_output=True, text=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return True
+    return bool(out.strip())
 
 
 def stamp() -> dict[str, Any]:
@@ -159,6 +176,30 @@ async def open_rows(s, d: _dt.date, keys: list[str]) -> list[dict[str, Any]]:
                   and '09:20:00'"""), {"d": d, "k": keys})).all()]
 
 
+async def replay_status(s, d: _dt.date) -> str:
+    """COMPLETE only if preopen_day.sh's replay report for D says COMPLETE and every
+    shard run it lists is COMPLETE in ingest_run; otherwise why not."""
+    p = REPLAY_LOGS / f"replay_{d}.json"
+    if not p.exists():
+        return "REPLAY_MISSING"
+    try:
+        rep = json.loads(p.read_text())          # empty or partial while the replay runs
+    except json.JSONDecodeError:
+        return "REPLAY_INCOMPLETE"
+    if rep.get("session_date") != str(d):
+        return "REPLAY_OTHER_SESSION"
+    if rep.get("status") != "COMPLETE":
+        return f"REPLAY_{rep.get('status') or 'UNKNOWN'}"
+    ids = [sh.get("run_id") for sh in rep.get("shards") or []]
+    if not ids or None in ids:
+        return "REPLAY_NO_SHARDS"
+    runs = dict((await s.execute(text("""select run_id::text, status from ingest_run
+        where run_id = any(cast(:ids as uuid[]))"""), {"ids": ids})).all())
+    if any(runs.get(i) != "COMPLETE" for i in ids):
+        return "REPLAY_RUN_NOT_COMPLETE"
+    return "COMPLETE"
+
+
 async def open_phase(d: _dt.date) -> dict[str, Any]:
     pk = OUT / str(d) / "picks.json"
     if not pk.exists():
@@ -169,6 +210,11 @@ async def open_phase(d: _dt.date) -> dict[str, Any]:
     keys = [u["key"] for u in p["universe"]]
     async with get_sessionmaker()() as s:
         await ro(s)
+        replay = await replay_status(s, d)
+        if replay != "COMPLETE":                  # open.json is written once: never early
+            await s.rollback()
+            raise SystemExit(f"REFUSED: pre-open replay of {d} not complete ({replay}); "
+                             "open.json not written")
         rows = await open_rows(s, d, keys)
         await s.rollback()
     q = SH.open_quotes(rows)
@@ -240,8 +286,9 @@ def main() -> int:
     if a.phase == "summary":
         print(json.dumps(summary(), indent=1, default=str))
         return 0
-    if RP.code_version()["dirty"]:
-        raise SystemExit("REFUSED: the working tree is dirty; commit first")
+    if code_dirty():
+        raise SystemExit(f"REFUSED: uncommitted changes under {', '.join(CODE_PATHS)}; "
+                         "commit first")
     OUT.mkdir(parents=True, exist_ok=True)
     if a.phase == "freeze-weights":
         doc = asyncio.run(freeze_weights())

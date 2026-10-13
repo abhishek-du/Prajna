@@ -4,6 +4,7 @@ feature reader on the seed world (registry guard). Logging only; test database o
 
 from __future__ import annotations
 
+import asyncio
 import datetime as _dt
 import json
 import os
@@ -112,6 +113,150 @@ class TestFiles:
     def test_summary_needs_days(self, tmp_path, monkeypatch):
         monkeypatch.setattr(X, "OUT", tmp_path)
         assert X.summary()["note"].startswith("fewer than 6 days")
+
+
+class _Rows:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def all(self):
+        return self._rows
+
+
+class FakeSession:
+    """ingest_run lookups only: {run_id: status}."""
+    def __init__(self, runs=None):
+        self.runs = runs or {}
+        self.sql = []
+
+    async def execute(self, stmt, params=None):
+        self.sql.append(str(stmt))
+        ids = (params or {}).get("ids") or []
+        return _Rows([(i, self.runs[i]) for i in ids if i in self.runs])
+
+    async def rollback(self):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        return False
+
+
+D13 = _dt.date(2026, 10, 13)
+SHARDS = ["e212a6ad-b478-4575-a1b4-27668b28f4f2", "b4057dd8-fa35-4987-ab8f-7dcbea4eaff3"]
+
+
+def replay_doc(status="COMPLETE", day="2026-10-13", shards=SHARDS):
+    return {"session_id": "x", "session_date": day, "status": status, "rows_written": 1,
+            "error": None, "shards": [{"run_id": r, "status": status} for r in shards]}
+
+
+class TestReplayGuard:
+    @pytest.fixture
+    def logs(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(X, "REPLAY_LOGS", tmp_path)
+        return tmp_path
+
+    def write(self, logs, body):
+        (logs / "replay_2026-10-13.json").write_text(
+            body if isinstance(body, str) else json.dumps(body))
+
+    async def test_missing_partial_failed_and_other_session(self, logs):
+        s = FakeSession()
+        assert await X.replay_status(s, D13) == "REPLAY_MISSING"
+        self.write(logs, "")                                  # created by `>` at replay start
+        assert await X.replay_status(s, D13) == "REPLAY_INCOMPLETE"
+        self.write(logs, '{"session_id": "x", "sta')
+        assert await X.replay_status(s, D13) == "REPLAY_INCOMPLETE"
+        self.write(logs, replay_doc("FAILED"))
+        assert await X.replay_status(s, D13) == "REPLAY_FAILED"
+        self.write(logs, replay_doc(day="2026-10-12"))
+        assert await X.replay_status(s, D13) == "REPLAY_OTHER_SESSION"
+        self.write(logs, replay_doc(shards=[]))
+        assert await X.replay_status(s, D13) == "REPLAY_NO_SHARDS"
+        assert s.sql == []                                    # decided from the file alone
+
+    async def test_every_shard_run_must_be_complete(self, logs):
+        self.write(logs, replay_doc())
+        assert await X.replay_status(FakeSession({SHARDS[0]: "COMPLETE"}), D13) \
+            == "REPLAY_RUN_NOT_COMPLETE"                      # one shard run not found
+        assert await X.replay_status(
+            FakeSession({SHARDS[0]: "COMPLETE", SHARDS[1]: "FAILED"}), D13) \
+            == "REPLAY_RUN_NOT_COMPLETE"
+        assert await X.replay_status(
+            FakeSession({SHARDS[0]: "COMPLETE", SHARDS[1]: "COMPLETE"}), D13) == "COMPLETE"
+
+    @pytest.fixture
+    def picked(self, logs, tmp_path, monkeypatch):
+        out = tmp_path / "shadow"
+        monkeypatch.setattr(X, "OUT", out)
+        doc = SH.make_picks(SH.session_from_rows(rows_for()), np.ones(24))
+        (out / "2026-10-13").mkdir(parents=True)
+        (out / "2026-10-13" / "picks.json").write_text(json.dumps({**doc, "status": "OK"}))
+        read = []
+
+        async def open_rows(_s, d, keys):
+            read.append(d)
+            return []
+        monkeypatch.setattr(X, "open_rows", open_rows)
+        return out, read
+
+    def session(self, monkeypatch, runs):
+        monkeypatch.setattr(X, "get_sessionmaker", lambda: (lambda: FakeSession(runs)))
+        monkeypatch.setattr(X, "ro", lambda s: asyncio.sleep(0))
+
+    async def test_open_refused_before_replay_completes_writes_nothing(self, logs, picked,
+                                                                       monkeypatch):
+        out, read = picked
+        self.session(monkeypatch, {})
+        with pytest.raises(SystemExit, match=r"not complete \(REPLAY_MISSING\)"):
+            await X.open_phase(D13)
+        self.write(logs, replay_doc("FAILED"))
+        with pytest.raises(SystemExit, match=r"REPLAY_FAILED"):
+            await X.open_phase(D13)
+        assert read == [] and not (out / "2026-10-13" / "open.json").exists()
+
+    async def test_open_reads_quotes_after_a_complete_replay(self, logs, picked, monkeypatch):
+        _out, read = picked
+        self.write(logs, replay_doc())
+        self.session(monkeypatch, dict.fromkeys(SHARDS, "COMPLETE"))
+        doc = await X.open_phase(D13)
+        assert read == [D13] and doc["status"] == "NO_DEPTH"   # no ticks in the fake
+
+
+class TestScopedDirty:
+    @pytest.fixture
+    def repo(self, tmp_path):
+        import subprocess
+
+        def git(*a):
+            subprocess.run(["git", "-C", str(tmp_path), *a], check=True, capture_output=True)
+        git("init", "-q")
+        for f in ("app/x.py", "ops/measure/y.py", "pyproject.toml", "frontend/z.ts",
+                  "docs/d.md"):
+            (tmp_path / f).parent.mkdir(parents=True, exist_ok=True)
+            (tmp_path / f).write_text("0\n")
+        git("add", "-A")
+        git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "init")
+        return tmp_path
+
+    def test_clean_and_unrelated_changes_do_not_refuse(self, repo):
+        assert X.code_dirty(repo) is False
+        (repo / "frontend/z.ts").write_text("1\n")           # another tool's worktree
+        (repo / "frontend/new.ts").write_text("1\n")
+        (repo / "docs/d.md").write_text("1\n")
+        assert X.code_dirty(repo) is False
+
+    @pytest.mark.parametrize("path", ["app/x.py", "ops/measure/y.py", "pyproject.toml",
+                                      "app/new_untracked.py"])
+    def test_backend_code_changes_refuse(self, repo, path):
+        (repo / path).write_text("1\n")
+        assert X.code_dirty(repo) is True
+
+    def test_not_a_repository_counts_as_dirty(self, tmp_path):
+        assert X.code_dirty(tmp_path / "nowhere") is True
 
 
 @pytest.mark.db
