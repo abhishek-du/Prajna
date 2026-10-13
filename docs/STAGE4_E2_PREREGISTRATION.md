@@ -101,7 +101,19 @@
 | GST | 18% on brokerage + exchange + SEBI (+ DP) | API; the page | same |
 | **DP charge** | **₹20 + 18% GST = ₹23.60 per scrip per sell day** | The page. The API names plan `DP4A`, `min_expense` ₹20, and **excludes it from its total**, so it is added separately. | none |
 
-**Still to confirm officially:** the Finance Act STT schedule and the Indian Stamp Act rate (effective 2020-07-01) have not been fetched from government sources. The figures above are the broker's, cross-checked against its live computation.
+**C5, statutory cross-check (2026-10-13).** Every rate agrees with the broker's live computation. Primary government texts could not be retrieved from this host: incometaxindia.gov.in returned HTTP 403, and nseindia.com timed out.
+
+| Charge | Rate | Legal basis | Evidence retrieved | Status |
+|---|---|---|---|---|
+| STT, delivery | 0.1% buy and sell | Finance (No. 2) Act 2004, Chapter VII (s. 98); rates from 2024-10-01 | Upstox pricing page; secondary summaries; the API | **Confirmed by the broker's computation; primary text not retrieved** |
+| STT, intraday | 0.025% sell | same | Upstox pricing page; the API (24.92 on ₹99,665) | same |
+| Stamp duty | 0.015% delivery buy, 0.003% intraday buy | Indian Stamp Act 1899 as amended by the Finance Act 2019; Collection Rules notified 2019-12-10; **effective 2020-07-01** | Professional summaries (iPleaders, Khaitan & Co, Mondaq); the API (14.95 on ₹99,665) | **Confirmed by the broker's computation; Gazette text not retrieved** |
+| SEBI turnover fee | 0.0001% (₹10 per crore) | SEBI (Stock Brokers) Regulations fee schedule | The API (0.10 on ₹99,665); secondary sources. The sebi.gov.in page found is a 2020 *proposal*, not the current rate. | Confirmed by the broker's computation |
+| GST | 18% | GST on financial services, SAC 997152 | The API (4.17 on ₹20 + ₹3.06 + ₹0.10) | Confirmed by the broker's computation |
+| NSE transaction charge | 0.00307% (₹306.99 + ₹0.01 IPFT per crore) | NSE circular 2026-02-27, effective 2026-03-01 | TeamLease RegTech and Upstox News summaries; the API | Confirmed |
+
+**Reading:** every statutory figure the cost model uses is reproduced exactly by Upstox's own charges computation for this account on 2026-10-13. The remaining gap is document provenance (the Gazette and Income Tax texts), not the rate.
+
 
 ### Order-size sensitivity (delivery, incl. DP; `e2.order_cost_inr`)
 
