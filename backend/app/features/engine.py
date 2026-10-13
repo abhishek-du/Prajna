@@ -227,6 +227,8 @@ def instrument_rows(inp: I.InstrumentInputs, snap: Snapshot, nifty: list,
         # news features (news_rows) - never also here, or a key would get two rows
         if spec.scope != "INSTRUMENT" or spec.id == "sector_rs_20" or NEWS_INPUT in spec.inputs:
             continue
+        if spec.status != "IMPLEMENTED":      # registered UNSUPPORTED: never computed or stored
+            continue
         if snap.kind not in spec.snapshots:
             continue
         v, why = vals.get(spec.id, miss(NOT_APPLICABLE))

@@ -266,6 +266,31 @@ if F3_PAYLOAD_BASIS_ACTIVE:
                      for f in FEATURES)
     VERSION = "features-v4"
 
+# features-v5 (PREPARED 2026-10-13, NOT ACTIVE; decision CA-TO-UNSUPPORTED pending):
+# ca_days_to_{any,dividend,split,bonus} have never had a value. Upstox lists a
+# corporate action only on or after its ex-date (2,344 events, max ex-date - first
+# fetch = 0 days), so "days until the next knowable ex-date" has no source. Active,
+# they stay registered with status UNSUPPORTED (the definition names the reason),
+# the engine stops computing and storing them, and the registry becomes features-v5
+# with a new hash. Inactive (now), the registry document and hash are byte-identical
+# to features-v4. Values stored under v1..v4 keep their own version and hash.
+CA_TO_FEATURES = tuple(f"ca_days_to_{k}" for k in CA_KINDS)
+CA_TO_UNSUPPORTED_REASON = ("UNSUPPORTED: the vendor lists a corporate action only on or "
+                            "after its ex-date, so no future ex-date is ever knowable")
+CA_TO_UNSUPPORTED_ACTIVE = False
+
+
+def apply_ca_to_unsupported(features: tuple[FeatureSpec, ...]) -> tuple[FeatureSpec, ...]:
+    from dataclasses import replace as _r
+    return tuple(_r(f, status="UNSUPPORTED", definition=f"{f.definition} | "
+                    f"{CA_TO_UNSUPPORTED_REASON}") if f.id in CA_TO_FEATURES else f
+                 for f in features)
+
+
+if CA_TO_UNSUPPORTED_ACTIVE:
+    FEATURES = apply_ca_to_unsupported(FEATURES)
+    VERSION = "features-v5"
+
 DIAGRAM: tuple[dict, ...] = (
     {"group": PRICE, "item": "Returns (1d, 5d, 20d)", "features": ["ret_1d", "ret_5d", "ret_20d"]},
     {"group": PRICE, "item": "Moving averages (SMA, EMA)",
@@ -303,7 +328,9 @@ DIAGRAM: tuple[dict, ...] = (
                "dividends, splits, bonuses and rights only"},
     {"group": EVENT, "item": "Corporate actions",
      "features": [f"ca_days_since_{k}" for k in ("any", "dividend", "split", "bonus")]
-     + [f"ca_days_to_{k}" for k in ("any", "dividend", "split", "bonus")]},
+     + [f"ca_days_to_{k}" for k in ("any", "dividend", "split", "bonus")],
+     **({"partial": f"ca_days_to_*: {CA_TO_UNSUPPORTED_REASON}"}
+        if CA_TO_UNSUPPORTED_ACTIVE else {})},
     {"group": EVENT, "item": "News sentiment", "features": [
         "news_count_24h", "news_count_7d", "news_hours_since_last",
         *([f.id for f in NEWS_V2_FEATURES] if NEWS_V2_ACTIVE else [])],
@@ -350,6 +377,23 @@ def registry_document() -> dict:
 
 REGISTRY_SHA256 = hashlib.sha256(json.dumps(registry_document(), sort_keys=True,
                                             default=str).encode()).hexdigest()
+
+
+def ca_to_unsupported_document() -> dict:
+    """The features-v5 registry document CA_TO_UNSUPPORTED_ACTIVE would produce (for
+    review before activation; equal to registry_document() once it is active)."""
+    if CA_TO_UNSUPPORTED_ACTIVE:
+        return registry_document()
+    diagram = [{**d, "partial": f"ca_days_to_*: {CA_TO_UNSUPPORTED_REASON}"}
+               if d["item"] == "Corporate actions" else d for d in DIAGRAM]
+    return {"version": "features-v5",
+            "features": [asdict(f) for f in apply_ca_to_unsupported(FEATURES)],
+            "diagram": diagram}
+
+
+CA_TO_UNSUPPORTED_SHA256 = hashlib.sha256(json.dumps(ca_to_unsupported_document(),
+                                                     sort_keys=True, default=str).encode()
+                                          ).hexdigest()
 
 
 def diagram_status(d: dict) -> str:
