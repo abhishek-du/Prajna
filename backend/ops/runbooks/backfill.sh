@@ -8,7 +8,9 @@
 # stream checkpoints ([covered_from, through]); rerunning it continues where it
 # stopped and re-stored bars are no-ops. It stops by itself at --until (IST,
 # default 06:50: the morning daily run and the pre-open come next), on a
-# 429/auth error (the ingest aborts cleanly), and when free disk < 60 GB.
+# 429/auth error (the ingest aborts cleanly), and when free disk < 60 GB - checked
+# before every stage AND every PRAJNA_BACKFILL_DISK_POLL_S (default 5) s during a
+# stage: the running ingest is interrupted like at the time limit (resumable).
 # Run it under the candles lock (see ops/cron/prajna.cron) so it never shares
 # the candles quota with the daily close/morning runs; on weekdays
 # ops/runbooks/close_then_backfill.sh starts it right after the close.
@@ -40,6 +42,8 @@ finish() {
   say "BACKFILL_COMPLETED rc=${rc} status=${STATUS}"
 }
 trap finish EXIT
+MIN_FREE_GB=60
+free_gb() { df -BG --output=avail / | tail -1 | tr -dc 0-9; }
 progress() {  # progress <tf> <from>: instruments whose checkpoint reaches the depth
   local n
   n="$("${CLI[@]}" db sql "select count(*) filter (where (r.request_params->'outcome'->'checkpoint'->>'covered_from')::date <= '$2'), count(*) from instrument i left join ingest_watermark w on w.source='UPSTOX_REST_V3' and w.stream='ohlcv.$1.'||i.instrument_key left join ingest_run r on r.run_id=w.last_run_id where i.valid_to='infinity' and i.segment in ('NSE_EQ','NSE_INDEX')" 2>/dev/null | sed -n 3p | awk '{print $1 "/" $2}')" || true
@@ -80,8 +84,10 @@ STAGES=("1h 2022-01-01" "1m ${SIX}" "15m 2022-01-01")
 
 for st in "${STAGES[@]}"; do
   set -- $st; TF=$1; FROM=$2
-  free_gb=$(df -BG --output=avail / | tail -1 | tr -dc 0-9)
-  if (( free_gb < 60 )); then STATUS="disk_low"; say "STOP: free disk ${free_gb} GB < 60 GB"; exit 5; fi
+  free_gb=$(free_gb)
+  if (( free_gb < MIN_FREE_GB )); then
+    STATUS="disk_low"; say "STOP: free disk ${free_gb} GB < ${MIN_FREE_GB} GB"; exit 5
+  fi
   left=$(( stop_s - $(TZ=Asia/Kolkata date +%s) ))
   if (( left < 120 )); then STATUS="time_window_over"; say "time window over"; exit 0; fi
   progress "$TF" "$FROM"
@@ -90,10 +96,32 @@ for st in "${STAGES[@]}"; do
   TICK=$!
   set +e
   while true; do
-    timeout -k 120 --signal=INT "${left}" "${CLI[@]}" ingest candles --timeframe "$TF" \
+    # the ingest stays in the FOREGROUND: an asynchronous command of a
+    # non-interactive shell starts with SIGINT ignored, which would defeat both
+    # the time limit and the disk guard. A background watcher interrupts it via
+    # its pid (exec keeps the pid of the wrapper).
+    PIDF="var/run/backfill_ingest.pid"; FLAG="var/run/backfill_disk_stop"
+    mkdir -p var/run; rm -f "$PIDF" "$FLAG"
+    ( while sleep "${PRAJNA_BACKFILL_DISK_POLL_S:-5}"; do
+        f=$(free_gb)
+        if (( f < MIN_FREE_GB )) && [[ -s "$PIDF" ]]; then
+          echo "$f" > "$FLAG"; kill -INT "$(cat "$PIDF")" 2>/dev/null; break
+        fi
+      done ) &
+    WATCH=$!
+    bash -c 'echo $$ > "$0"; exec "$@"' "$PIDF" \
+      timeout -k 120 --signal=INT "${left}" "${CLI[@]}" ingest candles --timeframe "$TF" \
       --from "$FROM" --to "$LAST" --all-instruments --commit \
       > "var/logs/backfill/${TF}_${STAMP}.json"
     rc=$?
+    kill "$WATCH" 2>/dev/null; wait "$WATCH" 2>/dev/null; rm -f "$PIDF"
+    if [[ -s "$FLAG" ]]; then
+      say "STOP: free disk $(cat "$FLAG") GB < ${MIN_FREE_GB} GB during ${TF}; interrupted (resumable)"
+      rm -f "$FLAG"
+      pkill -P "$TICK" 2>/dev/null; kill "$TICK" 2>/dev/null; TICK=""
+      STATUS="disk_low"; say "   ${TF} exit ${rc} (interrupted: disk)"; progress "$TF" "$FROM"
+      exit 5
+    fi
     stopped="$("$P" -c "import json,sys; print(json.load(open(sys.argv[1])).get('stopped') or '')" "var/logs/backfill/${TF}_${STAMP}.json" 2>/dev/null || true)"
     # the Upstox token expires at ~03:30 IST: exactly ONE re-login (that day's
     # single permitted automated login), then the same stage resumes from its

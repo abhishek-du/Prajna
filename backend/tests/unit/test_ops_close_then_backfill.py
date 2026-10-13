@@ -140,7 +140,8 @@ class TestCloseThenBackfill:
 
 
 def _backfill(base, *, stage_rc: dict[str, int] | None = None, other_job: bool = False,
-              now_hhmm: str = "2330", trading: str = "True", auth_failures: int = 0):
+              now_hhmm: str = "2330", trading: str = "True", auth_failures: int = 0,
+              df_low_after: int | None = None, slow_tf: str | None = None):
     stage_rc = stage_rc or {}
     counter = base / "ingest_calls"
     calls = base / "calls.log"
@@ -161,6 +162,13 @@ case "$args" in
     if [ "$n" -le {auth_failures} ]; then
       echo '{{"stopped": "VendorAuthError: 401 UDAPI100050"}}'; exit 1
     fi
+    case "$args " in
+      *"--timeframe {slow_tf} "*)      # a long stage: interruptible like the real ingest
+        sleep 30 & SL=$!
+        trap 'kill $SL; echo "{{\"stopped\": \"interrupted\"}}"
+              echo INTERRUPTED >> {calls}; exit 130' INT
+        wait $SL ;;
+    esac
     echo '{{}}'
     case "$args " in
 {cases}
@@ -169,13 +177,39 @@ esac
 exit 0
 """)
     _exe(bin_ / "pgrep", f"exit {0 if other_job else 1}\n")
-    _exe(bin_ / "df", "printf 'Avail\\n500G\\n'\n")
+    dfn = base / "df_calls"
+    low = (f'n=$(( $(cat {dfn} 2>/dev/null || echo 0) + 1 )); echo $n > {dfn}\n'
+           f'[ "$n" -gt {df_low_after} ] && {{ printf \'Avail\\n10G\\n\'; exit 0; }}\n'
+           if df_low_after is not None else "")
+    _exe(bin_ / "df", low + "printf 'Avail\\n500G\\n'\n")
     env = {**os.environ, "PATH": f"{bin_}:{os.environ['PATH']}",
-           "PRAJNA_UPSTOX_RATE_FRACTION": "0.5", "PRAJNA_TEST_NOW_HHMM": now_hhmm}
+           "PRAJNA_UPSTOX_RATE_FRACTION": "0.5", "PRAJNA_TEST_NOW_HHMM": now_hhmm,
+           "PRAJNA_BACKFILL_DISK_POLL_S": "0.2"}
     p = subprocess.run(["bash", str(base / "ops/runbooks/backfill.sh"), "--login",
                         "--until", UNTIL],
                        cwd=base, env=env, capture_output=True, text=True, timeout=60)
     return p, (calls.read_text() if calls.exists() else "")
+
+
+class TestBackfillDiskGuard:
+    def test_low_disk_during_a_stage_interrupts_it_resumably(self, base):
+        """free disk drops below 60 GB while the 1h stage runs: the ingest is
+        interrupted (SIGINT, like the time limit), no later stage starts, exit 5."""
+        import time
+        t0 = time.monotonic()
+        p, calls = _backfill(base, df_low_after=2, slow_tf="1h")
+        assert time.monotonic() - t0 < 20                     # did not wait the 30 s out
+        assert p.returncode == 5, p.stdout + p.stderr
+        assert "during 1h; interrupted (resumable)" in p.stdout
+        assert "INTERRUPTED" in calls
+        assert [ln for ln in calls.splitlines() if "ingest candles" in ln][-1].count("1h") == 1
+        assert sum("ingest candles" in ln for ln in calls.splitlines()) == 1
+        assert "BACKFILL_COMPLETED rc=5 status=disk_low" in p.stdout
+
+    def test_low_disk_before_a_stage_still_refuses_it(self, base):
+        p, calls = _backfill(base, df_low_after=0)
+        assert p.returncode == 5 and "ingest candles" not in calls
+        assert "STOP: free disk 10 GB < 60 GB" in p.stdout
 
 
 class TestBackfillMarkers:
