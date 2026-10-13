@@ -471,6 +471,29 @@ class TestLocks:
         monkeypatch.setattr(unlocked, "PRAJNA_STAGE3_BACKFILL_ENABLED", True)
         assert (await run(world, mode="BACKFILL"))["committed"]
 
+    async def test_backfill_never_mixes_registries_in_a_snapshot(self, world, unlocked,
+                                                                 monkeypatch):
+        """A snapshot already stored under another registry (e.g. 2026-10-08 under
+        dd696ca6) is refused by a BACKFILL before anything is computed or written; a
+        snapshot of the active registry is backfilled (idempotent) as before."""
+        monkeypatch.setattr(unlocked, "PRAJNA_STAGE3_BACKFILL_ENABLED", True)
+        active = E.REGISTRY_SHA256
+        monkeypatch.setattr(E, "REGISTRY_SHA256", "d" * 64)      # an older registry
+        await run(world, mode="RUN")
+        before = await stored(world)
+        runs = await count(world, "select count(*) from ingest_run where stream like "
+                                  "'features.%'")
+        monkeypatch.setattr(E, "REGISTRY_SHA256", active)          # the active registry
+        with pytest.raises(E.RegistryConflict, match="another registry"):
+            await run(world, mode="BACKFILL")
+        assert await stored(world) == before
+        assert await count(world, "select count(*) from ingest_run where stream like "
+                                  "'features.%'") == runs
+        assert await E.other_registry_rows(world, await snap(world, "PRE_SESSION")) == {
+            "d" * 64: before}
+        other = await run(world, "PRE_OPEN", mode="BACKFILL")      # nothing stored there
+        assert other["committed"] and other["inserted"] > 0
+
     async def test_dry_run_needs_no_lock_and_writes_nothing(self, world):
         res = await E.compute_snapshot(world, await snap(world), [W.A])
         assert res.rows and await stored(world) == 0 and await events(world) == 0

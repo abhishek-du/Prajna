@@ -1488,7 +1488,12 @@ def _stage3_commit(mode: str, sessions, snapshots: list[str], keys: list[str] | 
                     except SN.NoSnapshot as e:
                         out.append({"session": str(d), "snapshot": k, "skipped": str(e)})
                         continue
-                    out.append(await E.run_snapshot(s, snap, keys=keys, mode=mode, token=token))
+                    try:
+                        out.append(await E.run_snapshot(s, snap, keys=keys, mode=mode,
+                                                        token=token))
+                    except E.RegistryConflict as e:    # nothing written: report, go on
+                        await s.rollback()
+                        out.append({"session": str(d), "snapshot": k, "skipped": str(e)})
             return out
 
     try:

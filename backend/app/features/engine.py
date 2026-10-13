@@ -109,6 +109,19 @@ class SnapshotIsolationError(RuntimeError):
     """The transaction cannot provide one consistent snapshot; nothing is computed."""
 
 
+class RegistryConflict(RuntimeError):
+    """A BACKFILL of a snapshot that already holds rows of another registry: nothing is
+    computed or written (one snapshot never mixes registries; a v4 recompute next to
+    stored v3 rows would fail or interleave versions)."""
+
+
+async def other_registry_rows(s: AsyncSession, snap: Snapshot) -> dict[str, int]:
+    """Stored rows of this snapshot whose registry is not the active one."""
+    return dict((await s.execute(text("""select registry_sha256, count(*) from feature_value
+        where session_date = :d and snapshot = :k and registry_sha256 <> :r group by 1"""),
+        {"d": snap.session_date, "k": snap.kind, "r": REGISTRY_SHA256})).all())
+
+
 CONSISTENT_LEVELS = ("repeatable read", "serializable")
 
 
@@ -415,6 +428,9 @@ async def run_snapshot(s: AsyncSession, snap: Snapshot, *, keys: list[str] | Non
                        token: str | None, operator: str = "cli") -> dict[str, Any]:
     """A committed run. Refused (LockRefused) unless every lock condition holds."""
     report = await locks.require(s, mode=mode, token=token, operator=operator)
+    if mode == "BACKFILL" and (other := await other_registry_rows(s, snap)):
+        raise RegistryConflict(f"{snap.session_date} {snap.kind} holds rows of another "
+                               f"registry {other}; not backfilled")
     keys = keys if keys is not None else await universe(s)
     runner = IngestRunner(s, source=SOURCE, stream=f"features.{snap.kind}",
                           vendor_endpoint="derived: app.canon.pit (no vendor call)",
