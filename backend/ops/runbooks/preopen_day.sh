@@ -73,6 +73,28 @@ set +e
 "${CLI[@]}" ingest preopen --replay-from-session "$MANIFEST" --commit \
   > "var/logs/replay_${DAY}.json"
 REP=$?
+if [[ $REP -eq 0 ]]; then
+  # Fresh planner statistics for today's rows BEFORE the "replay exit" line, which
+  # stage3_snapshot.sh --after-replay waits for. A session that adds < 10% of the
+  # table (the autoanalyze threshold) is otherwise estimated at 1 row, and PRE_OPEN's
+  # per-instrument query scans the whole day (2026-10-13: 842 s instead of ~260 s).
+  # Best effort: a failure or timeout is logged and changes nothing else.
+  timeout 300 "$P" - <<'PY'
+import asyncio, time
+from sqlalchemy import text
+from app.db.engine import get_sessionmaker
+async def go():
+    async with get_sessionmaker()() as s:
+        await s.execute(text("set local lock_timeout = '30s'"))
+        await s.execute(text("set local statement_timeout = '240s'"))
+        t = time.monotonic()
+        await s.execute(text("analyze preopen_tick, preopen_book"))
+        await s.commit()
+        print(f"ANALYZE_PREOPEN OK seconds={time.monotonic() - t:.2f}")
+asyncio.run(go())
+PY
+  say "analyze_preopen exit $?"
+fi
 set -e
 say "replay exit ${REP}"
 
