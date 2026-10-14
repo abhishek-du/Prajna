@@ -151,7 +151,8 @@ class TestCosts:
 
     def test_measured_half_spread_per_name_with_the_proxy_as_fallback(self):
         day = X.BookDay(0, 0.0, {"A": 0.1}, {"B": 0.1}, 2, 0)
-        cm = X.CostModel(CNC, 1_000_000, half_spread_bps=5.0, half_spread_by_name={"A": 12.0})
+        cm = X.CostModel(CNC, 1_000_000, half_spread_bps=5.0,
+                         half_spread_measured={(0, "A"): 12.0, (1, "B"): 30.0})
         assert cm.day_cost_parts(day)["spread"] == pytest.approx(0.1 * (12 + 5) / 10_000)
         assert cm.spread_coverage([day]) == {"measured": 1, "proxy": 1}
 
@@ -220,3 +221,153 @@ class TestProtocolIssues:
         both_costed = np.mean(X.net_series(p, cm)) - np.mean(X.net_series(c, cm))
         assert gross == pytest.approx(0.0, abs=1e-12)
         assert both_costed > 0 > np.mean(X.net_series(p, cm))
+
+
+# ── the experiment core (Amendment 2, PROPOSED) ────────────────────────────────────
+def world(n=300, t=140, edge=0.0, seed=1):
+    """Synthetic sessions and adjusted opens. The score is -ret_1d (P1 reversal);
+    with edge > 0 a name's next-session return is edge * its standardised score."""
+    rng = np.random.default_rng(seed)
+    keys = [f"K{i:03d}" for i in range(n)]
+    turn, atr = rng.lognormal(15, 1, n), rng.uniform(.01, .05, n)
+    sessions, px = {}, np.full((n, t + 1), 100.0)
+    ri = __import__("app.training.e1", fromlist=["CORE24"]).CORE24.index("ret_1d")
+    for d in range(t):
+        X = rng.normal(size=(n, 24))
+        X[:, 23] = turn                                           # turnover_20
+        X[:, 14] = atr                                            # atr_pct_14
+        sessions[d] = {"keys": keys, "X": X, "turnover": turn, "atr": atr}
+        r = edge * (-X[:, ri]) + rng.normal(0, 0.01, n)
+        px[:, d + 1] = px[:, d] * (1 + r)
+    opens = {k: px[i].tolist() for i, k in enumerate(keys)}
+    return sessions, opens
+
+
+def run(sessions, opens, sel, cm, *, perm=0, tests=((20, 40), (40, 60), (60, 80), (80, 100),
+                                                    (100, 120))):
+    from app.training import e1 as E1
+    blocks = [(f, X.form_block(sessions, range(a, b), lambda s, u: E1.reversal(s), sel,
+                               seed=7, perm_draws=perm)) for f, (a, b) in enumerate(tests)]
+    return blocks, X.evaluate(blocks, opens, cm, b=500, seed=3)
+
+
+CM10L = X.CostModel(X.Rates(**{**CNC.__dict__, "dp_per_scrip_sell_inr": 20.0}),
+                    capital_inr=1_000_000, half_spread_bps=3.63)
+
+
+class TestExperiment:
+    def test_costs_enter_once_on_the_predictor_book_only(self):
+        s, o = world()
+        blocks, r = run(s, o, X.K100, CM10L)
+        S = r["series"]
+        P = [d for f, blk in blocks for d in X.tranche_book(blk["picks"]["P"], o, blk["test"])]
+        cost = [CM10L.day_cost(d) for d in P]
+        for prim, g, c in zip(S["primary_net_vs_c2_gross"], S["gross_vs_c2_gross"], cost,
+                              strict=True):
+            assert prim == pytest.approx(g - c, abs=1e-15)
+        assert r["costs"]["net"] == pytest.approx(r["costs"]["gross"] - sum(
+            r["costs"][p] for p in X.COST_PARTS))
+
+    def test_no_edge_and_flat_prices_cannot_pass_through_a_control(self):
+        s, _ = world()
+        flat_opens = {k: flat(141) for k in s[0]["keys"]}
+        _, r = run(s, flat_opens, X.K20, CM10L)
+        assert r["results"]["gross_vs_c2_gross"]["mean"] == pytest.approx(0.0, abs=1e-15)
+        assert r["results"]["primary_net_vs_c2_gross"]["mean"] < 0      # = -P's costs
+        assert r["acceptance"]["A1"] == "FAIL" and r["acceptance"]["A2"] == "FAIL"
+
+    def test_noise_world_is_not_a_pass(self):
+        """One noise world (smoke). The false-rejection rate of the CI over many noise
+        worlds is measured by ops/measure/e2_null_calibration.py, not asserted here."""
+        s, o = world(edge=0.0)
+        _, r = run(s, o, X.K100, X.CostModel(CNC, 5e7, 3.63))
+        assert r["acceptance"]["A1"] != "PASS"
+        assert abs(r["results"]["placebo_gross_vs_its_c2"]["mean"]) < 5e-4
+
+    def test_a_planted_edge_above_costs_passes(self):
+        s, o = world(edge=0.004, seed=2)       # seed 1's placebo draw is a 2.5%-tail one
+        _, r = run(s, o, X.K100, X.CostModel(CNC, 5e7, 3.63), perm=20)
+        a = r["acceptance"]
+        assert a["A1"] == "PASS" and a["A2"] == "PASS" and a["A3"] == "PASS"
+        assert a["A4"] == "PASS"
+        assert r["c1"]["p_one_sided"] == pytest.approx(1 / 21)
+
+    def test_selection_never_sees_later_sessions(self):
+        s, _ = world()
+        before = X.form_block(s, range(40, 60), lambda z, u: -z["X"][:, 0], X.K20, seed=1)
+        for d in range(50, 140):                       # rewrite every later session
+            s[d] = {**s[d], "X": -s[d]["X"]}
+        after = X.form_block(s, range(40, 60), lambda z, u: -z["X"][:, 0], X.K20, seed=1)
+        for a in X.ARMS:
+            assert {d: v for d, v in after["picks"][a].items() if d < 50} == \
+                {d: v for d, v in before["picks"][a].items() if d < 50}
+
+    def test_arms_are_disjoint_and_sized_by_the_selection(self):
+        s, _ = world(n=600)
+        for sel, k in ((X.K100, 100), (X.K20, 20)):
+            blk = X.form_block(s, range(40, 60), lambda z, u: -z["X"][:, 0], sel, seed=1)
+            for d in range(36, 60):
+                p, c2 = set(blk["picks"]["P"][d]), set(blk["picks"]["C2"][d])
+                pl, plc = set(blk["picks"]["PL"][d]), set(blk["picks"]["PLC"][d])
+                assert len(p) == k and not p & c2 and not p & pl and not p & plc
+                assert len(blk["picks"]["C0"][d]) == 500           # the top-500 universe
+
+    def test_k20_raises_the_order_size_fivefold_at_the_same_capital(self):
+        s, o = world(n=600)
+        size = {}
+        for sel in (X.K100, X.K20):
+            blk = X.form_block(s, range(40, 41), lambda z, u: -z["X"][:, 0], sel, seed=1)
+            first = X.tranche_book(blk["picks"]["P"], o, range(36, 41))[0]   # ramp day
+            size[sel.name] = np.mean(list(first.buys.values())) * 1_000_000
+        assert size["k100-top-quintile"] == pytest.approx(2_000, rel=0.02)
+        assert size["k20"] == pytest.approx(10_000, rel=0.02)
+
+
+class TestRunnerDiscipline:
+    """ops/measure/stage4_e2_hold.py: configuration identity and the one-look ledger
+    (pure parts only; the runner itself is NOT RUN)."""
+
+    @pytest.fixture
+    def R(self, tmp_path, monkeypatch):
+        import json
+        import sys
+        sys.path.insert(0, "ops/measure")
+        import stage4_e2_hold as R
+        f = tmp_path / "open_spread.json"
+        f.write_text(json.dumps({"proxy_half_spread_bps": 3.6308,
+                                 "first_quote_sensitivity_bps": 9.3393,
+                                 "measured_half_spread_bps": {}}))
+        monkeypatch.setattr(R, "SPREAD_FILE", f)
+        return R
+
+    def test_each_selection_and_level_is_its_own_configuration(self, R):
+        shas = {R.cfg_sha(R.config(s, lv)) for s in ("k100", "k20") for lv in (0.975, 0.9875)}
+        assert len(shas) == 4
+        cfg = R.config("k20", 0.975)
+        assert cfg["selection"]["n_picks"] == 20 and cfg["status"] == "EXPLORATORY"
+        assert cfg["capital_inr"] == 1_000_000 and cfg["half_spread_proxy_bps"] == 3.6308
+        assert cfg["rates"]["dp_per_scrip_sell_inr"] == 20.0 and cfg["block"] == 2 * X.H
+
+    def test_one_look_is_enforced(self, R, tmp_path):
+        import json
+        sha = "ab" * 32
+        with pytest.raises(SystemExit, match="dirty"):
+            R.check_look(tmp_path, "validate", sha, dirty=True)
+        R.check_look(tmp_path, "validate", sha, dirty=False)          # allowed
+        with pytest.raises(SystemExit, match="validate phase"):
+            R.check_look(tmp_path, "test", sha, dirty=False, confirm=f"E2-{sha[:12]}")
+        (tmp_path / f"validate_{sha[:12]}.json").write_text(json.dumps({"config_sha256": "x"}))
+        with pytest.raises(SystemExit, match="another configuration"):
+            R.check_look(tmp_path, "test", sha, dirty=False, confirm=f"E2-{sha[:12]}")
+        (tmp_path / f"validate_{sha[:12]}.json").write_text(json.dumps({"config_sha256": sha}))
+        with pytest.raises(SystemExit, match="confirm-test-look"):
+            R.check_look(tmp_path, "test", sha, dirty=False)
+        R.check_look(tmp_path, "test", sha, dirty=False, confirm=f"E2-{sha[:12]}")
+        (tmp_path / f"test_{sha[:12]}.json").write_text("{}")
+        for phase in ("validate", "test"):
+            with pytest.raises(SystemExit, match="single test look"):
+                R.check_look(tmp_path, phase, sha, dirty=False, confirm=f"E2-{sha[:12]}")
+
+    def test_opens_matrix_leaves_missing_sessions_empty(self, R):
+        m = R.opens_matrix({("A", 0): 10.0, ("A", 2): 11.0, ("B", 1): 5.0}, 3)
+        assert m == {"A": [10.0, None, 11.0], "B": [None, 5.0, None]}

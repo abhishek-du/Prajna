@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import math
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 import numpy as np
@@ -206,20 +206,20 @@ def order_cost_inr(value: float, side: str, r: Rates) -> float:
 @dataclass(frozen=True)
 class CostModel:
     """Spread and slippage are separate parts: the half-spread is paid once per traded
-    side (per name: measured where `half_spread_by_name` has the name, else the
-    provisional `half_spread_bps` proxy, approved C3), slippage is impact BEYOND it
+    side (measured where `half_spread_measured` has the (session, name), else the
+    frozen `half_spread_bps` proxy: C3 / PC-4), slippage is impact BEYOND it
     (C4 sweep) - never double counted."""
     rates: Rates
     capital_inr: float                 # book value the fractions refer to
-    half_spread_bps: float             # fallback proxy (C3: 5 bps)
+    half_spread_bps: float             # fallback proxy (C3 / PC-4, frozen)
     slippage_bps: float = 0.0          # impact BEYOND the half-spread (swept)
     multiplier: float = 1.0            # A2: 1.5
-    half_spread_by_name: dict[str, float] | None = None   # measured, bps
+    half_spread_measured: dict[tuple[int, str], float] | None = None  # (day, name): bps
 
-    def half_spread(self, k: str) -> tuple[float, bool]:
-        """(bps, measured?)"""
-        m = self.half_spread_by_name or {}
-        return (m[k], True) if k in m else (self.half_spread_bps, False)
+    def half_spread(self, day: int, k: str) -> tuple[float, bool]:
+        """(bps, measured?) for name k traded at the open of session index `day`."""
+        m = self.half_spread_measured or {}
+        return (m[(day, k)], True) if (day, k) in m else (self.half_spread_bps, False)
 
     def day_cost_parts(self, day: BookDay) -> dict[str, float]:
         """One day's costs by part, each a fraction of book value (multiplier applied)."""
@@ -229,7 +229,7 @@ class CostModel:
                 v = w * self.capital_inr
                 for p, x in order_cost_parts(v, side, self.rates).items():
                     inr[p] += x
-                inr["spread"] += v * self.half_spread(k)[0] / 10_000
+                inr["spread"] += v * self.half_spread(day.day, k)[0] / 10_000
                 inr["slippage"] += v * self.slippage_bps / 10_000
         return {p: self.multiplier * x / self.capital_inr for p, x in inr.items()}
 
@@ -242,7 +242,7 @@ class CostModel:
         n = {"measured": 0, "proxy": 0}
         for day in book:
             for k in (*day.buys, *day.sells):
-                n["measured" if self.half_spread(k)[1] else "proxy"] += 1
+                n["measured" if self.half_spread(day.day, k)[1] else "proxy"] += 1
         return n
 
 
@@ -339,3 +339,140 @@ def acceptance(net: Result, *, net_at_1p5: float, placebo: Result, gross: Result
               ("PASS" if net.mean > other_net_mean else "FAIL"),
         "A6": {"max_drawdown_net": net.max_drawdown, "max_drawdown_gross": gross.max_drawdown},
     }
+
+
+# ── the experiment (Amendment 2, PROPOSED): pure, in memory ──────────────────────────
+@dataclass(frozen=True)
+class Selection:
+    """A versioned selection design. K100 is the 2026-10-13 pre-registration (top
+    quintile of the top 500); K20 (PC-3) keeps the universe and costs and picks 20
+    names per tranche. Each is its own configuration with its own sha and test look."""
+    name: str
+    universe_top: int = 500
+    pick_frac: float | None = 0.2
+    n_picks: int | None = None
+
+    def k(self, n_universe: int) -> int:
+        return self.n_picks if self.n_picks is not None else int(n_universe * self.pick_frac)
+
+
+K100 = Selection("k100-top-quintile", pick_frac=0.2)
+K20 = Selection("k20", pick_frac=None, n_picks=20)
+
+
+def choose(sess: dict[str, Any], u: np.ndarray, score: np.ndarray, k: int) -> np.ndarray:
+    """The top k of score inside u (desc, instrument key as tie-break) - e1.picks with
+    a count instead of a fraction."""
+    order = np.lexsort((np.asarray(sess["keys"])[u], -score[u]))
+    return u[order[:min(k, len(u))]]
+
+
+ARMS = ("P", "C2", "PL", "PLC", "C0")
+
+
+def form_block(sessions: dict[int, dict[str, Any]], test: range, score_fn, sel: Selection,
+               *, seed: int, h: int = H, perm_draws: int = 0) -> dict[str, Any]:
+    """Formation for one TEST block: every formation day d in [test.start - h + 1,
+    test.stop) (the h - 1 warm-up days are embargo sessions: features only).
+      P    the k best of score_fn(sess, u) in the PIT universe u
+      C2   per pick, a random non-picked universe name of its (turnover, ATR) cell
+      PL   placebo: k random non-picked names;  PLC: their own C2 controls (excluding P)
+      C0   the whole universe, equal weight
+      perm C1: perm_draws books of k random universe names per day
+    Selection reads only the session's features (sess: keys, X, turnover, atr); no
+    label is passed in."""
+    picks: dict[str, dict[int, list[str]]] = {a: {} for a in ARMS}
+    perm: list[dict[int, list[str]]] = [{} for _ in range(perm_draws)]
+    unmatched = 0
+    for d in range(test.start - h + 1, test.stop):
+        sess = sessions.get(d)
+        if not sess:
+            continue
+        u = E.universe(sess, sel.universe_top)
+        k = sel.k(len(u))
+        keys = [sess["keys"][i] for i in u.tolist()]
+        p = [sess["keys"][i] for i in choose(sess, u, score_fn(sess, u), k).tolist()]
+        rng = np.random.default_rng([seed, d])
+        c2, un = matched_controls(keys, sess["turnover"][u], sess["atr"][u], p, rng)
+        pl = placebo_picks(keys, p, rng)
+        plc, _ = matched_controls(keys, sess["turnover"][u], sess["atr"][u], pl, rng,
+                                  exclude=set(p))
+        unmatched += un
+        for a, v in zip(ARMS, (p, c2, pl, plc, keys), strict=True):
+            picks[a][d] = v
+        for j in range(perm_draws):
+            r = np.random.default_rng([seed, d, j + 1])
+            perm[j][d] = [keys[i] for i in sorted(r.choice(len(keys), size=min(k, len(keys)),
+                                                           replace=False))]
+    return {"test": test, "picks": picks, "perm": perm, "unmatched": unmatched}
+
+
+def primary_series(p: list[BookDay], c2: list[BookDay], cm: CostModel) -> list[float]:
+    """PC-1a: P net of P's own costs minus the UNTRADED C2 book (gross). Costs enter
+    once, on the predictor's book only, so a control can never supply a cost advantage."""
+    return [a - (b.ret or 0.0) for a, b in zip(net_series(p, cm), c2, strict=True)]
+
+
+def gross_excess(a: list[BookDay], b: list[BookDay]) -> list[float]:
+    return [(x.ret or 0.0) - (y.ret or 0.0) for x, y in zip(a, b, strict=True)]
+
+
+def evaluate(blocks: list[tuple[int, dict[str, Any]]], opens: dict[str, list[float | None]],
+             cm: CostModel, *, h: int = H, stress: float = 1.5, block: int = 2 * H,
+             b: int = 10_000, level: float = 0.975, seed: int = 0,
+             other_primary_mean: float | None = None) -> dict[str, Any]:
+    """blocks: (fold, form_block output) in chronological order; other_primary_mean:
+    P1's primary mean under the same configuration, for A5 of P2.
+    Every series is daily, over the TEST days only. Primary = PC-1a; the placebo uses
+    the same matched construction on GROSS returns (A4: the pipeline must not make an
+    effect out of nothing - costs would make any traded arm negative by construction)."""
+    days, fold_of = [], []
+    books = {a: [] for a in ARMS}
+    perm_gross: list[list[float]] = []
+    for f, blk in blocks:
+        for a in ARMS:
+            books[a] += tranche_book(blk["picks"][a], opens, blk["test"], h=h)
+        for j, pp in enumerate(blk["perm"]):
+            g = [x.ret or 0.0 for x in tranche_book(pp, opens, blk["test"], h=h)]
+            if j < len(perm_gross):
+                perm_gross[j] += g
+            else:
+                perm_gross.append(g)
+        days += list(blk["test"])
+        fold_of += [f] * len(blk["test"])
+    stressed = CostModel(**{**cm.__dict__, "multiplier": cm.multiplier * stress})
+    P, C2 = books["P"], books["C2"]
+    prim = primary_series(P, C2, cm)
+    S = {"primary_net_vs_c2_gross": prim,
+         "gross_vs_c2_gross": gross_excess(P, C2),
+         "net_vs_c2_net": [x - y for x, y in zip(net_series(P, cm), net_series(C2, cm),
+                                                 strict=True)],
+         "p_net_absolute": net_series(P, cm),
+         "c0_gross": [x.ret or 0.0 for x in books["C0"]],
+         "placebo_gross_vs_its_c2": gross_excess(books["PL"], books["PLC"])}
+    R = {k: summarise(v, fold_of, block=block, b=b, level=level, seed=seed)
+         for k, v in S.items()}
+    obs = float(np.mean([x.ret or 0.0 for x in P]))
+    null = [float(np.mean(g)) for g in perm_gross]
+    out = {
+        "days": days, "folds": fold_of, "n_days": len(days),
+        "series": S, "results": {k: asdict(v) for k, v in R.items()},
+        "primary_mean_at_stress": float(np.mean(primary_series(P, C2, stressed))),
+        "stress": stress,
+        "costs": cost_summary(P, cm), "turnover": turnover(P),
+        "turnover_c2": turnover(C2),
+        "spread_coverage": cm.spread_coverage(P),
+        "missing_marks": sum(x.missing_marks for x in P),
+        "unmatched": sum(blk["unmatched"] for _, blk in blocks),
+        "positions_mean": float(np.mean([x.positions for x in P])) if P else 0.0,
+        "c1": {"observed_gross": obs, "draws": len(null),
+               "null_mean": float(np.mean(null)) if null else None,
+               "p_one_sided": float((1 + sum(n >= obs for n in null)) / (len(null) + 1))
+               if null else None}}
+    out["acceptance"] = acceptance(R["primary_net_vs_c2_gross"],
+                                   net_at_1p5=out["primary_mean_at_stress"],
+                                   placebo=R["placebo_gross_vs_its_c2"],
+                                   gross=R["gross_vs_c2_gross"],
+                                   folds_total=len({f for f, _ in blocks}),
+                                   other_net_mean=other_primary_mean)
+    return out
