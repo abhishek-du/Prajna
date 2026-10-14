@@ -189,3 +189,25 @@ ops/runbooks/db_backup.sh --label stage4_e2_labels
 **Recommendation:**
 - Decide PC-1 to PC-3 first.
 - Given the cost arithmetic at ₹10 L, the scientifically justified next experiment is a **forward, out-of-sample** test of a lower-turnover predictor at a capital-appropriate position count. It should not be a more complex model: no LSTM or ensemble, since linear baselines remain below cost.
+
+
+## Final status (2026-10-14, after the E2 test looks)
+
+**Stage 4: research complete; no candidate ACCEPTED.** Every pre-registered gate was evaluated, and nothing was loosened after a look.
+
+| Candidate | Experiment | Status |
+|---|---|---|
+| P1 reversal | E1 (1-session) | NOT ACCEPTED (A1 UNPROVEN) |
+| P2 ridge24 | E1 | NOT ACCEPTED (A1 UNPROVEN, A3 FAIL, A5 FAIL) |
+| P1 reversal | E2 k20 primary (5-session) | **UNPROVEN** (s_t −13.97 bps per day; A2, A3 FAIL) |
+| P2 ridge24 | E2 k20 primary | **UNPROVEN** (s_t −9.77 bps per day; A2, A3 FAIL) |
+| P1 / P2 | E2 k100 sensitivity | FAIL / FAIL |
+
+- **Evidence:**
+  - `docs/STAGE4_E1_RESULTS_P1.md`, `docs/STAGE4_E1_RESULTS_P2.md`;
+  - `docs/STAGE4_E2_RESULTS.md`;
+  - protocol: `docs/STAGE4_E2_AMENDMENT_2_PROPOSED.md`, revision 2 + waiver W + Amendment 3.
+- **What it means:** a small gross selection signal exists (C1 p ≤ 0.03), but it is at most about the per-day cost of trading it at any approved capital. **Stage 5 is not started.**
+- **Next:**
+  - accumulate data: STRICT sessions, and fundamentals, news and pre-open history;
+  - pre-register a forward, low-turnover, capital-appropriate design.

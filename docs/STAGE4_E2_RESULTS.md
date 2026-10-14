@@ -73,6 +73,29 @@
 | H = 3 | −20.61 [−37.52, −1.71] | −8.16 [−20.92, +3.34] |
 | Total return (label level, per fold; hold5_tr − hold5_px excess shift) | within ±3 bps of price-only in every fold | within ±2.5 bps |
 
+## k100 sensitivity (separately reported; never co-primary, never decides)
+
+**Run details:**
+- Config `a4ffbdd760fb09a8b8d45ff1e3a94bbeae5be2282aff3a6fc175e2e694274b2b`; its own validate (same penalties) and single test look.
+- Test file `test_a4ffbdd760fb.json`, sha256 `3f605e1f8d623b9ed14fe410bf0e354cbbef0183358289b314bd08dbcae5a7cf`.
+- Code `f8594f5` (docs-only change since `5622cd2`), clean.
+- **Process note:** the first k100 test attempt was **refused before any data was read**, because this results document was uncommitted (dirty tree). It was committed and the look then ran once. The ledger records it.
+
+| Series (bps per day) | reversal | ridge24 |
+|---|---|---|
+| s_t (cost-adjusted) | **−59.41 [−64.37, −54.64]**, NW −35.9: **FAIL** | **−45.59 [−53.16, −37.88]**, NW −17.1: **FAIL** |
+| Gross selection P − C2 | +6.55 [+2.77, +10.60] | +6.27 [−1.29, +12.88] |
+| Cost per day (₹2,000 orders) | 66.0 | 51.9 |
+| Placebo | −1.46 [−5.81, +5.49] | +0.32 [−5.44, +3.87] |
+| C1 p (gross) | 0.005 | 0.005 |
+| s_t at ₹5 Cr | +0.20 [−3.64, +4.25] | +2.49 [−4.99, +9.06] |
+| A1 / A2 / A3 / A4 / A5 | FAIL / FAIL / FAIL (0/5) / PASS / — | FAIL / FAIL / FAIL (0/5) / PASS / PASS |
+
+**Reading:**
+- With 100 names the gross selection excess is the same size (about 6 bps per day). For reversal its CI excludes 0, but this is an uncorrected sensitivity.
+- Costs at ₹10 L are 8–10× that excess, so the result is a decisive FAIL.
+- At ₹5 Cr the cost-adjusted mean is about 0. This confirms that the gross edge roughly equals the cost of harvesting it, even at the cheapest capital.
+
 ## Interpretation (no decision beyond the pre-registered gates)
 
 1. **There is a gross selection signal; the costs overwhelm it.**
@@ -90,7 +113,7 @@
 
 ## Consequences
 
-- **E2 is finished:** both configurations' looks are spent; k100 is reported in its own section once run.
+- **E2 is finished:** both configurations' looks are spent (k20 primary: UNPROVEN ×2; k100 sensitivity: FAIL ×2).
 - **Stage 4 status:** research infrastructure complete; **no candidate ACCEPTED**: E1 P1/P2 NOT ACCEPTED, E2 P1/P2 UNPROVEN.
 - **Stage 5 must not start** on these predictors.
 - **Next scientifically justified step** (not started; each would need a new pre-registration):
