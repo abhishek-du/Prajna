@@ -200,3 +200,26 @@ The book holds 100 names × 5 tranches (500 positions) with a 5 bps half-spread.
 2. Cost decisions C1–C5.
 3. Building `label-hold5-v1-asif` and the `wf-exp-120-20-20-e5` splits in production. These are additive rows, with a backup first.
 4. The E2 runner script: validate, then the single test look.
+
+## Amendment 1 (2026-10-14): approved cost decisions; corrections
+
+Appended, not rewritten: everything above stays as written on 2026-10-13. The protocol itself is still **DRAFT**. Approvals 1, 3 and 4 above are still open, and three proposed changes are pending (`docs/STAGE4_E2_PROTOCOL_CHANGE_PROPOSAL.md`).
+
+**Approved by the user 2026-10-14 (C1–C4); C5 status recorded:**
+
+| # | Decision |
+|---|---|
+| C1 | Simulated research capital: **primary ₹10,00,000**; sensitivities ₹50,00,000, ₹1,00,00,000 and ₹5,00,00,000. Simulated assumptions only; not an authorization to trade. This replaces the ₹1 Cr placeholder of section 6. At ₹10 L a 100-name × 5-tranche book trades about ₹2,000 orders (376 bps per round trip; 38.6–77.3 bps per day, section 6). |
+| C2 | DP ₹20 + 18% GST = ₹23.60 per scrip per sell day. The account's plan per the charges API is `DP4A`, `min_expense` ₹20, which the API excludes from its total. **Remaining uncertainty:** the API does not state whether ₹20 is per scrip per day or a minimum. The pricing page says per scrip per day, and that is used. |
+| C3 | Measured opening half-spread per name where reliable data exists; otherwise a **5 bps provisional proxy**, with the coverage reported (`CostModel.half_spread_by_name`, `spread_coverage`). The pre-open capture starts 2026-09-24, so at most 4 of the 100 TEST sessions can have a measured spread: **the proxy will price at least 96% of TEST trades.** |
+| C4 | Slippage 0 bps per side base; 5 / 10 / 20 bps sensitivity. Slippage is impact beyond the half-spread. The two are separate cost parts (`COST_PARTS`: brokerage, statutory, dp, spread, slippage; `cost_summary` reports gross, each part and net, each counted once). |
+| C5 | Unchanged: every statutory rate agrees with the broker's computation. That is **not** verification against the primary legal texts (Finance Act / Income Tax and Gazette texts not retrieved). The gap remains open. |
+
+**Corrections found by the 2026-10-14 audit:**
+- **TEST dates:** "What this experiment can and cannot establish" says 2026-04-27 → 09-17 "as in E1". `make_folds(257)` gives **2026-05-08 → 2026-09-29**, as section 3 anticipates. **92 of the 100 E2 TEST sessions were E1 TEST sessions** (see PC-2).
+- **Tests:** `test_e2.py` now collects 25 tests.
+- **Code defect fixed** (`tranche_book`):
+  - A held name's move between its last open and its reopening after a suspension was never booked. The drift used open(d) → open(d+1) and dropped both legs around a gap.
+  - It now drifts from the last valid open, so the move is booked on reopening. `missing_marks` still counts the flat days.
+  - Regression test: `test_a_move_across_a_suspension_is_booked_when_the_name_reopens`.
+  - It fails on the old code. Nothing had been run with the old code.

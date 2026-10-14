@@ -93,6 +93,15 @@ class TestBook:
         book = X.tranche_book({d: ["A", "B"] for d in range(20)}, opens, range(8, 10))
         assert book[0].missing_marks > 0 and book[0].ret == pytest.approx(0.0)
 
+    def test_a_move_across_a_suspension_is_booked_when_the_name_reopens(self):
+        """Audit 2026-10-14: the drift used open(d) -> open(d + 1), so a held name's
+        move between its last open and its reopening was never booked."""
+        opens = {"A": [100.0, 100, None, None, 150, 150, 150, 150, 150, 150]}
+        book = X.tranche_book({0: ["A"]}, opens, range(0, 6))
+        assert [b.missing_marks for b in book][1:3] == [1, 1]           # flat, counted
+        assert book[3].ret == pytest.approx(0.1)          # 1/5 of the book: +50% on reopen
+        assert np.prod([1 + b.ret for b in book]) == pytest.approx(1.1)
+
 
 class TestCosts:
     @pytest.mark.parametrize("value,side,total", [
@@ -123,6 +132,28 @@ class TestCosts:
         big = X.CostModel(CNC, capital_inr=100_000_000, half_spread_bps=0)
         day = X.BookDay(0, 0.0, {f"K{i}": 0.002 for i in range(100)}, {}, 100, 0)
         assert small.day_cost(day) > 2.5 * big.day_cost(day)      # INR 2k vs 200k orders
+
+    def test_cost_parts_sum_to_the_total_and_are_counted_once(self):
+        day = X.BookDay(0, 0.001, {"A": 0.1, "B": 0.05}, {"C": 0.1}, 3, 0)
+        r = X.Rates(**{**CNC.__dict__, "dp_per_scrip_sell_inr": 20.0})
+        cm = X.CostModel(r, capital_inr=1_000_000, half_spread_bps=5.0, slippage_bps=10.0)
+        parts = cm.day_cost_parts(day)
+        assert set(parts) == set(X.COST_PARTS)
+        assert sum(parts.values()) == pytest.approx(cm.day_cost(day))
+        assert parts["dp"] == pytest.approx(23.60 / 1_000_000)           # one scrip sold
+        assert parts["spread"] == pytest.approx(0.25 * 5 / 10_000)
+        assert parts["slippage"] == pytest.approx(0.25 * 10 / 10_000)
+        assert sum(parts.values()) - parts["dp"] == pytest.approx(
+            sum(X.order_cost_inr(v * 1e6, s, CNC) for s, v in
+                (("BUY", 0.1), ("BUY", 0.05), ("SELL", 0.1))) / 1e6 + 0.25 * 15 / 10_000)
+        summ = X.cost_summary([day], cm)
+        assert summ["net"] == pytest.approx(0.001 - cm.day_cost(day))
+
+    def test_measured_half_spread_per_name_with_the_proxy_as_fallback(self):
+        day = X.BookDay(0, 0.0, {"A": 0.1}, {"B": 0.1}, 2, 0)
+        cm = X.CostModel(CNC, 1_000_000, half_spread_bps=5.0, half_spread_by_name={"A": 12.0})
+        assert cm.day_cost_parts(day)["spread"] == pytest.approx(0.1 * (12 + 5) / 10_000)
+        assert cm.spread_coverage([day]) == {"measured": 1, "proxy": 1}
 
 
 class TestControls:
@@ -171,3 +202,21 @@ class TestInference:
         assert X.verdict((-0.1, 0.2)) == "UNPROVEN"
         assert X.acceptance(r, net_at_1p5=0, placebo=zero, gross=r, folds_total=5,
                             other_net_mean=r.mean + 1)["A5"] == "FAIL"
+
+
+class TestProtocolIssues:
+    def test_identical_costs_on_c2_credit_lower_turnover_not_an_edge(self):
+        """Evidence for proposed change PC-1 (docs/STAGE4_E2_PROTOCOL_CHANGE_PROPOSAL.md):
+        with zero gross edge, a persistent P book minus a re-drawn C2 book, both
+        costed, shows a positive "net excess" while P loses money net of costs."""
+        names = [f"N{i}" for i in range(400)]
+        opens = {k: flat(40) for k in names}
+        rng = np.random.default_rng(0)
+        p = X.tranche_book({d: names[:100] for d in range(40)}, opens, range(10, 30))
+        c = X.tranche_book({d: list(rng.choice(names[100:], 100, replace=False))
+                            for d in range(40)}, opens, range(10, 30))
+        cm = X.CostModel(CNC, capital_inr=10_000_000, half_spread_bps=5.0)
+        gross = np.mean([b.ret for b in p]) - np.mean([b.ret for b in c])
+        both_costed = np.mean(X.net_series(p, cm)) - np.mean(X.net_series(c, cm))
+        assert gross == pytest.approx(0.0, abs=1e-12)
+        assert both_costed > 0 > np.mean(X.net_series(p, cm))

@@ -1,6 +1,6 @@
 """Stage 4 E2: multi-session holding with staggered tranches. PURE computation only;
 no I/O, no database, no run. The protocol is docs/STAGE4_E2_PREREGISTRATION.md
-(DRAFT: not approved to run; the cost rates are PENDING APPROVAL).
+(DRAFT: not approved to run; cost decisions C1-C4 approved 2026-10-14, Amendment 1).
 
 Timing (one convention everywhere): a tranche is formed from the PRE_SESSION features
 of session d, bought at the official open of d and sold at the official open of
@@ -127,7 +127,9 @@ def tranche_book(picks: dict[int, list[str]], opens: dict[str, list[float | None
         miss = 0
         for tr in tranches:                             # drift to the next open
             for k in tr:
-                a, b = _px(opens, k, d), _px(opens, k, d + 1)
+                # from the last open seen (not the open of d): a move across a
+                # suspension is booked on the day the name reopens, never lost
+                a, b = _last_px(opens, k, d), _px(opens, k, d + 1)
                 if a and b:
                     tr[k] *= b / a
                 else:
@@ -152,6 +154,14 @@ def _px(opens: dict[str, list[float | None]], k: str, d: int) -> float | None:
     return s[d] if s is not None and 0 <= d < len(s) and s[d] and s[d] > 0 else None
 
 
+def _last_px(opens: dict[str, list[float | None]], k: str, d: int) -> float | None:
+    """The last valid open at or before d (a held name was bought at a valid open)."""
+    for j in range(d, -1, -1):
+        if (p := _px(opens, k, j)) is not None:
+            return p
+    return None
+
+
 # ── costs ────────────────────────────────────────────────────────────────────────────
 @dataclass(frozen=True)
 class Rates:
@@ -171,39 +181,83 @@ class Rates:
     notes: str = ""
 
 
-def order_cost_inr(value: float, side: str, r: Rates) -> float:
+COST_PARTS = ("brokerage", "statutory", "dp", "spread", "slippage")
+
+
+def order_cost_parts(value: float, side: str, r: Rates) -> dict[str, float]:
+    """One order's charges in INR: brokerage (+ its GST), statutory (STT, stamp,
+    exchange, SEBI, + GST on exchange and SEBI) and DP (+ GST, delivery sells)."""
     if value <= 0:
-        return 0.0
+        return {"brokerage": 0.0, "statutory": 0.0, "dp": 0.0}
     brok = r.brokerage_flat_inr if r.brokerage_pct is None else \
         min(r.brokerage_flat_inr, r.brokerage_pct * value)
     txn, sebi = r.exchange_txn * value, r.sebi * value
     stt = (r.stt_buy if side == "BUY" else r.stt_sell) * value
     stamp = r.stamp_buy * value if side == "BUY" else 0.0
     dp = r.dp_per_scrip_sell_inr * (1 + r.gst) if side == "SELL" else 0.0
-    return brok + txn + sebi + stt + stamp + (brok + txn + sebi) * r.gst + dp
+    return {"brokerage": brok * (1 + r.gst),
+            "statutory": txn + sebi + stt + stamp + (txn + sebi) * r.gst, "dp": dp}
+
+
+def order_cost_inr(value: float, side: str, r: Rates) -> float:
+    return sum(order_cost_parts(value, side, r).values())
 
 
 @dataclass(frozen=True)
 class CostModel:
+    """Spread and slippage are separate parts: the half-spread is paid once per traded
+    side (per name: measured where `half_spread_by_name` has the name, else the
+    provisional `half_spread_bps` proxy, approved C3), slippage is impact BEYOND it
+    (C4 sweep) - never double counted."""
     rates: Rates
     capital_inr: float                 # book value the fractions refer to
-    half_spread_bps: float             # measured at the open (shadow log)
+    half_spread_bps: float             # fallback proxy (C3: 5 bps)
     slippage_bps: float = 0.0          # impact BEYOND the half-spread (swept)
     multiplier: float = 1.0            # A2: 1.5
+    half_spread_by_name: dict[str, float] | None = None   # measured, bps
+
+    def half_spread(self, k: str) -> tuple[float, bool]:
+        """(bps, measured?)"""
+        m = self.half_spread_by_name or {}
+        return (m[k], True) if k in m else (self.half_spread_bps, False)
+
+    def day_cost_parts(self, day: BookDay) -> dict[str, float]:
+        """One day's costs by part, each a fraction of book value (multiplier applied)."""
+        inr = dict.fromkeys(COST_PARTS, 0.0)
+        for side, trades in (("BUY", day.buys), ("SELL", day.sells)):
+            for k, w in trades.items():
+                v = w * self.capital_inr
+                for p, x in order_cost_parts(v, side, self.rates).items():
+                    inr[p] += x
+                inr["spread"] += v * self.half_spread(k)[0] / 10_000
+                inr["slippage"] += v * self.slippage_bps / 10_000
+        return {p: self.multiplier * x / self.capital_inr for p, x in inr.items()}
 
     def day_cost(self, day: BookDay) -> float:
         """Cost of one day's trades as a fraction of book value."""
-        inr = 0.0
-        for side, trades in (("BUY", day.buys), ("SELL", day.sells)):
-            for w in trades.values():
-                v = w * self.capital_inr
-                inr += order_cost_inr(v, side, self.rates)
-                inr += v * (self.half_spread_bps + self.slippage_bps) / 10_000
-        return self.multiplier * inr / self.capital_inr
+        return sum(self.day_cost_parts(day).values())
+
+    def spread_coverage(self, book: list[BookDay]) -> dict[str, int]:
+        """Traded sides priced with a measured half-spread vs the proxy (C3 report)."""
+        n = {"measured": 0, "proxy": 0}
+        for day in book:
+            for k in (*day.buys, *day.sells):
+                n["measured" if self.half_spread(k)[1] else "proxy"] += 1
+        return n
 
 
 def net_series(book: list[BookDay], cm: CostModel | None) -> list[float]:
     return [(b.ret or 0.0) - (cm.day_cost(b) if cm else 0.0) for b in book]
+
+
+def cost_summary(book: list[BookDay], cm: CostModel) -> dict[str, float]:
+    """Mean daily gross return, each cost part and net (fractions of book value):
+    net = gross - sum(parts), each part counted exactly once."""
+    parts = [cm.day_cost_parts(b) for b in book]
+    out = {"gross": float(np.mean([b.ret or 0.0 for b in book])) if book else 0.0}
+    out |= {p: float(np.mean([x[p] for x in parts])) if parts else 0.0 for p in COST_PARTS}
+    out["net"] = out["gross"] - sum(out[p] for p in COST_PARTS)
+    return out
 
 
 def turnover(book: list[BookDay]) -> float:
