@@ -1,9 +1,9 @@
-# Stages 1–3: remaining work, quantified (2026-10-13)
+# Stages 1–3: remaining work, quantified (2026-10-13; §3.3 updated 2026-10-14)
 
 **Purpose:** what still separates Stages 1–3 from their full agreed scope.
 - Each item lists its exact scope, cost, risk and the approval it needs.
 - The acceptance gates are unchanged: Stage 1 COMPLETE (2026-10-12), Stage 2 PASS, Stage 3 COMPLETE (2026-10-13). "COMPLETE" there means the agreed criteria pass. It does not mean every diagram item exists.
-- **Evidence:** read-only production queries on 2026-10-13. Nothing in this document was executed against production.
+- **Evidence:** read-only production queries on 2026-10-13. Nothing in this document was executed against production, except the Stage 3 gap backfill (§3.3), which was approved and run on 2026-10-13.
 
 ## Stage 1
 
@@ -93,22 +93,30 @@ All 16 criteria PASS (daily with tests). Nothing remains in scope.
 - **Fix:** `97fe58e` runs ANALYZE after the replay. It is deployed via `main` from 14 Oct and not yet verified in production.
 - **Design limit, not changed:** option B waits for the full capture (to 09:20) and its replay (about 12 minutes), so PRE_OPEN cannot be ready before about 09:36. A pre-09:15 PRE_OPEN would need a different capture/replay design, which needs a decision.
 
-### 3.3 Feature backfill (BACKFILL-DEFER; `PRAJNA_STAGE3_BACKFILL_ENABLED=false`)
+### 3.3 Feature backfill: DONE 2026-10-13 (approved; `.env` flag still `false`)
 
-- **Production gap:** 7 trading sessions without features since go-live. Each of them has a Stage 3 REFUSED event.
-  - 2026-09-30, 10-01, 10-05, 10-06, 10-07, 10-09 and 10-12.
-  - 2026-09-29, 10-08 and 10-13 have rows, under registries `9061d85b`, `dd696ca6` and `6f998a76` (features-v4) respectively.
-- **Size:** about 7 × (206.6 k + 220.8 k) ≈ **3.0 M rows, about 1.4 GB** (471 B per row).
-  - Runtime about 1.5 h: about 190 s PRE_SESSION and about 260 s PRE_OPEN per session, plus lock checks.
-  - **No vendor calls** (criterion J).
-- **Registry safety:** a range over the gap includes 2026-10-08, whose rows belong to another registry.
-  - **Fixed today** (`ac3cbb2`): a BACKFILL now skips and reports any snapshot holding rows of another registry, before anything is computed or written.
-- **Point in time:** the same engine and checks as RUN (C, D, E, the `ck_feature_pit` check, the determinism-mismatch refusal). Idempotency is covered by tests (G).
-- **Command, when approved:** two bounded invocations that also avoid 10-08 by range:
+- **Production gap closed:** the 7 trading sessions without features since go-live now have both snapshots.
+  - 2026-09-30, 10-01, 10-05, 10-06, 10-07, 10-09 and 10-12: 206,571 PRE_SESSION + 220,815 PRE_OPEN rows each, all under features-v4 (`6f998a76`).
+  - 2026-09-29 (`9061d85b`) and 2026-10-08 (`dd696ca6`) keep their original registries. 10-08 was outside both ranges and would have been refused anyway (`ac3cbb2`, RegistryConflict).
+  - `feature_value` now holds **4,220,522 rows over 10 sessions** (2026-09-29 to 10-13, 20 snapshots).
+- **Run:** `ops/runbooks/stage3_gap_backfill.sh --execute --confirm GAP-2026-09-30..2026-10-12` (`f1fb35e`), 17:05–20:29 IST.
+  - Two bounded commands; `PRAJNA_STAGE3_BACKFILL_ENABLED=true` was set only in their process environment. **No vendor calls** (criterion J).
   ```
   PRAJNA_STAGE3_BACKFILL_ENABLED=true prajna stage3 backfill --from 2026-09-30 --to 2026-10-07 --commit
   PRAJNA_STAGE3_BACKFILL_ENABLED=true prajna stage3 backfill --from 2026-10-09 --to 2026-10-12 --commit
   ```
-  - The token comes from the environment.
-  - Before and after: a backup, `feature_value` counts and md5 per session, and the md5 of every existing session (must be unchanged).
+- **Backup first:** `backend/var/backups/prajna_20261013T1705_stage3_gap_backfill.dump` (4.0 GB, sha256 `62a6388e…`, verified).
+- **Checks, all PASS:**
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Existing sessions unchanged (`feature_fingerprint.py --compare`, md5 per snapshot) | 6 of 6 identical; the only new snapshots are the 14 expected |
+| 2 | Inserted rows | 2,991,702 (7 × 427,386); `already_present` 0 |
+| 3 | Point in time (`ck_feature_pit`, `as_of` vs inputs) | 0 violations |
+| 4 | One registry per snapshot | every new snapshot features-v4 only |
+| 5 | Duplicates / null contract (value XOR reason) | 0 / 0 |
+| 6 | Determinism: full rerun of both ranges | 0 inserted, 2,991,702 values matched, all 20 snapshots byte-identical |
+
+- **Evidence:** `backend/var/logs/stage3_gap/20261013T1705/` (`before.json`, `after.json`, `compare.json`, per-range `backfill_*.json`, `rerun_*`). Not in git (`backend/var/` is ignored).
+- **Not changed:** the `.env` backfill flag (still `false`), the registry (features-v4 active, v5 prepared only), Stage 3 code, cron.
 - **Purpose:** live/production feature continuity only. Stage 4 research uses the separate replayed training datasets (`training_feature_value`, 257 sessions), which this does not touch.
