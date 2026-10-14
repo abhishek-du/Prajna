@@ -307,11 +307,48 @@ class Result:
     max_drawdown: float = 0.0
 
 
+CI_METHODS = ("studentized", "percentile")
+
+
+def studentized_block_ci(x: list[float], *, b: int, block: int, level: float,
+                         seed: int) -> tuple[float, float]:
+    """Correction C-a (approved 2026-10-14): moving-block bootstrap-t CI of the mean.
+
+    Original: mean m, standard error s from the overlapping block means B_i,
+        s^2 = (block / n) * mean_i (B_i - m)^2        (Kunsch's MBB variance of the mean)
+    Draw: k = ceil(n / block) blocks, mean m*, its own block standard error
+        s*^2 = (block / n*) * mean_j (B*_j - m*)^2    n* = k * block
+    t* = (m* - m~) / s*, centred at m~ = mean of all overlapping block means (E* m*).
+    CI = [m - q(1 - a/2) s, m - q(a/2) s]. A degenerate draw (s* = 0) gives t* = 0;
+    a constant series gives the point CI (m, m)."""
+    v = np.asarray(x, dtype=float)
+    n = len(v)
+    starts_all = np.arange(n - block + 1)
+    bm = np.array([v[i:i + block].mean() for i in starts_all])
+    m = float(v.mean())
+    if np.allclose(v, m, rtol=0, atol=1e-15):             # constant (float noise only)
+        return m, m
+    s = math.sqrt(block / n * float(np.mean((bm - m) ** 2)))
+    rng = np.random.default_rng(seed)
+    k = math.ceil(n / block)
+    starts = rng.integers(0, n - block + 1, size=(b, k))
+    bstar = bm[starts]                                   # (b, k) block means
+    mstar = bstar.mean(axis=1)
+    sstar = np.sqrt(block / (k * block) * ((bstar - mstar[:, None]) ** 2).mean(axis=1))
+    t = np.divide(mstar - bm.mean(), sstar, out=np.zeros(b), where=sstar > 0)
+    a = (1 - level) / 2
+    return m - float(np.quantile(t, 1 - a)) * s, m - float(np.quantile(t, a)) * s
+
+
 def summarise(excess: list[float], folds: list[int], *, block: int = 2 * H,
-              b: int = 10_000, level: float = 0.975, seed: int = 0) -> Result:
+              b: int = 10_000, level: float = 0.975, seed: int = 0,
+              ci_method: str = "studentized") -> Result:
     if block < 2 * H:
         raise ValueError(f"block {block} < 2H: overlapping tranches are autocorrelated")
-    lo, hi = E.block_bootstrap_ci(excess, b=b, block=block, level=level, seed=seed)
+    if ci_method not in CI_METHODS:
+        raise ValueError(f"unknown ci_method {ci_method!r}")
+    ci = studentized_block_ci if ci_method == "studentized" else E.block_bootstrap_ci
+    lo, hi = ci(excess, b=b, block=block, level=level, seed=seed)
     by: dict[int, list[float]] = {}
     for x, f in zip(excess, folds, strict=True):
         by.setdefault(f, []).append(x)
@@ -420,7 +457,8 @@ def gross_excess(a: list[BookDay], b: list[BookDay]) -> list[float]:
 def evaluate(blocks: list[tuple[int, dict[str, Any]]], opens: dict[str, list[float | None]],
              cm: CostModel, *, h: int = H, stress: float = 1.5, block: int = 2 * H,
              b: int = 10_000, level: float = 0.975, seed: int = 0,
-             other_primary_mean: float | None = None) -> dict[str, Any]:
+             other_primary_mean: float | None = None,
+             ci_method: str = "studentized") -> dict[str, Any]:
     """blocks: (fold, form_block output) in chronological order; other_primary_mean:
     P1's primary mean under the same configuration, for A5 of P2.
     Every series is daily, over the TEST days only. Primary = PC-1a; the placebo uses
@@ -450,15 +488,15 @@ def evaluate(blocks: list[tuple[int, dict[str, Any]]], opens: dict[str, list[flo
          "p_net_absolute": net_series(P, cm),
          "c0_gross": [x.ret or 0.0 for x in books["C0"]],
          "placebo_gross_vs_its_c2": gross_excess(books["PL"], books["PLC"])}
-    R = {k: summarise(v, fold_of, block=block, b=b, level=level, seed=seed)
-         for k, v in S.items()}
+    R = {k: summarise(v, fold_of, block=block, b=b, level=level, seed=seed,
+                      ci_method=ci_method) for k, v in S.items()}
     obs = float(np.mean([x.ret or 0.0 for x in P]))
     null = [float(np.mean(g)) for g in perm_gross]
     out = {
         "days": days, "folds": fold_of, "n_days": len(days),
         "series": S, "results": {k: asdict(v) for k, v in R.items()},
         "primary_mean_at_stress": float(np.mean(primary_series(P, C2, stressed))),
-        "stress": stress,
+        "stress": stress, "ci_method": ci_method,
         "costs": cost_summary(P, cm), "turnover": turnover(P),
         "turnover_c2": turnover(C2),
         "spread_coverage": cm.spread_coverage(P),
@@ -475,4 +513,47 @@ def evaluate(blocks: list[tuple[int, dict[str, Any]]], opens: dict[str, list[flo
                                    gross=R["gross_vs_c2_gross"],
                                    folds_total=len({f for f, _ in blocks}),
                                    other_net_mean=other_primary_mean)
+    out["candidate"] = candidate_status(out["acceptance"],
+                                        R["primary_net_vs_c2_gross"].nw_t,
+                                        is_p2=other_primary_mean is not None)
     return out
+
+
+# ── candidate status (Amendment 2 rev 2, PROPOSED) ───────────────────────────────────
+NW_Z = 2.2414          # one-sided z of the 97.5% two-sided level (0.9875 quantile)
+
+
+def candidate_status(acc: dict[str, Any], nw_t: float | None, *, is_p2: bool = False,
+                     z: float = NW_Z) -> dict[str, Any]:
+    """ACCEPTED-EXPLORATORY needs A1 PASS **and** the Newey-West t of the same primary
+    series (lag 2H - 1) >= z (the cross-check agrees), plus A2, A3, A4 (and A5 for P2).
+    FAIL when A1 is FAIL; BLOCKED when an input is missing; otherwise UNPROVEN."""
+    need = ["A1", "A2", "A3", "A4"] + (["A5"] if is_p2 else [])
+    if nw_t is None or any(acc.get(k) is None for k in need):
+        return {"status": "BLOCKED", "nw_agrees": None}
+    agrees = nw_t >= z if acc["A1"] == "PASS" else (
+        nw_t <= -z if acc["A1"] == "FAIL" else abs(nw_t) < z)
+    if acc["A1"] == "FAIL":
+        status = "FAIL"
+    elif acc["A1"] == "PASS" and agrees and all(acc[k] == "PASS" for k in need[1:]):
+        status = "ACCEPTED-EXPLORATORY"
+    else:
+        status = "UNPROVEN"
+    return {"status": status, "nw_agrees": agrees, "nw_t": nw_t, "nw_z": z}
+
+
+def label_level_excess(p: dict[int, list[str]], c: dict[int, list[str]],
+                       lab: dict[tuple[str, int], float], days: range) -> dict[str, Any]:
+    """Total-return sensitivity at LABEL level (Amendment 2 rev 2): per formation day in
+    `days`, mean label of the picks minus mean label of their controls (names without
+    a VALID label are skipped and counted). Overlapping h-session windows: a descriptive
+    mean, no CI. The book has no dividend cash accounting."""
+    diffs, skipped = [], 0
+    for d in days:
+        a = [lab[(k, d)] for k in p.get(d, []) if (k, d) in lab]
+        b = [lab[(k, d)] for k in c.get(d, []) if (k, d) in lab]
+        skipped += len(p.get(d, [])) - len(a) + len(c.get(d, [])) - len(b)
+        if a and b:
+            diffs.append(float(np.mean(a)) - float(np.mean(b)))
+    return {"mean": float(np.mean(diffs)) if diffs else None, "days": len(diffs),
+            "skipped_names": skipped}

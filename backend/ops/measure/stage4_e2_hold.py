@@ -4,6 +4,12 @@ stored, nothing is written to the database (REPEATABLE READ, READ ONLY), no orde
 profitability claim. Every result is EXPLORATORY (PC-2: 92 of the 100 TEST sessions
 were E1 TEST sessions) and never an independent confirmation.
 
+Configurations (Amendment 2 rev 2): k20 is the SOLE PRIMARY acceptance configuration
+(97.5% CI); k100 (the 2026-10-13 design) is a separately reported SENSITIVITY, never
+co-primary. Half-spread: reliable measured (session, name) values, else 5 bps (C3);
+3.63 and 9.34 bps are sensitivities. The test look also needs an ADEQUATE 1,000-world
+null calibration (var/stage4/experiments/e2/null_calibration.json).
+
 NOT RUN. It needs data that does not exist yet (separate approvals):
   labels  label-hold5-v1-asif: label ids `open_adj` (the split/bonus-adjusted official
           open of T at the recorded knowledge cutoff), `hold5_px`, `hold3_px`
@@ -51,6 +57,10 @@ DATASET, LABELS, SCHEME = "stage4-ds-v3-asif", "label-hold5-v1-asif", "wf-exp-12
 SAMPLES_LABELS = "label-v2"          # feature_eligible depends on features only
 ALPHAS = (1.0, 10.0, 100.0, 1000.0, 10000.0)
 SELECTIONS = {"k100": X.K100, "k20": X.K20}
+ROLES = {"k20": "PRIMARY", "k100": "SENSITIVITY"}     # Amendment 2 rev 2: k20 sole primary
+FALLBACK_HALF_SPREAD_BPS = 5.0                       # C3 (approved); measured where reliable
+CALIBRATION = OUT / "null_calibration_studentized_waiver.json"  # C-a + waiver W (approved)
+CI_METHOD = "studentized"                            # correction C-a, approved 2026-10-14
 # delivery (CNC) rates: charges API 2026-10-13 + DP (C2, approved 2026-10-14)
 RATES = dict(brokerage_flat_inr=20.0, brokerage_pct=None, stt_buy=0.001, stt_sell=0.001,
              stamp_buy=0.00015, exchange_txn=0.0000307, sebi=0.000001, gst=0.18,
@@ -65,11 +75,12 @@ def spread_file() -> tuple[dict[str, Any], str]:
     return json.loads(body), hashlib.sha256(body).hexdigest()
 
 
-def config(selection: str, level: float) -> dict[str, Any]:
+def config(selection: str, level: float = 0.975) -> dict[str, Any]:
     sp, sp_sha = spread_file()
     sel = SELECTIONS[selection]
     return {
-        "experiment": "E2", "status": "EXPLORATORY", "amendment": 2,
+        "experiment": "E2", "status": "EXPLORATORY", "amendment": "2-rev2",
+        "role": ROLES[selection],
         "dataset": DATASET, "label_version": LABELS, "scheme": SCHEME,
         "snapshot": "PRE_SESSION", "h": X.H, "h_sensitivity": 3,
         "selection": {"name": sel.name, "universe_top": sel.universe_top,
@@ -81,12 +92,17 @@ def config(selection: str, level: float) -> dict[str, Any]:
                      "placebo gross vs its C2"],
         "capital_inr": 1_000_000, "capital_sensitivity_inr": [5_000_000, 10_000_000,
                                                                 50_000_000],
-        "rates": RATES, "half_spread_proxy_bps": sp["proxy_half_spread_bps"],
+        "rates": RATES, "half_spread_proxy_bps": FALLBACK_HALF_SPREAD_BPS,
+        "half_spread_measured": "reliable (session, name) values of the frozen file",
         "half_spread_file": SPREAD_FILE.name, "half_spread_file_sha256": sp_sha,
-        "half_spread_sensitivity_bps": [5.0, sp["first_quote_sensitivity_bps"]],
+        "half_spread_sensitivity_bps": [sp["proxy_half_spread_bps"],
+                                        sp["first_quote_sensitivity_bps"]],
+        "candidate_rule": "A1 PASS and Newey-West t (lag 2H-1) >= 2.2414 and A2-A4 (A5)",
+        "total_return": "label level only (hold5_tr / hold3_tr); no book dividend cash",
         "slippage_bps": 0.0, "slippage_sensitivity_bps": [5.0, 10.0, 20.0],
         "stress": 1.5, "bootstrap": 10_000, "block": 2 * X.H, "block_sensitivity": 20,
-        "ci_level": level, "perm_draws": 200, "seed": 20261014}
+        "ci_level": level, "ci_method": "studentized moving-block bootstrap-t (C-a)",
+        "perm_draws": 200, "seed": 20261014}
 
 
 def cfg_sha(cfg: dict[str, Any]) -> str:
@@ -94,8 +110,35 @@ def cfg_sha(cfg: dict[str, Any]) -> str:
 
 
 # ── the one-look discipline (pure; tested) ─────────────────────────────────────────────
+def calibration_code_sha() -> str:
+    """The code a calibration ran: app/training/e2.py + the calibration script."""
+    return hashlib.sha256((ROOT / "app/training/e2.py").read_bytes()
+                          + (ROOT / "ops/measure/e2_null_calibration.py").read_bytes()
+                          ).hexdigest()
+
+
+def calibration_ok(path: pathlib.Path, code_sha: str | None = None) -> tuple[bool, str]:
+    """The pre-look calibration gate: a 1,000-world null calibration of the CURRENT
+    e2 code, marked adequate."""
+    if not path.exists():
+        return False, f"no calibration file {path.name}"
+    c = json.loads(path.read_text())
+    if code_sha is not None and c.get("code_sha256") != code_sha:
+        return False, "calibration ran other e2 code: recalibrate (new file)"
+    if "source_file" in c:                       # a waiver: its source must be unchanged
+        src = path.parent / c["source_file"]
+        if not src.exists() or hashlib.sha256(src.read_bytes()).hexdigest() != \
+                c.get("source_sha256"):
+            return False, "the waiver's source calibration is missing or changed"
+    if c.get("worlds", 0) < 1000:
+        return False, f"calibration has {c.get('worlds')} worlds < 1000"
+    if c.get("adequate") is not True:
+        return False, "calibration is not adequate: propose a correction (do not tune)"
+    return True, "adequate"
+
+
 def check_look(out: pathlib.Path, phase: str, sha: str, *, dirty: bool,
-               confirm: str | None = None) -> None:
+               confirm: str | None = None, calibration: pathlib.Path | None = None) -> None:
     if dirty:
         raise SystemExit("REFUSED: the working tree is dirty; commit first")
     vpath, tpath = out / f"validate_{sha[:12]}.json", out / f"test_{sha[:12]}.json"
@@ -108,6 +151,10 @@ def check_look(out: pathlib.Path, phase: str, sha: str, *, dirty: bool,
             raise SystemExit("REFUSED: the validate file belongs to another configuration")
         if confirm != f"E2-{sha[:12]}":
             raise SystemExit(f"REFUSED: the test look needs --confirm-test-look E2-{sha[:12]}")
+        ok, why = calibration_ok(calibration or CALIBRATION,
+                                 None if calibration else calibration_code_sha())
+        if not ok:
+            raise SystemExit(f"REFUSED: {why}")
 
 
 def ledger(out: pathlib.Path, entry: dict[str, Any]) -> None:
@@ -229,6 +276,10 @@ async def load_all(s, cfg) -> tuple[list[_dt.date], dict, dict, dict, dict]:
     return days, folds, sessions, y, opens
 
 
+async def total_return_labels(s, days) -> dict[str, dict[tuple[str, int], float]]:
+    return {lid: await labels(s, lid, days) for lid in ("hold5_px", "hold5_tr")}
+
+
 # ── phases ─────────────────────────────────────────────────────────────────────────────
 async def validate(cfg, sha) -> dict[str, Any]:
     from app.db.engine import get_sessionmaker
@@ -270,6 +321,7 @@ async def test(cfg, sha) -> dict[str, Any]:
     async with get_sessionmaker()() as s:
         await s.execute(text("set transaction isolation level repeatable read, read only"))
         days, folds, sessions, y, opens = await load_all(s, cfg)
+        tr = await total_return_labels(s, days)
         await s.rollback()
     top, sel = cfg["selection"]["universe_top"], X.Selection(**cfg["selection"])
     sp, _ = spread_file()
@@ -289,7 +341,7 @@ async def test(cfg, sha) -> dict[str, Any]:
                                              frozen["chosen_alpha"][str(f)]))
                        for f, v in folds.items()}}
     ev = dict(b=cfg["bootstrap"], level=cfg["ci_level"], seed=cfg["seed"],
-              stress=cfg["stress"])
+              stress=cfg["stress"], ci_method=CI_METHOD)
     for pred in cfg["predictors"]:
         def blocks(h, pred=pred):
             return [(f, X.form_block(sessions, v["test"], fns[pred][f], sel, seed=cfg["seed"],
@@ -300,7 +352,9 @@ async def test(cfg, sha) -> dict[str, Any]:
               .get("results", {}).get("primary_net_vs_c2_gross", {}).get("mean"))
         prim = X.evaluate(b5, opens, cost_model(cfg, measured), block=cfg["block"],
                           other_primary_mean=p1 if pred == "ridge24" else None, **ev)
-        res = {"primary": strip(prim), "sensitivities": {}}
+        res = {"primary": strip(prim), "sensitivities": {}, "total_return_label_level": {
+            lid: [X.label_level_excess(blk["picks"]["P"], blk["picks"]["C2"], lab, blk["test"])
+                  for _, blk in b5] for lid, lab in tr.items()}}
         b5 = [(f, {**blk, "perm": []}) for f, blk in b5]      # C1 only in the primary
         sens = res["sensitivities"]
         for c in cfg["capital_sensitivity_inr"]:
@@ -310,7 +364,7 @@ async def test(cfg, sha) -> dict[str, Any]:
             sens[f"slippage_{sl}"] = X.evaluate(
                 b5, opens, cost_model(cfg, measured, slippage=sl),
                 **ev)["results"]["primary_net_vs_c2_gross"]
-        for spb in cfg["half_spread_sensitivity_bps"]:
+        for spb in cfg["half_spread_sensitivity_bps"]:      # flat, no measured values
             sens[f"half_spread_{spb}"] = X.evaluate(
                 b5, opens, cost_model(cfg, measured, spread=spb),
                 **ev)["results"]["primary_net_vs_c2_gross"]
@@ -327,10 +381,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("phase", choices=("config", "validate", "test"))
     ap.add_argument("--selection", required=True, choices=sorted(SELECTIONS))
-    ap.add_argument("--ci-level", type=float, default=0.975)
     ap.add_argument("--confirm-test-look")
     a = ap.parse_args()
-    cfg = config(a.selection, a.ci_level)
+    cfg = config(a.selection)
     sha = cfg_sha(cfg)
     if a.phase == "config":
         print(json.dumps({"config_sha256": sha, "config": cfg}, indent=1))

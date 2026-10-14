@@ -3,6 +3,13 @@
 **Status:** PROPOSED 2026-10-14 by the Stage 4 audit (`docs/STAGE4_COMPLETION_AUDIT.md`).
 - **Decisions (user, 2026-10-14, in principle):** PC-1 **a**; PC-2 **a** (EXPLORATORY + forward confirmation design); PC-3 keep ₹10 L primary and ₹50 L / ₹1 Cr / ₹5 Cr sensitivities, and prepare a separately versioned **k20** configuration (20 picks per tranche) without replacing the original; PC-4 **approved** (recompute and freeze).
 - **Implementation:** `docs/STAGE4_E2_AMENDMENT_2_PROPOSED.md`, which is proposed and not adopted. Neither configuration has been run.
+- **Revision 2 decisions (user, 2026-10-14):**
+  - k20 is the sole primary configuration (97.5%), and k100 is a reported sensitivity;
+  - half-spread: measured where reliable, else 5 bps, with 3.63 and 9.34 bps as sensitivities;
+  - no A7 gate;
+  - a 1,000-world null calibration and Newey-West agreement are required for ACCEPTED-EXPLORATORY;
+  - total return at label level only.
+  - See Amendment 2 revision 2.
 - `docs/STAGE4_E2_PREREGISTRATION.md` is **not** changed by this document. Each item needs an explicit decision before E2 labels, splits or the runner are built.
 - No E2 result exists, so none of these proposals is informed by an outcome.
 

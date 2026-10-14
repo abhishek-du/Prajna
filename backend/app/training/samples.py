@@ -104,7 +104,7 @@ def label_snapshots(label_version: str) -> tuple[str, ...] | None:
     """The snapshot types a label version's contract allows (None: every type). The
     target/stop label is defined at the PRE_SESSION instant only (PRE_OPEN as_of falls
     after pre-open order entry)."""
-    return ("PRE_SESSION",) if label_version.startswith("label-tsl-") else None
+    return ("PRE_SESSION",) if label_version.startswith(("label-tsl-", "label-hold")) else None
 
 
 async def build(s: AsyncSession, dataset: str, label_version: str) -> dict[str, Any]:

@@ -1,201 +1,329 @@
-# Stage 4 E2: pre-registration Amendment 2 (PROPOSED, for review)
+# Stage 4 E2: pre-registration Amendment 2, revision 2 (PROPOSED, for review)
 
-**Status:** PROPOSED 2026-10-14. Not adopted, and nothing run.
-- It implements the decisions of 2026-10-14 on `docs/STAGE4_E2_PROTOCOL_CHANGE_PROPOSAL.md` (PC-1a, PC-2a, PC-3, PC-4), which were approved in principle.
-- The original protocol (`docs/STAGE4_E2_PREREGISTRATION.md`, including Amendment 1) is preserved unchanged. This amendment takes effect only on your explicit adoption.
-- No E2 label, split or test result exists. No number below comes from E2 TEST data.
+**Status:** PROPOSED, not adopted.
 
-**Code (written, not run against production):**
-- `backend/app/training/e2.py`: experiment core. `Selection`, `K100`, `K20`, `choose`, `form_block`, `primary_series`, `evaluate`.
-- `backend/ops/measure/stage4_e2_hold.py`: read-only runner. Configuration sha, one-look ledger, `--confirm-test-look`.
-- `backend/ops/measure/e2_open_spread.py`: PC-4 measurement (run, read-only).
-- `backend/ops/measure/e2_null_calibration.py`: synthetic calibration of the CI.
-- `backend/tests/training/test_e2.py`: 35 synthetic tests.
-
-## 1. Status of every E2 result (PC-2a)
-
-- Every E2 result on the as-if-live history is **EXPLORATORY**. The runner writes `"status": "EXPLORATORY"`, `"independent_confirmation": false` and the E1 TEST overlap count into every result.
-- **Why:** the E2 TEST sessions are 2026-05-08 → 2026-09-29, and 92 of the 100 were E1 TEST sessions. The E2 hypothesis came from the E1 look.
-- **What a PASS means:** the candidate becomes **eligible** for the forward confirmatory test (§8). A PASS is never reported as confirmation.
-
-## 2. Primary metric and acceptance (PC-1a), exact definitions
-
-**The books:**
-- **P book:** the predictor's staggered-tranche book (`tranche_book`, H = 5).
-- **C2 book:** the matched-control book, formed per formation day.
-- Both are valued open to open on adjusted opens.
-- `cost_t(P)` is the P book's day-t cost under the approved model: brokerage, statutory, DP, half-spread and slippage, each once (`CostModel.day_cost_parts`), as a fraction of book value.
-
-| Series (daily, TEST days only) | Definition | Role |
+| Revision | Commit | Content |
 |---|---|---|
-| **s_t (primary)** | `P_gross,t − cost_t(P) − C2_gross,t` | **A1, A2, A3, A5** |
-| gross selection | `P_gross,t − C2_gross,t` | reported; A6 |
-| both costed | `P_net,t − C2_net,t` | reported only (it credits turnover differences; PC-1) |
-| absolute | `P_net,t` | reported |
-| C0 | equal-weight universe book, gross | reported |
-| placebo | `PL_gross,t − PLC_gross,t`: random non-picked names vs their own matched controls, **gross** | **A4** (costs would make any traded arm negative by construction) |
+| 1 | `3260926` | first proposal; its text is in git history |
+| 2 | this one | your decisions of 2026-10-14 on revision 1 |
 
-**Why this is cost-adjusted performance, not "beating a control":**
-- The control is an **untraded** benchmark: it pays nothing.
-- s_t > 0 only if the predictor's selection return exceeds the full cost of harvesting it.
-- A control can never supply a cost advantage (tested: `test_no_edge_and_flat_prices_cannot_pass_through_a_control`, `test_costs_enter_once_on_the_predictor_book_only`).
+The original pre-registration (`docs/STAGE4_E2_PREREGISTRATION.md`, with Amendment 1) is unchanged.
 
-**Not gated:**
-- The absolute `P_net` includes the market's direction, so a long-only book can be positive in a rising market with no skill. It is reported, not gated.
-- **Option for you:** add A7, "mean `P_net` > 0", if you want absolute profitability gated as well.
+**Nothing has run against E2 data:**
+- no E2 labels or splits in production;
+- no validate phase and no test look;
+- `backend/var/stage4/experiments/e2/` holds only the synthetic calibration file.
 
-| # | Criterion (per predictor and configuration, fixed before the look) |
+> **Gate result:**
+> - **Percentile CI (pre-registered):** INADEQUATE (§6). It is anti-conservative.
+> - **Correction C-a** (studentized bootstrap, approved 2026-10-14): **false acceptance is now controlled**, but the result is formally **INADEQUATE** on the second pre-set criterion, **because the CI is too conservative** in iid worlds (§6.4).
+>
+> - **Waiver W** (approved by you 2026-10-14): recorded (§6.6). The calibration gate is now open.
+> - The runner still refuses validate and test, because the E2 labels and splits are not built.
+> - No E2 outcome was consulted.
+
+## 1. Status of every E2 result
+
+- **EXPLORATORY.** 92 of the 100 TEST sessions (2026-05-08 → 2026-09-29) were E1 TEST sessions.
+- Every result file carries `"status": "EXPLORATORY"`, `"independent_confirmation": false` and the overlap count.
+- A candidate that reaches ACCEPTED-EXPLORATORY only becomes **eligible** for the forward confirmatory test (§8).
+
+## 2. Primary metric and acceptance
+
+**Primary series:** s_t = `P_gross,t − cost_t(P) − C2_gross,t`
+- `cost_t(P)` is brokerage, statutory, DP, half-spread and slippage, each once (`CostModel.day_cost_parts`). It is a fraction of book value.
+- C2 is the untraded matched-control book.
+
+**Reported, never gated:**
+- `P_gross − C2_gross`;
+- `P_net − C2_net`;
+- absolute `P_net`;
+- C0 gross;
+- the placebo.
+
+**No A7:** absolute net return is reported separately and not gated (your decision 4).
+
+| # | Criterion (per predictor, k20 configuration) |
 |---|---|
-| A1 | The CI of mean(s_t) at the configuration's level: lower bound > 0 is **PASS**, upper bound < 0 is **FAIL**, otherwise **UNPROVEN**. Moving-block bootstrap, block 10 (= 2H), 10,000 draws, seeded. |
-| A2 | mean(s_t) with every cost part × 1.5 is ≥ 0 (point estimate) |
-| A3 | mean(s_t) > 0 in ≥ ⌈0.8 × folds⌉ = 4 of 5 TEST folds |
-| A4 | The placebo series CI includes 0 |
-| A5 (P2) | mean(s_t) of ridge24 > mean(s_t) of reversal, same configuration, otherwise P2 is dropped |
-| A6 | Maximum drawdown of cumulative s_t and of the gross selection series. Reported, no threshold. |
+| A1 | The 97.5% two-sided **studentized** moving-block bootstrap-t CI of mean(s_t) (C-a, `e2.studentized_block_ci`): block 10 (= 2H), 10,000 draws, seeded. Lower bound > 0 is PASS, upper bound < 0 is FAIL, otherwise UNPROVEN. The same method is used for the A4 placebo CI. |
+| A2 | mean(s_t) with every cost part × 1.5 is ≥ 0 |
+| A3 | mean(s_t) > 0 in ≥ 4 of 5 TEST folds |
+| A4 | The CI of the gross placebo series (random non-picked names minus their own matched controls) includes 0 |
+| A5 (P2) | mean(s_t) of ridge24 > that of reversal, otherwise P2 is dropped |
+| A6 | Maximum drawdown of cumulative s_t and of the gross selection series. Reported. |
+| **NW** | **The Newey-West t of s_t (lag 2H − 1 = 9) agrees with A1:** t ≥ 2.2414 when A1 is PASS |
 
-**Candidate status:**
-- **ACCEPTED-EXPLORATORY:** A1 PASS and A2, A3 and A4 PASS (and A5 for P2). The candidate becomes eligible for §8.
+**Candidate status** (`e2.candidate_status`):
+- **ACCEPTED-EXPLORATORY:** A1 PASS **and** NW agrees **and** A2, A3, A4 (and A5) PASS.
 - **FAIL:** A1 FAIL.
-- **UNPROVEN:** otherwise.
-- **BLOCKED:** a gate cannot be evaluated, e.g. a missing input.
+- **BLOCKED:** an input is missing.
+- **UNPROVEN:** otherwise, including A1 PASS with NW disagreeing.
 
-## 3. Selection configurations (PC-3): two versions, neither replaces the other
+## 3. Configurations
 
-| | `k100-top-quintile` (the 2026-10-13 pre-registration) | `k20` (new, PC-3) |
-|---|---|---|
-| Universe | top 500 by `turnover_20` among names with 24 VALID core features | same |
-| Picks per tranche | top 20% (100) | **top 20** by the same score, same tie-break (`e2.choose`) |
-| Controls / placebo | C2 per pick from the same cell; placebo the same count | same, at k = 20 |
-| Capital and costs | C1–C4 as approved | same |
-| Config sha (`--ci-level 0.975`) | `203b5ed55bbd…` | `1b22d5ee29a2…` |
+- **k20 is the SOLE PRIMARY acceptance configuration**, at a 97.5% CI.
+- **k100** (the 2026-10-13 design) is a separately reported **SENSITIVITY**. It never decides the outcome and is never co-primary, so it needs no multiplicity correction.
+- Shas are printed by `stage4_e2_hold.py config`, need no database, and are reproducible run to run:
 
-**k20 changes the selection design.** It holds fewer, more concentrated names and has higher idiosyncratic variance. It is a separate configuration with its own sha, validate file and single test look.
+| | Role | Picks per tranche | Config sha256 |
+|---|---|---|---|
+| `k20` | PRIMARY | 20 | `87eb85fae0dabbecb9393b306f98166d6852f6c0793f4868607e4df37a5189ce` |
+| `k100-top-quintile` | SENSITIVITY | 100 (top 20% of 500) | `91778755b4c493524a7e193d02191eedecce6af86d487bc6705ecdf2112b47ed` |
 
-**Order size and estimated cost** (approved rates, frozen half-spread proxy 3.63 bps per side; turnover is an assumption until measured):
+- **Shared by both:**
+  - universe: top 500 by `turnover_20` with 24 VALID core features;
+  - controls as before;
+  - capital ₹10 L primary; ₹50 L, ₹1 Cr and ₹5 Cr as sensitivities;
+  - slippage 0, with 5 / 10 / 20 bps as sensitivities;
+  - stress 1.5×, block 10 (block 20 as a sensitivity), H = 3 as a sensitivity;
+  - 200 C1 permutations, seed 20261014.
+- **Void shas:**
+  - revision 1: `1b22d5ee…` and `203b5ed5…` (3.63 bps fallback);
+  - revision 2 before C-a: `56adca95…` and `093f4908…` (percentile CI).
+- **Order size and cost** at ₹10 L (approved rates):
 
-| Capital | Selection | Order size | Round trip incl. 2× half-spread | Book cost per day at 10% / 20% one-sided turnover |
-|---|---|---|---|---|
-| ₹10,00,000 (primary) | K100 | ₹2,000 | 383.5 bps | 38.4 / 76.7 bps |
-| ₹10,00,000 (primary) | **K20** | ₹10,000 | 100.3 bps | **10.0 / 20.1 bps** |
-| ₹50,00,000 | K100 | ₹10,000 | 100.3 bps | 10.0 / 20.1 |
-| ₹50,00,000 | K20 | ₹50,000 | 43.7 bps | 4.4 / 8.7 |
-| ₹1,00,00,000 | K100 | ₹20,000 | 64.9 bps | 6.5 / 13.0 |
-| ₹1,00,00,000 | K20 | ₹1,00,000 | 36.6 bps | 3.7 / 7.3 |
-| ₹5,00,00,000 | K100 | ₹1,00,000 | 36.6 bps | 3.7 / 7.3 |
-| ₹5,00,00,000 | K20 | ₹5,00,000 | 30.9 bps | 3.1 / 6.2 |
+| Selection | Order size | Round trip | Book cost per day at 10–20% turnover |
+|---|---|---|---|
+| k20 | ₹10,000 | 103.0 bps | 10.3–20.6 bps |
+| k100 | ₹2,000 | 386.2 bps | 38.6–77.2 bps |
 
-**Reading:**
-- At ₹10 L, K20 cuts costs about 4× against K100. It is still above E1's gross matched excess of 5–8 bps per day, so E2 needs a 5-session effect of at least 2–4× E1's to pass even at K20.
+  These use the 5 bps fallback (revision 1 showed the 3.63 bps figures). Turnover is an assumption until measured.
 
-**Multiplicity (decision needed):**
-- If both configurations are looked at, there are 2 configurations × 2 predictors = 4 primary comparisons. Bonferroni then needs a **98.75%** CI.
-- **Option 1:** declare one configuration primary before any look; it keeps 97.5%, and the other is secondary-exploratory.
-- **Option 2:** look at both at 98.75% (`--ci-level 0.9875`, a different sha).
-- **Recommendation:** Option 1 with **k20** primary. It is the only design whose costs at the approved capital are within reach of the E1 edge.
-
-## 4. Opening half-spread (PC-4): measured and frozen
-
-**Run:** `ops/measure/e2_open_spread.py --through 2026-10-14`, read-only, 30 s.
-
-**Frozen file:** `backend/var/stage4/costs/open_spread_through_2026-10-14.json`
-- sha256 `b1db9ed304a7639912221b352d98c199d4aec154d95afceb720bd32aa3834f82`;
-- referenced by sha in both configurations;
-- the script refuses to overwrite it.
+## 4. Half-spread
 
 | Item | Value |
 |---|---|
-| Source dates | every session with pre-open capture: 2026-09-24 → 2026-10-14 (14). **13 used.** 2026-09-24 has no PRE_SESSION universe with 24 VALID core features (none in production, none in v3-strict), so it is recorded and unused. |
-| Universe per date | top 500 by `turnover_20` with 24 VALID core features. Production `feature_value` where available (11 dates); else `stage4-ds-v3-strict` (09-25, 09-28). Source recorded per date. |
-| Calculation | rung-0 quotes 09:15:00 ≤ t < 09:20:00 IST with 0 < bid ≤ ask; half-spread = (ask − bid) / (ask + bid) × 10⁴ bps; per (date, name) median; **reliable** if ≥ 3 quotes |
-| Sample | **6,488** reliable name-days (497–500 per date) |
-| **Proxy (fallback)** | **3.63 bps** per side (median). Quantiles p10 / p25 / p75 / p90: 1.89 / 2.56 / 5.66 / 7.94 |
-| Pessimistic sensitivity | first-quote median **9.34 bps** |
-| Measured coverage of TEST | measured (date, name) values exist for TEST sessions 2026-09-25, 09-28 and 09-29 only (3 of 100). **≥ 97% of TEST trades use the proxy.** The runner reports `spread_coverage`. |
-| Fallback | a (session, name) with a reliable measurement uses it; anything else uses 3.63 bps |
+| Primary | a **reliable measured** (session, name) value where one exists, otherwise **5 bps** (C3 as approved) |
+| Sensitivities | flat **3.63 bps** (the measured median) and flat **9.34 bps** (the first-quote median) |
+| Source | `backend/var/stage4/costs/open_spread_through_2026-10-14.json`, sha256 `b1db9ed304a7639912221b352d98c199d4aec154d95afceb720bd32aa3834f82`. It is referenced by sha in both configurations. |
+| Method | rung-0 quotes 09:15–09:20 IST; half-spread = (ask − bid)/(ask + bid); per-name median; reliable = ≥ 3 quotes; top-500 universe per date |
+| Dates | 13 of 14 captured sessions (2026-09-25 → 10-14), 6,488 name-days; 2026-09-24 has no qualifying universe |
+| Coverage | measured values exist for 3 of 100 TEST sessions (09-25, 09-28, 09-29), so **≥ 97% of TEST trades use 5 bps**. The runner reports `spread_coverage`. |
 
-**Decision needed:** the measured proxy (3.63) is **lower, i.e. less conservative**, than the 5 bps provisional proxy approved under C3.
-- The proposal uses 3.63 as the fallback (PC-4: measured beats provisional).
-- 5 bps and 9.34 bps are reported as sensitivities.
-- If you prefer to keep 5 bps as the primary fallback, that is a different sha.
+## 5. Labels and splits: builder code written, NOT run in production
 
-**Limitations:**
-- The spreads were measured in Sep–Oct 2026 and are applied to May–Sep 2026, which assumes a stable regime.
-- The official open is a call-auction price. Paying a half-spread at the auction is a conservative proxy, not a measured cost.
+### `app/training/hold.py` (`label-hold5-v1-asif`)
 
-## 5. Data contract for the label and split build (needs the separate label/split approval)
+**Basis and windows:**
+- **One price basis:** `pit.bars_adjusted` at one recorded cutoff.
+- **Holding periods count calendar trading sessions:** a session without a bar is a gap, not skipped.
+- **Rows:** emitted on canonical-bar days only, as label-v2 does.
 
-| Object | Definition |
+| Label | Definition |
 |---|---|
-| `label-hold5-v1-asif` / `open_adj` | the official open of session T, split/bonus-adjusted by `pit.bars_adjusted` at one recorded knowledge cutoff for the whole window (a single basis, so the book's open-to-open path is consistent). Refused (LOW / RECONSTRUCTED) bars give no row. |
-| `hold5_px`, `hold3_px` | `open[T+h] / open[T] − 1` on the same basis (`e2.hold_label`), with the flags of prereg §1. `hold5_px` is the ridge24 target. |
-| total-return variant | **not implemented in the book** (`tranche_book` has no dividend cash). Reported at label level only, or deferred. Recorded as a gap. |
-| eligibility | `training_sample.feature_eligible` of `label-v2` (it depends on features only) |
-| splits | `wf-exp-120-20-20-e5`, 15 rows. The runner refuses unless the stored splits equal `e2.make_folds(257)`. |
+| `open_adj` | the adjusted official open of T |
+| `hold5_px`, `hold3_px` | `open[T+h]/open[T] − 1` |
+| `hold5_tr`, `hold3_tr` | plus every dividend with ex-date in (T, T+h], divided by every later EXACT split/bonus factor up to the cutoff date (the same factors `bars_adjusted` applies) |
 
-## 6. Verification evidence (synthetic; no real data)
+**Rows are explicit, never 0.** Reasons:
+- `BAR_REFUSED`
+- `MALFORMED_BAR`
+- `SESSION_MISSING`
+- `NO_EXIT_SESSION`
+- `DIVIDEND_NO_AMOUNT`
 
-| Property | Test |
+Flags (never used to select):
+- `CA_IN_WINDOW:<id>`
+- `UNSUPPORTED_CA_IN_WINDOW:<type>`
+- `DIVIDEND_IN_WINDOW`
+
+**Build properties:**
+- one transaction, append-only;
+- a run row with the cutoff, registry, code sha, source fingerprints and `rows_sha256`;
+- **drift against stored rows aborts the build** (rollback).
+
+**Total return is at LABEL level only** (your decision 6):
+- the runner reports, per TEST fold, the mean `hold5_tr` and `hold5_px` excess of the picks over their controls (`e2.label_level_excess`);
+- **book-level dividend cash accounting is NOT implemented**: `tranche_book` ignores dividends.
+
+### `app/training/splits.py`
+
+- **New scheme `wf-exp-120-20-20-e5`:** embargo 5 and tail 5.
+- `build(..., scheme=)` refuses any other label version for e5, and e5 for any other label.
+- **Proven equal to `e2.make_folds(257)`.** E1's `wf-exp-120-20-20-e1` is unchanged (tested).
+- `samples.label_snapshots`: label-hold versions are PRE_SESSION only.
+
+## 6. CI calibration (1,000 null worlds per world type): INADEQUATE
+
+**Run:** `ops/measure/e2_null_calibration.py --worlds 1000 --jobs 24 --write`, about 10 minutes.
+
+**What it exercises:** the full pre-registered machinery on synthetic null worlds:
+- zero costs and an uninformative score, so the true mean of s_t is 0;
+- k20 and k100;
+- 10,000 bootstrap draws, block 10;
+- NW;
+- A1–A4 and `candidate_status`.
+
+**World types:**
+- **iid:** independent returns.
+- **factor:** market factor with t5 tails and volatility regimes, 20 sector factors, t5 idiosyncratic noise, and AR(0.9) persistent scores.
+
+**Result file:** `backend/var/stage4/experiments/e2/null_calibration.json`
+- sha256 `5a0008f7b203b5e6c6214591d00f6d7ea421c50c782a587ddc339222bb483833`;
+- code sha (`e2.py` + script) `64ce3821f284…`;
+- **`"adequate": false`**.
+
+**Criterion, fixed in the script before the run:** for k20, in every world type, the Wilson 95% upper bound of the ACCEPTED-EXPLORATORY rate must be ≤ 2.5% (twice the nominal one-sided 1.25%).
+
+| Rate (count / 1,000; Wilson 95%) | nominal | iid k20 | factor k20 | iid k100 | factor k100 |
+|---|---|---|---|---|---|
+| **ACCEPTED-EXPLORATORY** (the decision rule) | ≤ 1.25% | **16 (0.99–2.58%)** ✗ | 11 (0.62–1.96%) | 13 (0.76–2.21%) | 8 (0.41–1.57%) |
+| A1 PASS alone | 1.25% | 23 (1.54–3.43%) | 25 (1.70–3.66%) | 23 (1.54–3.43%) | 26 (1.78–3.78%) |
+| CI excludes 0 (two-sided) | 2.5% | 54 (4.16–6.98%) | 49 (3.73–6.42%) | 56 (4.34–7.20%) | 56 (4.34–7.20%) |
+| A4 placebo FAIL | 2.5% | 64 (5.04–8.09%) | 65 (5.13–8.20%) | 54 (4.16–6.98%) | 59 (4.60–7.54%) |
+| Mean of s_t (bps; SE) | 0 | +0.014 (0.044) | −0.015 (0.229) | −0.020 (0.021) | −0.022 (0.120) |
+
+### 6.1 Findings
+
+1. **The construction is unbiased.** The mean of s_t is within 1 SE of 0 in every cell, so controls, placebo and costs do not create an effect.
+2. **The 97.5% moving-block CI is anti-conservative.** It excludes 0 in about 5–6% of null worlds instead of 2.5%, and A1 PASS fires about 2× too often.
+   - **Likely cause:** a percentile moving-block bootstrap with only about 10 blocks over 100 sessions (5 non-contiguous 20-session TEST blocks) underestimates the variance of the mean.
+3. **The Newey-West agreement roughly halves the false-acceptance rate** (2.3% → 1.6% for iid k20), but not enough. The iid k20 upper bound of 2.58% exceeds the pre-set 2.5%, so the criterion fails.
+4. **The placebo gate A4 false-FAILs about 5–8% of the time.** That is the same undercoverage seen from the other side: in a real run it would wrongly reject about 1 in 15 genuine candidates.
+
+### 6.2 What this means
+
+With the pre-registered inference, the realised false-acceptance rate of an E2 PASS could be about 1.6%, not ≤ 1.25%, and the CIs are too narrow. The gate is behaving as designed: it stops the test look.
+
+### 6.3 Proposed correction (needs your decision; NOT implemented, NOT run)
+
+Every option is validated only on new synthetic null worlds: a new calibration file, a new code sha, no E2 data.
+
+| Option | Change | Expected effect | Cost |
+|---|---|---|---|
+| **C-a (recommended)** | **Studentized** moving-block bootstrap (bootstrap-t: each draw's mean divided by its NW standard error), block 10, the same 97.5% level | The standard remedy for percentile-interval undercoverage with few blocks; keeps the stated level | Small code change; A1 semantics unchanged |
+| C-b | Keep the percentile bootstrap, widen to the level that calibrates (e.g. 99.5%), chosen on synthetic worlds from a pre-declared grid {98.75, 99, 99.5, 99.75} | Restores the false-positive rate | Lower power; the level is chosen by calibration, not stated a priori |
+| C-c | Make the primary test a NW t against the t-distribution with ≈ 20 effective degrees of freedom; the bootstrap CI is reported only | Simple, conservative | Changes A1's definition |
+| C-d | Fold-level test: 5 fold means, one-sided t with 4 df | Very conservative, transparent | Very low power |
+
+**Recommended sequence:**
+1. Adopt C-a.
+2. Rerun 1,000 + 1,000 null worlds with the **same pre-set criterion**, and also require the two-sided rate's Wilson interval to include 2.5%.
+3. If it is still inadequate, C-b with the grid declared before the run.
+4. Report back before any E2 data is touched.
+
+### 6.4 Recalibration with correction C-a (approved 2026-10-14)
+
+**C-a, the studentized moving-block bootstrap-t:**
+- **Original:** mean m, with SE s from the overlapping block means (Künsch).
+- **Per draw:** a mean m* of k = ⌈n/10⌉ blocks, with its own block SE s*.
+- **Pivot:** t* = (m* − m̃)/s*, centred at the mean of all block means.
+- **CI:** [m − q₀.₉₈₇₅·s, m − q₀.₀₁₂₅·s].
+- **Tests:** location/scale equivariance; a constant series gives a point interval; wider than the percentile CI on a short series; the default of `summarise`.
+
+**Run:**
+- `e2_null_calibration.py --worlds 1000 --jobs 24 --write`, the same worlds and seeds as §6.
+- File: `backend/var/stage4/experiments/e2/null_calibration_studentized.json`, sha256 `7bff0ad484ec9de8ba72a12813b239a2952edf3716e06c5d766f4bf4d61fb5da`.
+- Code sha `283fa95ac8ad…`.
+- `"adequate": false`.
+- The percentile file is kept unchanged.
+
+**Pre-set criteria (§6.3, step 2; fixed in the script before the run):**
+1. The k20 ACCEPTED-EXPLORATORY Wilson upper bound is ≤ 2.5% in every world type.
+2. The k20 two-sided Wilson interval contains 2.5%.
+
+| Rate (count / 1,000; Wilson 95%) | nominal | iid k20 | factor k20 | iid k100 | factor k100 |
+|---|---|---|---|---|---|
+| **ACCEPTED-EXPLORATORY** | ≤ 1.25% | **6 (0.28–1.30%)** ✓ | **10 (0.54–1.83%)** ✓ | 9 (0.47–1.70%) | 5 (0.21–1.17%) |
+| A1 PASS alone | 1.25% | 6 (0.28–1.30%) | 14 (0.84–2.34%) | 9 (0.47–1.70%) | 11 (0.62–1.96%) |
+| CI excludes 0 (two-sided) | 2.5% | **14 (0.84–2.34%)** ✗ (conservative) | 27 (1.86–3.90%) ✓ | 20 (1.30–3.07%) | 27 (1.86–3.90%) |
+| A4 placebo FAIL | 2.5% | 16 (0.99–2.58%) | 40 (2.95–5.40%) | 16 (0.99–2.58%) | 34 (2.44–4.71%) |
+| Before C-a (percentile), for comparison: accepted / two-sided | | 16 / 54 | 11 / 49 | 13 / 56 | 8 / 56 |
+
+**Reading:**
+- **Criterion 1 PASSES in both world types.** C-a brings false acceptance to the nominal level, or below it: iid 0.6%, factor 1.0%. This was the purpose of the correction.
+- **Criterion 2 FAILS in iid worlds, on the conservative side.** The CI is too wide: it excludes 0 in 1.4% of worlds instead of 2.5%. In factor worlds, which are closer to real data, it is on target (2.7%).
+- **Cost of the conservatism:** some power. It is not a false-positive risk.
+- **A4 placebo:** it still over-rejects in factor worlds (4.0% vs 2.5%). That would wrongly reject about 1 in 25 genuine candidates. The direction is again conservative for acceptance.
+- **The construction remains unbiased:** mean s_t within 1 SE of 0.
+
+### 6.5 Decision needed (nothing adopted; the gate stays closed)
+
+| Option | Meaning |
 |---|---|
-| Costs enter once, only on P | `test_costs_enter_once_on_the_predictor_book_only`: s_t = gross − cost_t(P) exactly, every day |
-| A control cannot create a cost advantage | `test_no_edge_and_flat_prices_cannot_pass_through_a_control`: zero edge, so s < 0 and A1/A2 FAIL. Contrast with PC-1's "both costed" demo (+7.1 bps per day from nothing). |
-| No look-ahead in selection | `test_selection_never_sees_later_sessions`: rewriting every later session leaves all earlier picks of every arm identical; `form_block` receives no labels or prices |
-| Arms disjoint and sized | `test_arms_are_disjoint_and_sized_by_the_selection` (k = 100 / 20) |
-| Order size | `test_k20_raises_the_order_size_fivefold_at_the_same_capital` (₹2,000 vs ₹10,000 at ₹10 L) |
-| A real edge is found | `test_a_planted_edge_above_costs_passes` (A1–A4 PASS, C1 p = 1/21) |
-| Noise is not a pass | `test_noise_world_is_not_a_pass` |
-| One look | `test_one_look_is_enforced`: dirty tree, missing or foreign validate file, missing `--confirm-test-look E2-<sha12>` and an existing test file are all refused |
-| Configuration identity | `test_each_selection_and_level_is_its_own_configuration` |
-| Suspension accounting | `test_a_move_across_a_suspension_is_booked_when_the_name_reopens` (Amendment 1 fix) |
+| **W (recommended)** | Accept C-a with a **recorded waiver** of criterion 2 for the conservative direction only. Criterion 2 was meant to catch mis-calibration; failing it by being too conservative does not threaten the false-positive control the gate protects. The waiver is post-calibration, so it is recorded as such, and **E2 data is still untouched**. On approval only, a `--waive-conservative-coverage` flag (**not implemented yet**) would write a new calibration file stating the reason; the existing files are never edited. |
+| X | Keep the gate closed, and pre-register a different method (e.g. C-c: NW t against t with about 20 df) with its own criteria and a new 1,000 + 1,000 calibration |
+| Y | Stop E2 here and record Stage 4 E2 as **BLOCKED (inference not calibrated)** |
 
-### CI calibration (`ops/measure/e2_null_calibration.py`, 100 noise worlds, 500 draws)
+### 6.6 Waiver W (approved 2026-10-14), recorded
 
-- The 97.5% block-10 CI excluded 0 in **4–5%** of zero-edge worlds, against the nominal 2.5% (95% band of 100 worlds: about 0–5.6%).
-- Block 20 gave **9%**. Newey-West |t| > 2.24 gave 2–4%. The placebo mean was +0.08 bps (SE 0.09), so it is unbiased.
-- **Reading:** with about 10 blocks in 100 sessions, the moving-block CI may be **anti-conservative by up to about 2×**. Block 20 is worse (fewer blocks).
-- **Proposal, needing a decision:**
-  - (a) run 1,000 worlds before the look and report the calibrated rate;
-  - (b) additionally require the Newey-West t (lag 2H − 1) to agree with A1 for an ACCEPTED-EXPLORATORY status.
-- **Not adopted silently.**
+**Tool:** `ops/measure/e2_calibration_waiver.py`. It writes a waiver only when:
+1. the source has ≥ 1,000 worlds, `ci_method` studentized, and criterion 1 holds in every world type;
+2. every criterion-2 failure is **below** 2.5% (conservative).
 
-## 7. Statistical power and sample size
+An anti-conservative result, or a false-acceptance bound above 2.5%, is never waivable (tested).
 
-- **TEST:** 100 sessions, about 20 independent 5-session periods.
-- **K100** (E1 dispersion: ridge24 sd 0.30% per session, reversal 0.40%): MDE at 80% power is 0.08–0.19% per day (ridge24) and 0.11–0.25% (reversal).
-- **K20:** a fifth of the names. If the dispersion is idiosyncratic, the sd grows about √5 ≈ 2.2×: MDE is about **0.18–0.43% per day** (ridge24) and 0.25–0.56% (reversal). This is an approximation; the factor is between 1 and 2.2.
-- **Against costs:** K20 at ₹10 L costs about 10–20 bps per day. A real 5-session edge would need s_t of about 0.2–0.4% per day to be detectable. **Expected verdict for both configurations: UNPROVEN or FAIL.** E2 can only find a large effect.
-- **Further limits:**
-  - knowability is assumed (as-if-live);
-  - survivorship bias (current master), worse over multi-day holds;
-  - the calibration above.
+**File:** `backend/var/stage4/experiments/e2/null_calibration_studentized_waiver.json`, sha256 `be7e6f7805d4f40e1424eba6d0a1e20d935c825a96b17c8415469f65065f02a4`.
+- It records:
+  - the source file and its sha (`7bff0ad4…`);
+  - the calibrated code sha (`283fa95a…`);
+  - the conservative failure (iid 1.4%, Wilson 0.84–2.34%);
+  - the reason, the approver and the time.
+- It is never overwritten, and its source is never edited.
 
-## 8. Forward confirmatory design (for a candidate that reaches ACCEPTED-EXPLORATORY)
+**Runner gate (`calibration_ok`):**
+- requires ≥ 1,000 worlds, `adequate`, and the calibrated code sha = the current `e2.py` + calibration script;
+- for a waiver, also requires the source file unchanged;
+- today it returns `(True, "adequate")`.
 
-- **Freeze:** the configuration sha, the P2 refit rule (expanding TRAIN, refit every 20 sessions, penalty from the frozen validate file), costs, the metric s_t and the gates. These are fixed **before the first forward session**.
-- **Data:** formation sessions strictly after the freeze date, never used by E1 or E2. A pick is recorded before 09:15 IST of its session by a paper-only shadow log; the E2 shadow variant is not written, and its install needs approval. Evaluation is open to open.
-- **Knowability:** STRICT where the pipeline has it (production features since 2026-09-29), else as-if-live, reported separately.
-- **Test:** one-sided, mean s_t > 0, the moving-block CI as in A1 plus a Newey-West cross-check. A fixed horizon N is chosen now, with **no peeking**; or a group-sequential design with pre-set alpha spending, if you prefer interim looks.
-- **Required N** = (1.96 + 0.84)² σ² / δ² × an overlap inflation of 1–5× (80% power, one-sided 2.5%; per-day sd σ):
+**Any change to `e2.py` or the calibration script invalidates it.** A recalibration is then needed, into a new file.
 
-| True s_t (per day) | σ = 0.30% (K100 ridge) | σ = 0.67% (K20, approx.) |
-|---|---|---|
-| 0.10% | 71–353 sessions | 352–1,760 sessions |
-| 0.20% | 18–88 | 88–440 |
-| 0.30% | 8–39 | 39–196 |
+## 7. Power and sample-size limits (k20)
 
-- **Reading:** about 250 sessions a year. A forward confirmation is feasible within months only for an effect of at least about 0.3% per day. Smaller effects cannot be confirmed in a reasonable time. That is a reason not to begin unless E2 shows a large effect.
+- **TEST size:** 100 TEST sessions, about 20 independent 5-session periods. The calibration shows the effective information is lower than the bootstrap assumed.
+- **Variance:** k20 holds a fifth of k100's names, so idiosyncratic sd is up to √5 ≈ 2.2× higher.
+  - In the factor null worlds, the spread of mean(s_t) across worlds is **1.9× larger for k20** than for k100 (SE 0.229 vs 0.120 bps, measured).
+  - Minimum detectable mean s_t at 80% power: about **0.18–0.43% per day** (ridge24) and 0.25–0.56% (reversal). This is extrapolated from E1's dispersion × 2.2.
+- **Costs to beat at ₹10 L:** 10.3–20.6 bps per day; E1's gross matched excess was 5–8 bps per day.
+- **Expected verdict: UNPROVEN or FAIL.** E2 can only detect a 5-session effect roughly 3–8× larger than E1's 1-session effect.
+- **Other limits:**
+  - assumed knowability (as-if-live);
+  - survivorship bias (current master, worse over multi-day holds);
+  - spreads measured in Sep–Oct applied to May–Sep;
+  - the auction open is priced with a half-spread (conservative);
+  - no book-level dividend cash.
 
-## 9. Approval checklist
+## 8. Forward confirmatory design (unchanged from revision 1)
+
+- **Freeze before the first forward session:**
+  - the configuration sha;
+  - the P2 refit rule;
+  - costs, s_t and the gates;
+  - the corrected inference of §6.3.
+- **Data:** sessions after the freeze only. Picks are recorded before 09:15 IST by a paper-only shadow log; the E2 variant is not written, and installing it needs approval.
+- **Test:** one-sided, at a fixed horizon N or with pre-set alpha spending.
+- **Required N** = (1.96 + 0.84)² σ² / δ² × an overlap inflation of 1–5×. At k20 (σ ≈ 0.67% per day):
+
+| True effect δ | Sessions needed |
+|---|---|
+| 0.3% per day | 39–196 |
+| 0.2% per day | 88–440 |
+| 0.1% per day | 352–1,760 |
+
+  The calibration result suggests the upper end.
+
+## 9. Verification evidence
+
+| Property | Evidence |
+|---|---|
+| Costs once, on P only | `test_costs_enter_once_on_the_predictor_book_only`; `test_cost_parts_sum_to_the_total_and_are_counted_once` |
+| No control cost advantage | `test_no_edge_and_flat_prices_cannot_pass_through_a_control`; calibration: mean s_t = 0 within 1 SE |
+| No selection leakage | `test_selection_never_sees_later_sessions`; `form_block` gets features only; the runner's `load_session` selects no label column |
+| Configuration identity | `test_each_selection_and_level_is_its_own_configuration`; shas reproducible run to run |
+| One look | `test_one_look_is_enforced`: dirty tree; missing or foreign validate; no confirm token; missing, < 1,000-world or inadequate calibration; an existing test file. Plus `test_calibration_must_be_of_the_current_code`. |
+| Candidate rule | `TestCandidateStatus` (NW disagreement gives UNPROVEN; missing A5 gives BLOCKED) |
+| Labels | `tests/training/test_hold.py`: 8 pure tests (definitions, calendar windows, reasons, dividend holder of record, rescaling by later splits, split flags, determinism) and 4 tests on the TEST database seed world (values, bonus basis, refusals, idempotency, label after as_of, scheme guard) |
+| Splits | e5 = `make_folds(257)`, no violations, E1 unchanged; tail purge |
+| Suspension fix | `test_a_move_across_a_suspension_is_booked_when_the_name_reopens` |
+
+## 10. Approval checklist
 
 | # | Item | Status |
 |---|---|---|
-| 1 | Adopt this amendment (metric s_t, A1–A6 as defined, candidate statuses) | **your decision** |
-| 2 | Primary configuration: k20 at 97.5% (recommended), or both at 98.75% | **your decision** |
-| 3 | Fallback half-spread: 3.63 bps measured (proposed), or 5 bps C3 | **your decision** |
-| 4 | A7 absolute `P_net` > 0 gate: add or not | **your decision** |
-| 5 | CI calibration: 1,000 worlds pre-look, and/or a Newey-West agreement requirement | **your decision** |
-| 6 | Total-return sensitivity: implement in the book, or report at label level only | **your decision** |
-| 7 | Write the label/split builders (code + tests, no production run) | needs approval |
-| 8 | Build `label-hold5-v1-asif` and `wf-exp-120-20-20-e5` in production (backup first) | separate approval |
-| 9 | Validate, then the single test look per configuration | separate approval |
-| 10 | E2 shadow logger + forward design freeze (only after an ACCEPTED-EXPLORATORY) | later approval |
-| 11 | C5 primary legal texts | open |
+| 1 | Adopt revision 2 (§1–§5) | **your decision** |
+| 2 | Inference correction C-a: **approved and recalibrated** (§6.4): false acceptance controlled; criterion 2 failed on the conservative side | done |
+| 2b | §6.5 waiver W | **approved and recorded** (§6.6) |
+| 3 | Build `label-hold5-v1-asif` and `wf-exp-120-20-20-e5` in production (backup first; about 20–40 min, about 1–1.5 GB, no vendor calls) | **next: separate approval needed** |
+| 4 | validate, then the single k20 test look (k100 reported as a sensitivity) | separate approval |
+| 5 | E2 shadow logger and forward freeze (only after ACCEPTED-EXPLORATORY) | later |
+| 6 | C5 primary legal texts | open |

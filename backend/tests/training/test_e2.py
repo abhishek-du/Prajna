@@ -345,7 +345,9 @@ class TestRunnerDiscipline:
         assert len(shas) == 4
         cfg = R.config("k20", 0.975)
         assert cfg["selection"]["n_picks"] == 20 and cfg["status"] == "EXPLORATORY"
-        assert cfg["capital_inr"] == 1_000_000 and cfg["half_spread_proxy_bps"] == 3.6308
+        assert cfg["capital_inr"] == 1_000_000 and cfg["half_spread_proxy_bps"] == 5.0
+        assert cfg["half_spread_sensitivity_bps"] == [3.6308, 9.3393]
+        assert cfg["role"] == "PRIMARY" and R.config("k100")["role"] == "SENSITIVITY"
         assert cfg["rates"]["dp_per_scrip_sell_inr"] == 20.0 and cfg["block"] == 2 * X.H
 
     def test_one_look_is_enforced(self, R, tmp_path):
@@ -362,12 +364,133 @@ class TestRunnerDiscipline:
         (tmp_path / f"validate_{sha[:12]}.json").write_text(json.dumps({"config_sha256": sha}))
         with pytest.raises(SystemExit, match="confirm-test-look"):
             R.check_look(tmp_path, "test", sha, dirty=False)
-        R.check_look(tmp_path, "test", sha, dirty=False, confirm=f"E2-{sha[:12]}")
+        cal, ok = tmp_path / "cal.json", f"E2-{sha[:12]}"
+        with pytest.raises(SystemExit, match="no calibration file"):
+            R.check_look(tmp_path, "test", sha, dirty=False, confirm=ok, calibration=cal)
+        cal.write_text(json.dumps({"worlds": 100, "adequate": True}))
+        with pytest.raises(SystemExit, match="< 1000"):
+            R.check_look(tmp_path, "test", sha, dirty=False, confirm=ok, calibration=cal)
+        cal.write_text(json.dumps({"worlds": 1000, "adequate": False}))
+        with pytest.raises(SystemExit, match="not adequate"):
+            R.check_look(tmp_path, "test", sha, dirty=False, confirm=ok, calibration=cal)
+        cal.write_text(json.dumps({"worlds": 1000, "adequate": True}))
+        R.check_look(tmp_path, "test", sha, dirty=False, confirm=ok, calibration=cal)
         (tmp_path / f"test_{sha[:12]}.json").write_text("{}")
         for phase in ("validate", "test"):
             with pytest.raises(SystemExit, match="single test look"):
-                R.check_look(tmp_path, phase, sha, dirty=False, confirm=f"E2-{sha[:12]}")
+                R.check_look(tmp_path, phase, sha, dirty=False, confirm=ok, calibration=cal)
+
+    def test_calibration_must_be_of_the_current_code(self, R, tmp_path):
+        import json
+        cal = tmp_path / "cal.json"
+        cal.write_text(json.dumps({"worlds": 1000, "adequate": True, "code_sha256": "old"}))
+        assert R.calibration_ok(cal, "new") == (
+            False, "calibration ran other e2 code: recalibrate (new file)")
+        assert R.calibration_ok(cal, "old") == (True, "adequate")
+        assert len(R.calibration_code_sha()) == 64
 
     def test_opens_matrix_leaves_missing_sessions_empty(self, R):
         m = R.opens_matrix({("A", 0): 10.0, ("A", 2): 11.0, ("B", 1): 5.0}, 3)
         assert m == {"A": [10.0, None, 11.0], "B": [None, 5.0, None]}
+
+
+ALL_PASS = {"A1": "PASS", "A2": "PASS", "A3": "PASS", "A4": "PASS", "A5": None}
+
+
+class TestCandidateStatus:
+
+
+    def test_accepted_needs_newey_west_agreement(self):
+        assert X.candidate_status(ALL_PASS, 3.0)["status"] == "ACCEPTED-EXPLORATORY"
+        r = X.candidate_status(ALL_PASS, 1.5)
+        assert r["status"] == "UNPROVEN" and r["nw_agrees"] is False
+
+    def test_fail_unproven_blocked(self):
+        assert X.candidate_status({**ALL_PASS, "A1": "FAIL"}, -3.0)["status"] == "FAIL"
+        assert X.candidate_status({**ALL_PASS, "A3": "FAIL"}, 3.0)["status"] == "UNPROVEN"
+        assert X.candidate_status({**ALL_PASS, "A1": "UNPROVEN"}, 0.5)["status"] == "UNPROVEN"
+        assert X.candidate_status(ALL_PASS, None)["status"] == "BLOCKED"
+        assert X.candidate_status(ALL_PASS, 3.0, is_p2=True)["status"] == "BLOCKED"  # no A5
+        assert X.candidate_status({**ALL_PASS, "A5": "FAIL"}, 3.0,
+                                  is_p2=True)["status"] == "UNPROVEN"
+
+    def test_label_level_total_return_excess(self):
+        lab = {("A", 0): 0.05, ("B", 0): 0.01, ("C", 0): 0.0, ("A", 1): 0.02}
+        r = X.label_level_excess({0: ["A", "B"], 1: ["A"]}, {0: ["C"], 1: ["D"]}, lab,
+                                 range(0, 2))
+        assert r["mean"] == pytest.approx(0.03) and r["days"] == 1 and r["skipped_names"] == 1
+
+
+class TestStudentizedCI:
+    """Correction C-a: the moving-block bootstrap-t CI (coverage: e2_null_calibration)."""
+
+    def test_constant_series_gives_a_point_interval(self):
+        lo, hi = X.studentized_block_ci([-0.001] * 100, b=200, block=10, level=0.975, seed=1)
+        assert lo == hi == pytest.approx(-0.001)
+
+    def test_location_and_scale_equivariance(self):
+        x = np.random.default_rng(3).normal(0, 0.01, 100).tolist()
+        lo, hi = X.studentized_block_ci(x, b=2000, block=10, level=0.975, seed=4)
+        lo2, hi2 = X.studentized_block_ci([2 * v + 0.5 for v in x], b=2000, block=10,
+                                          level=0.975, seed=4)
+        assert lo2 == pytest.approx(2 * lo + 0.5) and hi2 == pytest.approx(2 * hi + 0.5)
+        assert lo < float(np.mean(x)) < hi
+
+    def test_wider_than_the_percentile_interval_on_a_short_series(self):
+        x = np.random.default_rng(5).normal(0, 0.01, 100).tolist()
+        s = X.studentized_block_ci(x, b=4000, block=10, level=0.975, seed=6)
+        p = X.E.block_bootstrap_ci(x, b=4000, block=10, level=0.975, seed=6)
+        assert s[1] - s[0] > p[1] - p[0]
+
+    def test_summarise_uses_the_studentized_interval_by_default(self):
+        x = np.random.default_rng(7).normal(0, 0.01, 100).tolist()
+        f = [i // 20 for i in range(100)]
+        r = X.summarise(x, f, b=500, seed=1)
+        assert r.ci == X.studentized_block_ci(x, b=500, block=10, level=0.975, seed=1)
+        with pytest.raises(ValueError, match="ci_method"):
+            X.summarise(x, f, ci_method="bca")
+
+
+class TestCalibrationWaiver:
+    """ops/measure/e2_calibration_waiver.py (option W): conservative-side only."""
+
+    @staticmethod
+    def W():
+        import sys
+        sys.path.insert(0, "ops/measure")
+        import e2_calibration_waiver as W
+        return W
+
+    @staticmethod
+    def src(two_sided, accepted_hi=0.013):
+        return {"worlds": 1000, "ci_method": "studentized", "by_world": {
+            kind: {"k20": {"accepted": {"wilson95": [0.003, accepted_hi]},
+                           "ci_excludes_0": {"rate": r, "wilson95": w}}}
+            for kind, (r, w) in two_sided.items()}}
+
+    def test_conservative_failure_is_waivable(self):
+        ok, problems, cons = self.W().evaluate(self.src(
+            {"iid": (0.014, [0.0084, 0.0234]), "factor": (0.027, [0.0186, 0.039])}))
+        assert ok and not problems and len(cons) == 1 and cons[0].startswith("iid")
+
+    def test_anti_conservative_or_false_acceptance_is_never_waivable(self):
+        W = self.W()
+        assert not W.evaluate(self.src({"iid": (0.05, [0.04, 0.07])}))[0]
+        assert not W.evaluate(self.src({"iid": (0.02, [0.01, 0.03])}, accepted_hi=0.026))[0]
+        assert not W.evaluate({**self.src({"iid": (0.02, [0.01, 0.03])}), "worlds": 999})[0]
+
+    def test_runner_rejects_a_waiver_whose_source_changed(self, tmp_path, monkeypatch):
+        import hashlib
+        import json
+        import sys
+        sys.path.insert(0, "ops/measure")
+        import stage4_e2_hold as R
+        src = tmp_path / "src.json"
+        src.write_text("{}")
+        w = tmp_path / "w.json"
+        w.write_text(json.dumps({"worlds": 1000, "adequate": True, "code_sha256": "c",
+                                 "source_file": "src.json",
+                                 "source_sha256": hashlib.sha256(b"{}").hexdigest()}))
+        assert R.calibration_ok(w, "c") == (True, "adequate")
+        src.write_text('{"edited": 1}')
+        assert R.calibration_ok(w, "c")[0] is False
