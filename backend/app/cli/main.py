@@ -2074,6 +2074,37 @@ def training_labels_v2(
     typer.echo(_json.dumps(asyncio.run(_go()), default=str, indent=1))
 
 
+@training_app.command("labels-hold")
+def training_labels_hold(
+    start: str = typer.Option(..., "--from"),
+    end: str = typer.Option(..., "--to"),
+    cutoff: str = typer.Option(..., "--cutoff", help="knowledge cutoff (ISO with offset); "
+                               "required: the E2 labels are rebuilt only at a recorded cutoff"),
+    key: list[str] = typer.Option(None, "--key"),
+):
+    """label-hold5-v1-asif (E2: open_adj, hold5/3 price and total return) for the sessions
+    in [from, to], read at the cutoff. Append-only; one run row; drift aborts."""
+    import datetime as _dt2
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.training import hold as HL
+    from app.training import replay as RP
+
+    code = RP.code_version()
+    if code["dirty"]:
+        typer.echo("REFUSED: the working tree is dirty; commit first")
+        raise typer.Exit(3)
+    at = _dt2.datetime.fromisoformat(cutoff)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await HL.build(s, _date(start), _date(end), cutoff=at,
+                                  keys=list(key) if key else None, code_git_sha=code["git_sha"])
+
+    typer.echo(_json.dumps(asyncio.run(_go()), default=str, indent=1))
+
+
 @training_app.command("samples")
 def training_samples(
     dataset: str = typer.Option(..., "--dataset", help="strict | asif"),
@@ -2097,8 +2128,10 @@ def training_samples(
 def training_splits(
     dataset: str = typer.Option(..., "--dataset", help="strict | asif"),
     label_version: str = typer.Option("label-v2", "--labels"),
+    scheme: str = typer.Option("wf-exp-120-20-20-e1", "--scheme",
+                               help="wf-exp-120-20-20-e1 | wf-exp-120-20-20-e5 (E2 labels)"),
 ):
-    """Chronological walk-forward folds with a 1-session embargo."""
+    """Chronological walk-forward folds (e1: 1-session embargo; e5: 5 + tail purge)."""
     import json as _json
 
     from app.db.engine import get_sessionmaker
@@ -2107,7 +2140,8 @@ def training_splits(
 
     async def _go():
         async with get_sessionmaker()() as s:
-            return await SP.build(s, P.DATASETS[dataset].version, label_version)
+            return await SP.build(s, P.DATASETS[dataset].version, label_version,
+                                  scheme=scheme)
 
     typer.echo(_json.dumps(asyncio.run(_go()), default=str, indent=1))
 
