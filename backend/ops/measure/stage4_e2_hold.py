@@ -99,6 +99,9 @@ def config(selection: str, level: float = 0.975) -> dict[str, Any]:
                                         sp["first_quote_sensitivity_bps"]],
         "candidate_rule": "A1 PASS and Newey-West t (lag 2H-1) >= 2.2414 and A2-A4 (A5)",
         "total_return": "label level only (hold5_tr / hold3_tr); no book dividend cash",
+        "eval_mask": "Amendment 3: label-v2 EXTREME_UNEXPLAINED or UNSUPPORTED_CA_EX_T on "
+                     "any session in [d, d+H] -> the name is dropped from every arm after "
+                     "selection and from ridge TRAIN/VALID rows; unmasked is a sensitivity",
         "slippage_bps": 0.0, "slippage_sensitivity_bps": [5.0, 10.0, 20.0],
         "stress": 1.5, "bootstrap": 10_000, "block": 2 * X.H, "block_sensitivity": 20,
         "ci_level": level, "ci_method": "studentized moving-block bootstrap-t (C-a)",
@@ -233,14 +236,15 @@ def ridge_score_fn(w: np.ndarray):
 
 
 def fit(sessions: dict[int, dict], y: dict[tuple[str, int], float], days: range,
-        top: int, alpha: float) -> np.ndarray:
+        top: int, alpha: float, suspect: dict[str, set[int]] | None = None) -> np.ndarray:
     rows = []
     for d in days:
         sess = sessions.get(d)
         if not sess:
             continue
         u = E.universe(sess, top)
-        ok = [i for i in u.tolist() if (sess["keys"][i], d) in y]
+        ok = [i for i in u.tolist() if (sess["keys"][i], d) in y
+              and not masked(suspect or {}, sess["keys"][i], d)]
         if len(ok) >= 3:
             ok = np.array(ok)
             rows.append((E.ranked_X(sess, ok),
@@ -248,14 +252,16 @@ def fit(sessions: dict[int, dict], y: dict[tuple[str, int], float], days: range,
     return E.ridge_fit(rows, alpha)
 
 
-def valid_ic(sessions, y, days: range, top: int, w: np.ndarray) -> float:
+def valid_ic(sessions, y, days: range, top: int, w: np.ndarray,
+             suspect: dict[str, set[int]] | None = None) -> float:
     ics = []
     for d in days:
         sess = sessions.get(d)
         if not sess:
             continue
         u = E.universe(sess, top)
-        ok = np.array([i for i in u.tolist() if (sess["keys"][i], d) in y])
+        ok = np.array([i for i in u.tolist() if (sess["keys"][i], d) in y
+                       and not masked(suspect or {}, sess["keys"][i], d)])
         if len(ok) >= 3:
             ic = E.spearman(E.ridge_score(sess, u, w)[ok],
                             np.array([y[(sess["keys"][i], d)] for i in ok]))
@@ -273,7 +279,41 @@ async def load_all(s, cfg) -> tuple[list[_dt.date], dict, dict, dict, dict]:
             sessions[i] = sess
     y = await labels(s, "hold5_px", days)
     opens = opens_matrix(await labels(s, "open_adj", days), len(days))
-    return days, folds, sessions, y, opens
+    return days, folds, sessions, y, opens, await suspect_days(s, days)
+
+
+async def suspect_days(s, days: list[_dt.date]) -> dict[str, set[int]]:
+    """Amendment 3 evaluation mask (decided 2026-10-14 BEFORE any E2 look, from label QA):
+    sessions where label-v2 flags an unexplained extreme move (|ret_cc| or |gap| > 25%
+    with no EXACT split/bonus factor: an unrecorded corporate action) or an unsupported
+    corporate action (no price factor). -> {instrument: {session index}}"""
+    idx = {d: i for i, d in enumerate(days)}
+    out: dict[str, set[int]] = {}
+    for k, d in (await s.execute(text("""select distinct instrument_key, session_date
+            from training_label, unnest(flags) f
+            where label_version = 'label-v2' and session_date between :a and :b
+              and (f = 'EXTREME_UNEXPLAINED' or f like 'UNSUPPORTED_CA_EX_T%')"""),
+            {"a": days[0], "b": days[-1]})).all():
+        if d in idx:
+            out.setdefault(k, set()).add(idx[d])
+    return out
+
+
+def masked(suspect: dict[str, set[int]], k: str, d: int, h: int = X.H) -> bool:
+    """True when a suspect session of k lies in [d, d + h]: the holding window of a
+    tranche formed on d (its open-to-open path crosses the suspect session)."""
+    return any(d <= x <= d + h for x in suspect.get(k, ()))
+
+
+def apply_mask(blk: dict[str, Any], suspect: dict[str, set[int]],
+               h: int = X.H) -> dict[str, Any]:
+    """Drop masked names from EVERY arm (and every permutation) after selection, the same
+    way: selection itself never sees the mask (E1 evaluation-exclusion precedent)."""
+    def f(picks: dict[int, list[str]]) -> dict[int, list[str]]:
+        return {d: [k for k in v if not masked(suspect, k, d, h)] for d, v in picks.items()}
+    dropped = sum(len(v) - len(f({d: v})[d]) for d, v in blk["picks"]["P"].items())
+    return {**blk, "picks": {a: f(v) for a, v in blk["picks"].items()},
+            "perm": [f(pp) for pp in blk["perm"]], "masked_picks": dropped}
 
 
 async def total_return_labels(s, days) -> dict[str, dict[tuple[str, int], float]]:
@@ -287,15 +327,17 @@ async def validate(cfg, sha) -> dict[str, Any]:
            "metrics": "none by design (each VALID block overlaps the previous TEST)"}
     async with get_sessionmaker()() as s:
         await s.execute(text("set transaction isolation level repeatable read, read only"))
-        days, folds, sessions, y, _ = await load_all(s, cfg)
+        days, folds, sessions, y, _, suspect = await load_all(s, cfg)
         await s.rollback()
     top = cfg["selection"]["universe_top"]
+    out["masked_instruments"] = len(suspect)
     out["folds"] = {str(f): {r: [str(days[v[r][0]]), str(days[v[r][-1]]), len(v[r])]
                              for r in v} for f, v in folds.items()}
     for f, v in folds.items():
         best = None
         for alpha in cfg["ridge_alphas"]:
-            m = valid_ic(sessions, y, v["valid"], top, fit(sessions, y, v["train"], top, alpha))
+            m = valid_ic(sessions, y, v["valid"], top,
+                         fit(sessions, y, v["train"], top, alpha, suspect), suspect)
             if best is None or m >= best[0]:
                 best = (m, alpha)
         out["chosen_alpha"][str(f)] = best[1]
@@ -320,7 +362,7 @@ async def test(cfg, sha) -> dict[str, Any]:
     frozen = json.loads((OUT / f"validate_{sha[:12]}.json").read_text())
     async with get_sessionmaker()() as s:
         await s.execute(text("set transaction isolation level repeatable read, read only"))
-        days, folds, sessions, y, opens = await load_all(s, cfg)
+        days, folds, sessions, y, opens, suspect = await load_all(s, cfg)
         tr = await total_return_labels(s, days)
         await s.rollback()
     top, sel = cfg["selection"]["universe_top"], X.Selection(**cfg["selection"])
@@ -338,21 +380,26 @@ async def test(cfg, sha) -> dict[str, Any]:
         "predictors": {}}
     fns = {"reversal": {f: (lambda z, u: E.reversal(z)) for f in folds},
            "ridge24": {f: ridge_score_fn(fit(sessions, y, v["train"], top,
-                                             frozen["chosen_alpha"][str(f)]))
+                                             frozen["chosen_alpha"][str(f)], suspect))
                        for f, v in folds.items()}}
     ev = dict(b=cfg["bootstrap"], level=cfg["ci_level"], seed=cfg["seed"],
               stress=cfg["stress"], ci_method=CI_METHOD)
     for pred in cfg["predictors"]:
-        def blocks(h, pred=pred):
+        def raw_blocks(h, pred=pred):
             return [(f, X.form_block(sessions, v["test"], fns[pred][f], sel, seed=cfg["seed"],
                                      h=h, perm_draws=cfg["perm_draws"] if h == X.H else 0))
                     for f, v in sorted(folds.items())]
+
+        def blocks(h):
+            return [(f, apply_mask(blk, suspect, h)) for f, blk in raw_blocks(h)]
+        b5_unmasked = [(f, {**blk, "perm": []}) for f, blk in raw_blocks(X.H)]
         b5 = blocks(X.H)
         p1 = (out["predictors"].get("reversal", {}).get("primary", {})
               .get("results", {}).get("primary_net_vs_c2_gross", {}).get("mean"))
         prim = X.evaluate(b5, opens, cost_model(cfg, measured), block=cfg["block"],
                           other_primary_mean=p1 if pred == "ridge24" else None, **ev)
-        res = {"primary": strip(prim), "sensitivities": {}, "total_return_label_level": {
+        res = {"primary": strip(prim), "masked_picks": sum(b["masked_picks"] for _, b in b5),
+               "sensitivities": {}, "total_return_label_level": {
             lid: [X.label_level_excess(blk["picks"]["P"], blk["picks"]["C2"], lab, blk["test"])
                   for _, blk in b5] for lid, lab in tr.items()}}
         b5 = [(f, {**blk, "perm": []}) for f, blk in b5]      # C1 only in the primary
@@ -368,6 +415,8 @@ async def test(cfg, sha) -> dict[str, Any]:
             sens[f"half_spread_{spb}"] = X.evaluate(
                 b5, opens, cost_model(cfg, measured, spread=spb),
                 **ev)["results"]["primary_net_vs_c2_gross"]
+        sens["unmasked"] = X.evaluate(b5_unmasked, opens, cost_model(cfg, measured),
+                                      **ev)["results"]["primary_net_vs_c2_gross"]
         sens["block_20"] = X.evaluate(b5, opens, cost_model(cfg, measured),
                                       block=cfg["block_sensitivity"],
                                       **ev)["results"]["primary_net_vs_c2_gross"]

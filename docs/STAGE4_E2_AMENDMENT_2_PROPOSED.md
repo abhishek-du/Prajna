@@ -268,6 +268,36 @@ An anti-conservative result, or a false-acceptance bound above 2.5%, is never wa
 
 **Any change to `e2.py` or the calibration script invalidates it.** A recalibration is then needed, into a new file.
 
+## 6.7 Amendment 3: evaluation mask (decided 2026-10-14, before any E2 look)
+
+**Decided by:** Claude, under the authority you gave on 2026-10-14 ("take decisions by analysing all scenarios").
+
+**Why it is needed (from the QA of the built labels, before any E2 metric existed):**
+- `label-hold5-v1-asif` has 153 VALID `hold5_px` values below −40% that carry no corporate-action flag. Examples:
+
+| Symbol | Session | label-v2 gap |
+|---|---|---|
+| BHAGYANGR | 2026-10-08 | −91% |
+| VERANDA | 2026-10-06 | −87% |
+| INDIAGLYCO | 2026-09-02 | −80% |
+
+- label-v2 marks each of these sessions `EXTREME_UNEXPLAINED`: |ret_cc| or |gap| > 25% with no EXACT factor. These are corporate actions the vendor never recorded. A tranche holding one books a fake crash, or a fake jump.
+
+**Rule:**
+- **Suspect session:** a session x of instrument k where label-v2 has `EXTREME_UNEXPLAINED` or `UNSUPPORTED_CA_EX_T:*` (an action with no price factor).
+- **What is dropped:** a name formed on day d is masked when a suspect session lies in [d, d + H]. It is dropped **after selection**, identically from every arm: P, C2, placebo, placebo-C2, C0 and every C1 permutation. It is also dropped from the ridge TRAIN/VALID rows.
+- **Selection never sees the mask.** This mirrors E1, which applied `EXTREME_UNEXPLAINED` and `CA_WINDOW` as evaluation exclusions to every arm alike.
+- **Reported, not gated:** the unmasked result is a sensitivity.
+- **Code:** `stage4_e2_hold.py` (`suspect_days`, `masked`, `apply_mask`). It is not in `e2.py`, so the C-a calibration and the waiver W stay valid for the unchanged core.
+- **Tests:** `TestEvaluationMask` (window, symmetry across arms, no mutation, ridge rows).
+
+**Config shas** (they replace §3's):
+
+| | Role | Config sha256 |
+|---|---|---|
+| k20 | PRIMARY | `c9ca0b51c607ef6f2c9f96aa550b51228189ac71110cd4bb553bbb736210b3fc` |
+| k100 | SENSITIVITY | `a4ffbdd760fb09a8b8d45ff1e3a94bbeae5be2282aff3a6fc175e2e694274b2b` |
+
 ## 7. Power and sample-size limits (k20)
 
 - **TEST size:** 100 TEST sessions, about 20 independent 5-session periods. The calibration shows the effective information is lower than the bootstrap assumed.

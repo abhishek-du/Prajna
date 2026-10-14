@@ -494,3 +494,44 @@ class TestCalibrationWaiver:
         assert R.calibration_ok(w, "c") == (True, "adequate")
         src.write_text('{"edited": 1}')
         assert R.calibration_ok(w, "c")[0] is False
+
+
+class TestEvaluationMask:
+    """Amendment 3: unrecorded corporate actions (label-v2 EXTREME_UNEXPLAINED /
+    UNSUPPORTED_CA_EX_T) masked from every arm after selection."""
+
+    @staticmethod
+    def R():
+        import sys
+        sys.path.insert(0, "ops/measure")
+        import stage4_e2_hold as R
+        return R
+
+    def test_window_is_formation_day_through_exit(self):
+        R = self.R()
+        sus = {"A": {10}}
+        assert [d for d in range(0, 16) if R.masked(sus, "A", d)] == [5, 6, 7, 8, 9, 10]
+        assert not R.masked(sus, "B", 7)
+        assert [d for d in range(0, 16) if R.masked(sus, "A", d, h=3)] == [7, 8, 9, 10]
+
+    def test_every_arm_and_permutation_loses_the_same_names_selection_untouched(self):
+        R = self.R()
+        blk = {"test": range(10, 12), "unmatched": 0,
+               "picks": {a: {9: ["A", "B"], 10: ["A", "C"], 11: ["C"]} for a in X.ARMS},
+               "perm": [{10: ["A", "B"]}]}
+        out = R.apply_mask(blk, {"A": {12}})
+        for a in X.ARMS:
+            assert out["picks"][a] == {9: ["B"], 10: ["C"], 11: ["C"]}
+        assert out["perm"] == [{10: ["B"]}] and out["masked_picks"] == 2
+        assert blk["picks"]["P"][10] == ["A", "C"]               # input not mutated
+
+    def test_masked_labels_are_left_out_of_ridge_training(self):
+        R = self.R()
+        rng = np.random.default_rng(0)
+        keys = [f"K{i}" for i in range(30)]
+        X_ = rng.normal(size=(30, 24))
+        sess = {0: {"keys": keys, "X": X_, "turnover": X_[:, 23], "atr": X_[:, 14]}}
+        y = {(k, 0): float(rng.normal()) for k in keys}
+        w_all = R.fit(sess, y, range(0, 1), 500, 1.0)
+        w_mask = R.fit(sess, y, range(0, 1), 500, 1.0, {k: {2} for k in keys[:10]})
+        assert not np.allclose(w_all, w_mask)
