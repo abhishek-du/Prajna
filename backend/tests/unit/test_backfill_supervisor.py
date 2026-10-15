@@ -23,6 +23,10 @@ def tree(tmp_path: pathlib.Path) -> pathlib.Path:
     (fake / "backfill.sh").write_text(
         "#!/usr/bin/env bash\necho \"$@\" > \"$(pwd)/var/run/fake_args\"\n")
     (fake / "backfill.sh").chmod(0o755)
+    (fake / "telegram.sh").write_text(              # records each message it is given
+        "#!/usr/bin/env bash\n"
+        "printf '%s\\n---\\n' \"$1\" >> \"$(dirname \"$0\")/../telegram_sent.txt\"\n")
+    (fake / "telegram.sh").chmod(0o755)
     (root / "var" / "logs" / "backfill").mkdir(parents=True)
     (root / "var" / "run").mkdir(parents=True)
     (root / "var" / "backups").mkdir(parents=True)
@@ -31,6 +35,8 @@ def tree(tmp_path: pathlib.Path) -> pathlib.Path:
 
 def tick(root, *, free=150, hhmm="2345", trading="true", archive=None, cmd="tick", **extra):
     env = {**os.environ, "PRAJNA_RUNBOOK_DIR": str(root.parent / "fake"),
+           "PRAJNA_TELEGRAM_CMD": str(root.parent / "fake" / "telegram.sh"),
+           "PRAJNA_TEST_PROGRESS": "1h: 10/100 instruments",
            "PRAJNA_TEST_FREE_GB": str(free), "PRAJNA_TEST_NOW_HHMM": hhmm,
            "PRAJNA_TEST_TRADING_DAY": trading,
            "PRAJNA_BACKUP_ARCHIVE_DIR": str(archive or root.parent / "no_archive"), **extra}
@@ -99,7 +105,8 @@ def test_storage_rule_archives_oldest_verified_and_keeps_the_newest_two(tmp_path
             hashlib.sha256(f.read_bytes()).hexdigest())
         os.utime(f, (1_000_000 + i, 1_000_000 + i))
         names.append(f.name)
-    digests = {n: hashlib.sha256((root / "var/backups" / n).read_bytes()).hexdigest() for n in names}
+    digests = {n: hashlib.sha256((root / "var/backups" / n).read_bytes()).hexdigest()
+               for n in names}
     out = tick(root, free=66, archive=archive)          # needs two moves (+5 GB each, test)
     assert out.count("SUPERVISOR_ARCHIVED") == 2
     for n in names[:2]:
@@ -184,3 +191,29 @@ def test_a_1h_only_run_does_not_end_phase_1(tmp_path):
     out = tick(root, PRAJNA_TEST_OTHER_JOB="false", PRAJNA_TEST_DOW="4")
     assert "SUPERVISOR_PHASE1_DONE" not in out and "stages=1h,15m" in out
     assert not (root / "var/run/backfill.phase1_done").exists()
+
+
+def _sent(root):
+    f = root.parent / "telegram_sent.txt"
+    return f.read_text() if f.exists() else ""
+
+
+def test_alerts_are_sent_to_telegram_once_per_hour(tmp_path):
+    root = tree(tmp_path)
+    tick(root, free=55)
+    tick(root, free=55)
+    assert _sent(root).count("Prajna backfill ISSUE: SUPERVISOR_ALERT disk_below_guard") == 1
+
+
+def test_a_start_is_announced(tmp_path):
+    root = tree(tmp_path)
+    tick(root, PRAJNA_TEST_OTHER_JOB="false", PRAJNA_TEST_DOW="4")
+    assert "Prajna backfill: SUPERVISOR_STARTED stages=1h,15m fraction=0.9" in _sent(root)
+
+
+def test_hourly_update_carries_state_and_progress(tmp_path):
+    root = tree(tmp_path)
+    tick(root, cmd="hourly")
+    msg = _sent(root)
+    assert "Prajna backfill hourly update" in msg and "1h: 10/100 instruments" in msg
+    assert '"stages":"1h,15m"' in msg and "alerts in the last hour: none" in msg

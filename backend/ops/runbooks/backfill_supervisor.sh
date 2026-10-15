@@ -4,7 +4,11 @@
 # failure classes itself, and reports everything else. Deterministic; cron calls it
 # every 15 minutes (ops/cron/prajna.cron). One invocation = one decision, then exit.
 #
-#   ops/runbooks/backfill_supervisor.sh [tick|status|report]
+#   ops/runbooks/backfill_supervisor.sh [tick|status|report|hourly]
+#
+# Telegram (user request 2026-10-15): every SUPERVISOR_ALERT and the start /
+# phase / done / archive events are sent at once (one per kind per hour);
+# `hourly` sends the progress update (cron at minute 0).
 #
 # tick (default):
 #   0 var/run/backfill.paused exists      -> SUPERVISOR_PAUSED, nothing else
@@ -51,7 +55,25 @@ ARCHIVE="${PRAJNA_BACKUP_ARCHIVE_DIR:-/windows/prajna_archive}"
 LOCK="${PRAJNA_CANDLES_LOCK:-var/run/candles.lock}"
 mkdir -p var/run var/logs/backfill
 LOG=var/logs/backfill/supervisor.log
-say() { echo "[$(TZ=Asia/Kolkata date '+%F %T IST')] $*" | tee -a "$LOG"; }
+NOTIFY="${PRAJNA_TELEGRAM_CMD:-ops/runbooks/telegram_notify.sh}"
+notify() {   # Telegram (user request 2026-10-15); one message per kind per hour; never blocks
+  local key stamp now_s
+  key="$(echo "$1" | sed 's/[^A-Za-z_]//g' | cut -c1-60)"
+  stamp="var/run/telegram_${key}"; now_s="$(date +%s)"
+  if [[ -f "$stamp" ]] && (( now_s - $(cat "$stamp") < 3600 )); then return 0; fi
+  echo "$now_s" > "$stamp"
+  "$NOTIFY" "$2" >/dev/null 2>&1 || true
+}
+say() {
+  echo "[$(TZ=Asia/Kolkata date '+%F %T IST')] $*" | tee -a "$LOG"
+  local msg="$*" first rest kind
+  first="${msg%% *}"; rest="${msg#* }"; kind="${rest%% *}"; kind="${kind%%[:=]*}"
+  case "$first" in
+    SUPERVISOR_ALERT) notify "ALERT_${kind}" "Prajna backfill ISSUE: $*" ;;
+    SUPERVISOR_STARTED|SUPERVISOR_PHASE1_DONE|SUPERVISOR_DONE|SUPERVISOR_ARCHIVED)
+      notify "$first" "Prajna backfill: $*" ;;
+  esac
+}
 
 free_gb() {
   if [[ -n "${PRAJNA_TEST_FREE_GB:-}" ]]; then echo "$PRAJNA_TEST_FREE_GB"; return; fi
@@ -116,6 +138,19 @@ status_json() {
     "$(running && echo true || echo false)" "$(process_state)" "$(free_gb)" "${last:-none}" "$STAGES"
 }
 
+hourly_summary() {   # the hourly Telegram update: state, disk, per-stage progress, alerts
+  local st prog alerts since
+  st="$(status_json)"
+  since="$(TZ=Asia/Kolkata date -d '-1 hour' '+%F %T')"
+  if [[ -n "${PRAJNA_TEST_PROGRESS:-}" ]]; then prog="$PRAJNA_TEST_PROGRESS"
+  else prog="$(PGOPTIONS='-c default_transaction_read_only=on' .venv/bin/python \
+                 ops/measure/backfill_progress.py 2>/dev/null)"; fi
+  alerts="$(awk -v t="[$since" '$0 >= t && /SUPERVISOR_ALERT/' "$LOG" 2>/dev/null | tail -5)"
+  printf 'Prajna backfill hourly update (%s)\nstate: %s\n%s\nalerts in the last hour: %s\n' \
+    "$(TZ=Asia/Kolkata date '+%d %b %H:%M IST')" "$st" "${prog:-progress unavailable}" \
+    "${alerts:-none}"
+}
+
 tick() {
   if [[ -f var/run/backfill.paused ]]; then say "SUPERVISOR_PAUSED"; return 0; fi
   if [[ -f var/run/backfill.done ]]; then say "SUPERVISOR_DONE"; return 0; fi
@@ -163,10 +198,13 @@ tick() {
 case "${1:-tick}" in
   tick) tick ;;
   status) status_json ;;
+  hourly)
+    "$NOTIFY" "$(hourly_summary)" >/dev/null 2>&1 || true
+    echo "[$(TZ=Asia/Kolkata date '+%F %T IST')] SUPERVISOR_HOURLY sent" >> "$LOG" ;;
   report)
     out="var/logs/backfill/report_$(TZ=Asia/Kolkata date +%F).json"
     { status_json; grep -h "BACKFILL_PROGRESS" var/logs/backfill/backfill_*.log 2>/dev/null | tail -6; \
       grep -h "SUPERVISOR_ALERT" "$LOG" 2>/dev/null | tail -10; } > "$out"
     say "SUPERVISOR_REPORT $out" ;;
-  *) echo "usage: $0 [tick|status|report]" >&2; exit 2 ;;
+  *) echo "usage: $0 [tick|status|report|hourly]" >&2; exit 2 ;;
 esac

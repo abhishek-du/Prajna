@@ -1,0 +1,2 @@
+# Hourly Telegram backfill update (user request 2026-10-15)
+0 * * * *     cd $B && ops/runbooks/backfill_supervisor.sh hourly >> var/logs/cron.log 2>&1
