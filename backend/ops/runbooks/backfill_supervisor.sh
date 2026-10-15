@@ -58,6 +58,12 @@ trading_day() {
     | sed 's/^t$/true/; s/^f$/false/'
 }
 running() { pgrep -f "${RB}/backfill.sh --login --stages" >/dev/null 2>&1; }
+process_state() {   # running = backfill.sh itself; queued = only its flock wrapper waiting
+  if pgrep -f "^(/usr/bin/env )?bash ${RB}/backfill.sh --login" >/dev/null 2>&1 || \
+     pgrep -f "^/bin/bash ${RB}/backfill.sh --login" >/dev/null 2>&1; then echo running
+  elif running; then echo queued
+  else echo none; fi
+}
 last_completed() {
   local f
   f="$(ls -1t var/logs/backfill/backfill_*.log 2>/dev/null | head -1)"
@@ -91,10 +97,10 @@ archive_oldest() {   # the pre-approved storage rule
 
 status_json() {
   local last; last="$(last_completed)"
-  printf '{"paused":%s,"done":%s,"running":%s,"free_gb":%s,"last_status":"%s","stages":"%s"}\n' \
+  printf '{"paused":%s,"done":%s,"running":%s,"process":"%s","free_gb":%s,"last_status":"%s","stages":"%s"}\n' \
     "$([[ -f var/run/backfill.paused ]] && echo true || echo false)" \
     "$([[ -f var/run/backfill.done ]] && echo true || echo false)" \
-    "$(running && echo true || echo false)" "$(free_gb)" "${last:-none}" "$STAGES"
+    "$(running && echo true || echo false)" "$(process_state)" "$(free_gb)" "${last:-none}" "$STAGES"
 }
 
 tick() {

@@ -8,6 +8,8 @@ and progressing, act ONLY through the allowlisted commands, and write one report
 Steps:
 1. Run `ops/runbooks/backfill_supervisor.sh status` and read the last 200 lines of
    var/logs/backfill/supervisor.log and of the newest var/logs/backfill/backfill_*.log.
+   In the status JSON, process=queued means a backfill is waiting for the candles lock
+   (normal while the daily close job runs, about 16:05-23:30 IST); it is not a false positive.
 2. Classify the situation:
    - healthy / waiting for the window or the candles lock / done -> no action;
    - a known resumable stop (time limit, window over, 429, token, vendor stop of one
