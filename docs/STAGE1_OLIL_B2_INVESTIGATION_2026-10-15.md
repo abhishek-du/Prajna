@@ -145,3 +145,91 @@
 2. **B2:** R1, R2 or R3.
 3. **Optional:** a bounded Stage 3 backfill of 2026-10-15 (both snapshots) after 1 and 2.
 4. **Structural, recommended:** a daily corporate-action refresh. This is the third occurrence class (MOLDTEK, MOLDTKPAC, OLIL).
+
+## 4. Incident record: B2 late vendor revisions on 2026-10-14 (R1, approved 2026-10-15)
+
+**Decision R1:** the event is recorded as a known vendor incident. **Nothing else changes:**
+- the 300 s completion margin for 1m, 15m and 1h stays (`app/contracts/timing.py`, `COMPLETION_MARGIN_S`);
+- `ops/measure/analyze_timing.py` and the Stage 1 criterion X rules are unchanged;
+- `var/acceptance/b1b2.json` is unchanged (sha256 prefix `fd8eb34e…`).
+
+**This record does not make X PASS.**
+- B2 stays CONTRADICTED and X stays BLOCKED under the existing rules.
+- Any exclusion of this window from the gate would be a separate code/decision change, which is not approved.
+
+| Field | Value |
+|---|---|
+| Incident | INC-B2-2026-10-14: simultaneous late vendor revisions of intraday bars |
+| Session | 2026-10-14 (Wednesday) |
+| Window | 15m bars 14:15–14:30 and 14:30–14:45 IST; 5m (out of scope) bars 14:15 and 14:25 |
+| Instruments | every sampled instrument: RELIANCE `NSE_EQ|INE002A01018`, HDFCBANK `NSE_EQ|INE040A01034`, `NSE_INDEX|Nifty 50` |
+| Measured delays after the bar end (15m) | 14:15 bar: 684.4 s, 684.6 s, 667.0 s; 14:30 bar: 1,855.7 s, 1,855.9 s, 1,856.1 s |
+| Measured delays (5m, out of scope) | 507.1 s, 500.4 s, 500.6 s, 666.9 s |
+| Correction instants (bar end + delay) | about 14:41 IST and about 15:16 IST |
+| Baseline, the other 14 sessions | in-scope maxima 1m 200.4 s, 15m ≤ 137 s, 1h 146.1 s; 0 events ≥ 300 s |
+| Frequency | 6 of 1,101 15m bars (0.54%), on 1 of 15 sessions |
+| Classification | vendor-side data correction, simultaneous across unrelated instruments: an **observation**, not a proven cause |
+| Source | `var/measure/candle_timing_20261014T0921.jsonl` (archived responses; sha per line), analysed 2026-10-15 |
+| Gate effect | B2 CONTRADICTED, so X BLOCKED, so Stage 1 NOT COMPLETE. The PRE_OPEN lock failed [F, S, X] on 2026-10-15. |
+| Stored production bars | **verified 2026-10-15:** the stored 15m bars of 14:15 and 14:30 for RELIANCE and Nifty 50 (fetched 16:05 and 18:35 IST) equal the last polled, corrected values of the timing log exactly (OHLCV) |
+| Follow-up | a contract review is still required to clear X, under the existing rule "explicit contract review; the margin is never enlarged silently". Options R1-exclusion-in-code or R2 need a new decision. |
+
+## 5. OLIL remediation execution, 2026-10-15: BLOCKED at step 2 (stopped as instructed)
+
+**Preconditions (all passed before any write):**
+
+| Check | Result |
+|---|---|
+| Command scope | `ingest corporate-actions --isin` touches one ISIN only. `ingest candles --key … --from … --to` takes exactly one key selector and a historical window. `derive price-basis` is a global, insert-only fill of missing payload bases (0 missing before). `derive ca-factors` is a global upsert of every factor: `derived_at` and `run_id` change for all rows, values change only with new evidence. Both are as described in the approval. |
+| Backup | `var/backups/prajna_20261015T1344_olil_pre_ca_fix.dump`, 4.6 GB, 523 TOC entries, sha256 `71488ae719bcf2ba5687329dd0fc1c08c2547d85de6b2d808f6b941b1f6249ea` (recomputed: match). Started 13:44:46, verified 13:59:45 IST. |
+| Rollback readiness | `pg_restore` 18.6 is available. Per-table extraction from the dump matches the live counts: `corporate_action` 2,344, `ca_factor` 2,344, `ohlcv_observation` 2,511. A full rollback is `pg_restore --clean` from this dump. A row-level rollback goes by `run_id`. **A trial restore was not possible:** `prajna_rw` has no CREATEDB (`db_backup.sh --trial-restore` needs it). |
+
+**Pre-state fingerprints:**
+- `corporate_action` 2,344, md5 `e081c9dc…`;
+- `ca_factor` 2,344 rows (listing kept);
+- OLIL 1D bars 711, md5 `88fdcfc4…`;
+- other 1D bars 3,727,818, md5 `b28ad94e…`;
+- observations 2,511;
+- payload bases 195,898 (0 missing);
+- `feature_value` 4,647,908, md5 `1f838536…`;
+- `stage3_event` 72;
+- crontab `dbc5b41b…`.
+
+**Step 1 (PASS):** `prajna ingest corporate-actions --isin INE0OPS01011 --commit`.
+- Result: run `5a1d70f8-d23d-4c35-bd42-a157ed61594d`; 2 events seen, **1 inserted, 1 already present** (the RIGHTS issue).
+- New row **`corporate_action` 4109:**
+  - BONUS, ratio_from 1 / ratio_to 2;
+  - ex 2026-10-15, record 2026-10-15, announcement 2026-09-04;
+  - fetched 14:00:59 IST; `knowable_at` 2026-09-04 23:59:59 IST (KN-CA). The canonical view takes greatest(knowable, fetched), so it is observed at 14:00:59 IST (CA-OBSERVED).
+- It matches the vendor response field for field.
+
+**Step 2 (FAIL):** `prajna ingest candles --timeframe 1d --from 2026-10-01 --to 2026-10-14 --key 'NSE_EQ|INE0OPS01011' --commit`.
+- Result: run `ed2ac553-394e-4285-bf41-998653a3da64` FAILED.
+  - 7 blocking `DUPLICATE_KEY` anomalies ("no rule explains the difference"); 1 revision would have been CA_ADJUSTMENT.
+  - **Nothing was stored:** bars, observations and payload bases are unchanged. Only the FAILED run row and its 7 anomaly rows were written, plus the raw payload archive file.
+- **Root cause:** the D3 contract (`app/contracts/revision.py`) explains a revision as CA_ADJUSTMENT only if every price equals **half-even(stored / F, tick)**. The vendor rounds the adjusted prices **up (ceiling) to the tick**:
+  - F = 1.5, tick ₹0.05;
+  - over the 20 revised prices of the 5 bars of the 07:03 run, ceiling matches **20/20** and half-even only **14/20**;
+  - example: 423.10 / 1.5 = 282.0667, the vendor gives 282.10, half-even gives 282.05.
+  - MOLDTEK's factor 2 never produced a third of a tick, which is why it passed.
+- This is a contract mismatch, not a data error. Fixing it changes a D3 rule, which is not approved.
+
+**Steps 3–4 (NOT RUN):** `derive price-basis` and `derive ca-factors`.
+- They were stopped because step 2 failed.
+- The scheduled 06:40 maintenance will derive factor 4109 tomorrow anyway, with the same global command.
+
+**Post-state (verified):**
+- every pre-state fingerprint above is unchanged;
+- `corporate_action` = 2,345, with the 2,344 previous rows identical (md5 `e081c9dc…`).
+
+**Acceptance (read-only evaluation, 14:0x IST):**
+- Stage 1 **NOT COMPLETE**: F FAIL, S FAIL, X BLOCKED. Unchanged in verdict.
+- Expect the 2026-10-16 07:00 morning ingest to fail OLIL the same way unless the contract is changed.
+
+**Stage 3 backfill of 2026-10-15: NOT ELIGIBLE, NOT RUN.** Stage 1 is not PASS: F, S and X.
+
+**Proposed fix (needs approval):**
+- Extend CA_ADJUSTMENT in `app/contracts/revision.py` to accept the vendor's **ceiling-to-tick** rounding as well as half-even. Every price must equal ceil(stored / F, tick) or half-even(stored / F, tick), with volume = stored × F and OI unchanged.
+- This stays exact, not a tolerance.
+- Add tests for factor 1.5 thirds (the OLIL values) and keep the existing UNEXPLAINED tests failing closed.
+- Then rerun steps 2–5.
