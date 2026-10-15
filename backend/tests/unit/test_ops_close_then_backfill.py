@@ -73,6 +73,7 @@ def _chain(base, *, close_rc: int, intraday: dict | None, rerun_inserted: int = 
                              f"{write_json}exit {close_rc}\n")
     _exe(stubs / "backfill.sh", f'echo "backfill $* fraction=$PRAJNA_UPSTOX_RATE_FRACTION" '
                                 f">> {calls}\nexit {backfill_rc}\n")
+    _exe(stubs / "ca_refresh.sh", f'echo "ca $* fraction=$PRAJNA_UPSTOX_RATE_FRACTION" >> {calls}\n')
     _exe(stubs / "cli", f'echo "cli $* fraction=$PRAJNA_UPSTOX_RATE_FRACTION" >> {calls}\n'
                         f"echo '{json.dumps({'jobs': 9, 'complete': 9, 'inserted': rerun_inserted, 'failed': []})}'\n")
     env = {**os.environ, "PRAJNA_RUNBOOK_DIR": str(stubs), "PRAJNA_PY": sys.executable,
@@ -96,8 +97,9 @@ class TestCloseThenBackfill:
         assert lines[1].startswith("cli ingest candles --timeframe 1m --timeframe 15m "
                                    "--timeframe 1h --intraday --key NSE_EQ|INE002A01018")
         assert "--key NSE_INDEX|Nifty 50" in lines[1] and "fraction=0.9" in lines[1]
-        assert lines[2] == "backfill --login --until 06:50 fraction=0.5"
-        assert len(lines) == 3                                  # strictly sequential
+        assert lines[2] == "ca rolling fraction=0.9"             # daily CA refresh D1
+        assert lines[3] == "backfill --login --until 06:50 fraction=0.5"
+        assert len(lines) == 4                                  # strictly sequential
         out = p.stdout
         for marker in ("CLOSE_STARTED",
                        "CLOSE_COMPLETED rc=0 verdict=completed failure_class=SUCCESS",

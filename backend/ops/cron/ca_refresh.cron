@@ -1,0 +1,3 @@
+# Daily CA refresh D1 (approved 2026-10-15, docs/STAGE1_DAILY_CA_REFRESH_PLAN.md)
+45 6 * * 1-5  cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.5 flock -w 600 $LK ops/runbooks/ca_refresh.sh targeted >> var/logs/cron.log 2>&1
+40 8 * * 1-5  cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.3 PRAJNA_CA_SELF_HEAL=true flock -w 1200 $LK ops/runbooks/ca_refresh.sh selfheal >> var/logs/cron.log 2>&1

@@ -77,3 +77,12 @@ LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 # 23:45 daily  reconciliation (read-only, separate from collection): exit 4 + marker
 #              NEWS_RECONCILE_VIOLATED if an invariant fails; states -> ops status
 45 23 * * *      cd $B && ops/runbooks/news_reconcile.sh --mode PRODUCTION >> var/logs/cron.log 2>&1
+
+# Backfill supervisor (installed by the user 2026-10-15): ops/cron/backfill_supervisor.cron, backfill_hourly.cron
+*/15 * * * *  cd $B && ops/runbooks/backfill_supervisor.sh tick >> var/logs/cron.log 2>&1
+15 7 * * *    cd $B && ops/runbooks/backfill_supervisor.sh report >> var/logs/cron.log 2>&1
+0 * * * *     cd $B && ops/runbooks/backfill_supervisor.sh hourly >> var/logs/cron.log 2>&1
+
+# Daily CA refresh D1 (approved 2026-10-15, docs/STAGE1_DAILY_CA_REFRESH_PLAN.md)
+45 6 * * 1-5  cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.5 flock -w 600 $LK ops/runbooks/ca_refresh.sh targeted >> var/logs/cron.log 2>&1
+40 8 * * 1-5  cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.3 PRAJNA_CA_SELF_HEAL=true flock -w 1200 $LK ops/runbooks/ca_refresh.sh selfheal >> var/logs/cron.log 2>&1

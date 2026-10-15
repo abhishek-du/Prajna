@@ -22,6 +22,7 @@
 #   3 CLOSE_RERUN_CHECK the same-day intraday rerun of 3 fixed instruments
 #                      x 1m/15m/1h (9 requests): evidence that a second run
 #                      inserts nothing (idempotency). Reported, never blocking.
+#   3b CA rolling      ops/runbooks/ca_refresh.sh rolling (1/5 of the ISINs; never blocking)
 #   4 BACKFILL_*       ops/runbooks/backfill.sh --login --until  (fraction 0.5)
 #                      resumable from the stream checkpoints; logs
 #                      BACKFILL_STARTED / BACKFILL_PROGRESS / BACKFILL_COMPLETED
@@ -138,6 +139,10 @@ try:
 except Exception as e:                  # reported, never blocking
     print(f"unreadable: {e!r}")
 EOF
+  # daily CA refresh D1 (approved 2026-10-15): the rolling 1/5 sweep, same lock hold,
+  # same fraction; reported, never blocking
+  PRAJNA_UPSTOX_RATE_FRACTION="$CLOSE_FRACTION" "$RB/ca_refresh.sh" rolling \
+    || say "CA_ROLLING rc=$? (reported, not blocking; see var/logs/daily/ca_refresh_${TODAY}.log)"
 fi
 
 if [[ $NO_BACKFILL -eq 1 ]]; then

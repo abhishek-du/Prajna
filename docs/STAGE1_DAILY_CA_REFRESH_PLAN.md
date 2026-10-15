@@ -1,6 +1,6 @@
 # Stage 1: daily corporate-action refresh, proposed design (PLAN ONLY)
 
-**Status:** PROPOSED 2026-10-15, read-only analysis. No schedule, cron, code or production refresh was changed or run.
+**Status:** D1 APPROVED and IMPLEMENTED 2026-10-15 (section 9). The original proposal (sections 1–8) is kept unchanged below.
 
 ## 1. Why
 
@@ -83,3 +83,43 @@
 1. D1 vs D2.
 2. The code for target selection, the rolling sweep and the self-heal, with tests.
 3. The cron lines (06:45 targeted, 16:30 rolling) and the self-heal flag.
+
+## 9. Implementation (2026-10-15)
+
+**Code:**
+- `backend/ops/measure/ca_targets.py`: read-only target selection (`targeted`, `rolling`, `selfheal`).
+- `backend/ops/runbooks/ca_refresh.sh`: the three modes.
+- `backend/ops/runbooks/close_then_backfill.sh`: step 3b, the rolling sweep.
+- Tests: `backend/tests/unit/test_ca_refresh.py`, plus `test_ops_close_then_backfill.py` updated.
+
+**Schedule:** `backend/ops/cron/ca_refresh.cron`, also in `prajna.cron`.
+- 06:45 Mon–Fri `targeted` (candles lock, fraction 0.5).
+- 08:40 Mon–Fri `selfheal` (candles lock, fraction 0.3).
+
+**Deviations from the proposal:**
+- **(c) rolling** runs inside the close chain (same lock hold, close fraction), not at 16:30. The 16:05 close holds the candles lock for about 3 h (fraction 0.9, from 2026-10-16), so a 16:30 job could not get the lock. It uses `--resume-hours 20`. It is reported and never blocking.
+- **Self-heal is ENABLED** (`PRAJNA_CA_SELF_HEAL=true` in the cron line). Decided under the user's delegation of 2026-10-15. Reasons:
+  - every write is an existing insert-only path (single-ISIN CA ingest; bounded 1D re-ingest of the failing key, last 14 days; the daily `maintenance.sh derive`);
+  - D3 still refuses an unexplained revision, so nothing is overwritten;
+  - it is bounded to at most 10 keys; more is an alert, with no action.
+  - A Telegram alert is sent on every detection and on every key still failing.
+- **The 09:00 Stage 3 gate is unchanged.** A key still failing after self-heal keeps blocking exactly as before (the manual runbook, D2).
+
+**Finding: announcements alone would not have caught the three incidents.**
+- `news_item` NSE_ANNOUNCEMENTS starts 2026-09-28.
+- The OLIL bonus (announced 2026-09-04) and the MOLDTEK bonus announcements are not in it.
+- (a) protects future events only (for example TECHM's bonus, approved 2026-10-15). The (b) failure trigger and the self-heal are the safety net.
+
+**First production run** (`targeted`, 2026-10-15 19:53 IST, manual smoke test at fraction 0.3):
+- 12 ISINs, 18 events seen, 1 inserted, 0 failed;
+- `maintenance.sh derive` OK.
+- The insert was CCAVENUE (INE483S01020), a 10:1 share consolidation, ex 2026-10-13, absent until then.
+  - No harm: the ISIN is REMOVED_FROM_MASTER since 2026-10-12 and has no stored bar after its ex-date.
+
+**Monitoring:**
+- `var/logs/daily/ca_refresh_<day>.log` lines `CA_REFRESH mode=… targeted=N inserted=K failed=F` and `CA_SELFHEAL <key> …`.
+- `CA_REFRESH_ALERT` lines are also sent to Telegram.
+
+**Rollback:**
+- Remove the two cron lines and the step 3b call.
+- Set `PRAJNA_CA_SELF_HEAL=false` to keep detection and alerts without writes.
