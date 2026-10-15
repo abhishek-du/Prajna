@@ -209,7 +209,7 @@
   - **Nothing was stored:** bars, observations and payload bases are unchanged. Only the FAILED run row and its 7 anomaly rows were written, plus the raw payload archive file.
 - **Root cause:** the D3 contract (`app/contracts/revision.py`) explains a revision as CA_ADJUSTMENT only if every price equals **half-even(stored / F, tick)**. The vendor rounds the adjusted prices **up (ceiling) to the tick**:
   - F = 1.5, tick ₹0.05;
-  - over the 20 revised prices of the 5 bars of the 07:03 run, ceiling matches **20/20** and half-even only **14/20**;
+  - over the 20 revised prices of the 5 bars of the 07:03 run, ceiling matches **20/20** and half-even only **15/20**. An earlier ad-hoc count gave 14/20 because it mixed bars from both runs; the unit test fixes 15/20;
   - example: 423.10 / 1.5 = 282.0667, the vendor gives 282.10, half-even gives 282.05.
   - MOLDTEK's factor 2 never produced a third of a tick, which is why it passed.
 - This is a contract mismatch, not a data error. Fixing it changes a D3 rule, which is not approved.
@@ -233,3 +233,40 @@
 - This stays exact, not a tolerance.
 - Add tests for factor 1.5 thirds (the OLIL values) and keep the existing UNEXPLAINED tests failing closed.
 - Then rerun steps 2–5.
+
+## 6. D3 contract fix (approved 2026-10-15): revision-v2, ceiling-to-tick; OLIL still not explained
+
+**Change:**
+- `app/contracts/ca_factor.py`: new `adjust_price_ceiling` and `ROUNDINGS` (`half-even` first, then `ceiling`).
+- `app/contracts/revision.py`:
+  - CA_ADJUSTMENT accepts either convention, one per bar for all four prices;
+  - volume = stored × F exact, OI unchanged (both unchanged);
+  - `METHOD_VERSION` is now `revision-v2`, so new observations are tagged;
+  - `explained_by.rounding` records the convention.
+
+**Tests:** `tests/unit/test_price_basis_revision.py`, +5 tests on the real OLIL bars of run `eeb6eba5…`:
+- ceiling 20/20, half-even 15/20;
+- a ceiling bar with exact volume is CA_ADJUSTMENT/ceiling;
+- half-even still preferred (CHAVDA);
+- mixed rounding within one bar is UNEXPLAINED;
+- **the real OLIL bars remain UNEXPLAINED because of volume.**
+
+**Results:**
+- 25/25 in the file;
+- targeted regression: 35 passed;
+- full suite: **1,497 passed, 1 failed, 4 deselected**.
+- The one failure, `tests/integration/test_stage1_acceptance.py::test_empty_database_is_not_complete`, **also fails on the unmodified HEAD**. That test reads the live `var/acceptance/b1b2.json`, which since 09:10 today carries the B2 CONTRADICTED verdict, so X is BLOCKED with a decision attached. It is a pre-existing environment dependency, not caused by revision-v2, and it is not changed here.
+
+**Finding: revision-v2 alone does not fix OLIL.**
+- The vendor's re-served volumes are 1–3 shares below stored × 1.5: 17,399 for 11,600, 68,997 for 46,000.
+- Over all 7 bars of run `ed2ac553…` (28 prices, 7 volumes):
+
+| Rule | Prices explained | Volumes explained |
+|---|---|---|
+| half-even(stored / 1.5) (revision-v1) | 20/28 | n/a |
+| ceiling(stored / 1.5) (revision-v2, approved) | 28/28 | 0/7 (stored × 1.5) |
+| **nearest-tick(stored × m), m = round(1/F, 4) = 0.6667; volume = round(stored / m)** | **28/28** | **7/7** |
+
+- **Inference:** the vendor adjusts with the reciprocal factor rounded to 4 decimals. For F = 2 (MOLDTEK, CHAVDA) m = 0.5 is exact, which is why half-even always matched before.
+- **A further contract change, NOT approved and NOT implemented:** add the convention "m = round(1/F, 4); price = round-half-even(stored × m, tick); volume = round(stored / m)". It is exact, with no tolerance.
+- With it, the OLIL replay (steps 2–5) is expected to pass. That is not verified until it is run.

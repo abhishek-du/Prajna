@@ -5,7 +5,9 @@ never written over it; it is recorded in ohlcv_observation with one class:
 
   CA_ADJUSTMENT    explained exactly by recorded split/bonus events with
                    bar date < ex_date <= fetch date: every price equals
-                   half-even(stored / F, tick), volume equals stored * F, open
+                   round(stored / F, tick) under ONE of the vendor's observed
+                   conventions for the whole bar - half-even, or ceiling (round up;
+                   OLIL 2026-10-15, revision-v2) - volume equals stored * F, open
                    interest unchanged (the key, i.e. the timestamp, is the same)
   ROUNDING         every price within one tick, volume and OI identical
   SETTLEMENT       the session's last bar only: open/high/low identical, close
@@ -26,12 +28,12 @@ from decimal import Decimal
 from itertools import combinations
 from typing import Any
 
-from app.contracts.ca_factor import adjust_price
+from app.contracts.ca_factor import ROUNDINGS
 
 PRICES = ("open", "high", "low", "close")
 CLASSES = ("CA_ADJUSTMENT", "ROUNDING", "SETTLEMENT", "GLOBAL_REVISION", "UNEXPLAINED",
            "REOBSERVED")        # REOBSERVED: an identical later global observation
-METHOD_VERSION = "revision-v1"
+METHOD_VERSION = "revision-v2"       # v2: ceiling-to-tick accepted (2026-10-15)
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,13 +79,15 @@ def classify(stored: dict, new: dict, *, bar_date: _dt.date, fetch_date: _dt.dat
                     f *= e.factor
                 if f == 1:
                     continue
-                prices_ok = all(adjust_price(s[p], f, tick) == n[p] for p in PRICES)
                 vol_ok = s["volume"] is not None and n["volume"] == (s["volume"] * f)
-                if prices_ok and vol_ok:
-                    return Verdict("CA_ADJUSTMENT", f"explained by factor {f}",
-                                   {"factor": str(f), "ca_ids": [e.ca_id for e in combo],
-                                    "ex_dates": [str(e.ex_date) for e in combo],
-                                    "tick": str(tick), "rounding": "half-even"})
+                if not vol_ok:
+                    continue
+                for name, rnd in ROUNDINGS.items():
+                    if all(rnd(s[p], f, tick) == n[p] for p in PRICES):
+                        return Verdict("CA_ADJUSTMENT", f"explained by factor {f}",
+                                       {"factor": str(f), "ca_ids": [e.ca_id for e in combo],
+                                        "ex_dates": [str(e.ex_date) for e in combo],
+                                        "tick": str(tick), "rounding": name})
         if all(abs(s[p] - n[p]) <= tick for p in PRICES) and s["volume"] == n["volume"]:
             return Verdict("ROUNDING", "prices within one tick", {"tick": str(tick)})
     if last_bar_of_session and all(s[p] == n[p] for p in ("open", "high", "low")) \

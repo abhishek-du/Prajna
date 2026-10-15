@@ -138,3 +138,79 @@ def test_global_label_changes_are_global_revisions():
                  fetch_date=_dt.date(2026, 9, 25), tick=None, events=[], is_global=True)
     assert first["2026-09-24"]["open"] != later["2026-09-24"]["open"]   # the proven revision
     assert v.classification == "GLOBAL_REVISION" and not v.fails
+
+
+# ── revision-v2: the vendor's ceiling-to-tick convention (OLIL, 2026-10-15) ──────────
+# OLIL (NSE_EQ|INE0OPS01011, tick 0.05) BONUS 1:2 (corporate_action 4109, F = 1.5, ex
+# 2026-10-15): the five bars the vendor re-served at the 07:03 IST ingest of 2026-10-15
+# (ingest_run eeb6eba5-36a5-4fea-bcbb-08a42b7e43b0), stored vs re-served OHLC and volume.
+OLIL = [  # (stored O, H, L, C, V), (re-served O, H, L, C, V)
+    (("445.50", "454.50", "440.00", "441.35", 33200),
+     ("297.0", "303.0", "293.35", "294.25", 49798)),
+    (("440.00", "441.50", "439.95", "440.65", 12400),
+     ("293.35", "294.35", "293.3", "293.8", 18599)),
+    (("448.00", "450.00", "443.00", "449.55", 46000),
+     ("298.7", "300.0", "295.35", "299.7", 68997)),
+    (("449.55", "455.00", "449.55", "455.00", 38400),
+     ("299.7", "303.35", "299.7", "303.35", 57597)),
+    (("451.00", "471.20", "451.00", "457.00", 14800),
+     ("300.7", "314.15", "300.7", "304.7", 22199)),
+]
+OLIL_EVENT = Event(4109, _dt.date(2026, 10, 15), D("1.5"))
+OLIL_KW = dict(bar_date=_dt.date(2026, 10, 13), fetch_date=_dt.date(2026, 10, 15),
+               tick=D("0.05"), events=[OLIL_EVENT])
+
+
+def _bar(t):
+    return dict(zip(("open", "high", "low", "close", "volume"), t, strict=True),
+                open_interest=0)
+
+
+def test_olil_prices_are_the_ceiling_to_tick_of_stored_over_f():
+    from app.contracts.ca_factor import ROUNDINGS
+    ceil, even = ROUNDINGS["ceiling"], ROUNDINGS["half-even"]
+    hits = {"ceiling": 0, "half-even": 0}
+    for stored, new in OLIL:
+        for i in range(4):
+            hits["ceiling"] += ceil(D(stored[i]), D("1.5"), D("0.05")) == D(new[i])
+            hits["half-even"] += even(D(stored[i]), D("1.5"), D("0.05")) == D(new[i])
+    assert hits == {"ceiling": 20, "half-even": 15}
+
+
+def test_ceiling_rounding_explains_a_bar_whose_volume_is_exact():
+    stored, new = OLIL[1]          # close 440.65 / 1.5 = 293.7667: ceiling 293.80 only
+    s = _bar(stored)
+    n = {**_bar(new), "volume": int(D(stored[4]) * D("1.5"))}          # 18,600, exact
+    v = classify(s, n, **OLIL_KW)
+    assert v.classification == "CA_ADJUSTMENT"
+    assert v.explained_by["rounding"] == "ceiling" and v.explained_by["ca_ids"] == [4109]
+
+
+def test_half_even_is_still_preferred_and_unchanged():               # CHAVDA convention
+    s = {"open": 86.45, "high": 136.95, "low": 86.45, "close": 136.95, "volume": 100,
+         "open_interest": 0}
+    n = {"open": 43.20, "high": 68.50, "low": 43.20, "close": 68.50, "volume": 200,
+         "open_interest": 0}
+    v = classify(s, n, bar_date=_dt.date(2026, 9, 1), fetch_date=_dt.date(2026, 9, 3),
+                 tick=D("0.05"), events=[Event(1, _dt.date(2026, 9, 2), D(2))])
+    assert v.classification == "CA_ADJUSTMENT" and v.explained_by["rounding"] == "half-even"
+
+
+def test_mixed_rounding_within_one_bar_fails_closed():
+    # open 448.00 / 1.5 = 298.667 (ceiling 298.70, half-even 298.65); close 440.65 / 1.5 =
+    # 293.767 (ceiling 293.80, half-even 293.75): open by ceiling, close by half-even
+    s = _bar(("448.00", "450.00", "443.00", "440.65", 10000))
+    n = _bar(("298.70", "300.0", "295.35", "293.75", 15000))
+    assert classify(s, n, **OLIL_KW).classification == "UNEXPLAINED"
+    assert classify(s, {**n, "close": "293.80"}, **OLIL_KW).explained_by["rounding"] == \
+        "ceiling"
+
+
+def test_olil_volumes_are_not_stored_times_f_so_d3_still_fails_closed():
+    """The vendor's re-served volumes are 1-3 shares BELOW stored * 1.5 (17,399 for
+    11,600 * 1.5 = 17,400 ...). revision-v2 changes only the price rounding; the exact
+    volume rule is unchanged, so these real bars remain UNEXPLAINED (a separate,
+    unapproved decision)."""
+    for stored, new in OLIL:
+        assert int(new[4]) != int(D(stored[4]) * D("1.5"))
+        assert classify(_bar(stored), _bar(new), **OLIL_KW).classification == "UNEXPLAINED"

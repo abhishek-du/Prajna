@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from decimal import ROUND_HALF_EVEN, Decimal
+from decimal import ROUND_CEILING, ROUND_HALF_EVEN, Decimal
 from typing import Any
 
 METHOD_VERSION = "cafactor-v1"
@@ -92,6 +92,17 @@ def factor_for(action_type: str, *, ratio: str | None, fv_before: Decimal | None
 def adjust_price(raw: Decimal, f: Decimal, tick: Decimal) -> Decimal:
     """The vendor's observed convention: round half-even to the tick."""
     return (Decimal(raw) / f / tick).quantize(Decimal(1), rounding=ROUND_HALF_EVEN) * tick
+
+
+def adjust_price_ceiling(raw: Decimal, f: Decimal, tick: Decimal) -> Decimal:
+    """The vendor's second observed convention: round UP to the tick (OLIL, BONUS 1:2,
+    F = 1.5, tick 0.05, 2026-10-15: 20 of 20 re-served prices; half-even 15 of 20). A
+    factor of 2 almost never produces a remainder, so the two agree there (MOLDTEK)."""
+    return (Decimal(raw) / f / tick).quantize(Decimal(1), rounding=ROUND_CEILING) * tick
+
+
+# every accepted rounding of an adjusted price; one convention per bar (all four prices)
+ROUNDINGS = {"half-even": adjust_price, "ceiling": adjust_price_ceiling}
 
 
 def cumulative(factors: list[tuple[Any, Decimal]]) -> Decimal:
