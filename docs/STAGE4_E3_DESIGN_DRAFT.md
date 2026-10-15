@@ -1,4 +1,9 @@
-# Stage 4 E3: monthly, low-turnover selection, design draft (NOT APPROVED, NOT BUILT, NOT RUN)
+# Stage 4 E3: monthly, low-turnover selection, design draft (**PAUSED 2026-10-15**)
+
+> **PAUSED by the user, 2026-10-15:** "we have to trade intraday, same day buy sell".
+> - E3 holds delivery positions for a month, so it does not fit the intraday strategy.
+> - Step 1 (code + 17 synthetic tests, `a3d1b6d`) is kept unchanged; steps 2–4 will not run.
+> - Stage 4 now focuses on intraday: `docs/STAGE4_E4_INTRADAY_DESIGN_DRAFT.md`.
 
 **Status:** DRAFT, 2026-10-14.
 - **Purpose:** a design for review. No code, no labels, no splits and no look exist.
