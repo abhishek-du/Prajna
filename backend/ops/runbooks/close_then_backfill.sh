@@ -12,7 +12,7 @@
 # longer than a separate 19:45 backfill could wait for it, so on weekdays the
 # backfill never started. Here it starts as soon as the close has completed.
 #
-#   1 CLOSE_STARTED    ops/runbooks/daily.sh --login close   (fraction 0.35)
+#   1 CLOSE_STARTED    ops/runbooks/daily.sh --login close   (fraction 0.9 alone, else 0.35)
 #   2 CLOSE_COMPLETED  verdict: the backfill starts only when the close ran
 #                      through: exit 0 (incl. SKIP on a non-trading day), or
 #                      exit 1 whose intraday step was not stopped (no 429/auth
@@ -36,8 +36,7 @@
 # DATA_ABSENT windows (EMPTY) are counted, never a failure.
 # Overrun guard: no handoff to the backfill between 06:50 and 16:00 IST.
 #
-# Scope, depth and rate fractions are unchanged: this only sequences the two
-# existing runbooks. Test hooks: PRAJNA_RUNBOOK_DIR, PRAJNA_PY, PRAJNA_CLI,
+# Scope and depth are unchanged: this only sequences the two existing runbooks. Test hooks: PRAJNA_RUNBOOK_DIR, PRAJNA_PY, PRAJNA_CLI,
 # PRAJNA_TEST_NOW_HHMM.
 set -uo pipefail
 
@@ -54,7 +53,17 @@ cd "$(dirname "$0")/../.."
 RB="${PRAJNA_RUNBOOK_DIR:-ops/runbooks}"
 PY="${PRAJNA_PY:-.venv/bin/python}"
 read -r -a CLI <<< "${PRAJNA_CLI:-.venv/bin/python -m app.cli.main --plain}"
-CLOSE_FRACTION="${PRAJNA_CLOSE_FRACTION:-0.35}"
+# Close fraction (user approval 2026-10-15): 0.9 when no other heavy Upstox job runs,
+# else the shared 0.35. The TIMING-B2 poller beside it is not "heavy": after 15:40 it
+# polls 3 keys every 2-10 min (B1), a few requests per window, inside the 10 % headroom.
+other_upstox_job() {
+  [[ -n "${PRAJNA_TEST_OTHER_JOB:-}" ]] && { [[ "$PRAJNA_TEST_OTHER_JOB" == "true" ]]; return; }
+  pgrep -f "daily.sh --login (weekly|monthly|morning|refresh)|preopen_day.sh|global_refresh.sh|backfill.sh --login" \
+    >/dev/null 2>&1
+}
+if [[ -n "${PRAJNA_CLOSE_FRACTION:-}" ]]; then CLOSE_FRACTION="$PRAJNA_CLOSE_FRACTION"
+elif other_upstox_job; then CLOSE_FRACTION=0.35
+else CLOSE_FRACTION=0.9; fi
 BACKFILL_FRACTION="${PRAJNA_BACKFILL_FRACTION:-0.5}"
 RERUN_KEYS=("NSE_EQ|INE002A01018" "NSE_EQ|INE040A01034" "NSE_INDEX|Nifty 50")
 mkdir -p var/logs/daily

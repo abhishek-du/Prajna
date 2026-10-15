@@ -6,7 +6,8 @@ network, no database. What is proven:
   - the backfill starts after a close that ran through (incl. per-instrument
     vendor failures and a non-trading-day SKIP), never after one that was
     stopped/aborted or did not run (token, too early);
-  - one lock hold, sequential steps, the existing fractions (0.35 / 0.5);
+  - one lock hold, sequential steps, the close fraction 0.9 alone / 0.35 beside
+    another Upstox job, the backfill 0.5;
   - the same-day rerun check (9 requests) is reported, never blocking;
   - backfill.sh keeps the approved stages/depths and logs
     BACKFILL_STARTED / BACKFILL_PROGRESS / BACKFILL_COMPLETED.
@@ -62,7 +63,8 @@ def base(tmp_path):
 
 
 def _chain(base, *, close_rc: int, intraday: dict | None, rerun_inserted: int = 0,
-           backfill_rc: int = 0, now_hhmm: str = "2330", extra: tuple = ()):
+           backfill_rc: int = 0, now_hhmm: str = "2330", extra: tuple = (), other_job="false",
+           env_extra: dict | None = None):
     stubs = base / "stubs"
     calls = base / "calls.log"
     j = f"var/logs/daily/close_{TODAY}_intraday.json"
@@ -74,7 +76,8 @@ def _chain(base, *, close_rc: int, intraday: dict | None, rerun_inserted: int = 
     _exe(stubs / "cli", f'echo "cli $* fraction=$PRAJNA_UPSTOX_RATE_FRACTION" >> {calls}\n'
                         f"echo '{json.dumps({'jobs': 9, 'complete': 9, 'inserted': rerun_inserted, 'failed': []})}'\n")
     env = {**os.environ, "PRAJNA_RUNBOOK_DIR": str(stubs), "PRAJNA_PY": sys.executable,
-           "PRAJNA_CLI": str(stubs / "cli"), "PRAJNA_TEST_NOW_HHMM": now_hhmm}
+           "PRAJNA_CLI": str(stubs / "cli"), "PRAJNA_TEST_NOW_HHMM": now_hhmm,
+           "PRAJNA_TEST_OTHER_JOB": other_job, **(env_extra or {})}
     p = subprocess.run(["bash", str(base / "ops/runbooks/close_then_backfill.sh"),
                         "--until", "06:50", *extra], cwd=base, env=env, capture_output=True,
                        text=True, timeout=60)
@@ -89,10 +92,10 @@ class TestCloseThenBackfill:
         p, calls = _chain(base, close_rc=0, intraday=OK)
         assert p.returncode == 0, p.stdout + p.stderr
         lines = calls.splitlines()
-        assert lines[0] == "daily --login close fraction=0.35"
+        assert lines[0] == "daily --login close fraction=0.9"
         assert lines[1].startswith("cli ingest candles --timeframe 1m --timeframe 15m "
                                    "--timeframe 1h --intraday --key NSE_EQ|INE002A01018")
-        assert "--key NSE_INDEX|Nifty 50" in lines[1] and "fraction=0.35" in lines[1]
+        assert "--key NSE_INDEX|Nifty 50" in lines[1] and "fraction=0.9" in lines[1]
         assert lines[2] == "backfill --login --until 06:50 fraction=0.5"
         assert len(lines) == 3                                  # strictly sequential
         out = p.stdout
@@ -102,6 +105,15 @@ class TestCloseThenBackfill:
                        "idempotent=True"):
             assert marker in out
         assert out.index("CLOSE_COMPLETED") < out.index("CLOSE_RERUN_CHECK")
+
+    def test_close_shares_the_api_beside_another_upstox_job(self, base):
+        _, calls = _chain(base, close_rc=0, intraday=OK, other_job="true")
+        assert calls.splitlines()[0] == "daily --login close fraction=0.35"
+
+    def test_an_explicit_close_fraction_wins(self, base):
+        _, calls = _chain(base, close_rc=0, intraday=OK,
+                          env_extra={"PRAJNA_CLOSE_FRACTION": "0.5"})
+        assert calls.splitlines()[0] == "daily --login close fraction=0.5"
 
     def test_instrument_level_vendor_failures_still_start_the_backfill(self, base):
         p, calls = _chain(base, close_rc=1, intraday={**OK, "failed": 3})
