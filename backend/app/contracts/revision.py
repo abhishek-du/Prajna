@@ -5,10 +5,13 @@ never written over it; it is recorded in ohlcv_observation with one class:
 
   CA_ADJUSTMENT    explained exactly by recorded split/bonus events with
                    bar date < ex_date <= fetch date: every price equals
-                   round(stored / F, tick) under ONE of the vendor's observed
-                   conventions for the whole bar - half-even, or ceiling (round up;
-                   OLIL 2026-10-15, revision-v2) - volume equals stored * F, open
-                   interest unchanged (the key, i.e. the timestamp, is the same)
+                   the adjusted value under ONE of the vendor's observed conventions
+                   for the whole bar (prices and volume), open interest unchanged (the
+                   key, i.e. the timestamp, is the same):
+                     exact           price half-even(stored / F, tick), volume stored * F
+                     reciprocal-4dp  m = round(1 / F, 4); price half-even(stored * m,
+                                     tick), volume round(stored / m) (OLIL 2026-10-15,
+                                     revision-v3)
   ROUNDING         every price within one tick, volume and OI identical
   SETTLEMENT       the session's last bar only: open/high/low identical, close
                    and volume adjusted after the close (the known 15:52-16:02 IST
@@ -28,12 +31,12 @@ from decimal import Decimal
 from itertools import combinations
 from typing import Any
 
-from app.contracts.ca_factor import ROUNDINGS
+from app.contracts.ca_factor import CONVENTIONS
 
 PRICES = ("open", "high", "low", "close")
 CLASSES = ("CA_ADJUSTMENT", "ROUNDING", "SETTLEMENT", "GLOBAL_REVISION", "UNEXPLAINED",
            "REOBSERVED")        # REOBSERVED: an identical later global observation
-METHOD_VERSION = "revision-v2"       # v2: ceiling-to-tick accepted (2026-10-15)
+METHOD_VERSION = "revision-v3"       # v3: the vendor reciprocal-4dp convention (2026-10-15)
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,11 +82,11 @@ def classify(stored: dict, new: dict, *, bar_date: _dt.date, fetch_date: _dt.dat
                     f *= e.factor
                 if f == 1:
                     continue
-                vol_ok = s["volume"] is not None and n["volume"] == (s["volume"] * f)
-                if not vol_ok:
+                if s["volume"] is None:
                     continue
-                for name, rnd in ROUNDINGS.items():
-                    if all(rnd(s[p], f, tick) == n[p] for p in PRICES):
+                for name, (rnd, vol) in CONVENTIONS.items():
+                    if n["volume"] == vol(s["volume"], f) and \
+                            all(rnd(s[p], f, tick) == n[p] for p in PRICES):
                         return Verdict("CA_ADJUSTMENT", f"explained by factor {f}",
                                        {"factor": str(f), "ca_ids": [e.ca_id for e in combo],
                                         "ex_dates": [str(e.ex_date) for e in combo],

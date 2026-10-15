@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from decimal import ROUND_CEILING, ROUND_HALF_EVEN, Decimal
+from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal
 from typing import Any
 
 METHOD_VERSION = "cafactor-v1"
@@ -94,15 +94,34 @@ def adjust_price(raw: Decimal, f: Decimal, tick: Decimal) -> Decimal:
     return (Decimal(raw) / f / tick).quantize(Decimal(1), rounding=ROUND_HALF_EVEN) * tick
 
 
-def adjust_price_ceiling(raw: Decimal, f: Decimal, tick: Decimal) -> Decimal:
-    """The vendor's second observed convention: round UP to the tick (OLIL, BONUS 1:2,
-    F = 1.5, tick 0.05, 2026-10-15: 20 of 20 re-served prices; half-even 15 of 20). A
-    factor of 2 almost never produces a remainder, so the two agree there (MOLDTEK)."""
-    return (Decimal(raw) / f / tick).quantize(Decimal(1), rounding=ROUND_CEILING) * tick
+def vendor_multiplier(f: Decimal) -> Decimal:
+    """The vendor's price multiplier for a factor F: 1 / F rounded to 4 decimals
+    (OLIL, BONUS 1:2, F = 1.5 -> 0.6667; exact for F = 2 -> 0.5, F = 10 -> 0.1)."""
+    return (Decimal(1) / Decimal(f)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
 
 
-# every accepted rounding of an adjusted price; one convention per bar (all four prices)
-ROUNDINGS = {"half-even": adjust_price, "ceiling": adjust_price_ceiling}
+def adjust_price_reciprocal(raw: Decimal, f: Decimal, tick: Decimal) -> Decimal:
+    """stored x vendor_multiplier(F), half-even to the tick."""
+    return (Decimal(raw) * vendor_multiplier(f) / tick).quantize(
+        Decimal(1), rounding=ROUND_HALF_EVEN) * tick
+
+
+def adjust_volume_exact(raw: Decimal, f: Decimal) -> Decimal:
+    return Decimal(raw) * Decimal(f)
+
+
+def adjust_volume_reciprocal(raw: Decimal, f: Decimal) -> Decimal:
+    """stored / vendor_multiplier(F), rounded half-up to a whole share."""
+    return (Decimal(raw) / vendor_multiplier(f)).quantize(Decimal(1), rounding=ROUND_HALF_UP)
+
+
+# The vendor's observed adjustment conventions; one convention explains a whole bar
+# (all four prices AND the volume). "exact" (CHAVDA, MOLDTEK: F = 2) first;
+# "reciprocal-4dp" (OLIL 2026-10-15, F = 1.5: 28/28 prices and 7/7 volumes; the exact
+# convention explains 20/28 prices and 0/7 volumes). For any F whose reciprocal has at
+# most 4 decimals the two coincide.
+CONVENTIONS = {"exact": (adjust_price, adjust_volume_exact),
+               "reciprocal-4dp": (adjust_price_reciprocal, adjust_volume_reciprocal)}
 
 
 def cumulative(factors: list[tuple[Any, Decimal]]) -> Decimal:

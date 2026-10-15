@@ -140,10 +140,11 @@ def test_global_label_changes_are_global_revisions():
     assert v.classification == "GLOBAL_REVISION" and not v.fails
 
 
-# ── revision-v2: the vendor's ceiling-to-tick convention (OLIL, 2026-10-15) ──────────
+# ── revision-v3: the vendor's reciprocal-4dp convention (OLIL, 2026-10-15) ──────────
 # OLIL (NSE_EQ|INE0OPS01011, tick 0.05) BONUS 1:2 (corporate_action 4109, F = 1.5, ex
-# 2026-10-15): the five bars the vendor re-served at the 07:03 IST ingest of 2026-10-15
-# (ingest_run eeb6eba5-36a5-4fea-bcbb-08a42b7e43b0), stored vs re-served OHLC and volume.
+# 2026-10-15). The seven bars the vendor re-served at the 14:01 IST replay of 2026-10-15
+# (ingest_run ed2ac553-394e-4285-bf41-998653a3da64; the first five also at 07:03 in
+# eeb6eba5-36a5-4fea-bcbb-08a42b7e43b0): stored vs re-served OHLC and volume.
 OLIL = [  # (stored O, H, L, C, V), (re-served O, H, L, C, V)
     (("445.50", "454.50", "440.00", "441.35", 33200),
      ("297.0", "303.0", "293.35", "294.25", 49798)),
@@ -155,6 +156,10 @@ OLIL = [  # (stored O, H, L, C, V), (re-served O, H, L, C, V)
      ("299.7", "303.35", "299.7", "303.35", 57597)),
     (("451.00", "471.20", "451.00", "457.00", 14800),
      ("300.7", "314.15", "300.7", "304.7", 22199)),
+    (("438.05", "447.00", "438.05", "443.65", 11600),
+     ("292.05", "298.0", "292.05", "295.8", 17399)),
+    (("423.10", "455.00", "423.05", "440.65", 29600),
+     ("282.1", "303.35", "282.05", "293.8", 44398)),
 ]
 OLIL_EVENT = Event(4109, _dt.date(2026, 10, 15), D("1.5"))
 OLIL_KW = dict(bar_date=_dt.date(2026, 10, 13), fetch_date=_dt.date(2026, 10, 15),
@@ -166,51 +171,53 @@ def _bar(t):
                 open_interest=0)
 
 
-def test_olil_prices_are_the_ceiling_to_tick_of_stored_over_f():
-    from app.contracts.ca_factor import ROUNDINGS
-    ceil, even = ROUNDINGS["ceiling"], ROUNDINGS["half-even"]
-    hits = {"ceiling": 0, "half-even": 0}
+def test_vendor_multiplier_is_the_reciprocal_to_four_decimals():
+    from app.contracts.ca_factor import vendor_multiplier
+    assert vendor_multiplier(D("1.5")) == D("0.6667")
+    assert vendor_multiplier(D(2)) == D("0.5") and vendor_multiplier(D(10)) == D("0.1")
+
+
+def test_every_real_olil_bar_is_the_reciprocal_convention():
     for stored, new in OLIL:
-        for i in range(4):
-            hits["ceiling"] += ceil(D(stored[i]), D("1.5"), D("0.05")) == D(new[i])
-            hits["half-even"] += even(D(stored[i]), D("1.5"), D("0.05")) == D(new[i])
-    assert hits == {"ceiling": 20, "half-even": 15}
+        v = classify(_bar(stored), _bar(new), **OLIL_KW)
+        assert v.classification == "CA_ADJUSTMENT", (stored, new)
+        assert v.explained_by["rounding"] == "reciprocal-4dp"
+        assert v.explained_by["ca_ids"] == [4109]
 
 
-def test_ceiling_rounding_explains_a_bar_whose_volume_is_exact():
-    stored, new = OLIL[1]          # close 440.65 / 1.5 = 293.7667: ceiling 293.80 only
-    s = _bar(stored)
-    n = {**_bar(new), "volume": int(D(stored[4]) * D("1.5"))}          # 18,600, exact
-    v = classify(s, n, **OLIL_KW)
-    assert v.classification == "CA_ADJUSTMENT"
-    assert v.explained_by["rounding"] == "ceiling" and v.explained_by["ca_ids"] == [4109]
+def test_the_exact_convention_does_not_explain_olil():
+    from app.contracts.ca_factor import CONVENTIONS
+    price, vol = CONVENTIONS["exact"]
+    prices = sum(price(D(st[i]), D("1.5"), D("0.05")) == D(nw[i]) for st, nw in OLIL
+                 for i in range(4))
+    vols = sum(vol(D(st[4]), D("1.5")) == D(nw[4]) for st, nw in OLIL)
+    assert (prices, vols) == (20, 0)
 
 
-def test_half_even_is_still_preferred_and_unchanged():               # CHAVDA convention
+def test_exact_is_still_first_and_unchanged():                       # CHAVDA convention
     s = {"open": 86.45, "high": 136.95, "low": 86.45, "close": 136.95, "volume": 100,
          "open_interest": 0}
     n = {"open": 43.20, "high": 68.50, "low": 43.20, "close": 68.50, "volume": 200,
          "open_interest": 0}
     v = classify(s, n, bar_date=_dt.date(2026, 9, 1), fetch_date=_dt.date(2026, 9, 3),
                  tick=D("0.05"), events=[Event(1, _dt.date(2026, 9, 2), D(2))])
-    assert v.classification == "CA_ADJUSTMENT" and v.explained_by["rounding"] == "half-even"
+    assert v.classification == "CA_ADJUSTMENT" and v.explained_by["rounding"] == "exact"
 
 
-def test_mixed_rounding_within_one_bar_fails_closed():
-    # open 448.00 / 1.5 = 298.667 (ceiling 298.70, half-even 298.65); close 440.65 / 1.5 =
-    # 293.767 (ceiling 293.80, half-even 293.75): open by ceiling, close by half-even
-    s = _bar(("448.00", "450.00", "443.00", "440.65", 10000))
-    n = _bar(("298.70", "300.0", "295.35", "293.75", 15000))
-    assert classify(s, n, **OLIL_KW).classification == "UNEXPLAINED"
-    assert classify(s, {**n, "close": "293.80"}, **OLIL_KW).explained_by["rounding"] == \
-        "ceiling"
+def test_a_convention_must_explain_prices_and_volume_together():
+    stored, new = OLIL[1]
+    # reciprocal prices with the exact volume (18,600): neither convention as a whole
+    assert classify(_bar(stored), {**_bar(new), "volume": 18600},
+                    **OLIL_KW).classification == "UNEXPLAINED"
+    # the reciprocal volume with a price that is one tick off
+    assert classify(_bar(stored), {**_bar(new), "close": "293.75"},
+                    **OLIL_KW).classification == "UNEXPLAINED"
 
 
-def test_olil_volumes_are_not_stored_times_f_so_d3_still_fails_closed():
-    """The vendor's re-served volumes are 1-3 shares BELOW stored * 1.5 (17,399 for
-    11,600 * 1.5 = 17,400 ...). revision-v2 changes only the price rounding; the exact
-    volume rule is unchanged, so these real bars remain UNEXPLAINED (a separate,
-    unapproved decision)."""
-    for stored, new in OLIL:
-        assert int(new[4]) != int(D(stored[4]) * D("1.5"))
-        assert classify(_bar(stored), _bar(new), **OLIL_KW).classification == "UNEXPLAINED"
+def test_ceiling_with_the_exact_volume_is_not_a_convention():
+    """revision-v2 accepted ceiling(stored / F) prices; v3 drops it. For OLIL's prices
+    ceiling and reciprocal-4dp coincide, so the volume decides: ceiling prices with
+    volume stored * F (which v2 would have accepted) are UNEXPLAINED in v3."""
+    stored, new = OLIL[1]                       # close: half-even 293.75, ceiling 293.80
+    assert classify(_bar(stored), {**_bar(new), "volume": 18600},
+                    **OLIL_KW).classification == "UNEXPLAINED"

@@ -185,8 +185,13 @@ def analyze(paths) -> dict:
             "revision_latency_s": {"p95": q(0.95), "p99": q(0.99), "max": observed_max},
             "headroom_s": T.headroom_s(tf, observed_max),
             "late_revisions": sum(1 for x in lat if x >= T.margin(tf).total_seconds())}
-    late = [r for r in revisions if r["timeframe"] in T.IN_SCOPE
-            and T.Revision(r["timeframe"], r["seconds_after_end"]).late]
+    late_all = [r for r in revisions if r["timeframe"] in T.IN_SCOPE
+                and T.Revision(r["timeframe"], r["seconds_after_end"]).late]
+    # a late revision inside a RECORDED incident window (an explicit contract-review
+    # decision, app.contracts.timing.INCIDENTS) is reported, not counted against B2
+    incident = [{**r, "incident": inc.id, "decision": inc.decision} for r in late_all
+                if (inc := T.incident_for(_dt.datetime.fromisoformat(r["bar_start"])))]
+    late = [r for r in late_all if not T.incident_for(_dt.datetime.fromisoformat(r["bar_start"]))]
     b2r_sessions = sorted(full_b2)
     b2r_bad = sorted({r["session"] for r in late})
     b2_revised = {
@@ -203,6 +208,8 @@ def analyze(paths) -> dict:
                                      f"{T.margin(r['timeframe']).total_seconds():.0f} s)"
                                      for r in late if r["session"] == d] for d in b2r_bad},
         "late_revisions": late,
+        "incident_revisions": incident,
+        "incidents_applied": sorted({r["incident"] for r in incident}),
         "per_timeframe": stats,
         "evidence_sufficiency": (
             f"{len(b2r_sessions)} full session(s), "

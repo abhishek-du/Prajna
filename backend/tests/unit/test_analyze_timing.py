@@ -162,3 +162,38 @@ def test_g_a_revision_after_finality_is_recorded_and_fails_closed(tmp_path):
     new = {**stored, "close": 100.4}
     v = classify(stored, new, bar_date=D25, fetch_date=D25, tick=None, events=[])
     assert v.classification == "UNEXPLAINED" and v.fails
+
+
+# ── H. a RECORDED vendor incident (TIMING-INCIDENT-2026-10-14) ───────────────────────
+def _late_15m(day: _dt.date, hh: int, mm: int, after_s: float) -> list[dict]:
+    start = _dt.datetime.combine(day, _dt.time(hh, mm), IST)
+    end = start + _dt.timedelta(seconds=900)
+    bar = [start.isoformat(), 100.0, 101.0, 99.0, 100.5, 10, 0]
+    return [{"kind": "15m_intraday", "key": "NSE_EQ|INE002A01018",
+             "fetched_at": (end + _dt.timedelta(seconds=20)).isoformat(), "newest": [bar]},
+            {"kind": "15m_intraday", "key": "NSE_EQ|INE002A01018",
+             "fetched_at": (end + _dt.timedelta(seconds=after_s)).isoformat(),
+             "newest": [[*bar[:4], 100.4, 10, 0]]}]
+
+
+def test_h_late_revisions_inside_the_recorded_incident_are_reported_not_contradicting(
+        tmp_path):
+    day = _dt.date(2026, 10, 14)
+    lines = [x for d in (_dt.date(2026, 10, 12), _dt.date(2026, 10, 13), day) for x in _full(d)]
+    lines += _late_15m(day, 14, 15, 684.4) + _late_15m(day, 14, 30, 1855.7)
+    b2 = _run(tmp_path, lines)["B2"]
+    assert b2["status"] == "VERIFIED" and b2["late_revisions"] == []
+    assert [r["seconds_after_end"] for r in b2["incident_revisions"]] == [684.4, 1855.7]
+    assert b2["incidents_applied"] == ["INC-B2-2026-10-14"]
+    assert all(r["decision"] == "TIMING-INCIDENT-2026-10-14" for r in b2["incident_revisions"])
+
+
+def test_h_the_incident_window_is_narrow_and_the_margin_unchanged(tmp_path):
+    day = _dt.date(2026, 10, 14)
+    lines = [x for d in (_dt.date(2026, 10, 12), _dt.date(2026, 10, 13), day) for x in _full(d)]
+    lines += _late_15m(day, 14, 45, 400.0)              # one bar after the window
+    lines += _late_15m(_dt.date(2026, 10, 13), 14, 15, 400.0)   # same time, other day
+    b2 = _run(tmp_path, lines)["B2"]
+    assert b2["status"] == "CONTRADICTED" and len(b2["late_revisions"]) == 2
+    assert b2["incident_revisions"] == []
+    assert T.COMPLETION_MARGIN_S == {"1m": 300.0, "15m": 300.0, "1h": 300.0}

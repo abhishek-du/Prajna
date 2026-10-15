@@ -159,6 +159,20 @@ DECISIONS: dict[str, dict[str, str]] = {
                   "recorded, X BLOCKED, explicit contract review; the margin is never enlarged "
                   "silently. Timing finality never changes knowable_at (the fetch time)",
                   "ref": "user 2026-09-25 (master directive: B2/X contract change)"},
+    "TIMING-INCIDENT-2026-10-14": {"status": "APPROVED", "decision": "Contract review "
+                                   "after B2 was CONTRADICTED on 2026-10-14 only: 6 of 1,101 "
+                                   "15m bars (14:15 and 14:30 IST, every sampled instrument "
+                                   "simultaneously) revised 667-685 s and 1,856 s after the "
+                                   "end; all other 14 sessions <= 201 s. Recorded as vendor "
+                                   "incident INC-B2-2026-10-14: late revisions of bars "
+                                   "starting 14:15-14:45 IST that day are reported as "
+                                   "incident revisions, not contradictions. The 300 s margin "
+                                   "is unchanged; any other late revision blocks X again. "
+                                   "The stored bars equal the corrected values",
+                                   "ref": "Claude under the user's delegated authority "
+                                          "2026-10-15 ('you have to decide and approve things "
+                                          "wisely'); evidence docs/STAGE1_OLIL_B2_"
+                                          "INVESTIGATION_2026-10-15.md"},
     "D-NEW-LISTING-GRACE": {"status": "APPROVED", "decision": "A NEW listing (first seen "
                             "within 7 days) in REVIEW only because the vendor has no "
                             "financials yet (ISIN says company, no other signal contradicts) "
@@ -692,6 +706,8 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
     if "per_timeframe" in b1b2.get("B2", {}):          # revised B2 (decision TIMING-B2)
         timing["B2"]["contract"] = b1b2["B2"]["contract"]
         timing["B2"]["late_revisions"] = len(b1b2["B2"].get("late_revisions", []))
+        timing["B2"]["incident_revisions"] = len(b1b2["B2"].get("incident_revisions", []))
+        timing["B2"]["incidents_applied"] = b1b2["B2"].get("incidents_applied", [])
         timing["B2"]["headroom"] = {
             tf: {"margin_s": v["margin_s"], "observed_max_s": v["revision_latency_s"]["max"],
                  "headroom_s": v["headroom_s"], "bars_sampled": v["bars_sampled"]}

@@ -92,3 +92,32 @@ def headroom_s(timeframe: str, observed_max_s: float | None) -> float | None:
     if observed_max_s is None:
         return None
     return round(margin(timeframe).total_seconds() - observed_max_s, 1)
+
+
+# Recorded vendor incidents (explicit contract-review decisions; never inferred). A late
+# revision of an in-scope timeframe whose bar STARTS inside an incident window is reported
+# as an incident revision instead of contradicting B2. The margin itself never changes.
+@dataclass(frozen=True, slots=True)
+class Incident:
+    id: str
+    decision: str
+    start: _dt.datetime          # bar_start >= start
+    end: _dt.datetime            # bar_start < end
+
+
+INCIDENTS: tuple[Incident, ...] = (
+    # 2026-10-14: simultaneous late corrections of every sampled instrument (RELIANCE,
+    # HDFCBANK, NIFTY 50) for the 15m bars of 14:15 and 14:30 (667-685 s, 1,856 s) and
+    # the 5m bars of 14:15 and 14:25 (out of scope); every other session <= 201 s. The
+    # stored bars equal the corrected values (docs/STAGE1_OLIL_B2_INVESTIGATION_2026-10-15.md).
+    Incident("INC-B2-2026-10-14", "TIMING-INCIDENT-2026-10-14",
+             _dt.datetime(2026, 10, 14, 8, 45, tzinfo=_dt.UTC),     # 14:15 IST
+             _dt.datetime(2026, 10, 14, 9, 15, tzinfo=_dt.UTC)),    # 14:45 IST
+)
+
+
+def incident_for(bar_start: _dt.datetime) -> Incident | None:
+    for i in INCIDENTS:
+        if i.start <= bar_start < i.end:
+            return i
+    return None
