@@ -35,7 +35,14 @@ set -uo pipefail
 
 cd "$(dirname "$0")/../.."
 RB="${PRAJNA_RUNBOOK_DIR:-ops/runbooks}"
-STAGES="${PRAJNA_BACKFILL_STAGES:-1h,1m,15m}"
+# phase 1 = 1h + 15m first (user 2026-10-15: "1h and 15m ASAP"); phase 2 = all three
+# (1h/15m resume as no-ops from their checkpoints, then 1m), which alone can end it
+PHASE1_STAGES="1h,15m"
+if [[ -n "${PRAJNA_BACKFILL_STAGES:-}" ]]; then STAGES="$PRAJNA_BACKFILL_STAGES"
+elif [[ -f var/run/backfill.phase1_done ]]; then STAGES="1h,1m,15m"
+else STAGES="$PHASE1_STAGES"; fi
+FAST_FRACTION="${PRAJNA_BACKFILL_FAST_FRACTION:-0.9}"     # alone on the historical API
+SHARED_FRACTION="${PRAJNA_BACKFILL_SHARED_FRACTION:-0.5}" # another Upstox job running
 ARCHIVE_BELOW_GB="${PRAJNA_ARCHIVE_BELOW_GB:-75}"
 GUARD_GB="${PRAJNA_BACKFILL_MIN_FREE_GB:-60}"
 KEEP_BACKUPS="${PRAJNA_KEEP_BACKUPS:-2}"
@@ -68,6 +75,12 @@ last_completed() {
   local f
   f="$(ls -1t var/logs/backfill/backfill_*.log 2>/dev/null | head -1)"
   [[ -n "$f" ]] && grep -h "BACKFILL_COMPLETED" "$f" | tail -1 | sed 's/.*status=//'
+}
+
+other_upstox_job() {   # any other runbook that calls the Upstox REST API right now
+  [[ -n "${PRAJNA_TEST_OTHER_JOB:-}" ]] && { [[ "$PRAJNA_TEST_OTHER_JOB" == "true" ]]; return; }
+  pgrep -f "daily.sh --login (weekly|monthly|morning|refresh)|preopen_day.sh|global_refresh.sh" \
+    >/dev/null 2>&1
 }
 
 archive_oldest() {   # the pre-approved storage rule
@@ -110,6 +123,12 @@ tick() {
   case "${last:-none}" in
     all_stages_complete*)                  # only a run of ALL three stages ends it
       touch var/run/backfill.done; say "SUPERVISOR_DONE all stages complete"; return 0 ;;
+    selected_stages_complete*)               # only a run of exactly 1h,15m ends phase 1
+      if [[ "$STAGES" == "$PHASE1_STAGES" ]] && grep -q "selected stages (${PHASE1_STAGES}) complete" \
+           "$(ls -1t var/logs/backfill/backfill_*.log 2>/dev/null | head -1)" 2>/dev/null; then
+        touch var/run/backfill.phase1_done; STAGES="1h,1m,15m"
+        say "SUPERVISOR_PHASE1_DONE 1h and 15m complete; phase 2 adds 1m"
+      fi ;;
     none|started*|time_limit_resumable*|time_window_over*|selected_stages_complete*|\
     another_candles_job_running*|refused_trading_hours*|plan_only*) ;;   # known, resumable
     disk_low*) say "SUPERVISOR_ALERT disk_low (backfill stopped itself; storage rule applies)" ;;
@@ -127,10 +146,18 @@ tick() {
     say "SUPERVISOR_ALERT disk_below_guard free_gb=$(free_gb) guard=$GUARD_GB"; return 0
   fi
   if ! flock -n "$LOCK" true 2>/dev/null; then say "SUPERVISOR_WAITING_LOCK"; return 0; fi
-  nohup flock -n "$LOCK" env PRAJNA_UPSTOX_RATE_FRACTION=0.5 \
-    "$RB/backfill.sh" --login --stages "$STAGES" --until 06:50 \
+  local frac until dow
+  frac="$FAST_FRACTION"; until="06:50"
+  dow="${PRAJNA_TEST_DOW:-$(TZ=Asia/Kolkata date +%u)}"     # 6 = Saturday
+  if other_upstox_job; then frac="$SHARED_FRACTION"; fi
+  # Saturday 10:00 weekly corporate-action sweep (fraction 0.3): stop the fast run at
+  # 09:50, run the shared fraction until 13:00, then fast again
+  if [[ "$dow" == "6" && "$hhmm" < "0950" ]]; then until="09:50"
+  elif [[ "$dow" == "6" && "$hhmm" < "1300" ]]; then frac="$SHARED_FRACTION"; until="13:00"; fi
+  nohup flock -n "$LOCK" env PRAJNA_UPSTOX_RATE_FRACTION="$frac" \
+    "$RB/backfill.sh" --login --stages "$STAGES" --until "$until" \
     >> var/logs/backfill/supervisor_child.log 2>&1 &
-  say "SUPERVISOR_STARTED stages=$STAGES free_gb=$(free_gb) pid=$!"
+  say "SUPERVISOR_STARTED stages=$STAGES fraction=$frac until=$until free_gb=$(free_gb) pid=$!"
 }
 
 case "${1:-tick}" in

@@ -39,9 +39,11 @@ def tick(root, *, free=150, hhmm="2345", trading="true", archive=None, cmd="tick
     return r.stdout
 
 
-def last_run(root, status):
+def last_run(root, status, selected="1h,15m"):
+    extra = (f"[x] selected stages ({selected}) complete; others not run\n"
+             if status == "selected_stages_complete" else "")
     (root / "var/logs/backfill/backfill_2026-10-15_2330.log").write_text(
-        f"[x] BACKFILL_COMPLETED rc=0 status={status}\n")
+        f"{extra}[x] BACKFILL_COMPLETED rc=0 status={status}\n")
 
 
 def started(root):
@@ -64,8 +66,8 @@ def test_pause_and_done_markers_stop_everything(tmp_path):
 def test_only_all_stages_complete_ends_the_backfill(tmp_path):
     root = tree(tmp_path)
     last_run(root, "selected_stages_complete")          # tonight's 1h-only run
-    out = tick(root)
-    assert "SUPERVISOR_STARTED stages=1h,1m,15m" in out
+    out = tick(root)                                    # phase 1 just finished
+    assert "SUPERVISOR_PHASE1_DONE" in out and "SUPERVISOR_STARTED stages=1h,1m,15m" in out
     assert started(root) == "--login --stages 1h,1m,15m --until 06:50"
     assert not (root / "var/run/backfill.done").exists()
     last_run(root, "all_stages_complete")
@@ -148,4 +150,37 @@ def test_status_is_one_json_line(tmp_path):
     import json
     root = tree(tmp_path)
     s = json.loads(tick(root, cmd="status").strip().splitlines()[-1])
-    assert s["done"] is False and s["free_gb"] == 150 and s["stages"] == "1h,1m,15m"
+    assert s["done"] is False and s["free_gb"] == 150 and s["stages"] == "1h,15m"
+    assert s["process"] == "none"
+
+
+def test_phase1_is_1h_and_15m_at_the_fast_fraction(tmp_path):
+    root = tree(tmp_path)
+    out = tick(root, PRAJNA_TEST_OTHER_JOB="false", PRAJNA_TEST_DOW="4")
+    assert "SUPERVISOR_STARTED stages=1h,15m fraction=0.9 until=06:50" in out
+    assert started(root) == "--login --stages 1h,15m --until 06:50"
+
+
+def test_shared_fraction_when_another_upstox_job_runs(tmp_path):
+    root = tree(tmp_path)
+    out = tick(root, PRAJNA_TEST_OTHER_JOB="true", PRAJNA_TEST_DOW="4")
+    assert "fraction=0.5" in out
+
+
+def test_saturday_weekly_sweep_window(tmp_path):
+    root = tree(tmp_path)
+    out = tick(root, hhmm="0800", trading="false", PRAJNA_TEST_OTHER_JOB="false",
+               PRAJNA_TEST_DOW="6")
+    assert "fraction=0.9 until=09:50" in out
+    root2 = tree(tmp_path / "b")
+    out = tick(root2, hhmm="1030", trading="false", PRAJNA_TEST_OTHER_JOB="false",
+               PRAJNA_TEST_DOW="6")
+    assert "fraction=0.5 until=13:00" in out
+
+
+def test_a_1h_only_run_does_not_end_phase_1(tmp_path):
+    root = tree(tmp_path)
+    last_run(root, "selected_stages_complete", selected="1h")   # tonight's waiter
+    out = tick(root, PRAJNA_TEST_OTHER_JOB="false", PRAJNA_TEST_DOW="4")
+    assert "SUPERVISOR_PHASE1_DONE" not in out and "stages=1h,15m" in out
+    assert not (root / "var/run/backfill.phase1_done").exists()
