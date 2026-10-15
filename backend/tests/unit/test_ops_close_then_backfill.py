@@ -256,7 +256,7 @@ class TestBackfillMarkers:
     def test_approved_stages_depths_and_markers(self, base):
         p, calls = _backfill(base)
         assert p.returncode == 0, p.stdout + p.stderr
-        six = (_dt.date.fromisoformat(TODAY) - _dt.timedelta(days=183)).isoformat()
+        six = (_dt.date.fromisoformat(TODAY) - _dt.timedelta(days=92)).isoformat()   # option B
         ingests = [ln for ln in calls.splitlines() if "ingest candles" in ln]
         assert [ln.split("--timeframe ")[1].split(" --to")[0] for ln in ingests] == [
             "1h --from 2022-01-01", f"1m --from {six}", "15m --from 2022-01-01"]

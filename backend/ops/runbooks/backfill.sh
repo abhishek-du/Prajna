@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Stage-1 intraday history backfill to the approved depth (decision D1):
-#   1h since 2022-01, 1m for the last 6 months, 15m since 2022-01.
+#   1h since 2022-01, 1m for the last 3 months (92 days; option B, user 2026-10-15:
+#   the 6-month depth needs 73 GB and would breach the 60 GB disk guard after 1h + 15m;
+#   PRAJNA_BACKFILL_1M_DAYS overrides), 15m since 2022-01.
 #
 #   ops/runbooks/backfill.sh [--login] [--until HH:MM] [--stages 1h[,1m[,15m]]] [--plan]
 #
@@ -74,7 +76,7 @@ stage_list() {   # the approved stages (order, depth), filtered by --stages
   local today last six
   today="$(TZ=Asia/Kolkata date +%F)"
   last="$("${CLI[@]}" db sql "select max(session_date) from trading_session where is_trading_day and session_date < '${today}'" | sed -n 3p | tr -d ' ')"
-  six="$(TZ=Asia/Kolkata date -d "${today} -183 days" +%F)"
+  six="$(TZ=Asia/Kolkata date -d "${today} -${PRAJNA_BACKFILL_1M_DAYS:-92} days" +%F)"
   LAST="$last"
   STAGES=()
   for st in "1h 2022-01-01" "1m ${six}" "15m 2022-01-01"; do
