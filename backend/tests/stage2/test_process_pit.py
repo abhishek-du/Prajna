@@ -334,6 +334,27 @@ class TestNonSessionBars:
         assert {g["gate"]: g["status"] for g in rep["gates"]}["non_session_bars_exposed"] == "PASS"
         assert rep["informational"]["bars_excluded_non_session (canon_excluded_bar)"] == 1
 
+    async def test_zero_price_bar_on_a_session_is_excluded_and_traced(self, world):
+        """Real case (1h backfill, 2026-10-16): all-zero vendor bars on a trading day (0021)."""
+        s, ids = world
+        rid = await SEED._run(s, "ohlcv.1d.x")
+        sha = await SEED._payload(s, rid)
+        await s.execute(text("""
+            insert into ohlcv_bar (instrument_id, timeframe, session_date, bar_start_utc, source,
+              instrument_key, open, high, low, close, volume, vendor_ts_raw, run_id,
+              payload_sha256, fetched_at, knowable_at, knowable_at_basis)
+            values (:i, '1d', '2026-09-23', :b, 'UPSTOX_REST_V3', :k, 0, 0, 0, 0, 0, 'x', :r, :h,
+                    :f, :f, 't')"""),
+            {"i": ids[H], "b": ist(2026, 9, 23), "k": H, "r": rid, "h": sha,
+             "f": ist(2026, 9, 24, 8)})
+        await _process(s)
+        assert await _q(s, "select 1 from canon_market_bar where least(open, high, low, close)"
+                           " <= 0") == []
+        (x,) = await _q(s, "select * from canon_excluded_bar")
+        assert x.session_date == D(2026, 9, 23) and "non-positive price" in x.reason
+        rep = await run_gates(s)
+        assert {g["gate"]: g["status"] for g in rep["gates"]}["invalid_ohlc"] == "PASS"
+
 
 class TestQualityAndConstraints:
     async def test_gates_flag_the_seeded_inconsistency_only(self, world):

@@ -74,7 +74,7 @@ def test_only_all_stages_complete_ends_the_backfill(tmp_path):
     last_run(root, "selected_stages_complete")          # tonight's 1h-only run
     out = tick(root)                                    # phase 1 just finished
     assert "SUPERVISOR_PHASE1_DONE" in out and "SUPERVISOR_STARTED stages=1h,1m,15m" in out
-    assert started(root) == "--login --stages 1h,1m,15m --until 06:50"
+    assert started(root) == "--login --stages 1h,1m,15m --until 06:25"
     assert not (root / "var/run/backfill.done").exists()
     last_run(root, "all_stages_complete")
     assert "SUPERVISOR_DONE all stages complete" in tick(root)
@@ -164,8 +164,8 @@ def test_status_is_one_json_line(tmp_path):
 def test_phase1_is_1h_and_15m_at_the_fast_fraction(tmp_path):
     root = tree(tmp_path)
     out = tick(root, PRAJNA_TEST_OTHER_JOB="false", PRAJNA_TEST_DOW="4")
-    assert "SUPERVISOR_STARTED stages=1h,15m fraction=0.9 until=06:50" in out
-    assert started(root) == "--login --stages 1h,15m --until 06:50"
+    assert "SUPERVISOR_STARTED stages=1h,15m fraction=0.9 until=06:25" in out
+    assert started(root) == "--login --stages 1h,15m --until 06:25"
 
 
 def test_shared_fraction_when_another_upstox_job_runs(tmp_path):

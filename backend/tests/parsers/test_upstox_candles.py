@@ -312,6 +312,17 @@ class TestQ1Quarantine:
         assert pc.coverage.quarantined == 2 and len(pc.complete) == 1
         assert all(i.kind.value == "QUARANTINED" for i in pc.issues)
 
+    def test_zero_price_placeholders_are_quarantined(self):
+        """Found 2026-10-16 in the 1h backfill: all-zero bars and open = low = 0 bars
+        pass the OHLC ordering but are not market observations (0021)."""
+        zero = ["2024-08-28T00:00:00+05:30", 0.0, 0.0, 0.0, 0.0, 0, 0]
+        low0 = ["2024-08-27T00:00:00+05:30", 0.0, 30.6, 0.0, 30.6, 5, 0]
+        pc = self._parse([zero, low0, self.GOOD])
+        assert pc.coverage.quarantined == 2 and len(pc.complete) == 1
+        assert all("non-positive price" in i.detail["reason"] for i in pc.issues)
+        wti = ["2020-04-20T00:00:00+05:30", -14.0, 1.0, -40.3, -37.6, 0, 0]  # real, kept
+        assert self._parse([wti], key="GLOBAL_INDICATOR|CLUSD").coverage.quarantined == 0
+
     def test_negative_open_interest_is_quarantined(self):
         bad = ["2024-08-28T00:00:00+05:30", 15.0, 15.5, 14.8, 15.2, 10, -1]
         assert self._parse([bad]).coverage.quarantined == 1

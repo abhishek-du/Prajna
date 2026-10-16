@@ -20,7 +20,9 @@
 #     not writable -> SUPERVISOR_ALERT storage_archive_unavailable
 #   3 a backfill is already running (backfill.sh process) -> SUPERVISOR_RUNNING
 #   4 trading day 06:30-16:00 IST -> SUPERVISOR_WINDOW_CLOSED (backfill.sh refuses
-#     06:50-16:00 itself; 06:30 leaves room for the morning jobs)
+#     06:50-16:00 itself; 06:30 leaves room for the morning jobs). The run stops at
+#     06:25: on 2026-10-16 a run to 06:50 held the lock past the 06:30 refresh
+#     (flock -w 600), which was skipped, so the 06:45 CA run met an expired token
 #   5 free < GUARD_GB (60)        -> SUPERVISOR_ALERT disk_below_guard (no start)
 #   6 the candles lock is free    -> start backfill.sh --login --stages <STAGES>
 #     detached (fraction 0.5), log SUPERVISOR_STARTED; the lock busy (the close or
@@ -84,7 +86,7 @@ trading_day() {
   if [[ -n "${PRAJNA_TEST_TRADING_DAY:-}" ]]; then echo "$PRAJNA_TEST_TRADING_DAY"; return; fi
   .venv/bin/python -m app.cli.main --plain db sql "select is_trading_day from trading_session \
     where session_date = '$(TZ=Asia/Kolkata date +%F)'" 2>/dev/null | sed -n 3p | tr -d ' ' \
-    | sed 's/^t$/true/; s/^f$/false/'
+    | tr 'A-Z' 'a-z' | sed 's/^t$/true/; s/^f$/false/'   # the CLI prints True/False
 }
 running() { pgrep -f "${RB}/backfill.sh --login --stages" >/dev/null 2>&1; }
 process_state() {   # running = backfill.sh itself; queued = only its flock wrapper waiting
@@ -182,7 +184,7 @@ tick() {
   fi
   if ! flock -n "$LOCK" true 2>/dev/null; then say "SUPERVISOR_WAITING_LOCK"; return 0; fi
   local frac until dow
-  frac="$FAST_FRACTION"; until="06:50"
+  frac="$FAST_FRACTION"; until="06:25"   # the 06:30 refresh (login) needs the lock
   dow="${PRAJNA_TEST_DOW:-$(TZ=Asia/Kolkata date +%u)}"     # 6 = Saturday
   if other_upstox_job; then frac="$SHARED_FRACTION"; fi
   # Saturday 10:00 weekly corporate-action sweep (fraction 0.3): stop the fast run at

@@ -280,6 +280,10 @@ def _one(c, pc: ParsedCandles, endpoint: Endpoint, timeframe: str,
         validate_bar(o, h, lo, cl, v)
     except ValueError as e:
         reason = f"insane OHLC: {e}"
+    # an NSE price <= 0 is a vendor placeholder (0021); global indicators keep theirs
+    # (WTI settled negative on 2020-04-20)
+    if reason is None and pc.instrument_key.startswith("NSE_") and min(o, h, lo, cl) <= 0:
+        reason = "non-positive price"
     if reason is None and oi is not None and oi < 0:
         reason = f"negative open_interest {oi}"
     if reason is not None:
