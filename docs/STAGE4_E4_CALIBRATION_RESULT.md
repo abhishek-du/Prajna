@@ -103,3 +103,32 @@
   - any E4 test design (C2 or later) is fixed before it is run, not adjusted after this view;
   - the 07-22..09-30 sessions are reported as a sensitivity exclusion in any E4 test;
   - paper replays of research predictors use only sessions after the research TEST window (from 2026-10-01).
+
+## C2: decided and pre-registered (2026-10-16, before its calibration)
+
+**Decision:** taken by the agent under the user's delegation ("take decision by analysing yourself").
+
+**Why C2 and not closing E4a:**
+- The pre-open / overnight gap is the core of the 8-stage strategy (Stage 5: "Focus: Overnight + Pre-open").
+- E4a is its longest, cleanest test: daily data since 2021, about 1,400 sessions. E4b (15m) starts in 2022 and needs the same calibrated inference anyway, so the work carries over.
+- E1 and E2 failed for cost reasons, so a calibrated test of the one thesis left matters.
+- The calibrations showed a **method** problem: the decision rule is conservative everywhere, but the interval under-covers in the factor worlds, and more so with longer blocks. Another bootstrap variant would be a search; a different principle is not.
+
+**Method (`e4.signflip_ci`, `e4.INFERENCE = "signflip"`):**
+- The interval is the inversion of a two-sided **paired sign-flip randomization test** on the session series s_d = P gross − cost − C2 gross, at the same level (0.975).
+- It uses one fixed set of 10,000 sign vectors and bisection for the bounds.
+- Under the null, the sign of s_d is independent of its magnitude, so persistent volatility and heavy tails cannot make the interval too narrow.
+- **Measured before the calibration:** 1,500 t5 / log-vol-AR(1) series (φ = 0.95, n = 600). Non-coverage was 2.87%, Wilson [2.14, 3.84].
+- Acceptance gates, costs, controls, placebo, K, universe and the TEST window are unchanged. The NW t-statistic (lag 19) is reported only.
+
+**Calibration:**
+- 1,000 + 1,000 worlds, new seeds (base 20261017), the same criterion as before.
+- Output: `null_calibration_c2.json`.
+
+**Primary population:**
+- TEST is 2021-01-01..2026-09-30 **excluding 2026-07-22..09-30** (the disclosed paper-replay view).
+- The full window is reported as a sensitivity.
+
+**Rules for the outcome:**
+- If C2 is adequate, the single look is taken.
+- **If C2 is inadequate, E4a closes** (no further correction), and E4b is designed with this method from the start.

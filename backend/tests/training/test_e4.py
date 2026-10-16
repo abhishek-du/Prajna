@@ -156,3 +156,37 @@ class TestInference:
 
     def test_minimum_detectable_effect_matches_the_design(self):
         assert 7e-4 < X.minimum_detectable(0.01, 1400) < 8e-4      # about 7.5 bps
+
+
+class TestSignflipC2:
+    """Correction C2: the interval is the inversion of a paired sign-flip test."""
+
+    def test_the_interval_holds_the_mean_and_excludes_a_planted_shift(self):
+        rng = np.random.default_rng(0)
+        x = rng.standard_t(5, 800) * 0.01
+        lo, hi = X.signflip_ci(x, b=999)
+        assert lo < float(np.mean(x)) < hi and lo < 0 < hi
+        lo2, _ = X.signflip_ci(x + 0.004, b=999)
+        assert lo2 > 0
+
+    def test_deterministic_and_wider_at_a_higher_level(self):
+        x = np.random.default_rng(1).normal(0, 0.01, 500)
+        assert X.signflip_ci(x, b=499, seed=3) == X.signflip_ci(x, b=499, seed=3)
+        a, b = X.signflip_ci(x, b=999, level=0.9), X.signflip_ci(x, b=999, level=0.99)
+        assert b[0] < a[0] and b[1] > a[1]
+
+    def test_persistent_volatility_does_not_make_it_too_narrow(self):
+        """The case that failed the bootstrap (C1): t5 tails, log-vol AR(1) phi 0.95."""
+        rng, miss = np.random.default_rng(11), 0
+        for i in range(200):
+            lv = np.zeros(400)
+            for k in range(1, 400):
+                lv[k] = 0.95 * lv[k - 1] + rng.normal(0, 0.3)
+            lo, hi = X.signflip_ci(rng.standard_t(5, 400) * np.exp(lv) * 0.01, b=499, seed=i)
+            miss += not lo <= 0 <= hi
+        assert miss / 200 < 0.06                       # nominal 2.5%; 200 worlds
+
+    def test_summarise_uses_the_signflip_interval(self):
+        x = list(np.random.default_rng(2).normal(0, 0.01, 300))
+        r = X.summarise(x, [2024] * 300, b=499, seed=5)
+        assert r.ci == X.signflip_ci(x, b=499, seed=5) and X.INFERENCE == "signflip"

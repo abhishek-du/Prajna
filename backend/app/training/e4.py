@@ -228,9 +228,50 @@ def primary(sess: dict[str, Any], series: dict[str, dict], cost: SessionCost) ->
 
 
 # ── inference and acceptance (E3 machinery, session unit) ────────────────────────────
+# correction C2 (decided 2026-10-16 under the user's delegation; docs/STAGE4_E4_CALIBRATION_
+# RESULT.md): the studentized block bootstrap under-covered in the factor worlds at block 5
+# AND block 20, so the interval is now the inversion of a paired sign-flip randomization
+# test. Each session's s_d is a difference (picks - matched controls - cost); under the null
+# its sign is +/- with equal chance independently of |s_d|, so persistent volatility and
+# heavy tails (which move |s_d|) cannot make the test too narrow. Fixed in advance; the
+# LAST correction: if C2 is inadequate, E4a closes.
+INFERENCE = "signflip"
+
+
+def signflip_ci(x: list[float], *, b: int = 10_000, level: float = 0.975,
+                seed: int = 0) -> tuple[float, float]:
+    """{mu : the two-sided sign-flip p-value of x - mu > 1 - level}: one fixed set of b
+    sign vectors (the observed signs included), bounds found by bisection."""
+    v = np.asarray(x, dtype=np.float64)
+    n = len(v)
+    if n < 2:
+        return (float("nan"), float("nan"))
+    rng = np.random.default_rng([seed, n])
+    signs = rng.integers(0, 2, size=(b, n), dtype=np.int8).astype(np.float32) * 2 - 1
+    alpha = 1 - level
+
+    def p_value(mu: float) -> float:
+        y = (v - mu).astype(np.float32)
+        t = abs(float(np.mean(v - mu)))
+        flipped = np.abs(signs @ y) / n
+        return (1 + int(np.sum(flipped >= t - 1e-12))) / (b + 1)
+
+    m, se = float(np.mean(v)), float(np.std(v, ddof=1) / math.sqrt(n)) or 1e-12
+
+    def bound(sign: int) -> float:
+        inside, out = m, m + sign * 10 * se          # p(inside) = 1 > alpha >= p(out)
+        while p_value(out) > alpha:
+            out += sign * 10 * se
+        for _ in range(40):
+            mid = (inside + out) / 2
+            inside, out = (mid, out) if p_value(mid) > alpha else (inside, mid)
+        return (inside + out) / 2
+    return (bound(-1), bound(+1))
+
+
 def summarise(x: list[float], years: list[int], *, b: int = 10_000, level: float = 0.975,
               seed: int = 0) -> E3.Result:
-    ci = X.studentized_block_ci(x, b=b, block=BLOCK, level=level, seed=seed)
+    ci = signflip_ci(x, b=b, level=level, seed=seed)
     by: dict[int, list[float]] = {}
     for v, y in zip(x, years, strict=True):
         by.setdefault(y, []).append(v)

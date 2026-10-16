@@ -53,9 +53,13 @@ DATA = ROOT / "var/stage4/e4/e4_daily_20261015T1545+0530.npz"
 MANIFEST = DATA.with_suffix(".json")
 CONTENT_SHA = "85840092d77e630305ae06f21e85e328b808fe09fa7b5361791f3605a9bc5310"
 OUT = ROOT / "var/stage4/experiments/e4"
-CALIBRATION = OUT / "null_calibration_c1.json"   # C1 (block 20)
+CALIBRATION = OUT / "null_calibration_c2.json"   # C2 (sign-flip inversion)
 TEST = (_dt.date(2021, 1, 1), _dt.date(2026, 9, 30))
 E1_TEST = (_dt.date(2026, 4, 27), _dt.date(2026, 9, 17))
+# Sessions of the 2026-10-16 paper replay of gap fade (a disclosed partial view, see
+# docs/STAGE4_E4_CALIBRATION_RESULT.md): excluded from the PRIMARY population, reported in
+# the full window as a sensitivity. Fixed before C2 ran.
+PAPER_VIEW = (_dt.date(2026, 7, 22), _dt.date(2026, 9, 30))
 CAPITAL, HALF_SPREAD, STRESS, B, SEED = 1_000_000.0, 5.0, 1.5, 10_000, 0
 SLIPPAGES, K_SENS = (5.0, 10.0, 20.0), 5
 
@@ -64,7 +68,8 @@ CONFIG = {"design": "STAGE4_E4_INTRADAY_DESIGN_DRAFT D1-D6",
           "predictors": list(X.PREDICTORS), "k": X.K, "k_sensitivity": K_SENS,
           "capital_inr": CAPITAL, "half_spread_bps": HALF_SPREAD, "stress_multiplier": STRESS,
           "slippage_sensitivity_bps": list(SLIPPAGES), "bootstrap_draws": B, "seed": SEED,
-          "level": 0.975, "block": X.BLOCK, "nw_lag": X.NW_LAG,
+          "level": 0.975, "inference": X.INFERENCE, "nw_lag": X.NW_LAG,
+          "primary_excludes_paper_view": [str(d) for d in PAPER_VIEW],
           "test": [str(d) for d in TEST], "e1_excluded_sensitivity": [str(d) for d in E1_TEST],
           "mask": "e3.suspect_sessions (no exact-factor exemption) + e4 locked day",
           "rates": X.MIS.source + " @ " + X.MIS.as_of}
@@ -180,9 +185,12 @@ def _res(r: E3.Result) -> dict[str, Any]:
 
 
 def evaluate(rows: list[dict[str, Any]], days: list[_dt.date]) -> dict[str, Any]:
+    def clean(d: _dt.date) -> bool:
+        return not PAPER_VIEW[0] <= d <= PAPER_VIEW[1]
+
     def series_of(field: str, keep=lambda d: True) -> tuple[list[float], list[int]]:
         xs = [(r[field], days[r["d"]].year) for r in rows
-              if r.get(field) is not None and keep(days[r["d"]])]
+              if r.get(field) is not None and clean(days[r["d"]]) and keep(days[r["d"]])]
         return [x for x, _ in xs], [y for _, y in xs]
 
     s, y = series_of("k10_primary")
@@ -196,6 +204,10 @@ def evaluate(rows: list[dict[str, Any]], days: list[_dt.date]) -> dict[str, Any]
         sens[f] = _res(X.summarise(xs, ys, b=B, seed=SEED))
     xs, ys = series_of("k10_primary", lambda d: not E1_TEST[0] <= d <= E1_TEST[1])
     sens["k10_primary_e1_excluded"] = _res(X.summarise(xs, ys, b=B, seed=SEED))
+    full = [(r["k10_primary"], days[r["d"]].year) for r in rows if r.get("k10_primary")
+            is not None]
+    sens["k10_primary_full_window_incl_paper_view"] = _res(X.summarise(
+        [x for x, _ in full], [y for _, y in full], b=B, seed=SEED))
 
     def avg(f):
         v = [r[f] for r in rows if r.get(f) is not None]
