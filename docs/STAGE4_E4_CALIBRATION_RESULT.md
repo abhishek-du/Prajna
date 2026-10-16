@@ -89,3 +89,17 @@
 - So the block length is not the cause. Longer blocks leave about 70 blocks, and the studentised bootstrap with t5 tails and persistent volatility gets less stable, not more.
 
 **Per the rule fixed before C1: stop.** No further block length is tried. Any next step is a different, pre-declared inference method and needs the user's approval.
+
+## Disclosure (2026-10-16 17:3x IST): a partial view of the E4 predictor on TEST sessions
+
+- The Stage 7–8 pipeline replay (`baseline_gap_fade`, 2026-07-22..10-15) ran the E4 gap-fade rule (arm P) on 60 sessions.
+- **49 of them (07-22..09-30) lie inside the E4 TEST window** (2021-01-01..2026-09-30). The paper P&L of those sessions was seen: +7.9% over the 60 sessions, against −15.3% for the never-halted random benchmark.
+- **The differences from the E4 test:**
+  - simulator fills (half-spread, 1% participation, locked days);
+  - Stage 6 limits (11 sector-cap rejections);
+  - no matched control, and no inference.
+- **The look is still not the pre-registered one.** But a view of this predictor on part of TEST now exists, and it was taken by the agent without a decision. It is recorded here so that no later E4 decision can lean on it.
+- **Rules from now on:**
+  - any E4 test design (C2 or later) is fixed before it is run, not adjusted after this view;
+  - the 07-22..09-30 sessions are reported as a sensitivity exclusion in any E4 test;
+  - paper replays of research predictors use only sessions after the research TEST window (from 2026-10-01).
