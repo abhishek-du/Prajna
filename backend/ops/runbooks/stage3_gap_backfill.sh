@@ -3,6 +3,8 @@
 #
 #   ops/runbooks/stage3_gap_backfill.sh                 # --plan (default): read-only
 #   ops/runbooks/stage3_gap_backfill.sh --execute --confirm GAP-2026-09-30..2026-10-12
+#   ops/runbooks/stage3_gap_backfill.sh --range 2026-10-16..2026-10-16 [--execute --confirm
+#       GAP-2026-10-16..2026-10-16]   # any later gap: one bounded range (2026-10-16 incident)
 #
 # Sessions: 2026-09-30, 10-01, 10-05, 10-06, 10-07, 10-09, 10-12 (both snapshots).
 # 2026-10-08 is skipped TWICE: it is outside both bounded ranges, and its rows belong
@@ -32,6 +34,10 @@ while [[ $# -gt 0 ]]; do
     --plan) MODE=plan; shift ;;
     --execute) MODE=execute; shift ;;
     --confirm) GIVEN="$2"; shift 2 ;;
+    --range) A="${2%..*}"; Z="${2#*..}"
+             [[ "$A" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ && "$Z" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] \
+               || { echo "--range YYYY-MM-DD..YYYY-MM-DD" >&2; exit 2; }
+             RANGES=("$A $Z"); CONFIRM="GAP-$2"; SESSIONS=""; shift 2 ;;
     *) echo "usage: $0 [--plan] | --execute --confirm ${CONFIRM}" >&2; exit 2 ;;
   esac
 done
@@ -39,12 +45,13 @@ say() { echo "[$(TZ=Asia/Kolkata date '+%F %T IST')] $*"; }
 
 if [[ $MODE == plan ]]; then
   say "STAGE3_GAP_PLAN (read-only)"
-  "$P" - <<'PY'
+  GAP_RANGES="$(IFS=';'; echo "${RANGES[*]}")" "$P" - <<'PY'
 import asyncio, datetime as dt
 from sqlalchemy import text
 from app.db.engine import get_sessionmaker
 from app.features import engine as E, snapshots as SN
-RANGES = [(dt.date(2026, 9, 30), dt.date(2026, 10, 7)), (dt.date(2026, 10, 9), dt.date(2026, 10, 12))]
+import os
+RANGES = [tuple(dt.date.fromisoformat(x) for x in r.split()) for r in os.environ["GAP_RANGES"].split(";")]
 async def go():
     async with get_sessionmaker()() as s:
         await s.execute(text("set transaction isolation level repeatable read, read only"))
@@ -80,6 +87,19 @@ exec 9> var/run/stage3.lock
 flock -w 60 9 || { say "REFUSED: another Stage 3 run holds var/run/stage3.lock"; exit 3; }
 STAMP="$(TZ=Asia/Kolkata date +%Y%m%dT%H%M)"
 D="var/logs/stage3_gap/${STAMP}"; mkdir -p "$D"
+if [[ -z "$SESSIONS" ]]; then   # --range: the trading sessions inside it
+  set -- ${RANGES[0]}
+  SESSIONS="$("$P" -c "
+import asyncio, datetime as dt
+from app.db.engine import get_sessionmaker
+from app.features import snapshots as SN
+async def go():
+    async with get_sessionmaker()() as s:
+        print(','.join(map(str, await SN.sessions_between(s, dt.date.fromisoformat('$1'), dt.date.fromisoformat('$2')))))
+asyncio.run(go())")"
+  [[ -n "$SESSIONS" ]] || { say "REFUSED: no trading session in ${RANGES[0]}"; exit 2; }
+fi
+say "sessions: ${SESSIONS}"
 say "1/4 backup"
 ops/runbooks/db_backup.sh --label stage3_gap_backfill
 say "2/4 fingerprint before"
