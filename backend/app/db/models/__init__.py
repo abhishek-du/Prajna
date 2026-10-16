@@ -34,6 +34,7 @@ from app.db.models.market import (
     OhlcvPayloadBasis,
     TickArchive,
 )
+from app.db.models.paper import PaperDay, PaperFill, PaperOrder, PaperRun
 from app.db.models.preopen import PreopenBook, PreopenSessionStatus, PreopenTick
 from app.db.models.training import (
     TrainingDatasetRun,
@@ -73,4 +74,5 @@ __all__ = [
     "TrainingPolicyParam", "TrainingDatasetRun", "TrainingFeatureValue", "TrainingSessionDone",
     "TrainingLabel", "TrainingLabelRun", "TrainingSample", "TrainingSampleQuarantine",
     "TrainingSplit",
+    "PaperRun", "PaperOrder", "PaperFill", "PaperDay",
 ]

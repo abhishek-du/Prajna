@@ -4,7 +4,8 @@
 - APPROVED by the user 2026-10-15 ("start building the Stage 7–8 paper-trading infrastructure").
 - The design decisions below were taken under the user's delegation of 2026-10-15.
 - Step 1 is implemented: a pure simulator with tests.
-- Steps 2–5 are not built.
+- Step 2 is implemented (2026-10-16): migration 0022, `app/paper/store.py` and `prajna paper simulate`, with tests. Migration 0022 goes to production after a backup.
+- Steps 3–5 are not built.
 
 **Hard rule: PAPER ONLY.**
 - Nothing in this design places, modifies or cancels a real order.
@@ -35,7 +36,17 @@
 ## 3. Steps
 
 1. **Simulator core (`app/paper/sim.py`) + tests. DONE (this commit).** It has no database, no network and no scheduler.
-2. **Storage:** migration for the P8 tables, a writer (insert-only, idempotent per (run, session)), and a CLI `prajna paper simulate --targets <file> --session <date>`.
+2. **Storage. DONE (2026-10-16).**
+   - **Migration 0022:** `paper_run` (unique per strategy and session), `paper_order`, `paper_fill` and `paper_day`.
+     - Each table has a CHECK that `mode = 'PAPER'`, and an append-only trigger.
+     - `paper_order.product` must be `'MIS'`.
+     - `paper_fill`: qty > 0 exactly when the order is filled.
+   - **`app/paper/store.py`:**
+     - It reads the session's canonical 1d bar (raw prices) and the volume of the previous trading session.
+     - Writes need the write token.
+     - The same inputs again return `ALREADY_PRESENT`; different inputs are refused, so a stored day is never overwritten.
+   - **CLI:** `prajna paper simulate --session D --targets FILE --strategy NAME [--commit] [--fills]`. It runs as a dry run unless `--commit` is given, and refuses a dirty tree when committing.
+   - **Tests:** `tests/paper/test_store.py`.
 3. **Daily paper job:** after the close, it takes the day's targets from the strategy runner and simulates them on the day's bars (once those are stored), and writes `paper_day`. Cron is added only with the user's install, as before.
 4. **Stage 8 monitoring:**
    - daily P&L against benchmarks: the Nifty 50 open → close and the equal-weight universe (C0), cumulative curve and drawdown;

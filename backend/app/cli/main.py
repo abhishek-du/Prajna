@@ -2259,5 +2259,51 @@ def training_quarantine_samples(
 
     typer.echo(_json.dumps(asyncio.run(_go()), default=str, indent=1))
 
+paper_app = typer.Typer(help="Stage 7 paper execution (PAPER ONLY: no broker, no orders)")
+app.add_typer(paper_app, name="paper")
+
+
+@paper_app.command("simulate")
+def paper_simulate(
+    session: str = typer.Option(..., "--session", help="YYYY-MM-DD (its 1d bars stored)"),
+    targets: str = typer.Option(..., "--targets", help="file: one instrument key per line"),
+    strategy: str = typer.Option(..., "--strategy"),
+    commit: bool = typer.Option(False, "--commit", help="record the run (write token)"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"),
+    show_fills: bool = typer.Option(False, "--fills", help="print every fill"),
+):
+    """Simulate one MIS session of a target list on the stored bars (dry run unless
+    --commit). Idempotent per (strategy, session); a stored day is never overwritten."""
+    import json as _json
+    import pathlib as _pl
+
+    from app.db.engine import get_sessionmaker
+    from app.paper import store
+    from app.training import replay as RP
+
+    keys = [ln.strip() for ln in _pl.Path(targets).read_text().splitlines()
+            if ln.strip() and not ln.lstrip().startswith("#")]
+    code = RP.code_version()
+    if commit and code["dirty"]:
+        typer.echo("REFUSED: the working tree is dirty; commit first")
+        raise typer.Exit(3)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await store.simulate_session(s, strategy, _date(session), keys,
+                                                commit=commit, token=token,
+                                                code_git_sha=code["git_sha"])
+
+    try:
+        out = asyncio.run(_go())
+    except store.PaperRefused as e:
+        typer.echo(f"REFUSED: {e}")
+        raise typer.Exit(3)
+    if not show_fills:
+        out.pop("fills")
+    typer.echo(_json.dumps(out, default=str, indent=1))
+
+
 if __name__ == "__main__":
     app()
