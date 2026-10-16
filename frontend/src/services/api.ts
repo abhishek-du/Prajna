@@ -9,6 +9,7 @@ import type {
   BackupItem,
   CandleSeriesResponse,
   Envelope,
+  FeatureCardResponse,
   FundamentalsResponse,
   GlobalMarketsResponse,
   IngestRunItem,
@@ -16,16 +17,27 @@ import type {
   InstrumentListResponse,
   NewsResponse,
   OverviewData,
+  PreopenHistoryItem,
   RevisionItem,
   ScreenerResponse,
+  Stage1BackfillResponse,
+  Stage1CoverageResponse,
+  Stage2GateResponse,
+  Stage3GateResponse,
+  Stage3RegistryResponse,
+  Stage3SnapshotsResponse,
+  StagesOverviewResponse,
+  StockLifecycleItem,
+  StockPaperTradeItem,
   SystemHealthResponse,
   TechnicalValues,
   WarmupPlanResponse,
 } from '../types/api'
 
+
 const API_BASE = '/api/v1'
 
-async function fetchJson<T>(url: string): Promise<T> {
+async function fetchEnvelope<T>(url: string): Promise<Envelope<T>> {
   const resp = await fetch(url)
   if (!resp.ok) {
     let errDetail = resp.statusText
@@ -37,13 +49,25 @@ async function fetchJson<T>(url: string): Promise<T> {
     }
     throw new Error(`API Error [${resp.status}]: ${errDetail}`)
   }
-  const envelope: Envelope<T> = await resp.json()
-  return envelope.data
+  return await resp.json()
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const env = await fetchEnvelope<T>(url)
+  return env.data
 }
 
 export const api = {
   getOverview: (): Promise<OverviewData> => {
     return fetchJson<OverviewData>(`${API_BASE}/overview`)
+  },
+
+  getStages: (): Promise<StagesOverviewResponse> => {
+    return fetchJson<StagesOverviewResponse>(`${API_BASE}/stages`)
+  },
+
+  getStagesEnvelope: (): Promise<Envelope<StagesOverviewResponse>> => {
+    return fetchEnvelope<StagesOverviewResponse>(`${API_BASE}/stages`)
   },
 
   getInstruments: (params?: {
@@ -68,6 +92,24 @@ export const api = {
 
   getInstrumentDetail: (key: string): Promise<InstrumentDetail> => {
     return fetchJson<InstrumentDetail>(`${API_BASE}/instruments/${encodeURIComponent(key)}`)
+  },
+
+  getInstrumentPreopen: (key: string, limit: number = 60): Promise<PreopenHistoryItem[]> => {
+    return fetchJson<PreopenHistoryItem[]>(
+      `${API_BASE}/instruments/${encodeURIComponent(key)}/preopen?limit=${limit}`
+    )
+  },
+
+  getInstrumentPaperTrades: (key: string, limit: number = 100): Promise<StockPaperTradeItem[]> => {
+    return fetchJson<StockPaperTradeItem[]>(
+      `${API_BASE}/instruments/${encodeURIComponent(key)}/paper-trades?limit=${limit}`
+    )
+  },
+
+  getInstrumentLifecycle: (key: string): Promise<StockLifecycleItem> => {
+    return fetchJson<StockLifecycleItem>(
+      `${API_BASE}/instruments/${encodeURIComponent(key)}/lifecycle`
+    )
   },
 
   getCandles: (
@@ -184,4 +226,36 @@ export const api = {
     if (params?.fraction) sp.append('fraction', params.fraction.toString())
     return fetchJson<WarmupPlanResponse>(`${API_BASE}/ops/warmup?${sp.toString()}`)
   },
+
+  getStage1Coverage: (): Promise<Stage1CoverageResponse> => {
+    return fetchJson<Stage1CoverageResponse>(`${API_BASE}/stages/1/coverage`)
+  },
+
+  getStage1Backfill: (): Promise<Stage1BackfillResponse> => {
+    return fetchJson<Stage1BackfillResponse>(`${API_BASE}/stages/1/backfill`)
+  },
+
+  getStage2Gate: (): Promise<Stage2GateResponse> => {
+    return fetchJson<Stage2GateResponse>(`${API_BASE}/stages/2/gate`)
+  },
+
+  getStage3Gate: (): Promise<Stage3GateResponse> => {
+    return fetchJson<Stage3GateResponse>(`${API_BASE}/stages/3/gate`)
+  },
+
+  getStage3Registry: (): Promise<Stage3RegistryResponse> => {
+    return fetchJson<Stage3RegistryResponse>(`${API_BASE}/stages/3/registry`)
+  },
+
+  getStage3Snapshots: (date?: string): Promise<Stage3SnapshotsResponse> => {
+    const q = date ? `?date=${encodeURIComponent(date)}` : ''
+    return fetchJson<Stage3SnapshotsResponse>(`${API_BASE}/stages/3/snapshots${q}`)
+  },
+
+  getFeatureCard: (key: string, snapshot: string = 'PRE_OPEN', date?: string): Promise<FeatureCardResponse> => {
+    const sp = new URLSearchParams({ snapshot })
+    if (date) sp.append('date', date)
+    return fetchJson<FeatureCardResponse>(`${API_BASE}/features/${encodeURIComponent(key)}?${sp.toString()}`)
+  },
 }
+

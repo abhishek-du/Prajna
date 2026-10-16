@@ -8,20 +8,25 @@ import {
   CrosshairMode,
   HistogramSeries,
   createChart,
+  createSeriesMarkers,
 } from 'lightweight-charts'
 import {
   AlertTriangle,
   Calendar,
+  ChevronDown,
+  ChevronUp,
   Clock,
   Maximize2,
   RefreshCw,
+  ShieldAlert,
   Sliders,
+  Tag,
   Wifi,
   WifiOff,
 } from 'lucide-react'
 import { api } from '../../services/api'
 import { type LiveTickMessage, wsService } from '../../services/websocket'
-import type { Candle } from '../../types/api'
+import type { Candle, CorporateActionMarker, ExcludedBarMarker } from '../../types/api'
 
 interface CandleChartProps {
   instrumentKey: string
@@ -36,6 +41,7 @@ export const CandleChart: React.FC<CandleChartProps> = ({
   const chartRef = useRef<IChartApi | null>(null)
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null)
+  const seriesMarkersRef = useRef<any>(null)
 
   const [timeframe, setTimeframe] = useState<string>('1d')
   const [adjusted, setAdjusted] = useState<boolean>(false)
@@ -47,6 +53,9 @@ export const CandleChart: React.FC<CandleChartProps> = ({
   const [latestCandle, setLatestCandle] = useState<Candle | null>(null)
   const [isStale, setIsStale] = useState<boolean>(false)
   const [wsStatus, setWsStatus] = useState<'CONNECTED' | 'RECONNECTING' | 'DISCONNECTED'>('DISCONNECTED')
+  const [corporateActions, setCorporateActions] = useState<CorporateActionMarker[]>([])
+  const [excludedBars, setExcludedBars] = useState<ExcludedBarMarker[]>([])
+  const [showMarkersDrawer, setShowMarkersDrawer] = useState<boolean>(true)
 
   // Listen to WebSocket connection status
   useEffect(() => {
@@ -197,6 +206,14 @@ export const CandleChart: React.FC<CandleChartProps> = ({
 
     return () => {
       window.removeEventListener('resize', handleResize)
+      if (seriesMarkersRef.current) {
+        try {
+          seriesMarkersRef.current.detach()
+        } catch {
+          // ignore
+        }
+        seriesMarkersRef.current = null
+      }
       chart.remove()
       chartRef.current = null
       candleSeriesRef.current = null
@@ -217,6 +234,10 @@ export const CandleChart: React.FC<CandleChartProps> = ({
 
       const rawCandles = res.candles
       setCandlesCount(rawCandles.length)
+      const caList = res.corporate_actions || []
+      const ebList = res.excluded_bars || []
+      setCorporateActions(caList)
+      setExcludedBars(ebList)
 
       if (rawCandles.length > 0) {
         setLatestCandle(rawCandles[rawCandles.length - 1])
@@ -248,6 +269,90 @@ export const CandleChart: React.FC<CandleChartProps> = ({
       }
       if (volumeSeriesRef.current) {
         volumeSeriesRef.current.setData(formattedVolumes)
+      }
+
+      // Build markers for corporate actions and excluded bars
+      const markers: Array<{
+        time: UTCTimestamp
+        position: 'aboveBar' | 'belowBar'
+        color: string
+        shape: 'arrowDown' | 'arrowUp' | 'circle' | 'square'
+        text: string
+        id?: string
+      }> = []
+
+      // Map market_date to formatted candle time
+      const dateToCandleTime = new Map<string, UTCTimestamp>()
+      rawCandles.forEach((c) => {
+        const timeSec = Math.floor(new Date(c.bar_start_utc).getTime() / 1000) as UTCTimestamp
+        dateToCandleTime.set(c.market_date, timeSec)
+      })
+
+      // Add Corporate Action markers
+      caList.forEach((ca) => {
+        let markerTime: UTCTimestamp | undefined = dateToCandleTime.get(ca.ex_date)
+        if (!markerTime) {
+          const match = rawCandles.find((c) => c.market_date >= ca.ex_date)
+          if (match) {
+            markerTime = Math.floor(new Date(match.bar_start_utc).getTime() / 1000) as UTCTimestamp
+          }
+        }
+        if (markerTime) {
+          let label = ca.action_type
+          if (ca.ratio_from && ca.ratio_to) {
+            label += ` ${ca.ratio_from}:${ca.ratio_to}`
+          } else if (ca.amount) {
+            label += ` ₹${ca.amount}`
+          }
+          markers.push({
+            time: markerTime,
+            position: 'aboveBar',
+            color: '#38bdf8', // sky-400
+            shape: 'arrowDown',
+            text: `CA: ${label}`,
+            id: `ca-${ca.id || ca.ex_date}`,
+          })
+        }
+      })
+
+      // Add Excluded Bar markers
+      ebList.forEach((eb) => {
+        let markerTime: UTCTimestamp | undefined
+        if (timeframe === '1d') {
+          markerTime = dateToCandleTime.get(eb.session_date)
+        } else {
+          const ebTimeSec = Math.floor(new Date(eb.bar_start_utc).getTime() / 1000)
+          const match = formattedCandles.find((c) => Math.abs(Number(c.time) - ebTimeSec) <= 60)
+          if (match) markerTime = match.time
+        }
+        if (!markerTime && rawCandles.length > 0) {
+          const match = rawCandles.find((c) => c.market_date === eb.session_date)
+          if (match) {
+            markerTime = Math.floor(new Date(match.bar_start_utc).getTime() / 1000) as UTCTimestamp
+          }
+        }
+        if (markerTime) {
+          const shortReason = eb.reason.length > 20 ? `${eb.reason.substring(0, 18)}...` : eb.reason
+          markers.push({
+            time: markerTime,
+            position: 'belowBar',
+            color: '#f43f5e', // rose-500
+            shape: 'arrowUp',
+            text: `EXCL: ${shortReason}`,
+            id: `eb-${eb.bar_start_utc}-${eb.reason}`,
+          })
+        }
+      })
+
+      // Sort markers strictly ascending by time
+      markers.sort((a, b) => Number(a.time) - Number(b.time))
+
+      if (candleSeriesRef.current) {
+        if (!seriesMarkersRef.current) {
+          seriesMarkersRef.current = createSeriesMarkers(candleSeriesRef.current, markers)
+        } else {
+          seriesMarkersRef.current.setMarkers(markers)
+        }
       }
 
       if (chartRef.current) {
@@ -420,6 +525,127 @@ export const CandleChart: React.FC<CandleChartProps> = ({
         )}
 
         <div ref={chartContainerRef} className="w-full h-[480px]" />
+      </div>
+
+      {/* Markers & Point-in-Time Corporate Action / Excluded Bar Drawer */}
+      <div className="border-t border-slate-800 bg-slate-950/90 text-xs">
+        <button
+          onClick={() => setShowMarkersDrawer((prev) => !prev)}
+          className="w-full px-4 py-2.5 flex items-center justify-between text-slate-300 hover:bg-slate-900/60 transition select-none"
+        >
+          <div className="flex items-center space-x-3">
+            <span className="font-semibold text-slate-200 flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5 text-emerald-400" />
+              Chart Event Markers
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-sky-950/60 border border-sky-800 text-sky-300">
+              <Tag className="w-3 h-3 text-sky-400" />
+              {corporateActions.length} Corporate Action{corporateActions.length === 1 ? '' : 's'}
+            </span>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-rose-950/60 border border-rose-800 text-rose-300">
+              <ShieldAlert className="w-3 h-3 text-rose-400" />
+              {excludedBars.length} Excluded Bar{excludedBars.length === 1 ? '' : 's'}
+            </span>
+          </div>
+          <div className="flex items-center space-x-1.5 text-slate-400 text-xs">
+            <span>{showMarkersDrawer ? 'Collapse' : 'Expand Details'}</span>
+            {showMarkersDrawer ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </div>
+        </button>
+
+        {showMarkersDrawer && (
+          <div className="px-4 pb-4 pt-1 space-y-3 border-t border-slate-800/60">
+            {corporateActions.length === 0 && excludedBars.length === 0 ? (
+              <p className="text-slate-500 py-2 text-center">
+                No corporate actions or quarantined bars in the active chart range.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Corporate Actions Summary Table */}
+                <div>
+                  <h4 className="text-xs font-semibold text-sky-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <Tag className="w-3 h-3" />
+                    Corporate Actions (Point-in-Time)
+                  </h4>
+                  {corporateActions.length === 0 ? (
+                    <div className="text-slate-500 text-xs bg-slate-900/40 p-2.5 rounded border border-slate-800">
+                      No corporate actions recorded for this instrument.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded border border-slate-800 bg-slate-900/40">
+                      <table className="w-full text-[11px] text-left">
+                        <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800">
+                          <tr>
+                            <th className="px-2 py-1.5 font-medium">Ex-Date</th>
+                            <th className="px-2 py-1.5 font-medium">Type</th>
+                            <th className="px-2 py-1.5 font-medium">Ratio / Amt</th>
+                            <th className="px-2 py-1.5 font-medium">Factor</th>
+                            <th className="px-2 py-1.5 font-medium">Source</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800 font-mono">
+                          {corporateActions.map((ca, idx) => (
+                            <tr key={idx} className="hover:bg-slate-800/40">
+                              <td className="px-2 py-1.5 text-slate-200">{ca.ex_date}</td>
+                              <td className="px-2 py-1.5 text-sky-400 font-bold">{ca.action_type}</td>
+                              <td className="px-2 py-1.5 text-slate-300">
+                                {ca.ratio_from && ca.ratio_to
+                                  ? `${ca.ratio_from}:${ca.ratio_to}`
+                                  : ca.amount !== null && ca.amount !== undefined
+                                    ? `₹${ca.amount}`
+                                    : '—'}
+                              </td>
+                              <td className="px-2 py-1.5 text-slate-400">
+                                {ca.factor !== null && ca.factor !== undefined ? ca.factor.toFixed(4) : '—'}
+                              </td>
+                              <td className="px-2 py-1.5 text-slate-500">{ca.source || '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Excluded Bars Summary Table */}
+                <div>
+                  <h4 className="text-xs font-semibold text-rose-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <ShieldAlert className="w-3 h-3" />
+                    Quarantined / Excluded Bars (Canon Exclusions)
+                  </h4>
+                  {excludedBars.length === 0 ? (
+                    <div className="text-slate-500 text-xs bg-slate-900/40 p-2.5 rounded border border-slate-800">
+                      No bars quarantined or excluded in this timeframe window.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto rounded border border-slate-800 bg-slate-900/40 max-h-48">
+                      <table className="w-full text-[11px] text-left">
+                        <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 sticky top-0">
+                          <tr>
+                            <th className="px-2 py-1.5 font-medium">Date</th>
+                            <th className="px-2 py-1.5 font-medium">Bar Start (IST)</th>
+                            <th className="px-2 py-1.5 font-medium">Timeframe</th>
+                            <th className="px-2 py-1.5 font-medium">Exclusion Reason</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800 font-mono">
+                          {excludedBars.map((eb, idx) => (
+                            <tr key={idx} className="hover:bg-slate-800/40">
+                              <td className="px-2 py-1.5 text-slate-200">{eb.session_date}</td>
+                              <td className="px-2 py-1.5 text-slate-400">{eb.bar_start_ist || eb.bar_start_utc}</td>
+                              <td className="px-2 py-1.5 text-slate-300 uppercase">{eb.timeframe}</td>
+                              <td className="px-2 py-1.5 text-rose-400 font-sans">{eb.reason}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

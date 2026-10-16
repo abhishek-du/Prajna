@@ -123,11 +123,43 @@ class Candle(BaseModel):
     basis_confidence: str | None = None
 
 
+class CorporateActionMarker(BaseModel):
+    id: int | None = None
+    action_type: str
+    ex_date: _dt.date
+    record_date: _dt.date | None = None
+    announcement_date: _dt.date | None = None
+    amount: float | None = None
+    ratio_from: float | None = None
+    ratio_to: float | None = None
+    factor: float | None = None
+    vendor_applied: bool | None = None
+    factor_status: str | None = None
+    source: str | None = None
+
+
+class ExcludedBarMarker(BaseModel):
+    instrument_key: str
+    timeframe: str
+    session_date: _dt.date
+    bar_start_utc: _dt.datetime
+    bar_start_ist: str
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    close: float | None = None
+    volume: float | None = None
+    reason: str
+    knowable_at: _dt.datetime | None = None
+
+
 class CandleSeriesResponse(BaseModel):
     instrument_key: str
     timeframe: str
     adjusted: bool
     candles: list[Candle]
+    corporate_actions: list[CorporateActionMarker] = Field(default_factory=list)
+    excluded_bars: list[ExcludedBarMarker] = Field(default_factory=list)
     refused: dict[str, int] | None = None
     total_count: int
 
@@ -422,3 +454,274 @@ class WarmupPlanResponse(BaseModel):
     total_requests: int
     total_hours_at_fraction: float
     deferred_full_backfill_requests: str
+
+
+# ── Section 13: 8 Stages Control Room ──────────────────────────────────────
+
+class StageSummary(BaseModel):
+    stage_number: int
+    name: str
+    status: str  # "PASS" | "COMPLETE" | "LOCKED" | "ACTIVE" | "CALIBRATING" | "WARNING" | "FAIL"
+    status_label: str
+    last_change: _dt.datetime | None = None
+    key_metric_label: str
+    key_metric_value: str
+    alert_count: int = 0
+    alerts: list[str] = Field(default_factory=list)
+    evidence_summary: dict[str, Any] = Field(default_factory=dict)
+    as_of: _dt.datetime | None = None
+
+
+class JobAttemptItem(BaseModel):
+    time_ist: str
+    status: str  # "DONE" | "RUNNING" | "FAILED" | "MISSED" | "LATE/MANUAL" | "BACKFILLED" | "WAITING_CLOSE"
+    detail: str
+    delay_minutes: int | None = None
+
+
+class ScheduledJobItem(BaseModel):
+    time_ist: str
+    name: str
+    stage: str
+    status: str  # "DONE" | "RUNNING" | "FAILED" | "MISSED" | "PENDING" | "WAITING_CLOSE" | "BACKFILLED"
+    detail: str
+    last_run_at: _dt.datetime | None = None
+    schedule_status: str = "UNKNOWN"  # "SCHEDULED" | "NOT_SCHEDULED" | "MANUAL RUN" | "UNKNOWN"
+    delay_minutes: int | None = None
+    attempts: list[JobAttemptItem] = Field(default_factory=list)
+
+
+class SystemAlertItem(BaseModel):
+    timestamp: _dt.datetime | None = None
+    source: str  # "supervisor" | "gate" | "stage3_event" | "ingest"
+    severity: str  # "ALERT" | "WARNING" | "INFO"
+    message: str
+    stage: int | None = None
+
+
+class StagesOverviewResponse(BaseModel):
+    stages: list[StageSummary]
+    timeline: list[ScheduledJobItem]
+    alerts: list[SystemAlertItem]
+    market_state: MarketStatus
+
+
+# ── Section 14: Stages 1–3 Detailed Schemas ─────────────────────────────────
+
+class TimeframeCoverageItem(BaseModel):
+    timeframe: str
+    target_start: str
+    min_date: _dt.date | None = None
+    max_date: _dt.date | None = None
+    ranges_count: int
+    bars_count: int
+    quarantined_bars: int
+    data_ranges: int = 0
+    empty_ranges: int = 0
+    pending_ranges: int = 0
+    backfill_pct: float | None = None
+
+
+class ExcludedBarItem(BaseModel):
+    instrument_key: str
+    timeframe: str
+    session_date: _dt.date | None = None
+    bar_start_utc: _dt.datetime | None = None
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    close: float | None = None
+    volume: float | None = None
+    reason: str
+    knowable_at: _dt.datetime | None = None
+
+
+class Stage1CoverageResponse(BaseModel):
+    timeframes: list[TimeframeCoverageItem]
+    total_coverage_ranges: int
+    total_bars: int
+    excluded_bars_total: int
+    excluded_reasons_breakdown: dict[str, int]
+    recent_excluded_bars: list[ExcludedBarItem]
+    corporate_actions_total: int
+    corporate_actions_by_type: dict[str, int]
+    factors_total: int
+    factors_by_status: dict[str, int]
+    master_instruments_active: int
+    master_instruments_removed: int
+    master_sectors_breakdown: dict[str, int]
+    recent_master_changes: list[dict[str, Any]]
+
+
+class BackfillTimeframeProgress(BaseModel):
+    timeframe: str
+    from_date: str
+    covered: int
+    total: int
+    pct: float
+    rate_per_hour: float | None = None
+    eta_hours: float | None = None
+    as_of: _dt.datetime | None = None
+
+
+class Stage1BackfillResponse(BaseModel):
+    supervisor_state: str  # "RUNNING" | "WAITING_CLOSE" | "PAUSED" | "WINDOW_CLOSED" | "DONE"
+    free_gb: float | None = None
+    stages: str | None = None
+    process: str | None = None
+    last_status: str | None = None
+    progress: list[BackfillTimeframeProgress]
+    recent_progress_lines: list[str]
+    recent_supervisor_lines: list[str]
+
+
+class GateCriterionItem(BaseModel):
+    id: str
+    name: str | None = None
+    question: str | None = None
+    status: str  # "PASS" | "FAIL" | "DEFERRED" | "WAITING"
+    notes: str = ""
+    evidence: dict[str, Any] = Field(default_factory=dict)
+    db_state: dict[str, Any] = Field(default_factory=dict)
+
+
+class Stage2GateResponse(BaseModel):
+    overall: str
+    generated_at: _dt.datetime | None = None
+    age_hours: float | None = None
+    criteria: list[GateCriterionItem]
+    coverage_state_matrix: dict[str, dict[str, int]]
+    quarantined_total: int
+
+
+class Stage3EventItem(BaseModel):
+    id: int
+    at: _dt.datetime
+    event: str
+    mode: str
+    operator: str | None = None
+    detail: dict[str, Any] = Field(default_factory=dict)
+    run_id: str | None = None
+
+
+class Stage3GateResponse(BaseModel):
+    overall: str
+    generated_at: _dt.datetime | None = None
+    criteria: list[GateCriterionItem]
+    refusal_audit: list[Stage3EventItem]
+    refusal_count_today: int
+    events_count_total: int
+
+
+class FeatureRegistryItem(BaseModel):
+    id: str
+    group: str
+    definition: str
+    status: str
+    param_status: str
+    params: dict[str, Any] = Field(default_factory=dict)
+    inputs: list[str] = Field(default_factory=list)
+    lookback_sessions: int = 0
+    scope: str = "INSTRUMENT"
+    snapshots: list[str] = Field(default_factory=list)
+    version: int = 1
+
+
+class Stage3RegistryResponse(BaseModel):
+    version: str
+    registry_sha256: str
+    feature_count: int
+    implemented_count: int
+    proposed_parameters: int
+    diagram_items: int
+    diagram_items_by_status: dict[str, int]
+    groups: dict[str, list[str]]
+    features: list[FeatureRegistryItem]
+
+
+class Stage3SnapshotsResponse(BaseModel):
+    session_date: _dt.date
+    snapshots_available: list[str]
+    distinct_instruments_count: int
+    total_values: int
+    total_nulls: int
+    null_reasons_breakdown: dict[str, int]
+    snapshot_details: dict[str, Any]
+
+
+class FeatureValueItem(BaseModel):
+    feature_id: str
+    group: str
+    definition: str | None = None
+    value: float | None = None
+    reason: str | None = None
+    knowable_at: _dt.datetime | None = None
+    computed_at: _dt.datetime | None = None
+
+
+class FeatureCardResponse(BaseModel):
+    instrument_key: str
+    session_date: _dt.date
+    snapshot: str
+    feature_version: str
+    registry_sha256: str
+    values_count: int
+    nulls_count: int
+    features: list[FeatureValueItem]
+
+
+# ── Section 11: Stock Page Upgrade (Step 3) ─────────────────────────────────
+
+class PreopenHistoryItem(BaseModel):
+    market_date: _dt.date
+    event_ts: _dt.datetime
+    event_ts_ist: str
+    iep: float | None = None
+    ieq: int | None = None
+    tbq: float | None = None
+    tsq: float | None = None
+    imbalance_qty: int | None = None
+    imbalance_side: str | None = None
+    rp: float | None = None
+    ltp: float | None = None
+    gap_pct: float | None = None
+    cas_eligible: bool | None = None
+    knowable_at: _dt.datetime | None = None
+
+
+class StockPaperTradeItem(BaseModel):
+    id: int
+    run_id: str
+    strategy: str
+    session_date: _dt.date
+    status: str
+    reason: str | None = None
+    qty: int
+    buy_px: float | None = None
+    sell_px: float | None = None
+    buy_value_inr: float | None = None
+    sell_value_inr: float | None = None
+    pnl_inr: float | None = None
+    charges: dict[str, Any] | None = None
+    mode: str = "PAPER"
+
+
+class StockLifecycleItem(BaseModel):
+    instrument_id: int
+    instrument_key: str
+    trading_symbol: str
+    name: str | None = None
+    isin: str | None = None
+    segment: str | None = None
+    exchange: str | None = None
+    instrument_type: str | None = None
+    lifecycle_status: str | None = None
+    first_seen: _dt.date | None = None
+    last_seen: _dt.date | None = None
+    included: bool | None = None
+    filter_reason: str | None = None
+    sector: str | None = None
+    lifecycle_periods: list[dict[str, Any]] = Field(default_factory=list)
+    attribute_versions: list[dict[str, Any]] = Field(default_factory=list)
+
+

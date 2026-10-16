@@ -122,11 +122,43 @@ export interface Candle {
   basis_confidence?: string | null;
 }
 
+export interface CorporateActionMarker {
+  id: number | null;
+  action_type: string;
+  ex_date: string;
+  record_date: string | null;
+  announcement_date: string | null;
+  amount: number | null;
+  ratio_from: number | null;
+  ratio_to: number | null;
+  factor: number | null;
+  vendor_applied: boolean | null;
+  factor_status: string | null;
+  source: string | null;
+}
+
+export interface ExcludedBarMarker {
+  instrument_key: string;
+  timeframe: string;
+  session_date: string;
+  bar_start_utc: string;
+  bar_start_ist: string;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number | null;
+  volume: number | null;
+  reason: string;
+  knowable_at: string | null;
+}
+
 export interface CandleSeriesResponse {
   instrument_key: string;
   timeframe: string;
   adjusted: boolean;
   candles: Candle[];
+  corporate_actions?: CorporateActionMarker[];
+  excluded_bars?: ExcludedBarMarker[];
   refused?: Record<string, number> | null;
   total_count: number;
 }
@@ -351,3 +383,316 @@ export interface WarmupPlanResponse {
   total_hours_at_fraction: number;
   deferred_full_backfill_requests: string;
 }
+
+export interface StageSummary {
+  stage_number: number;
+  name: string;
+  status: string;
+  status_label: string;
+  last_change: string | null;
+  key_metric_label: string;
+  key_metric_value: string;
+  alert_count: number;
+  alerts: string[];
+  evidence_summary: Record<string, unknown>;
+  as_of: string | null;
+}
+
+export interface JobAttemptItem {
+  time_ist: string;
+  status: string;
+  detail: string;
+  delay_minutes?: number | null;
+}
+
+export interface ScheduledJobItem {
+  time_ist: string;
+  name: string;
+  stage: string;
+  status: string;
+  detail: string;
+  last_run_at: string | null;
+  schedule_status?: string;
+  delay_minutes?: number | null;
+  attempts?: JobAttemptItem[];
+}
+
+export interface SystemAlertItem {
+  timestamp: string | null;
+  source: string;
+  severity: 'ALERT' | 'WARNING' | 'INFO';
+  message: string;
+  stage: number | null;
+}
+
+export interface StagesOverviewResponse {
+  stages: StageSummary[];
+  timeline: ScheduledJobItem[];
+  alerts: SystemAlertItem[];
+  market_state: MarketStatusData;
+}
+
+// ── Stages 1–3 Detailed Interfaces ──────────────────────────────────────────
+
+export interface TimeframeCoverageItem {
+  timeframe: string;
+  target_start: string;
+  min_date: string | null;
+  max_date: string | null;
+  ranges_count: number;
+  bars_count: number;
+  quarantined_bars: number;
+  data_ranges: number;
+  empty_ranges: number;
+  pending_ranges: number;
+  backfill_pct?: number | null;
+}
+
+export interface ExcludedBarItem {
+  instrument_key: string;
+  timeframe: string;
+  session_date: string | null;
+  bar_start_utc: string | null;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number | null;
+  volume: number | null;
+  reason: string;
+  knowable_at: string | null;
+}
+
+export interface MasterChangeItem {
+  instrument_key: string;
+  trading_symbol: string;
+  name: string | null;
+  isin: string | null;
+  lifecycle_status: string;
+  lifecycle_since: string | null;
+  filter_reason: string | null;
+}
+
+export interface Stage1CoverageResponse {
+  timeframes: TimeframeCoverageItem[];
+  total_coverage_ranges: number;
+  total_bars: number;
+  excluded_bars_total: number;
+  excluded_reasons_breakdown: Record<string, number>;
+  recent_excluded_bars: ExcludedBarItem[];
+  corporate_actions_total: number;
+  corporate_actions_by_type: Record<string, number>;
+  factors_total: number;
+  factors_by_status: Record<string, number>;
+  master_instruments_active: number;
+  master_instruments_removed: number;
+  master_sectors_breakdown: Record<string, number>;
+  recent_master_changes: MasterChangeItem[];
+}
+
+export interface BackfillTimeframeProgress {
+  timeframe: string;
+  from_date: string;
+  covered: number;
+  total: number;
+  pct: number;
+  rate_per_hour: number | null;
+  eta_hours: number | null;
+  as_of?: string | null;
+}
+
+export interface Stage1BackfillResponse {
+  supervisor_state: string;
+  free_gb: number | null;
+  stages: string | null;
+  process: string | null;
+  last_status: string | null;
+  progress: BackfillTimeframeProgress[];
+  recent_progress_lines: string[];
+  recent_supervisor_lines: string[];
+}
+
+export interface GateCriterionItem {
+  id: string;
+  name: string | null;
+  question: string | null;
+  status: string;
+  notes: string;
+  evidence: Record<string, unknown>;
+  db_state: Record<string, unknown>;
+}
+
+export interface Stage2GateResponse {
+  overall: string;
+  generated_at: string | null;
+  age_hours: number | null;
+  criteria: GateCriterionItem[];
+  coverage_state_matrix: Record<string, Record<string, number>>;
+  quarantined_total: number;
+}
+
+export interface Stage3EventItem {
+  id: number;
+  at: string;
+  event: string;
+  mode: string;
+  operator: string | null;
+  detail: Record<string, unknown>;
+  run_id: string | null;
+}
+
+export interface Stage3GateResponse {
+  overall: string;
+  generated_at: string | null;
+  criteria: GateCriterionItem[];
+  refusal_audit: Stage3EventItem[];
+  refusal_count_today: number;
+  events_count_total: number;
+}
+
+export interface FeatureRegistryItem {
+  id: string;
+  group: string;
+  definition: string;
+  status: string;
+  param_status: string;
+  params: Record<string, unknown>;
+  inputs: string[];
+  lookback_sessions: number;
+  scope: string;
+  snapshots: string[];
+  version: number;
+}
+
+export interface Stage3RegistryResponse {
+  version: string;
+  registry_sha256: string;
+  feature_count: number;
+  implemented_count: number;
+  proposed_parameters: number;
+  diagram_items: number;
+  diagram_items_by_status: Record<string, number>;
+  groups: Record<string, string[]>;
+  features: FeatureRegistryItem[];
+}
+
+export interface SnapshotDetail {
+  total_rows: number;
+  values_count: number;
+  nulls_count: number;
+  instruments_count: number;
+  completeness_pct: number;
+}
+
+export interface Stage3SnapshotsResponse {
+  session_date: string;
+  snapshots_available: string[];
+  distinct_instruments_count: number;
+  total_values: number;
+  total_nulls: number;
+  null_reasons_breakdown: Record<string, number>;
+  snapshot_details: Record<string, SnapshotDetail>;
+}
+
+export interface FeatureValueItem {
+  feature_id: string;
+  group: string;
+  definition: string | null;
+  value: number | null;
+  reason: string | null;
+  knowable_at: string | null;
+  computed_at: string | null;
+}
+
+export interface FeatureCardResponse {
+  instrument_key: string;
+  session_date: string;
+  snapshot: string;
+  feature_version: string;
+  registry_sha256: string;
+  values_count: number;
+  nulls_count: number;
+  features: FeatureValueItem[];
+}
+
+// ── Stock Page Upgrade (Step 3) ──────────────────────────────────────────────
+
+export interface PreopenHistoryItem {
+  market_date: string;
+  event_ts: string;
+  event_ts_ist: string;
+  iep: number | null;
+  ieq: number | null;
+  tbq: number | null;
+  tsq: number | null;
+  imbalance_qty: number | null;
+  imbalance_side: 'BUY' | 'SELL' | 'BALANCED' | null;
+  rp: number | null;
+  ltp: number | null;
+  gap_pct: number | null;
+  cas_eligible: boolean | null;
+  knowable_at: string | null;
+}
+
+export interface StockPaperTradeItem {
+  id: number;
+  run_id: string;
+  strategy: string;
+  session_date: string;
+  status: string;
+  reason: string | null;
+  qty: number;
+  buy_px: number | null;
+  sell_px: number | null;
+  buy_value_inr: number | null;
+  sell_value_inr: number | null;
+  pnl_inr: number | null;
+  charges: {
+    dp?: number;
+    brokerage?: number;
+    statutory?: number;
+    exchange?: number;
+    sebi?: number;
+    gst?: number;
+    stt?: number;
+  } | null;
+  mode: string;
+}
+
+export interface StockLifecyclePeriod {
+  status: string;
+  valid_from: string;
+  valid_to: string;
+  reason: string | null;
+  knowable_at: string | null;
+}
+
+export interface StockAttributeVersion {
+  id: number;
+  valid_from: string;
+  valid_to: string;
+  trading_symbol: string;
+  isin: string | null;
+  lot_size: number | null;
+  tick_size: string | number | null;
+}
+
+export interface StockLifecycleItem {
+  instrument_id: number;
+  instrument_key: string;
+  trading_symbol: string;
+  name: string | null;
+  isin: string | null;
+  segment: string | null;
+  exchange: string | null;
+  instrument_type: string | null;
+  lifecycle_status: string | null;
+  first_seen: string | null;
+  last_seen: string | null;
+  included: boolean | null;
+  filter_reason: string | null;
+  sector: string | null;
+  lifecycle_periods: StockLifecyclePeriod[];
+  attribute_versions: StockAttributeVersion[];
+}
+
+

@@ -1,7 +1,16 @@
-import { useState, useEffect } from 'react'
-import { Navbar, type NavTab } from './components/Navbar'
-import { OverviewDashboard } from './components/Overview/OverviewDashboard'
+import React from 'react'
+import { BrowserRouter, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ThemeProvider } from './context/ThemeContext'
+import { AppLayout } from './components/Layout/AppLayout'
+import { ControlRoomView } from './components/ControlRoom/ControlRoomView'
+import { StagePlaceholderView } from './components/Stages/StagePlaceholderView'
+import { Stage1View } from './components/Stages/Stage1View'
+import { Stage2View } from './components/Stages/Stage2View'
+import { Stage3View } from './components/Stages/Stage3View'
+import { StockDetailPage } from './components/Stocks/StockDetailPage'
 import { StockExplorer } from './components/Explorer/StockExplorer'
+
 import { CandleChart } from './components/Chart/CandleChart'
 import { TechnicalDataView } from './components/Technicals/TechnicalDataView'
 import { FundamentalsView } from './components/Fundamentals/FundamentalsView'
@@ -12,164 +21,107 @@ import { SignalsView } from './components/Signals/SignalsView'
 import { PortfolioView } from './components/Portfolio/PortfolioView'
 import { SystemHealthView } from './components/Health/SystemHealthView'
 import { AdminOpsView } from './components/Admin/AdminOpsView'
-import { wsService } from './services/websocket'
+
+// Create TanStack Query Client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 10_000,
+      retry: 2,
+      refetchOnWindowFocus: false,
+    },
+  },
+})
+
+// Route wrapper components to handle navigation & query params cleanly
+function ExplorerPage() {
+  const navigate = useNavigate()
+  return (
+    <StockExplorer
+      selectedKey="NSE_INDEX|Nifty 50"
+      onSelectInstrument={(key: string) => navigate(`/stocks/${encodeURIComponent(key)}`)}
+    />
+  )
+}
+
+function ChartPage() {
+  const [params] = useSearchParams()
+  const key = params.get('key') || 'NSE_INDEX|Nifty 50'
+  return (
+    <div className="space-y-4">
+      <div className="border-b border-slate-800 pb-3">
+        <h1 className="text-xl font-bold text-slate-100">Live &amp; Historical Candlestick Chart</h1>
+        <p className="text-xs text-slate-400 mt-0.5">
+          High-frequency multi-timeframe rendering (1m, 15m, 1h, 1D) with Point-in-Time adjustments
+        </p>
+      </div>
+      <CandleChart instrumentKey={key} />
+    </div>
+  )
+}
+
+function TechnicalsPage() {
+  const [params] = useSearchParams()
+  const key = params.get('key') || 'NSE_INDEX|Nifty 50'
+  return <TechnicalDataView instrumentKey={key} />
+}
+
+function FundamentalsPage() {
+  const [params] = useSearchParams()
+  const rawKey = params.get('key') || 'NSE_EQ|INE002A01018'
+  const key = rawKey.startsWith('NSE_EQ') ? rawKey : 'NSE_EQ|INE002A01018'
+  return <FundamentalsView instrumentKey={key} />
+}
+
+function NewsPage() {
+  const navigate = useNavigate()
+  return (
+    <NewsIntelligenceView
+      onSelectInstrument={(key: string) => navigate(`/stocks/${encodeURIComponent(key)}`)}
+    />
+  )
+}
+
+function ScreenerPage() {
+  const navigate = useNavigate()
+  return (
+    <StockScreener
+      onSelectInstrument={(key: string) => navigate(`/stocks/${encodeURIComponent(key)}`)}
+    />
+  )
+}
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<NavTab>('overview')
-  const [selectedKey, setSelectedKey] = useState<string>('NSE_INDEX|Nifty 50')
-  const [wsStatus, setWsStatus] = useState<'CONNECTED' | 'RECONNECTING' | 'DISCONNECTED'>('DISCONNECTED')
-  const [currentTimeIst, setCurrentTimeIst] = useState<string>('')
-  const [marketOpen, setMarketOpen] = useState<boolean>(false)
-
-  // IST Clock and Market Open check
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date()
-      // Convert to IST
-      const istString = now.toLocaleTimeString('en-IN', {
-        timeZone: 'Asia/Kolkata',
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      })
-      setCurrentTimeIst(istString)
-
-      // Market hours IST: 09:15 to 15:30 on weekdays (Mon=1, Fri=5)
-      const istDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
-      const day = istDate.getDay()
-      const hours = istDate.getHours()
-      const mins = istDate.getMinutes()
-      const totalMins = hours * 60 + mins
-
-      const isOpen = day >= 1 && day <= 5 && totalMins >= 555 && totalMins <= 930
-      setMarketOpen(isOpen)
-    }
-
-    updateTime()
-    const timer = setInterval(updateTime, 1000)
-    return () => clearInterval(timer)
-  }, [])
-
-  // Live WebSocket Connection
-  useEffect(() => {
-    wsService.connect()
-    const statusSub = wsService.onStatusChange((status: 'CONNECTED' | 'RECONNECTING' | 'DISCONNECTED') => {
-      setWsStatus(status)
-    })
-
-    return () => {
-      statusSub()
-      wsService.disconnect()
-    }
-  }, [])
-
-  // Subscribe selected instrument to WebSocket feed
-  useEffect(() => {
-    if (selectedKey) {
-      wsService.subscribe([selectedKey])
-    }
-  }, [selectedKey])
-
-  const handleSelectInstrument = (key: string, targetTab?: NavTab) => {
-    setSelectedKey(key)
-    if (targetTab) {
-      setActiveTab(targetTab)
-    }
-  }
-
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-600/30 selection:text-indigo-200">
-      {/* Top Navbar */}
-      <Navbar
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        selectedKey={selectedKey}
-        wsStatus={wsStatus}
-        marketOpen={marketOpen}
-        currentTimeIst={currentTimeIst}
-      />
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<AppLayout />}>
+              <Route index element={<ControlRoomView />} />
+              <Route path="stages/1" element={<Stage1View />} />
+              <Route path="stages/2" element={<Stage2View />} />
+              <Route path="stages/3" element={<Stage3View />} />
+              <Route path="stages/:stageId" element={<StagePlaceholderView />} />
+              <Route path="stocks/:key" element={<StockDetailPage />} />
 
-      {/* Main Content Area */}
-      <main className="flex-1 pb-12">
-        {activeTab === 'overview' && (
-          <OverviewDashboard
-            onSelectInstrument={(key: string) => handleSelectInstrument(key, 'chart')}
-          />
-        )}
-
-        {activeTab === 'explorer' && (
-          <StockExplorer
-            selectedKey={selectedKey}
-            onSelectInstrument={(key: string) => handleSelectInstrument(key, 'chart')}
-          />
-        )}
-
-        {activeTab === 'chart' && (
-          <div className="p-6 max-w-7xl mx-auto space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-xl font-bold text-slate-100">Live & Historical Candlestick Chart</h1>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  High-frequency multi-timeframe rendering (1m, 15m, 1h, 1D) with Point-in-Time adjustments
-                </p>
-              </div>
-            </div>
-            <CandleChart instrumentKey={selectedKey} />
-          </div>
-        )}
-
-        {activeTab === 'technicals' && (
-          <TechnicalDataView
-            instrumentKey={selectedKey}
-          />
-        )}
-
-        {activeTab === 'fundamentals' && (
-          <FundamentalsView
-            instrumentKey={selectedKey.startsWith('NSE_EQ') ? selectedKey : 'NSE_EQ|INE002A01018'}
-          />
-        )}
-
-        {activeTab === 'globals' && <GlobalMarketsView />}
-
-        {activeTab === 'news' && (
-          <NewsIntelligenceView
-            onSelectInstrument={(key: string) => handleSelectInstrument(key, 'chart')}
-          />
-        )}
-
-        {activeTab === 'screener' && (
-          <StockScreener
-            onSelectInstrument={(key: string) => handleSelectInstrument(key, 'chart')}
-          />
-        )}
-
-        {activeTab === 'signals' && <SignalsView />}
-
-        {activeTab === 'portfolio' && <PortfolioView />}
-
-        {activeTab === 'health' && <SystemHealthView />}
-
-        {activeTab === 'ops' && <AdminOpsView />}
-      </main>
-
-      {/* Footer / System Provenance Strip */}
-      <footer className="border-t border-slate-900 bg-slate-950/80 px-6 py-3 text-[11px] text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <span>Prajna AI Trading System &bull; AutoTrade Pro V2</span>
-          <span>&bull;</span>
-          <span className="font-mono">V1 Database Isolation: ENFORCED</span>
-          <span>&bull;</span>
-          <span className="font-mono">Stage 3: STRICTLY LOCKED</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span>Target Market: NSE India</span>
-          <span>&bull;</span>
-          <span>Broker Gateway: Upstox REST V3 / WS (Secure Backend Proxy)</span>
-        </div>
-      </footer>
-    </div>
+              <Route path="explorer" element={<ExplorerPage />} />
+              <Route path="chart" element={<ChartPage />} />
+              <Route path="technicals" element={<TechnicalsPage />} />
+              <Route path="fundamentals" element={<FundamentalsPage />} />
+              <Route path="globals" element={<GlobalMarketsView />} />
+              <Route path="news" element={<NewsPage />} />
+              <Route path="screener" element={<ScreenerPage />} />
+              <Route path="signals" element={<SignalsView />} />
+              <Route path="portfolio" element={<PortfolioView />} />
+              <Route path="health" element={<SystemHealthView />} />
+              <Route path="ops" element={<AdminOpsView />} />
+              <Route path="*" element={<ControlRoomView />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </ThemeProvider>
+    </QueryClientProvider>
   )
 }
 

@@ -9,7 +9,14 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_db
-from app.api.schemas import Candle, CandleSeriesResponse, Envelope, Meta
+from app.api.schemas import (
+    Candle,
+    CandleSeriesResponse,
+    CorporateActionMarker,
+    Envelope,
+    ExcludedBarMarker,
+    Meta,
+)
 from app.canon import pit
 from app.canon.validate import CANON_TIMEFRAMES
 from app.core.clock import IST, now, to_utc
@@ -30,6 +37,7 @@ async def get_candles(
     allow_low_confidence: bool = Query(False),
     db: AsyncSession = Depends(get_db),
 ) -> Envelope[CandleSeriesResponse]:
+    await db.execute(text("SET TRANSACTION READ ONLY"))
     tf = timeframe.lower()
     if tf not in CANON_TIMEFRAMES:
         raise HTTPException(
@@ -155,11 +163,81 @@ async def get_candles(
                 )
             )
 
+    # Fetch corporate actions for this instrument
+    ca_rows = (
+        await db.execute(
+            text(
+                """
+                SELECT id, action_type, ex_date, record_date, announcement_date,
+                       amount, ratio_from, ratio_to, source
+                FROM canon_corporate_action
+                WHERE instrument_key = :k
+                ORDER BY ex_date DESC NULLS LAST
+                LIMIT 50
+                """
+            ),
+            {"k": key},
+        )
+    ).fetchall()
+
+    corporate_action_markers = [
+        CorporateActionMarker(
+            id=r[0],
+            action_type=str(r[1]),
+            ex_date=r[2],
+            record_date=r[3],
+            announcement_date=r[4],
+            amount=float(r[5]) if r[5] is not None else None,
+            ratio_from=float(r[6]) if r[6] is not None else None,
+            ratio_to=float(r[7]) if r[7] is not None else None,
+            source=r[8],
+        )
+        for r in ca_rows
+        if r[2] is not None
+    ]
+
+    # Fetch excluded bars for this instrument and timeframe
+    ex_rows = (
+        await db.execute(
+            text(
+                """
+                SELECT instrument_key, timeframe, session_date, bar_start_utc,
+                       open, high, low, close, volume, reason, knowable_at
+                FROM canon_excluded_bar
+                WHERE instrument_key = :k AND timeframe = :tf
+                ORDER BY bar_start_utc DESC
+                LIMIT 100
+                """
+            ),
+            {"k": key, "tf": tf},
+        )
+    ).fetchall()
+
+    excluded_bar_markers = [
+        ExcludedBarMarker(
+            instrument_key=r[0],
+            timeframe=r[1],
+            session_date=r[2],
+            bar_start_utc=r[3],
+            bar_start_ist=r[3].astimezone(IST).strftime("%Y-%m-%d %H:%M:%S IST") if r[3] else "",
+            open=float(r[4]) if r[4] is not None else None,
+            high=float(r[5]) if r[5] is not None else None,
+            low=float(r[6]) if r[6] is not None else None,
+            close=float(r[7]) if r[7] is not None else None,
+            volume=float(r[8]) if r[8] is not None else None,
+            reason=str(r[9]),
+            knowable_at=r[10],
+        )
+        for r in ex_rows
+    ]
+
     series_response = CandleSeriesResponse(
         instrument_key=key,
         timeframe=tf,
         adjusted=adjusted,
         candles=candles_out,
+        corporate_actions=corporate_action_markers,
+        excluded_bars=excluded_bar_markers,
         refused=refused,
         total_count=len(candles_out),
     )
