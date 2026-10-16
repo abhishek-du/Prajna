@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stage 7-8 forward paper job (decision 2026-10-16 under the user's delegation): every
 # session after each strategy's last recorded one, from 2026-10-16 (after the research
-# TEST windows), then the PAPER report to Telegram. PAPER ONLY: no broker, no orders.
+# TEST windows), then the PAPER report of the forward sessions only to Telegram. PAPER ONLY: no broker, no orders.
 #
 #   ops/runbooks/paper_daily.sh [--no-telegram]
 #
@@ -34,7 +34,7 @@ for st in "${LIST[@]}"; do
   fi
 done
 unset PRAJNA_SUPPLIED_TOKEN
-if (( SEND )); then ops/runbooks/paper_report.sh --days 30 --strategies "$STRATS" >> "$LOG" 2>&1 || rc=1
-else ops/runbooks/paper_report.sh --days 30 --strategies "$STRATS" --no-telegram >> "$LOG" 2>&1 || rc=1; fi
+if (( SEND )); then ops/runbooks/paper_report.sh --from 2026-10-16 --strategies "$STRATS" >> "$LOG" 2>&1 || rc=1
+else ops/runbooks/paper_report.sh --from 2026-10-16 --strategies "$STRATS" --no-telegram >> "$LOG" 2>&1 || rc=1; fi
 say "PAPER_DAILY_DONE rc=${rc}"
 exit "$rc"
