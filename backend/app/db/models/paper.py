@@ -45,6 +45,8 @@ class PaperRun(Base):
     targets_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
     inputs_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
     config: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    target_list: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    risk_limits: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     bars_knowable_max: Mapped[_dt.datetime | None] = mapped_column(TS, nullable=True)
     code_git_sha: Mapped[str] = mapped_column(String(48), nullable=False)
     authz_token_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
@@ -126,3 +128,27 @@ class PaperDay(Base):
     mode: Mapped[str] = mapped_column(String(8), nullable=False)
 
     __table_args__ = (_mode("paper_day"),)
+
+
+class PaperRiskDecision(Base):
+    """The Stage 6 decision on one target of a run (REJECTED carries its reason)."""
+
+    __tablename__ = "paper_risk_decision"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True),
+                                              ForeignKey("paper_run.run_id"), nullable=False)
+    rank: Mapped[int] = mapped_column(Integer, nullable=False)
+    instrument_key: Mapped[str] = mapped_column(String(80), nullable=False)
+    decision: Mapped[str] = mapped_column(String(10), nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mode: Mapped[str] = mapped_column(String(8), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("run_id", "instrument_key", name="uq_paper_risk_decision_run_key"),
+        CheckConstraint("decision in ('APPROVED','REJECTED')",
+                        name="ck_paper_risk_decision_decision"),
+        CheckConstraint("(decision = 'REJECTED') = (reason is not null)",
+                        name="ck_paper_risk_decision_reason"),
+        _mode("paper_risk_decision"),
+    )

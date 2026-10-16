@@ -2,7 +2,8 @@
 
 Additive only. Four append-only tables (trigger): a run per (strategy, session), its
 orders (the targets, in priority order), their simulated fills and the day's summary.
-Every row carries mode, and a CHECK admits only 'PAPER': no row can describe a live
+The run keeps its target list (the Stage 5 contract) and the risk limits; every
+risk decision is a row. Every row carries mode, and a CHECK admits only 'PAPER': no row can describe a live
 order. Nothing here talks to a broker.
 
 Revision ID: 0022
@@ -19,7 +20,7 @@ branch_labels = None
 depends_on = None
 
 TS = postgresql.TIMESTAMP(timezone=True)
-TABLES = ("paper_run", "paper_order", "paper_fill", "paper_day")
+TABLES = ("paper_run", "paper_order", "paper_fill", "paper_day", "paper_risk_decision")
 
 
 def _mode(t: str) -> sa.CheckConstraint:
@@ -35,6 +36,8 @@ def upgrade() -> None:
         sa.Column('targets_sha256', sa.CHAR(64), nullable=False),
         sa.Column('inputs_sha256', sa.CHAR(64), nullable=False),
         sa.Column('config', postgresql.JSONB(), nullable=False),
+        sa.Column('target_list', postgresql.JSONB(), nullable=True),
+        sa.Column('risk_limits', postgresql.JSONB(), nullable=True),
         sa.Column('bars_knowable_max', TS, nullable=True),
         sa.Column('code_git_sha', sa.String(48), nullable=False),
         sa.Column('authz_token_sha256', sa.CHAR(64), nullable=False),
@@ -88,6 +91,21 @@ def upgrade() -> None:
         sa.Column('turnover_inr', sa.Numeric(18, 4), nullable=False),
         sa.Column('mode', sa.String(8), nullable=False),
         _mode('paper_day'))
+    op.create_table('paper_risk_decision',
+        sa.Column('id', sa.BigInteger(), primary_key=True, autoincrement=True),
+        sa.Column('run_id', postgresql.UUID(as_uuid=True),
+                  sa.ForeignKey('paper_run.run_id'), nullable=False),
+        sa.Column('rank', sa.Integer(), nullable=False),
+        sa.Column('instrument_key', sa.String(80), nullable=False),
+        sa.Column('decision', sa.String(10), nullable=False),
+        sa.Column('reason', sa.Text(), nullable=True),
+        sa.Column('mode', sa.String(8), nullable=False),
+        sa.UniqueConstraint('run_id', 'instrument_key', name='uq_paper_risk_decision_run_key'),
+        sa.CheckConstraint("decision in ('APPROVED','REJECTED')",
+                           name='ck_paper_risk_decision_decision'),
+        sa.CheckConstraint("(decision = 'REJECTED') = (reason is not null)",
+                           name='ck_paper_risk_decision_reason'),
+        _mode('paper_risk_decision'))
     op.execute("""
         create function paper_append_only() returns trigger language plpgsql as $$
         begin

@@ -65,21 +65,33 @@ async def load_bars(s: AsyncSession, session_date: _dt.date,
 async def simulate_session(s: AsyncSession, strategy: str, session_date: _dt.date,
                            targets: list[str], cfg: sim.Config | None = None, *,
                            commit: bool = False, token: str | None = None,
-                           code_git_sha: str = "unknown") -> dict[str, Any]:
+                           code_git_sha: str = "unknown",
+                           target_list: dict[str, Any] | None = None,
+                           risk: list[dict[str, Any]] | None = None,
+                           risk_limits: dict[str, Any] | None = None) -> dict[str, Any]:
+    """targets: the approved keys in priority order. With risk decisions (Stage 6) an
+    empty list is a valid day (everything rejected or halted) and is recorded."""
     if not STRATEGY_RE.match(strategy):
         raise PaperRefused(f"strategy name {strategy!r}: [A-Za-z0-9_.-]{{1,64}}")
-    if not targets:
+    if not targets and risk is None:
         raise PaperRefused("no targets")
     cfg = cfg or sim.Config()
     fp = authorize_write(token) if commit else None          # before anything is read
     bars, knowable = await load_bars(s, session_date, targets)
-    if not bars:
+    stored = bool(bars) or (not targets and (await s.execute(text("""select exists(
+        select 1 from canon_market_bar where timeframe = '1d' and market_date = :d)"""),
+        {"d": session_date})).scalar())
+    if not stored:
         raise PaperRefused(f"no stored 1d bar on {session_date} for any target "
                            "(the daily bar is stored the next morning)")
     res = sim.simulate(targets, bars, cfg)
+    res["sha256"] = hashlib.sha256(json.dumps(
+        [res["sha256"], target_list, risk, risk_limits], sort_keys=True,
+        default=str).encode()).hexdigest()
     out = {"strategy": strategy, "session_date": str(session_date), "commit": commit,
            "targets_sha256": targets_sha(targets), "bars_found": len(bars),
-           **{k: v for k, v in res.items() if k != "fills"}, "fills": res["fills"]}
+           **{k: v for k, v in res.items() if k != "fills"}, "fills": res["fills"],
+           "risk": risk or []}
     old = (await s.execute(text("""select run_id, inputs_sha256 from paper_run
         where strategy = :s and session_date = :d"""),
         {"s": strategy, "d": session_date})).first()
@@ -93,12 +105,21 @@ async def simulate_session(s: AsyncSession, strategy: str, session_date: _dt.dat
     rid = uuid.uuid4()
     cfg_json = {**asdict(cfg), "rates": asdict(cfg.rates)}
     await s.execute(text("""insert into paper_run (run_id, strategy, session_date, mode,
-        targets_sha256, inputs_sha256, config, bars_knowable_max, code_git_sha,
-        authz_token_sha256, created_at) values (:r, :s, :d, :m, :t, :i, cast(:c as jsonb),
-        :k, :g, :a, :n)"""),
+        targets_sha256, inputs_sha256, config, target_list, risk_limits, bars_knowable_max,
+        code_git_sha, authz_token_sha256, created_at) values (:r, :s, :d, :m, :t, :i,
+        cast(:c as jsonb), cast(:tl as jsonb), cast(:rl as jsonb), :k, :g, :a, :n)"""),
         {"r": rid, "s": strategy, "d": session_date, "m": sim.MODE,
          "t": out["targets_sha256"], "i": res["sha256"], "c": json.dumps(cfg_json),
+         "tl": None if target_list is None else json.dumps(target_list, default=str),
+         "rl": None if risk_limits is None else json.dumps(risk_limits),
          "k": knowable, "g": code_git_sha, "a": fp, "n": now()})
+    if risk:
+        await s.execute(text("""insert into paper_risk_decision (run_id, rank, instrument_key,
+            decision, reason, mode) values (:r, :q, :k, :dc, :re, :m)"""),
+            [{"r": rid, "q": x["rank"], "k": x["key"], "dc": x["decision"],
+              "re": x["reason"], "m": sim.MODE} for x in risk])
+    if not targets:
+        return await _day(s, rid, session_date, res, out)
     await s.execute(text("""insert into paper_order (run_id, seq, instrument_key, product,
         order_value_inr, mode) values (:r, :q, :k, 'MIS', :v, :m)"""),
         [{"r": rid, "q": i, "k": k, "v": _d(cfg.order_value_inr), "m": sim.MODE}
@@ -110,6 +131,11 @@ async def simulate_session(s: AsyncSession, strategy: str, session_date: _dt.dat
           "bp": _d(f["buy_px"]), "sp": _d(f["sell_px"]), "bv": _d(f["buy_value"]),
           "sv": _d(f["sell_value"]), "c": json.dumps(f["charges"]), "p": _d(f["pnl_inr"]),
           "m": f["mode"]} for f in res["fills"]])
+    return await _day(s, rid, session_date, res, out)
+
+
+async def _day(s: AsyncSession, rid: uuid.UUID, session_date: _dt.date, res: dict[str, Any],
+               out: dict[str, Any]) -> dict[str, Any]:
     await s.execute(text("""insert into paper_day (run_id, session_date, targets, filled,
         not_filled, start_cash_inr, end_cash_inr, pnl_inr, charges_inr, turnover_inr, mode)
         values (:r, :d, :t, :f, cast(:nf as jsonb), :sc, :ec, :p, :ch, :tu, :m)"""),

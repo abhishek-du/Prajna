@@ -2305,5 +2305,87 @@ def paper_simulate(
     typer.echo(_json.dumps(out, default=str, indent=1))
 
 
+@paper_app.command("replay")
+def paper_replay(
+    strategy: str = typer.Option(..., "--strategy", help="baseline_gap_fade | baseline_c0"),
+    start: str = typer.Option(..., "--from"),
+    end: str = typer.Option(..., "--to"),
+    commit: bool = typer.Option(False, "--commit", help="record the runs (write token)"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"),
+):
+    """Run a strategy through the paper pipeline (targets -> risk limits -> simulate ->
+    record) over past sessions, in order. PAPER ONLY; a pipeline test, not a backtest
+    claim. Without --commit nothing is written (and the risk state starts flat)."""
+    import json as _json
+
+    from app.core.clock import now as _now
+    from app.db.engine import get_sessionmaker
+    from app.paper import job
+    from app.paper import strategies as ST
+    from app.training import replay as RP
+
+    code = RP.code_version()
+    if commit and code["dirty"]:
+        typer.echo("REFUSED: the working tree is dirty; commit first")
+        raise typer.Exit(3)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            m = await ST.load_market(s, _date(start), _date(end), cutoff=_now())
+            return await job.replay(s, m, strategy, _date(start), _date(end),
+                                    commit=commit, token=token, code_git_sha=code["git_sha"])
+
+    try:
+        out = asyncio.run(_go())
+    except Exception as e:  # noqa: BLE001 - report the refusal, never a partial claim
+        typer.echo(f"REFUSED: {type(e).__name__}: {e}")
+        raise typer.Exit(3)
+    typer.echo(_json.dumps(out, default=str, indent=1))
+
+
+@paper_app.command("report")
+def paper_report(
+    strategy: str = typer.Option(..., "--strategy"),
+    start: str = typer.Option(..., "--from"),
+    end: str = typer.Option(..., "--to"),
+    as_text: bool = typer.Option(False, "--text", help="the short (Telegram) text only"),
+):
+    """Stage 8 report of a strategy's paper days: return vs Nifty 50 (open->close) and
+    baseline_c0, drawdown, Sharpe, hit/fill rate, cost share, alerts, score drift
+    (PSI, second half vs first half). Read-only."""
+    import json as _json
+
+    import datetime as _dt_
+
+    from sqlalchemy import text as text_
+
+    from app.db.engine import get_sessionmaker
+    from app.paper import monitor as MO
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            await s.execute(text_("set transaction isolation level repeatable read, read only"))
+            a, b = _date(start), _date(end)
+            rows = await MO.daily(s, strategy, a, b)
+            summ = MO.summary(rows)
+            mid = a + (b - a) / 2
+            drift = MO.psi(await MO.scores(s, strategy, a, mid),
+                           await MO.scores(s, strategy, mid + _dt_.timedelta(days=1), b))
+            await s.rollback()
+            return rows, summ, drift
+
+    rows, summ, drift = asyncio.run(_go())
+    al = MO.alerts(rows, summ)
+    if drift is not None and drift > MO.Thresholds().psi_alert:
+        al.append(f"score_drift psi={drift:.2f}")
+    if as_text:
+        typer.echo(MO.text_report(strategy, _date(start), _date(end), summ, al))
+        return
+    typer.echo(_json.dumps({"strategy": strategy, "summary": summ, "alerts": al,
+                            "score_psi_second_vs_first_half": drift, "daily": rows},
+                           default=str, indent=1))
+
+
 if __name__ == "__main__":
     app()
