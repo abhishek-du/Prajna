@@ -23,6 +23,8 @@
 #     06:50-16:00 itself; 06:30 leaves room for the morning jobs). The run stops at
 #     06:25: on 2026-10-16 a run to 06:50 held the lock past the 06:30 refresh
 #     (flock -w 600), which was skipped, so the 06:45 CA run met an expired token
+#   4b trading day from 16:00: wait for today's CLOSE_COMPLETED (the close job first);
+#     after 23:30 without one -> SUPERVISOR_ALERT close_missing, then start
 #   5 free < GUARD_GB (60)        -> SUPERVISOR_ALERT disk_below_guard (no start)
 #   6 the candles lock is free    -> start backfill.sh --login --stages <STAGES>
 #     detached (fraction 0.5), log SUPERVISOR_STARTED; the lock busy (the close or
@@ -153,6 +155,9 @@ hourly_summary() {   # the hourly Telegram update: state, disk, per-stage progre
     "${alerts:-none}"
 }
 
+close_log() { echo "var/logs/daily/close_then_backfill_$(TZ=Asia/Kolkata date +%F).log"; }
+close_done() { grep -q "CLOSE_COMPLETED" "$(close_log)" 2>/dev/null; }
+
 health() {   # 2026-10-16: refusals were silent for 8 h; one "kind detail" line per problem
   if [[ -n "${PRAJNA_TEST_HEALTH+x}" ]]; then printf '%s' "$PRAJNA_TEST_HEALTH"; return 0; fi
   local day hhmm; day="$(TZ=Asia/Kolkata date +%F)"; hhmm="$(now_hhmm)"
@@ -162,6 +167,13 @@ print("" if ok else "stage2_not_pass " + d)' 2>/dev/null || echo "stage2_unknown
   if [[ ! "$hhmm" < "0645" ]] && ! grep -Eq "done: refresh +fail=0" \
        "var/logs/daily/refresh_${day}.log" 2>/dev/null; then
     echo "refresh_missing no successful 06:30 refresh (login + instrument master) today"
+  fi
+  if [[ "$(trading_day)" == "true" ]]; then
+    if [[ ! "$hhmm" < "1630" ]] && ! grep -q "CLOSE_STARTED" "$(close_log)" 2>/dev/null; then
+      echo "close_not_started no CLOSE_STARTED today after 16:30 (the 16:05 close job)"
+    elif [[ ! "$hhmm" < "2300" ]] && ! close_done; then
+      echo "close_not_completed no CLOSE_COMPLETED today by 23:00"
+    fi
   fi
   local recent; recent="$(tail -n 20000 var/logs/cron.log 2>/dev/null)"
   grep -q "STAGE3_REFUSED [A-Z_]* ${day}" <<< "$recent" && \
@@ -199,6 +211,13 @@ tick() {
   fi
   if [[ "$td" == "true" && ! "$hhmm" < "0630" && "$hhmm" < "1600" ]]; then
     say "SUPERVISOR_WINDOW_CLOSED"; return 0
+  fi
+  # 2026-10-16: the 16:00 tick took the free lock before the 16:05 close (flock -w 3600),
+  # which timed out silently. On a trading day the close goes first: wait for its
+  # CLOSE_COMPLETED (any verdict); after 23:30 without one, alert and start anyway.
+  if [[ "$td" == "true" && ! "$hhmm" < "1600" ]] && ! close_done; then
+    if [[ "$hhmm" < "2330" ]]; then say "SUPERVISOR_WAITING_CLOSE"; return 0; fi
+    say "SUPERVISOR_ALERT close_missing no CLOSE_COMPLETED today by 23:30; backfill starts"
   fi
   if (( $(free_gb) < GUARD_GB )); then
     say "SUPERVISOR_ALERT disk_below_guard free_gb=$(free_gb) guard=$GUARD_GB"; return 0

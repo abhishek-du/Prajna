@@ -239,3 +239,39 @@ def test_hourly_health_problems_are_alerted(tmp_path):
     assert "Prajna backfill ISSUE: SUPERVISOR_ALERT health_stage2_not_pass" in msg
     assert "SUPERVISOR_ALERT health_news_refused" in msg
     assert "alerts in the last hour: [" in msg        # the summary lists them too
+
+
+def _close(root, text):
+    import datetime as dt
+    import zoneinfo
+    day = dt.datetime.now(zoneinfo.ZoneInfo("Asia/Kolkata")).date()
+    (root / "var/logs/daily").mkdir(parents=True, exist_ok=True)
+    (root / f"var/logs/daily/close_then_backfill_{day}.log").write_text(text)
+
+
+def test_on_a_trading_day_the_close_goes_first(tmp_path):
+    """2026-10-16: the 16:00 tick started the backfill before the 16:05 close."""
+    root = tree(tmp_path)
+    out = tick(root, hhmm="1600", trading="true", PRAJNA_TEST_DOW="5")
+    assert "SUPERVISOR_WAITING_CLOSE" in out and started(root) is None
+    _close(root, "[x] CLOSE_STARTED day=d fraction=0.9\n")
+    assert "SUPERVISOR_WAITING_CLOSE" in tick(root, hhmm="1930", trading="true")
+    _close(root, "[x] CLOSE_STARTED\n[x] CLOSE_COMPLETED rc=0 verdict=complete\n")
+    out = tick(root, hhmm="1935", trading="true", PRAJNA_TEST_OTHER_JOB="false",
+               PRAJNA_TEST_DOW="5")
+    assert "SUPERVISOR_STARTED" in out and started(root) is not None
+
+
+def test_without_a_close_the_backfill_starts_at_2330_with_an_alert(tmp_path):
+    root = tree(tmp_path)
+    out = tick(root, hhmm="2330", trading="true", PRAJNA_TEST_OTHER_JOB="false",
+               PRAJNA_TEST_DOW="5")
+    assert "SUPERVISOR_ALERT close_missing" in out and "SUPERVISOR_STARTED" in out
+    assert "close_missing" in _sent(root)
+
+
+def test_non_trading_days_do_not_wait_for_a_close(tmp_path):
+    root = tree(tmp_path)
+    out = tick(root, hhmm="1600", trading="false", PRAJNA_TEST_DOW="6",
+               PRAJNA_TEST_OTHER_JOB="false")
+    assert "SUPERVISOR_STARTED" in out
