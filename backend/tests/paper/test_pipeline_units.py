@@ -75,6 +75,16 @@ class TestRisk:
         approved, dec = RK.apply(tl(["A", "B"]), self.CTX, state)
         assert approved.keys == [] and {d["reason"] for d in dec} == {why}
 
+    def test_the_benchmark_is_never_halted_and_its_limits_are_json_safe(self):
+        import json
+        from app.paper.job import STRATEGY_LIMITS
+        lim = STRATEGY_LIMITS["bench_c0"]
+        approved, _ = RK.apply(tl(["A", "B"]), self.CTX,
+                               RK.State(1e6, drawdown_inr=5e5, last_day_pnl_inr=-2e5), lim)
+        assert approved.keys == ["A", "B"]
+        d = lim.to_dict()
+        assert d["max_drawdown_halt"] is None and "Infinity" not in json.dumps(d)
+
     def test_unknown_sector_is_its_own_bucket(self):
         ctx = {k: {**v, "sector": None} for k, v in self.CTX.items()}
         approved, _ = RK.apply(tl(list("ABCDE")), ctx, RK.State(1e6))
@@ -95,6 +105,16 @@ class TestMonitor:
         assert s["recorded"] == 3 and len(s["missing"]) == 1
         assert s["total_return"] == pytest.approx(-0.005) and s["hit_rate"] == pytest.approx(2 / 3)
         assert s["fill_rate"] == 1.0 and "not a profitability claim" in s["disclaimer"]
+
+    def test_hit_rate_counts_traded_days_and_missing_needs_stored_bars(self):
+        rows = self.rows([0.01, 0.0, -0.01, None, None])
+        rows[1]["targets"] = 0                                # a halted day
+        rows[4]["nifty_oc"] = None                            # bars not stored yet
+        s = MO.summary(rows)
+        assert s["traded_sessions"] == 2 and s["hit_rate"] == 0.5
+        assert s["missing"] == [str(rows[3]["session_date"])]
+        before = [{**rows[0], "recorded": False, "session_date": D - _dt.timedelta(days=1)}]
+        assert MO.summary(before + rows)["missing"] == s["missing"]   # before day one
 
     def test_alerts(self):
         rows = self.rows([-0.04, -0.03, None], filled=0)

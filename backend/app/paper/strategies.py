@@ -98,18 +98,21 @@ def gap_fade(m: Market, session: _dt.date, k: int = E4.K) -> TargetList:
                  {"universe": len(u), "rule": "e4.gap_fade arm P", "k": k})
 
 
-def c0(m: Market, session: _dt.date, k: int = E4.K) -> TargetList:
+def c0(m: Market, session: _dt.date, k: int = E4.K, name: str = "baseline_c0") -> TargetList:
     d = m.d(session)
     u = [r[0] for r in E4.eligible(m.series, d, m.suspect)]
     rng = np.random.default_rng([20261016, session.toordinal()])
     picks = [(u[i], None) for i in sorted(rng.choice(len(u), size=min(k, len(u)),
                                                      replace=False))] if u else []
-    return _list("baseline_c0", session, picks,
+    return _list(name, session, picks,
                  {"universe": len(u), "rule": "random K of the e4 universe", "k": k})
 
 
 STRATEGIES: dict[str, Callable[[Market, _dt.date], TargetList]] = {
-    "baseline_gap_fade": gap_fade, "baseline_c0": c0}
+    "baseline_gap_fade": gap_fade, "baseline_c0": c0,
+    # the Stage 8 benchmark: the same random draw, never halted (a benchmark that stops
+    # trading after a drawdown stops measuring anything; found in the 2026-10-16 replay)
+    "bench_c0": lambda m, d: c0(m, d, name="bench_c0")}
 
 
 def context(m: Market, session: _dt.date) -> dict[str, dict[str, Any]]:

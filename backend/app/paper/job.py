@@ -19,6 +19,10 @@ from app.paper import sim, store
 from app.paper import strategies as ST
 
 
+STRATEGY_LIMITS = {"bench_c0": RK.Limits(max_drawdown_halt=float("inf"),
+                                         daily_loss_halt=float("inf"))}
+
+
 async def state(s: AsyncSession, strategy: str, before: _dt.date,
                 capital: float) -> RK.State:
     pnl = [float(r) for r in (await s.execute(text("""select d.pnl_inr from paper_day d
@@ -37,7 +41,8 @@ async def run_session(s: AsyncSession, m: ST.Market, strategy: str, session: _dt
                       code_git_sha: str = "unknown") -> dict[str, Any]:
     if strategy not in ST.STRATEGIES:
         raise store.PaperRefused(f"unknown strategy {strategy} ({sorted(ST.STRATEGIES)})")
-    cfg, limits = cfg or sim.Config(), limits or RK.Limits()
+    cfg = cfg or sim.Config()
+    limits = limits or STRATEGY_LIMITS.get(strategy, RK.Limits())
     tl = ST.STRATEGIES[strategy](m, session)
     approved, decisions = RK.apply(tl, ST.context(m, session),
                                    await state(s, strategy, session, cfg.capital_inr), limits)

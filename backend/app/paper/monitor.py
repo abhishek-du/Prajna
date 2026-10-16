@@ -22,7 +22,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 NIFTY = "NSE_INDEX|Nifty 50"
-BENCH_STRATEGY = "baseline_c0"
+BENCH_STRATEGY = "bench_c0"         # never halted (job.STRATEGY_LIMITS)
 DISCLAIMER = "PAPER ONLY. Simulated fills; not a profitability claim."
 
 
@@ -78,6 +78,8 @@ def max_drawdown(rets: list[float]) -> float:
 def summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
     rec = [r for r in rows if r["recorded"]]
     rets = [r["ret"] for r in rec]
+    traded = [r["ret"] for r in rec if r["targets"]]
+    first = min((r["session_date"] for r in rec), default=None)
     sd = float(np.std(rets, ddof=1)) if len(rets) > 1 else 0.0
     gross = sum(abs((r["pnl_inr"] or 0) + (r["charges_inr"] or 0)) for r in rec)
     tgt = sum(r["targets"] or 0 for r in rec)
@@ -86,12 +88,17 @@ def summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
         v = [r[k] for r in rec if r[k] is not None]
         return float(sum(v)) if v else None
     return {"sessions": len(rows), "recorded": len(rec),
-            "missing": [str(r["session_date"]) for r in rows if not r["recorded"]],
+            # a session is missing only after the strategy's first day and once its
+            # bars exist (the Nifty bar: stored the next morning)
+            "missing": [str(r["session_date"]) for r in rows if not r["recorded"]
+                        and first is not None and r["session_date"] > first
+                        and r["nifty_oc"] is not None],
+            "traded_sessions": len(traded),
             "total_return": float(sum(rets)) if rets else None,
             "mean_daily_bps": float(np.mean(rets)) * 1e4 if rets else None,
             "sharpe_annual": float(np.mean(rets)) / sd * math.sqrt(252) if sd > 0 else None,
             "max_drawdown": max_drawdown(rets),
-            "hit_rate": sum(1 for x in rets if x > 0) / len(rets) if rets else None,
+            "hit_rate": sum(1 for x in traded if x > 0) / len(traded) if traded else None,
             "charges_inr": tot("charges_inr"), "turnover_inr": tot("turnover_inr"),
             "cost_share": (tot("charges_inr") or 0) / gross if gross else None,
             "fill_rate": sum(r["filled"] or 0 for r in rec) / tgt if tgt else None,

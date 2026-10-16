@@ -15,6 +15,7 @@ exit design (E4b).
 
 from __future__ import annotations
 
+import math
 from dataclasses import asdict, dataclass
 from typing import Any
 
@@ -31,7 +32,9 @@ class Limits:
     daily_loss_halt: float = 0.03                 # of capital
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        """JSON-safe: an infinite limit (no halt) is null (jsonb has no Infinity)."""
+        return {k: (None if isinstance(v, float) and math.isinf(v) else v)
+                for k, v in asdict(self).items()}
 
 
 @dataclass(frozen=True)
