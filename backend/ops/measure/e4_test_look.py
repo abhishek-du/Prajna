@@ -7,7 +7,7 @@ no vendor), writes one result file, no orders, no profitability claim.
   .venv/bin/python ops/measure/e4_test_look.py test --confirm-test-look E4-<sha12> [--jobs 30]
 
 Refuses unless: the dataset's content sha equals the frozen manifest; the working tree is
-clean; var/stage4/experiments/e4/null_calibration.json is a >= 1,000-world calibration of
+clean; var/stage4/experiments/e4/null_calibration_c1.json is a >= 1,000-world calibration of
 the CURRENT e4.py + calibration script and marked adequate; no test file of this
 configuration exists; the confirmation string matches.
 
@@ -53,7 +53,7 @@ DATA = ROOT / "var/stage4/e4/e4_daily_20261015T1545+0530.npz"
 MANIFEST = DATA.with_suffix(".json")
 CONTENT_SHA = "85840092d77e630305ae06f21e85e328b808fe09fa7b5361791f3605a9bc5310"
 OUT = ROOT / "var/stage4/experiments/e4"
-CALIBRATION = OUT / "null_calibration.json"
+CALIBRATION = OUT / "null_calibration_c1.json"   # C1 (block 20)
 TEST = (_dt.date(2021, 1, 1), _dt.date(2026, 9, 30))
 E1_TEST = (_dt.date(2026, 4, 27), _dt.date(2026, 9, 17))
 CAPITAL, HALF_SPREAD, STRESS, B, SEED = 1_000_000.0, 5.0, 1.5, 10_000, 0

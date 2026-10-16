@@ -36,7 +36,9 @@ from app.training import e3 as E3
 
 UNIVERSE_TOP, K, MIN_PRICE = 500, 10, 50.0
 VOLUME_SPIKE, VOLUME_WINDOW = 1.5, 20
-BLOCK, NW_LAG = 5, 4
+# correction C1 (user-approved 2026-10-16; docs/STAGE4_E4_CALIBRATION_RESULT.md): block 5
+# under-covered the factor worlds (volatility half-life ~14 sessions); fixed, not searched
+BLOCK, NW_LAG = 20, 19
 GAP_ERROR = 0.25
 MIS = X.Rates(brokerage_flat_inr=20.0, brokerage_pct=0.0006, stt_buy=0.0, stt_sell=0.00025,
               stamp_buy=0.00003, exchange_txn=0.0000307, sebi=0.000001, gst=0.18,

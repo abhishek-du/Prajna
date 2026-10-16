@@ -60,3 +60,10 @@
 - No E4 test number exists.
 - The correction comes only from the synthetic null worlds, which is what the calibration step is for.
 - It is fixed in advance, before its own calibration.
+
+## C1 applied (2026-10-16)
+
+- **Approval:** the user approved C1 on 2026-10-16 ("gap backfill aur C1 chala do").
+- **Change:** `e4.BLOCK, NW_LAG = 20, 19`.
+- **Calibration:** new seeds (base 20261016) and the same criterion. The output goes to `null_calibration_c1.json`; the block-5 file stays as the record.
+- **Test look:** the runner now requires the C1 calibration. If C1 is inadequate, stop and report; no further block lengths will be tried.

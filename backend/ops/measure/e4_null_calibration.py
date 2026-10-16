@@ -47,7 +47,7 @@ BOUND = 0.025
 
 
 def world(kind: str, seed: int) -> dict[str, dict]:
-    rng = np.random.default_rng([20261015, seed, 0 if kind == "iid" else 1])
+    rng = np.random.default_rng([20261016, seed, 0 if kind == "iid" else 1])
     n = WARM + TEST
     if kind == "iid":
         gaps = rng.normal(0, 0.02, (N_NAMES, n))
@@ -171,7 +171,7 @@ def main() -> int:
     body = json.dumps(res, indent=1, sort_keys=True)
     if a.write:
         OUT.mkdir(parents=True, exist_ok=True)
-        path = OUT / "null_calibration.json"
+        path = OUT / "null_calibration_c1.json"   # C1; the block-5 file stays as the record
         if path.exists():
             raise SystemExit(f"REFUSED: {path.name} exists; not overwritten")
         path.write_text(body)
