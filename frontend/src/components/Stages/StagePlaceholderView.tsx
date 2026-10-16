@@ -170,7 +170,7 @@ export const StagePlaceholderView: React.FC = () => {
             )}
           </div>
           <div className="text-[11px] text-slate-400 mt-1">
-            {stage?.alerts.length ? stage.alerts[0] : 'All criteria operational'}
+            {stage?.alerts.length ? stage.alerts[0] : 'No alert reported by the API for this stage'}
           </div>
         </div>
       </div>

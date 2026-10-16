@@ -22,14 +22,19 @@ describe('Sidebar Component', () => {
     expect(screen.getByText('8. Monitoring & KPIs')).toBeInTheDocument()
   })
 
-  it('renders Stage 3 LOCKED badge and Paper badges', () => {
+  it('shows each stage status from the API, never a constant', () => {
+    const st = (n: number, status: string) => ({ stage_number: n, name: '', status,
+      status_label: '', last_change: null, key_metric_label: '', key_metric_value: '',
+      alert_count: 0, alerts: [], evidence_summary: {}, as_of: null })
     render(
       <MemoryRouter>
-        <Sidebar />
+        <Sidebar stages={[st(3, 'COMPLETE'), st(4, 'CALIBRATING')]} />
       </MemoryRouter>
     )
-
-    expect(screen.getByText(/LOCKED/)).toBeInTheDocument()
+    expect(screen.getByTestId('stage-badge-3')).toHaveTextContent('COMPLETE')
+    expect(screen.getByTestId('stage-badge-4')).toHaveTextContent('CALIBRATING')
+    expect(screen.getByTestId('stage-badge-1')).toHaveTextContent('…')   // not loaded yet
+    expect(screen.queryByText(/LOCKED/)).toBeNull()
     expect(screen.getByText('Control Room')).toBeInTheDocument()
   })
 

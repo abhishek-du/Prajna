@@ -1,5 +1,6 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
+import type { StageSummary } from '../../types/api'
 import {
   Activity,
   Layers,
@@ -27,14 +28,14 @@ interface NavItemConfig {
 }
 
 const STAGE_ITEMS: NavItemConfig[] = [
-  { stageNumber: 1, label: '1. Data Ingestion', path: '/stages/1', icon: <Layers className="w-4 h-4 text-cyan-400" />, badge: 'READY', badgeColor: 'bg-cyan-900/60 text-cyan-300 border-cyan-700/60' },
-  { stageNumber: 2, label: '2. Storage & Quality', path: '/stages/2', icon: <Layers className="w-4 h-4 text-blue-400" />, badge: 'PASS', badgeColor: 'bg-blue-900/60 text-blue-300 border-blue-700/60' },
-  { stageNumber: 3, label: '3. Feature Engineering', path: '/stages/3', icon: <Layers className="w-4 h-4 text-amber-400" />, badge: 'LOCKED', badgeColor: 'bg-amber-900/60 text-amber-300 border-amber-700/60' },
-  { stageNumber: 4, label: '4. Prediction Research', path: '/stages/4', icon: <Layers className="w-4 h-4 text-purple-400" />, badge: 'E4 CALIB', badgeColor: 'bg-purple-900/60 text-purple-300 border-purple-700/60' },
-  { stageNumber: 5, label: '5. Signals / Targets', path: '/stages/5', icon: <Cpu className="w-4 h-4 text-indigo-400" />, badge: 'PAPER', badgeColor: 'bg-indigo-900/60 text-indigo-300 border-indigo-700/60' },
-  { stageNumber: 6, label: '6. Risk Management', path: '/stages/6', icon: <ShieldAlert className="w-4 h-4 text-red-400" />, badge: 'PAPER', badgeColor: 'bg-red-900/60 text-red-300 border-red-700/60' },
-  { stageNumber: 7, label: '7. Paper Execution', path: '/stages/7', icon: <DollarSign className="w-4 h-4 text-emerald-400" />, badge: 'PAPER', badgeColor: 'bg-emerald-900/60 text-emerald-300 border-emerald-700/60' },
-  { stageNumber: 8, label: '8. Monitoring & KPIs', path: '/stages/8', icon: <TrendingUp className="w-4 h-4 text-teal-400" />, badge: 'PAPER', badgeColor: 'bg-teal-900/60 text-teal-300 border-teal-700/60' },
+  { stageNumber: 1, label: '1. Data Ingestion', path: '/stages/1', icon: <Layers className="w-4 h-4 text-cyan-400" /> },
+  { stageNumber: 2, label: '2. Storage & Quality', path: '/stages/2', icon: <Layers className="w-4 h-4 text-blue-400" /> },
+  { stageNumber: 3, label: '3. Feature Engineering', path: '/stages/3', icon: <Layers className="w-4 h-4 text-amber-400" /> },
+  { stageNumber: 4, label: '4. Prediction Research', path: '/stages/4', icon: <Layers className="w-4 h-4 text-purple-400" /> },
+  { stageNumber: 5, label: '5. Signals / Targets', path: '/stages/5', icon: <Cpu className="w-4 h-4 text-indigo-400" /> },
+  { stageNumber: 6, label: '6. Risk Management', path: '/stages/6', icon: <ShieldAlert className="w-4 h-4 text-red-400" /> },
+  { stageNumber: 7, label: '7. Paper Execution', path: '/stages/7', icon: <DollarSign className="w-4 h-4 text-emerald-400" /> },
+  { stageNumber: 8, label: '8. Monitoring & KPIs', path: '/stages/8', icon: <TrendingUp className="w-4 h-4 text-teal-400" /> },
 ]
 
 const MARKET_ITEMS: NavItemConfig[] = [
@@ -52,7 +53,22 @@ const OPS_ITEMS: NavItemConfig[] = [
   { label: 'Operations & Logs', path: '/ops', icon: <Database className="w-4 h-4 text-slate-400" /> },
 ]
 
-export const Sidebar: React.FC = () => {
+/** The badge is the stage's status from /api/v1/stages (never a constant: the earlier
+ *  hard-coded "Stage 3 LOCKED" stayed wrong after Stage 3 went live). */
+function stageBadge(st: StageSummary | undefined): { text: string; color: string } {
+  if (!st) return { text: '…', color: 'bg-slate-800 text-slate-400 border-slate-700' }
+  const s = st.status.toUpperCase()
+  const color = /FAIL|ERROR|INADEQUATE|REFUSED/.test(s)
+    ? 'bg-red-900/60 text-red-300 border-red-700/60'
+    : /WARN|CALIBRAT|PENDING|NOT_AVAILABLE|UNKNOWN/.test(s)
+      ? 'bg-amber-900/60 text-amber-300 border-amber-700/60'
+      : /LOCK/.test(s)
+        ? 'bg-slate-800 text-slate-300 border-slate-600'
+        : 'bg-emerald-900/50 text-emerald-300 border-emerald-700/60'
+  return { text: s.replace(/_/g, ' ').slice(0, 12), color }
+}
+
+export const Sidebar: React.FC<{ stages?: StageSummary[] }> = ({ stages }) => {
   return (
     <aside className="w-64 bg-slate-900/95 border-r border-slate-800 flex flex-col shrink-0 overflow-y-auto select-none">
       {/* Brand & Control Room Direct Link */}
@@ -103,22 +119,16 @@ export const Sidebar: React.FC = () => {
                   {item.icon}
                   <span className="truncate">{item.label}</span>
                 </div>
-                {item.badge && (
-                  <span
-                    className={`text-[9px] font-mono px-1.5 py-0.2 rounded border shrink-0 ${
-                      item.badgeColor || 'bg-slate-800 text-slate-400 border-slate-700'
-                    }`}
-                  >
-                    {item.badge === 'LOCKED' ? (
-                      <span className="flex items-center gap-0.5">
-                        <Lock className="w-2.5 h-2.5" />
-                        LOCKED
-                      </span>
-                    ) : (
-                      item.badge
-                    )}
-                  </span>
-                )}
+                {(() => {
+                  const b = stageBadge(stages?.find(x => x.stage_number === item.stageNumber))
+                  return (
+                    <span className={`text-[9px] font-mono px-1.5 py-0.2 rounded border shrink-0 ${b.color}`}
+                          data-testid={`stage-badge-${item.stageNumber}`}>
+                      {b.text.startsWith('LOCK') && <Lock className="w-2.5 h-2.5 inline mr-0.5" />}
+                      {b.text}
+                    </span>
+                  )
+                })()}
               </NavLink>
             ))}
           </nav>

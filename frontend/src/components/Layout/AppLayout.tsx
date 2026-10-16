@@ -73,7 +73,7 @@ export const AppLayout: React.FC = () => {
 
       {/* Main Body with Sidebar + Outlet */}
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar />
+        <Sidebar stages={stagesData?.stages} />
 
         <main className="flex-1 overflow-y-auto bg-slate-950/90 flex flex-col">
           {/* Paper Trading Compliance Banner */}
@@ -95,9 +95,7 @@ export const AppLayout: React.FC = () => {
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <span>Prajna AI Trading System &bull; 8-Stage Research Platform</span>
               <span>&bull;</span>
-              <span className="font-mono text-emerald-400/90">V1 Isolation: ENFORCED</span>
-              <span>&bull;</span>
-              <span className="font-mono text-amber-400/90">Stage 3: STRICTLY LOCKED</span>
+              <span className="font-mono text-amber-300/90">PAPER ONLY &bull; read-only API</span>
             </div>
             <div className="flex items-center gap-3">
               <span>NSE India (Upstox REST V3 / WS Proxy)</span>

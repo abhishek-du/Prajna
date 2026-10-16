@@ -24,6 +24,7 @@ import {
   Wifi,
   WifiOff,
 } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { api } from '../../services/api'
 import { type LiveTickMessage, wsService } from '../../services/websocket'
 import type { Candle, CorporateActionMarker, ExcludedBarMarker } from '../../types/api'
@@ -52,6 +53,14 @@ export const CandleChart: React.FC<CandleChartProps> = ({
   const [hoveredCandle, setHoveredCandle] = useState<Candle | null>(null)
   const [latestCandle, setLatestCandle] = useState<Candle | null>(null)
   const [isStale, setIsStale] = useState<boolean>(false)
+  // same query key as AppLayout: one shared fetch of the trading_session state
+  const { data: stagesOverview } = useQuery({
+    queryKey: ['stages-overview'],
+    queryFn: () => api.getStages(),
+    refetchInterval: 30_000,
+  })
+  const marketOpen = stagesOverview?.market_state?.is_open ?? false
+  const marketMessage = stagesOverview?.market_state?.message
   const [wsStatus, setWsStatus] = useState<'CONNECTED' | 'RECONNECTING' | 'DISCONNECTED'>('DISCONNECTED')
   const [corporateActions, setCorporateActions] = useState<CorporateActionMarker[]>([])
   const [excludedBars, setExcludedBars] = useState<ExcludedBarMarker[]>([])
@@ -69,6 +78,9 @@ export const CandleChart: React.FC<CandleChartProps> = ({
 
     const unsubscribe = wsService.onTick((tick: LiveTickMessage) => {
       if (tick.instrument_key !== instrumentKey) return
+      // only a bar of this chart's timeframe may update it (2026-10-16: a 1m bar was drawn as
+      // a new flat daily candle, O=H=L=C, volume 0)
+      if (tick.timeframe !== timeframe) return
 
       setIsStale(tick.stale)
 
@@ -454,14 +466,21 @@ export const CandleChart: React.FC<CandleChartProps> = ({
         </div>
       </div>
 
-      {/* Stale Data Warning Banner */}
-      {isStale && (
+      {/* Stale data: a warning only while the session is open (trading_session via
+          /api/v1/stages); after the close the last stored bar is expected */}
+      {isStale && marketOpen && (
         <div className="bg-amber-950/60 border-b border-amber-800/60 px-4 py-1.5 text-xs text-amber-300 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <AlertTriangle className="w-4 h-4 text-amber-400" />
-            <span>Market Stale Warning: Last tick latency exceeded timing threshold</span>
+            <span>Stale during the session: the latest stored bar is older than 3 minutes</span>
           </div>
-          <span className="text-[10px] text-amber-400 font-mono">Market closed or quiet</span>
+          <span className="text-[10px] text-amber-400 font-mono">market open</span>
+        </div>
+      )}
+      {isStale && !marketOpen && (
+        <div className="bg-slate-900/70 border-b border-slate-800 px-4 py-1.5 text-xs text-slate-400 flex items-center justify-between">
+          <span>Market closed: showing the last stored bars (the daily bar of a session is stored the next morning)</span>
+          <span className="text-[10px] font-mono">{marketMessage || 'closed'}</span>
         </div>
       )}
 

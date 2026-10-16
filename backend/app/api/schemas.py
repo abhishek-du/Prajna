@@ -562,6 +562,8 @@ class BackfillTimeframeProgress(BaseModel):
     rate_per_hour: float | None = None
     eta_hours: float | None = None
     as_of: _dt.datetime | None = None
+    runs_last_hour: int | None = None
+    bars_last_hour: int | None = None
 
 
 class Stage1BackfillResponse(BaseModel):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import pathlib
 
 from fastapi import FastAPI
@@ -24,7 +25,20 @@ from app.api.stages import router as stages_router
 from app.api.technicals import router as technicals_router
 from app.api.ws import router as ws_router
 
+@contextlib.asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    """Stage 1 coverage takes ~13 s (canon_excluded_bar scans ohlcv_bar): compute it once
+    in the background at startup so no page waits for it."""
+    import asyncio
+
+    from app.api.stages import warm_coverage
+    task = asyncio.get_running_loop().create_task(warm_coverage())
+    yield
+    task.cancel()
+
+
 app = FastAPI(
+    lifespan=_lifespan,
     title="Prajna Trading Intelligence API",
     version="1.0.0",
     description="Upstox-only, provenance-bearing market intelligence and data dashboard for NSE.",
@@ -64,6 +78,7 @@ app.include_router(health_router, prefix=api_v1_prefix)
 app.include_router(ops_router, prefix=api_v1_prefix)
 app.include_router(ws_router, prefix=api_v1_prefix)
 app.include_router(ws_router)
+
 
 # Mount frontend production build if it exists
 frontend_dist = pathlib.Path(__file__).resolve().parents[3] / "frontend" / "dist"

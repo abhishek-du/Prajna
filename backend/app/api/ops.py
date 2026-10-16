@@ -102,7 +102,9 @@ async def list_anomalies(
     now_utc = now()
 
     sql = """
-        select id, rule, severity, entity_key, details, run_id, created_at
+        select id, kind as rule, severity,
+               coalesce(detail->>'instrument_key', subject) as entity_key,
+               detail as details, run_id, created_at
         from ingest_anomaly
         order by created_at desc limit :lim
     """

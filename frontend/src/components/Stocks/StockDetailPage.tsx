@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { CandleChart } from '../Chart/CandleChart'
 import { api } from '../../services/api'
@@ -59,7 +59,7 @@ export const StockDetailPage: React.FC = () => {
   const [paperError, setPaperError] = useState<string | null>(null)
 
   // Load lifecycle & core details
-  const loadLifecycle = async () => {
+  const loadLifecycle = useCallback(async () => {
     try {
       setLifecycleLoading(true)
       setLifecycleError(null)
@@ -70,10 +70,10 @@ export const StockDetailPage: React.FC = () => {
     } finally {
       setLifecycleLoading(false)
     }
-  }
+  }, [instrumentKey])
 
   // Load Stage 3 features
-  const loadFeatures = async () => {
+  const loadFeatures = useCallback(async () => {
     try {
       setFeaturesLoading(true)
       setFeaturesError(null)
@@ -84,10 +84,10 @@ export const StockDetailPage: React.FC = () => {
     } finally {
       setFeaturesLoading(false)
     }
-  }
+  }, [instrumentKey, featureSnapshot, featureDate])
 
   // Load Pre-open history
-  const loadPreopen = async () => {
+  const loadPreopen = useCallback(async () => {
     try {
       setPreopenLoading(true)
       setPreopenError(null)
@@ -98,10 +98,10 @@ export const StockDetailPage: React.FC = () => {
     } finally {
       setPreopenLoading(false)
     }
-  }
+  }, [instrumentKey])
 
   // Load Paper trades
-  const loadPaperTrades = async () => {
+  const loadPaperTrades = useCallback(async () => {
     try {
       setPaperLoading(true)
       setPaperError(null)
@@ -112,11 +112,11 @@ export const StockDetailPage: React.FC = () => {
     } finally {
       setPaperLoading(false)
     }
-  }
+  }, [instrumentKey])
 
   useEffect(() => {
     loadLifecycle()
-  }, [instrumentKey])
+  }, [loadLifecycle])
 
   useEffect(() => {
     if (activeTab === 'features') {
@@ -126,7 +126,7 @@ export const StockDetailPage: React.FC = () => {
     } else if (activeTab === 'paper') {
       loadPaperTrades()
     }
-  }, [instrumentKey, activeTab, featureSnapshot, featureDate])
+  }, [activeTab, loadFeatures, loadPreopen, loadPaperTrades])
 
   const symbol =
     lifecycleData?.trading_symbol ||

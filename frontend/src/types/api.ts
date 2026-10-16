@@ -498,6 +498,8 @@ export interface BackfillTimeframeProgress {
   rate_per_hour: number | null;
   eta_hours: number | null;
   as_of?: string | null;
+  runs_last_hour?: number | null;
+  bars_last_hour?: number | null;
 }
 
 export interface Stage1BackfillResponse {

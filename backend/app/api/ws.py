@@ -66,9 +66,10 @@ async def websocket_live_endpoint(websocket: WebSocket) -> None:
                     continue
 
                 async with get_sessionmaker()() as session:
-                    # Fetch latest bar for each subscribed key
+                    # The latest CANONICAL bar per (key, timeframe): excluded bars (non-session,
+                    # non-positive price) never stream; the client keeps its own timeframe
                     sql = """
-                        select distinct on (instrument_key)
+                        select distinct on (instrument_key, timeframe)
                             instrument_key,
                             timeframe,
                             bar_start_utc,
@@ -78,9 +79,10 @@ async def websocket_live_endpoint(websocket: WebSocket) -> None:
                             close,
                             volume,
                             knowable_at
-                        from ohlcv_bar
+                        from canon_market_bar
                         where instrument_key = any(:keys)
-                        order by instrument_key, bar_start_utc desc
+                          and bar_start_utc > now() - interval '30 days'
+                        order by instrument_key, timeframe, bar_start_utc desc
                     """
                     rows = (await session.execute(text(sql), {"keys": list(sub_keys)})).all()
 

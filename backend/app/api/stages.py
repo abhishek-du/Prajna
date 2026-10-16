@@ -11,7 +11,9 @@ Point-in-Time honesty (Rule 4):
 
 from __future__ import annotations
 
+import asyncio
 import datetime as _dt
+import logging
 import json
 import pathlib
 import re
@@ -1049,13 +1051,27 @@ async def get_stages_overview(
 
     s3_alerts: list[str] = []
     if s3_refusals_today > 0:
-        s3_alerts.append(f"{s3_refusals_today} live snapshot(s) refused today (audit lock)")
+        # the failing lock conditions, as audited (never a guessed reason)
+        refusal_rows = (await db.execute(text("""
+            SELECT at, detail FROM stage3_event
+            WHERE event = 'REFUSED' AND at >= :d ORDER BY at DESC LIMIT 5"""),
+            {"d": _dt.datetime.combine(today_ist, _dt.time.min, tzinfo=IST)})).all()
+        failing: list[str] = []
+        for _at, det in refusal_rows:
+            det = det if isinstance(det, dict) else {}
+            for c in det.get("conditions", []):
+                if isinstance(c, dict) and not c.get("ok"):
+                    item = f"{c.get('name')}: {c.get('detail')}"
+                    if item not in failing:
+                        failing.append(item)
+        why = "; ".join(failing) if failing else "conditions not recorded"
+        s3_alerts.append(f"{s3_refusals_today} snapshot refusal(s) today: {why}")
         alerts.append(
             SystemAlertItem(
-                timestamp=s3_last_event_row[1] if s3_last_event_row else now_utc,
+                timestamp=refusal_rows[0][0] if refusal_rows else now_utc,
                 source="stage3_event",
                 severity="WARNING",
-                message=f"Stage 3 snapshot refused: live lock enforced (PRAJNA_STAGE3_ENABLED gate check)",
+                message=f"Stage 3 snapshot refused ({s3_refusals_today} today); failing: {why}",
                 stage=3,
             )
         )
@@ -1604,25 +1620,63 @@ async def get_stages_overview(
 # Stage 1: Data Ingestion Detailed Endpoints
 # ──────────────────────────────────────────────────────────────────────────────
 
+COVERAGE_TTL_S = 300
+_coverage_cache: dict[str, Any] = {}
+
+
 @router.get("/1/coverage", response_model=Envelope[Stage1CoverageResponse])
 async def get_stage1_coverage(
     db: AsyncSession = Depends(get_db),
 ) -> Envelope[Stage1CoverageResponse]:
-    """Stage 1: Detailed coverage by timeframe, exclusions, corporate actions, and master changes."""
+    """Stage 1 coverage. canon_excluded_bar scans ohlcv_bar (~6 s per query), so the result
+    is cached for COVERAGE_TTL_S; the meta note says when it was computed."""
+    hit = _coverage_cache.get("v")
+    if hit is None:                                  # first call: compute (warm_coverage
+        env = await _stage1_coverage(db)            # normally did this at startup)
+        _coverage_cache["v"] = (now(), env)
+        return env
+    if (now() - hit[0]).total_seconds() >= COVERAGE_TTL_S:
+        _refresh_coverage_soon()                     # stale-while-revalidate
+    env = hit[1]
+    return Envelope(data=env.data, meta=Meta(
+        as_of=env.meta.as_of, generated_at=env.meta.generated_at,
+        point_in_time=env.meta.point_in_time,
+        notes=[*env.meta.notes, f"cached: computed {hit[0].isoformat()} "
+                                f"(refreshed in the background every {COVERAGE_TTL_S // 60} min)"]))
+
+
+def _refresh_coverage_soon() -> None:
+    task = _coverage_cache.get("task")
+    if task is None or task.done():
+        _coverage_cache["task"] = asyncio.get_running_loop().create_task(warm_coverage())
+
+
+async def warm_coverage() -> None:
+    """Compute the coverage into the cache with its own session (startup and refresh)."""
+    from app.db.engine import get_sessionmaker
+    try:
+        async with get_sessionmaker()() as s:
+            env = await _stage1_coverage(s)
+        _coverage_cache["v"] = (now(), env)
+    except Exception:  # noqa: BLE001 - a failed refresh keeps the last value; next call retries
+        logging.getLogger("prajna.api.stages").exception("coverage refresh failed")
+
+
+async def _stage1_coverage(db: AsyncSession) -> Envelope[Stage1CoverageResponse]:
     await db.execute(text("SET TRANSACTION READ ONLY"))
     now_utc = now()
 
-    backfill_dir = BACKEND_ROOT / "var" / "logs" / "backfill"
-    live_progress = _parse_live_backfill_progress(backfill_dir, "WAITING_CLOSE")
-    prog_map = {p.timeframe: p for p in live_progress}
+    prog_map = {p.timeframe: p for p in await _db_backfill_progress(db)}
+    pct_1h = prog_map["1h"].pct if "1h" in prog_map else None
+    pct_15m = prog_map["15m"].pct if "15m" in prog_map else None
 
-    pct_1h = prog_map["1h"].pct if "1h" in prog_map else 41.85
-    pct_15m = prog_map["15m"].pct if "15m" in prog_map else 0.0
+    def _pct(x: float | None) -> str:
+        return "unknown" if x is None else f"{x:.2f}%"
 
     tf_targets = {
         "1d": "2020-01-01 (since 2020)",
-        "1h": f"2022-01-01 — historical backfill in progress ({pct_1h:.2f}%)",
-        "15m": f"2022-01-01 — historical backfill in progress ({pct_15m:.2f}%)",
+        "1h": f"2022-01-01 — historical backfill in progress ({_pct(pct_1h)})",
+        "15m": f"2022-01-01 — historical backfill in progress ({_pct(pct_15m)})",
         "1m": "Last 92 calendar days — historical backfill in progress",
     }
     timeframes_map = {
@@ -1843,8 +1897,23 @@ async def get_stage1_coverage(
     )
 
 
+RUNNING_STATES = ("RUNNING", "STARTED")
+
+
+async def _db_backfill_progress(db: AsyncSession) -> list[BackfillTimeframeProgress]:
+    """The database truth (app.ingest.backfill_progress, shared with the Telegram update)."""
+    from app.ingest import backfill_progress as BP
+    at = now()
+    return [BackfillTimeframeProgress(
+        timeframe=r["timeframe"], from_date=r["from_date"], covered=r["covered"],
+        total=r["total"], pct=r["pct"] if r["pct"] is not None else 0.0,
+        rate_per_hour=float(r["done_last_hour"]), eta_hours=r["eta_hours"], as_of=at,
+        runs_last_hour=r["runs_last_hour"], bars_last_hour=r["bars_last_hour"])
+        for r in await BP.rows(db)]
+
+
 @router.get("/1/backfill", response_model=Envelope[Stage1BackfillResponse])
-async def get_stage1_backfill() -> Envelope[Stage1BackfillResponse]:
+async def get_stage1_backfill(db: AsyncSession = Depends(get_db)) -> Envelope[Stage1BackfillResponse]:
     """Stage 1: Backfill progress parsed from live backfill_*.log and supervisor.log."""
     now_utc = now()
     var_dir = BACKEND_ROOT / "var"
@@ -1871,8 +1940,10 @@ async def get_stage1_backfill() -> Envelope[Stage1BackfillResponse]:
         except Exception:
             pass
 
-    # Parse live backfill progress from newest backfill_*.log files
-    progress_items = _parse_live_backfill_progress(backfill_dir, state)
+    if state == "STARTED":                      # the run the tick just launched
+        state = "RUNNING"
+    await db.execute(text("SET TRANSACTION READ ONLY"))
+    progress_items = await _db_backfill_progress(db)
 
     # Collect recent progress lines from newest backfill log files
     recent_prog_lines: list[str] = []
@@ -1906,7 +1977,9 @@ async def get_stage1_backfill() -> Envelope[Stage1BackfillResponse]:
             as_of=latest_as_of,
             generated_at=now_utc,
             point_in_time=True,
-            notes=["Parsed directly from live backfill_*.log and supervisor.log with honest rates and point-in-time timestamps."],
+            notes=["Progress: database checkpoints (app.ingest.backfill_progress, the same "
+                   "numbers as the hourly Telegram update); rate = instruments completed in "
+                   "the last hour; state: the latest SUPERVISOR_* line."],
         ),
     )
 

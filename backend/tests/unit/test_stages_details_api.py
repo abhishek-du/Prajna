@@ -88,8 +88,10 @@ async def test_stage1_backfill_endpoint(async_client):
     assert len(data["progress"]) >= 1
     for p in data["progress"]:
         assert p["timeframe"] in ("1h", "15m", "1d", "1m")
-        assert p["total"] > 0
+        assert p["total"] >= 0                      # the test DB may hold no instrument
         assert 0.0 <= p["pct"] <= 100.0
+    # progress is the database truth (shared with the Telegram update), not a log line
+    assert any("database checkpoints" in n for n in resp.json()["meta"]["notes"])
 
 
 @pytest.mark.anyio

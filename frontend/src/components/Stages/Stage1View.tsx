@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { api } from '../../services/api'
 import type { MasterChangeItem } from '../../types/api'
+import { backfillEtaText, backfillRateText } from '../../utils/backfill'
 
 
 export const Stage1View: React.FC = () => {
@@ -366,10 +367,10 @@ export const Stage1View: React.FC = () => {
 
                 <div className="flex justify-between items-center text-[11px] font-mono text-slate-400">
                   <span>
-                    Rate: {p.rate_per_hour ? `~${p.rate_per_hour} instruments/hr` : '— (idle)'}
+                    Rate: {backfillRateText(p, backfill?.supervisor_state)}
                   </span>
                   <span>
-                    ETA: {p.eta_hours !== null && p.eta_hours !== undefined ? `~${p.eta_hours} hours remaining` : '— (not running)'}
+                    ETA: {backfillEtaText(p, backfill?.supervisor_state)}
                   </span>
                   {p.as_of && (
                     <span className="text-[10px] text-slate-500">

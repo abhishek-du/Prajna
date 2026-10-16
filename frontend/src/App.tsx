@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom'
+import { BrowserRouter, Navigate, Routes, Route, useNavigate, useSearchParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from './context/ThemeContext'
 import { AppLayout } from './components/Layout/AppLayout'
@@ -17,8 +17,6 @@ import { FundamentalsView } from './components/Fundamentals/FundamentalsView'
 import { GlobalMarketsView } from './components/GlobalMarkets/GlobalMarketsView'
 import { NewsIntelligenceView } from './components/News/NewsIntelligenceView'
 import { StockScreener } from './components/Screener/StockScreener'
-import { SignalsView } from './components/Signals/SignalsView'
-import { PortfolioView } from './components/Portfolio/PortfolioView'
 import { SystemHealthView } from './components/Health/SystemHealthView'
 import { AdminOpsView } from './components/Admin/AdminOpsView'
 
@@ -112,8 +110,8 @@ export function App() {
               <Route path="globals" element={<GlobalMarketsView />} />
               <Route path="news" element={<NewsPage />} />
               <Route path="screener" element={<ScreenerPage />} />
-              <Route path="signals" element={<SignalsView />} />
-              <Route path="portfolio" element={<PortfolioView />} />
+              <Route path="signals" element={<Navigate to="/stages/5" replace />} />
+              <Route path="portfolio" element={<Navigate to="/stages/7" replace />} />
               <Route path="health" element={<SystemHealthView />} />
               <Route path="ops" element={<AdminOpsView />} />
               <Route path="*" element={<ControlRoomView />} />

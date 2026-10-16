@@ -82,6 +82,16 @@ async def get_fundamentals(
         )
     ).scalar()
 
+    def _ratio_num(v: Any) -> float | None:
+        """The vendor writes ratios as text: "8.94%", "1,234.5", "₹12" (2026-10-16: float()
+        on "8.94%" failed, so ROE/ROCE showed "--" next to the raw 8.94%)."""
+        if v is None:
+            return None
+        try:
+            return float(str(v).replace("%", "").replace(",", "").replace("₹", "").strip())
+        except ValueError:
+            return None
+
     key_ratios = KeyRatios()
     if ratios_row:
         raw_list = ratios_row if isinstance(ratios_row, list) else json.loads(ratios_row)
@@ -92,15 +102,7 @@ async def get_fundamentals(
             name = item.get("name", "").strip().upper()
             c_val_str = item.get("company_value") or item.get("value")
             s_val_str = item.get("sector_value")
-            try:
-                c_val = float(c_val_str) if c_val_str is not None else None
-            except (ValueError, TypeError):
-                c_val = None
-
-            try:
-                s_val = float(s_val_str) if s_val_str is not None else None
-            except (ValueError, TypeError):
-                s_val = None
+            c_val, s_val = _ratio_num(c_val_str), _ratio_num(s_val_str)
 
             if "P/E" in name:
                 key_ratios.pe = c_val
