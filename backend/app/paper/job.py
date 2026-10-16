@@ -63,3 +63,23 @@ async def replay(s: AsyncSession, m: ST.Market, strategy: str, start: _dt.date,
                                       "pnl_inr", "charges_inr")}
                    | {"rejected": sum(1 for x in r["risk"] if x["decision"] == "REJECTED")})
     return out
+
+
+FORWARD_FROM = _dt.date(2026, 10, 16)    # after every research TEST window (2026-10-16 rule)
+
+
+async def pending(s: AsyncSession, strategy: str,
+                  floor: _dt.date = FORWARD_FROM) -> tuple[_dt.date, _dt.date] | None:
+    """The sessions still to simulate: after the strategy's last recorded session (or from
+    floor) through the latest session whose 1d bars are stored (the Nifty 50 bar). A
+    recorded day is never re-run, so a later vendor revision cannot refuse the job."""
+    last = (await s.execute(text("""select max(session_date) from paper_run
+        where strategy = :s"""), {"s": strategy})).scalar()
+    ready = (await s.execute(text("""select max(market_date) from canon_market_bar
+        where instrument_key = 'NSE_INDEX|Nifty 50' and timeframe = '1d'"""))).scalar()
+    first = (await s.execute(text("""select min(session_date) from trading_session
+        where is_trading_day and session_date > :a and session_date >= :f"""),
+        {"a": last or _dt.date.min, "f": floor})).scalar()
+    if ready is None or first is None or first > ready:
+        return None
+    return first, ready

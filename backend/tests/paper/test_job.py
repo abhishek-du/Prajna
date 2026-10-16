@@ -95,3 +95,28 @@ async def test_unknown_strategy_is_refused(world):
     from app.paper.store import PaperRefused
     with pytest.raises(PaperRefused, match="unknown strategy"):
         await J.run_session(s, m, "nope", DAYS[0])
+
+
+async def test_pending_starts_after_the_last_recorded_day_and_needs_stored_bars(world):
+    s, m = world
+    floor = DAYS[0]
+    assert await J.pending(s, "fixed", floor) is None                 # no Nifty bar seeded
+    from tests.support.stage2_seed import N
+    rid = await SEED._run(s, "ohlcv.1d.x")
+    sha = await SEED._payload(s, rid)
+    ids = dict((await s.execute(text("select instrument_key, instrument_id from instrument"
+                                     ))).all())
+    await s.execute(text("""
+        insert into ohlcv_bar (instrument_id, timeframe, session_date, bar_start_utc, source,
+          instrument_key, open, high, low, close, volume, vendor_ts_raw, run_id,
+          payload_sha256, fetched_at, knowable_at, knowable_at_basis)
+        values (:i, '1d', '2026-09-18', :b, 'UPSTOX_REST_V3', :k, 10, 11, 9, 10, 0, 'x', :r,
+                :h, :f, :f, 't')"""),
+        {"i": ids[N], "b": _dt.datetime(2026, 9, 18, tzinfo=IST), "k": N, "r": rid,
+         "h": sha, "f": _dt.datetime(2026, 9, 19, 8, tzinfo=IST)})
+    await P.process(s, commit=True, token=TOKEN)
+    assert await J.pending(s, "fixed", floor) == (DAYS[0], DAYS[-1])
+    await J.replay(s, m, "fixed", DAYS[0], DAYS[1], commit=True, token=TOKEN)
+    assert await J.pending(s, "fixed", floor) == (DAYS[2], DAYS[-1])
+    await J.replay(s, m, "fixed", DAYS[2], DAYS[-1], commit=True, token=TOKEN)
+    assert await J.pending(s, "fixed", floor) is None

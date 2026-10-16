@@ -2387,5 +2387,45 @@ def paper_report(
                            default=str, indent=1))
 
 
+@paper_app.command("daily")
+def paper_daily(
+    strategy: str = typer.Option(..., "--strategy"),
+    commit: bool = typer.Option(False, "--commit", help="record the runs (write token)"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"),
+):
+    """The forward paper job: every session after the strategy's last recorded one (from
+    2026-10-16, after the research TEST windows) whose 1d bars are stored. PAPER ONLY."""
+    import json as _json
+
+    from app.core.clock import now as _now
+    from app.db.engine import get_sessionmaker
+    from app.paper import job
+    from app.paper import strategies as ST
+    from app.training import replay as RP
+
+    code = RP.code_version()
+    if commit and code["dirty"]:
+        typer.echo("REFUSED: the working tree is dirty; commit first")
+        raise typer.Exit(3)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            span = await job.pending(s, strategy)
+            if span is None:
+                return {"strategy": strategy, "status": "UP_TO_DATE"}
+            m = await ST.load_market(s, span[0], span[1], cutoff=_now())
+            out = await job.replay(s, m, strategy, *span, commit=commit, token=token,
+                                   code_git_sha=code["git_sha"])
+            return {"strategy": strategy, "from": span[0], "to": span[1], "sessions": out}
+
+    try:
+        res = asyncio.run(_go())
+    except Exception as e:  # noqa: BLE001 - the runbook alerts on the refusal
+        typer.echo(f"REFUSED: {type(e).__name__}: {e}")
+        raise typer.Exit(3)
+    typer.echo(_json.dumps(res, default=str, indent=1))
+
+
 if __name__ == "__main__":
     app()
