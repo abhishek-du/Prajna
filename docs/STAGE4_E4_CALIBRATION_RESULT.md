@@ -67,3 +67,25 @@
 - **Change:** `e4.BLOCK, NW_LAG = 20, 19`.
 - **Calibration:** new seeds (base 20261016) and the same criterion. The output goes to `null_calibration_c1.json`; the block-5 file stays as the record.
 - **Test look:** the runner now requires the C1 calibration. If C1 is inadequate, stop and report; no further block lengths will be tried.
+
+## C1 result: INADEQUATE (2026-10-16 16:22 IST). The test look was NOT taken.
+
+**Run:**
+- 1000 + 1000 worlds; code `f936f1b0560b`.
+- File `null_calibration_c1.json`, sha256 `216d7ad5ffa4…`.
+- The runner refuses the look: `calibration is not adequate`.
+
+| World | Predictor | `accepted` (Wilson 95%) | `ci_excludes_0` (Wilson 95%) | placebo fail | Mean ± SE (bps) |
+|---|---|---|---|---|---|
+| iid | gap fade | 1.0% [0.5, 1.8] | 2.4% [1.6, 3.6] | 2.0% | −0.01 ± 0.05 |
+| iid | gap-and-go | 1.3% [0.8, 2.2] | 2.1% [1.4, 3.2] | 1.8% | −0.03 ± 0.05 |
+| factor | gap fade | 0.9% [0.5, 1.7] | **4.0% [3.0, 5.4]** | 3.7% | −0.19 ± 0.23 |
+| factor | gap-and-go | 1.4% [0.8, 2.3] | **5.8% [4.5, 7.5]** | 5.4% | +0.20 ± 0.21 |
+
+**Reading:**
+- The decision rule stays conservative everywhere: every `accepted` upper bound is ≤ 2.34%.
+- The estimates stay unbiased.
+- The two-sided interval under-covers in the factor worlds **more** with block 20 (4.0% and 5.8%) than with block 5 (3.6%).
+- So the block length is not the cause. Longer blocks leave about 70 blocks, and the studentised bootstrap with t5 tails and persistent volatility gets less stable, not more.
+
+**Per the rule fixed before C1: stop.** No further block length is tried. Any next step is a different, pre-declared inference method and needs the user's approval.
