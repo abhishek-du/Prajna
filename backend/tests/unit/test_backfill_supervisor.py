@@ -38,7 +38,7 @@ def tick(root, *, free=150, hhmm="2345", trading="true", archive=None, cmd="tick
            "PRAJNA_TELEGRAM_CMD": str(root.parent / "fake" / "telegram.sh"),
            "PRAJNA_TEST_PROGRESS": "1h: 10/100 instruments",
            "PRAJNA_TEST_FREE_GB": str(free), "PRAJNA_TEST_NOW_HHMM": hhmm,
-           "PRAJNA_TEST_TRADING_DAY": trading,
+           "PRAJNA_TEST_TRADING_DAY": trading, "PRAJNA_TEST_HEALTH": "",
            "PRAJNA_BACKUP_ARCHIVE_DIR": str(archive or root.parent / "no_archive"), **extra}
     r = subprocess.run(["bash", str(root / "ops/runbooks/backfill_supervisor.sh"), cmd],
                        cwd=root, env=env, capture_output=True, text=True, timeout=60)
@@ -217,3 +217,25 @@ def test_hourly_update_carries_state_and_progress(tmp_path):
     msg = _sent(root)
     assert "Prajna backfill hourly update" in msg and "1h: 10/100 instruments" in msg
     assert '"stages":"1h,15m"' in msg and "alerts in the last hour: none" in msg
+
+
+def test_no_start_around_the_0630_refresh_on_any_day(tmp_path):
+    """2026-10-16: a run holding the lock at 06:30 made the refresh (login) time out."""
+    for i, (hhmm, dow) in enumerate((("0625", "6"), ("0640", "7"), ("0630", "2"))):
+        root = tree(tmp_path / str(i))
+        out = tick(root, hhmm=hhmm, trading="false", PRAJNA_TEST_DOW=dow)
+        assert "SUPERVISOR_WINDOW_CLOSED refresh" in out and started(root) is None
+    root = tree(tmp_path / "sat_night")
+    out = tick(root, hhmm="0100", trading="false", PRAJNA_TEST_OTHER_JOB="false",
+               PRAJNA_TEST_DOW="6")
+    assert "until=06:25" in out                       # not 09:50 across the refresh
+
+
+def test_hourly_health_problems_are_alerted(tmp_path):
+    root = tree(tmp_path)
+    tick(root, cmd="hourly", PRAJNA_TEST_HEALTH="stage2_not_pass Stage 2 overall NOT PASSED\n"
+                                                "news_refused latest refused")
+    msg = _sent(root)
+    assert "Prajna backfill ISSUE: SUPERVISOR_ALERT health_stage2_not_pass" in msg
+    assert "SUPERVISOR_ALERT health_news_refused" in msg
+    assert "alerts in the last hour: [" in msg        # the summary lists them too

@@ -153,6 +153,24 @@ hourly_summary() {   # the hourly Telegram update: state, disk, per-stage progre
     "${alerts:-none}"
 }
 
+health() {   # 2026-10-16: refusals were silent for 8 h; one "kind detail" line per problem
+  if [[ -n "${PRAJNA_TEST_HEALTH+x}" ]]; then printf '%s' "$PRAJNA_TEST_HEALTH"; return 0; fi
+  local day hhmm; day="$(TZ=Asia/Kolkata date +%F)"; hhmm="$(now_hhmm)"
+  .venv/bin/python -c 'from app.features.locks import stage2_status as f
+ok, d = f()
+print("" if ok else "stage2_not_pass " + d)' 2>/dev/null || echo "stage2_unknown check failed"
+  if [[ ! "$hhmm" < "0645" ]] && ! grep -Eq "done: refresh +fail=0" \
+       "var/logs/daily/refresh_${day}.log" 2>/dev/null; then
+    echo "refresh_missing no successful 06:30 refresh (login + instrument master) today"
+  fi
+  local recent; recent="$(tail -n 20000 var/logs/cron.log 2>/dev/null)"
+  grep -q "STAGE3_REFUSED [A-Z_]* ${day}" <<< "$recent" && \
+    echo "stage3_refused a Stage 3 snapshot was refused today (stage3_event)"
+  grep -E "NEWS_COLLECT_(DONE|REFUSED|SKIP)" <<< "$recent" | tail -1 | grep -q REFUSED && \
+    echo "news_refused the latest news collection was refused by its locks"
+  return 0
+}
+
 tick() {
   if [[ -f var/run/backfill.paused ]]; then say "SUPERVISOR_PAUSED"; return 0; fi
   if [[ -f var/run/backfill.done ]]; then say "SUPERVISOR_DONE"; return 0; fi
@@ -176,6 +194,9 @@ tick() {
   archive_oldest
   if running; then say "SUPERVISOR_RUNNING free_gb=$(free_gb)"; return 0; fi
   local hhmm td; hhmm="$(now_hhmm)"; td="$(trading_day)"
+  if [[ ! "$hhmm" < "0625" && "$hhmm" < "0645" ]]; then   # every day: the 06:30 refresh
+    say "SUPERVISOR_WINDOW_CLOSED refresh"; return 0
+  fi
   if [[ "$td" == "true" && ! "$hhmm" < "0630" && "$hhmm" < "1600" ]]; then
     say "SUPERVISOR_WINDOW_CLOSED"; return 0
   fi
@@ -189,8 +210,8 @@ tick() {
   if other_upstox_job; then frac="$SHARED_FRACTION"; fi
   # Saturday 10:00 weekly corporate-action sweep (fraction 0.3): stop the fast run at
   # 09:50, run the shared fraction until 13:00, then fast again
-  if [[ "$dow" == "6" && "$hhmm" < "0950" ]]; then until="09:50"
-  elif [[ "$dow" == "6" && "$hhmm" < "1300" ]]; then frac="$SHARED_FRACTION"; until="13:00"; fi
+  if [[ "$dow" == "6" && ! "$hhmm" < "0645" && "$hhmm" < "0950" ]]; then until="09:50"
+  elif [[ "$dow" == "6" && ! "$hhmm" < "0950" && "$hhmm" < "1300" ]]; then frac="$SHARED_FRACTION"; until="13:00"; fi
   nohup flock -n "$LOCK" env PRAJNA_UPSTOX_RATE_FRACTION="$frac" \
     "$RB/backfill.sh" --login --stages "$STAGES" --until "$until" \
     >> var/logs/backfill/supervisor_child.log 2>&1 &
@@ -201,6 +222,9 @@ case "${1:-tick}" in
   tick) tick ;;
   status) status_json ;;
   hourly)
+    while read -r kind rest; do
+      [[ -n "$kind" ]] && say "SUPERVISOR_ALERT health_${kind} ${rest}"
+    done <<< "$(health)"
     "$NOTIFY" "$(hourly_summary)" >/dev/null 2>&1 || true
     echo "[$(TZ=Asia/Kolkata date '+%F %T IST')] SUPERVISOR_HOURLY sent" >> "$LOG" ;;
   report)
