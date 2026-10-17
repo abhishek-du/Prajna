@@ -275,3 +275,17 @@ def test_non_trading_days_do_not_wait_for_a_close(tmp_path):
     out = tick(root, hhmm="1600", trading="false", PRAJNA_TEST_DOW="6",
                PRAJNA_TEST_OTHER_JOB="false")
     assert "SUPERVISOR_STARTED" in out
+
+
+def test_an_operator_stage_override_file_chooses_the_stages(tmp_path):
+    """2026-10-17: a fail-closed 1h stream kept the fixed 1h,15m order from reaching 15m."""
+    root = tree(tmp_path)
+    (root / "var/run/backfill.stages").write_text("15m\n")
+    out = tick(root, hhmm="1310", trading="false", PRAJNA_TEST_DOW="6",
+               PRAJNA_TEST_OTHER_JOB="false")
+    assert "SUPERVISOR_STARTED stages=15m" in out
+    assert started(root).startswith("--login --stages 15m ")
+    root2 = tree(tmp_path / "bad")
+    (root2 / "var/run/backfill.stages").write_text("15m; rm -rf /\n")   # not a stage list
+    assert "stages=1h,15m" in tick(root2, hhmm="1310", trading="false", PRAJNA_TEST_DOW="6",
+                                    PRAJNA_TEST_OTHER_JOB="false")

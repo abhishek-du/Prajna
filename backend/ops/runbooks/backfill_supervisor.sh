@@ -46,7 +46,13 @@ RB="${PRAJNA_RUNBOOK_DIR:-ops/runbooks}"
 # phase 1 = 1h + 15m first (user 2026-10-15: "1h and 15m ASAP"); phase 2 = all three
 # (1h/15m resume as no-ops from their checkpoints, then 1m), which alone can end it
 PHASE1_STAGES="1h,15m"
+# var/run/backfill.stages: an operator override (2026-10-17: one 1h stream, OLIL, fails
+# closed on an UNEXPLAINED revision, and the fixed 1h,15m order kept 15m from ever
+# starting). It only chooses stages; every gate and fail-closed rule stays as it is.
+OVERRIDE_RE='^(1h|15m|1m)(,(1h|15m|1m))*$'
 if [[ -n "${PRAJNA_BACKFILL_STAGES:-}" ]]; then STAGES="$PRAJNA_BACKFILL_STAGES"
+elif [[ -f var/run/backfill.stages ]] && [[ "$(tr -d ' \n' < var/run/backfill.stages)" =~ $OVERRIDE_RE ]]; then
+  STAGES="$(tr -d ' \n' < var/run/backfill.stages)"
 elif [[ -f var/run/backfill.phase1_done ]]; then STAGES="1h,1m,15m"
 else STAGES="$PHASE1_STAGES"; fi
 FAST_FRACTION="${PRAJNA_BACKFILL_FAST_FRACTION:-0.9}"     # alone on the historical API
