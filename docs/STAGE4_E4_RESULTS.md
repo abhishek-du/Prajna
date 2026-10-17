@@ -63,3 +63,30 @@
    - re-estimate the edge with that measured entry.
 2. **Forward paper record:** `baseline_gap_fade` is arm P of this rule. The daily paper job (from 2026-10-16, after every TEST window) is its out-of-sample check. Its cron line is not yet installed.
 3. **E4b** (15m data, ~22 Oct): a stop/target exit, with the inference fixed in advance using this C2 method.
+
+## Execution realism, first measurement (2026-10-17)
+
+**Run:**
+- `backend/ops/measure/e4_execution_realism.py` (read-only); output `var/stage4/experiments/e4/execution_realism.json`.
+- 15 sessions (2026-09-24..10-15) with pre-open and 1m data; the gap-fade picks are arm P, taken from the recorded paper target lists. That gives 150 picks.
+- Distances are measured on all sessions, because they are a cost measurement. Returns are computed only for sessions on or after 2026-10-01, outside the TEST window.
+
+**Distance from the official price, in bps. A positive value is worse for the trader.**
+
+| Entry or exit | Mean | Median | p75 | p90 |
+|---|---|---|---|---|
+| IEP at 09:07 vs the official open (an auction order) | +0.5 | 0.0 | +18 | +74 |
+| 09:15 1m close vs the open (a market order right after the open) | −3.0 | 0.0 | +61 | +117 |
+| VWAP 09:15–09:19 vs the open | −4.0 | +1.7 | +54 | +125 |
+| 15:15 1m close vs the official close (MIS square-off) | −2.9 | 0.0 | +14 | +40 |
+| 15:20 1m close vs the official close | −1.3 | 0.0 | +15 | +39 |
+
+**Reading:**
+- **Entry through the pre-open auction fills at the official open by construction.** An auction trade crosses no bid-ask spread, so the 5 bps half-spread in E4 is conservative for this path.
+- **A market order after 09:15 shows no systematic penalty on average** (mean −3 bps), but the dispersion is large: p90 is about +120 bps.
+- **An exit at 15:15–15:20 sits about 0 on average** against the official close.
+- **The real gap is the selection.** Live, the picks must come from the 09:07 IEP, not the official open. The IEP-based top 10 overlaps the open-based top 10 by only **7.3 of 10** names.
+- On the 10 sessions after the TEST window, the open-based list grossed a mean of +13 bps and the IEP-based list about −1 bps. With a session SD of about 130 bps, **10 sessions cannot tell them apart**.
+- **This sample is small:** 15 sessions, 150 picks, and a standard error of the mean of about 8–10 bps.
+
+**Consequence:** a live-realistic version needs the selection on the 09:07 IEP, entry in the auction at the official open, and exit at the close or at 15:20. Its edge can only be learned **forward**, because IEP data exists only from 2026-09-24. The proposal is to add it as a forward paper strategy, `gap_fade_iep`, next to `baseline_gap_fade`.
