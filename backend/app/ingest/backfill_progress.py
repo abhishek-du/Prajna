@@ -10,7 +10,8 @@ Per timeframe:
   total     current ACTIVE NSE_EQ/NSE_INDEX instruments: the universe backfill.sh fetches.
             Instruments REMOVED_FROM_MASTER are not served by the vendor any more and are
             never fetched; counting them made 1h stop at 3579/3585 (fixed 2026-10-19)
-  done_1h   instruments that reached the depth in the last hour (the pace)
+  done_1h   instruments that reached the depth in the last hour through a historical run
+            (the pace; the close's intraday runs re-stamp covered streams and do not count)
   runs_1h, bars_1h   historical runs completed in the last hour
   eta_hours remaining / done_1h; None when nothing completed in the last hour
 A run's window count differs by timeframe (a quarter per 1h request, a month per 15m
@@ -50,7 +51,8 @@ async def rows(s: AsyncSession, today: _dt.date | None = None) -> list[dict[str,
     for tf, depth in depths(today).items():
         done, done_1h = (await s.execute(text(f"""
             select count(*),
-                   count(*) filter (where r.finished_at > now() - interval '1 hour')
+                   count(*) filter (where r.finished_at > now() - interval '1 hour'
+                                      and r.request_params ->> 'endpoint' = 'historical')
             from instrument i
             join ingest_watermark w on w.source = 'UPSTOX_REST_V3'
              and w.stream = 'ohlcv.' || :tf || '.' || i.instrument_key

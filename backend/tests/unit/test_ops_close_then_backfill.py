@@ -156,8 +156,11 @@ class TestCloseThenBackfill:
 def _backfill(base, *, stage_rc: dict[str, int] | None = None, other_job: bool = False,
               now_hhmm: str = "2330", trading: str = "True", auth_failures: int = 0,
               df_low_after: int | None = None, slow_tf: str | None = None,
+              stage_out: dict[str, str] | None = None,
               args: tuple[str, ...] = ("--login", "--until", None)):
     stage_rc = stage_rc or {}
+    outs = "\n".join(f"  *\"--timeframe {tf} \"*) echo '{js}' ;;"
+                     for tf, js in (stage_out or {}).items())
     counter = base / "ingest_calls"
     calls = base / "calls.log"
     bin_ = base / "bin"
@@ -184,7 +187,10 @@ case "$args" in
               echo INTERRUPTED >> {calls}; exit 130' INT
         wait $SL ;;
     esac
-    echo '{{}}'
+    case "$args " in
+{outs}
+      *) echo '{{}}' ;;
+    esac
     case "$args " in
 {cases}
     esac ;;
@@ -209,6 +215,33 @@ exit 0
 def _ingests(calls: str) -> list[str]:
     return [ln.split("--timeframe ")[1].split(" ")[0] for ln in calls.splitlines()
             if "ingest candles" in ln]
+
+
+FAILED_1H = '{"stopped": null, "aborted": 0, "failed": [{"key": "NSE_EQ|X", "tf": "1h"}]}'
+
+
+class TestFailClosedStreams:
+    """A stream that fails closed (D3 UNEXPLAINED, ...) stays at its checkpoint; the
+    other instruments and the later stages still run (2026-10-17: one OLIL stream kept
+    15m from starting for 4 h)."""
+
+    def test_failed_windows_do_not_stop_the_later_stages(self, base):
+        p, calls = _backfill(base, stage_rc={"1h": 1}, stage_out={"1h": FAILED_1H})
+        assert _ingests(calls) == ["1h", "1m", "15m"], p.stdout
+        assert "BACKFILL_STREAMS_FAILED tf=1h windows=1" in p.stdout
+        assert p.returncode == 6
+        assert "BACKFILL_COMPLETED rc=6 status=streams_failed_1h" in p.stdout
+        assert "all_stages_complete" not in p.stdout                # never claimed complete
+
+    def test_a_vendor_stop_still_stops_everything(self, base):
+        p, calls = _backfill(base, stage_rc={"1h": 1},
+                             stage_out={"1h": '{"stopped": "RateLimited: 429", "failed": []}'})
+        assert _ingests(calls) == ["1h"] and p.returncode == 1
+        assert "status=stage_1h_not_complete" in p.stdout
+
+    def test_an_unreadable_result_still_stops(self, base):
+        p, calls = _backfill(base, stage_rc={"1h": 1}, stage_out={"1h": "not json"})
+        assert _ingests(calls) == ["1h"] and "status=stage_1h_not_complete" in p.stdout
 
 
 class TestBackfillStages:

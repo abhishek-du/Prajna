@@ -289,3 +289,11 @@ def test_an_operator_stage_override_file_chooses_the_stages(tmp_path):
     (root2 / "var/run/backfill.stages").write_text("15m; rm -rf /\n")   # not a stage list
     assert "stages=1h,15m" in tick(root2, hhmm="1310", trading="false", PRAJNA_TEST_DOW="6",
                                     PRAJNA_TEST_OTHER_JOB="false")
+
+
+def test_fail_closed_streams_alert_and_the_next_tick_resumes(tmp_path):
+    root = tree(tmp_path)
+    last_run(root, "streams_failed_1h")
+    out = tick(root, PRAJNA_TEST_OTHER_JOB="false", PRAJNA_TEST_DOW="4")
+    assert "SUPERVISOR_ALERT streams_failed:1h" in out and "unknown_stop" not in out
+    assert started(root) is not None                        # not a stop: it starts again

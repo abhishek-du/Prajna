@@ -221,3 +221,63 @@ def test_ceiling_with_the_exact_volume_is_not_a_convention():
     stored, new = OLIL[1]                       # close: half-even 293.75, ceiling 293.80
     assert classify(_bar(stored), {**_bar(new), "volume": 18600},
                     **OLIL_KW).classification == "UNEXPLAINED"
+
+
+# ── revision-v4: intraday volume slack, one unit per constituent minute (2026-10-19) ──
+# OLIL 1h bars the vendor re-served on 2026-10-17 (ingest_anomaly DUPLICATE_KEY, both
+# UNEXPLAINED under v3): prices are exactly reciprocal-4dp, volume is off by a few units
+# because the vendor adjusts volume below the bar level before summing.
+OLIL_1H = [  # (stored O, H, L, C, V), (re-served O, H, L, C, V), bar date
+    (("426.0000", "433.9000", "422.0500", "424.0500", 47600),
+     ("284.0", "289.3", "281.4", "282.7", 71397), _dt.date(2026, 9, 24)),
+    (("421.0500", "438.0000", "420.0000", "438.0000", 58000),
+     ("280.7", "292.0", "280.0", "292.0", 86995), _dt.date(2026, 9, 28)),
+]
+
+
+def _kw1h(bar_date, minutes=60):
+    return dict(bar_date=bar_date, fetch_date=_dt.date(2026, 10, 17), tick=D("0.05"),
+                events=[OLIL_EVENT], minutes=minutes)
+
+
+def test_real_olil_1h_bars_are_explained_with_bounded_volume_slack():
+    for stored, new, day in OLIL_1H:
+        v = classify(_bar(stored), _bar(new), **_kw1h(day))
+        assert v.classification == "CA_ADJUSTMENT", (stored, new)
+        assert v.explained_by["ca_ids"] == [4109]
+        assert 0 < int(v.explained_by["volume_slack"]) <= v.explained_by["slack_max"] == 60
+
+
+def test_the_same_bars_fail_closed_without_minutes():      # v3 behaviour: daily stays exact
+    for stored, new, day in OLIL_1H:
+        assert classify(_bar(stored), _bar(new), **_kw1h(day, minutes=0)).fails
+
+
+def test_volume_beyond_one_unit_per_minute_fails_closed():
+    stored, new, day = OLIL_1H[0]      # prices fit reciprocal-4dp only: volume 71,396
+    assert not classify(_bar(stored), {**_bar(new), "volume": 71396 - 60},
+                        **_kw1h(day)).fails
+    assert classify(_bar(stored), {**_bar(new), "volume": 71396 - 61},
+                    **_kw1h(day)).fails
+    assert classify(_bar(stored), {**_bar(new), "volume": 71396 + 61},
+                    **_kw1h(day)).fails
+    assert classify(_bar(stored), {**_bar(new), "volume": 71396 + 15},     # 15m bar
+                    **_kw1h(day, minutes=15)).classification == "CA_ADJUSTMENT"
+    assert classify(_bar(stored), {**_bar(new), "volume": 71396 + 16},
+                    **_kw1h(day, minutes=15)).fails
+
+
+def test_slack_never_excuses_a_price_or_a_missing_event():
+    stored, new, day = OLIL_1H[0]
+    assert classify(_bar(stored), {**_bar(new), "close": "282.75"}, **_kw1h(day)).fails
+    assert classify(_bar(stored), _bar(new),
+                    **{**_kw1h(day), "events": []}).fails                 # no recorded CA
+    late = Event(4109, _dt.date(2026, 10, 18), D("1.5"))                  # ex after fetch
+    assert classify(_bar(stored), _bar(new), **{**_kw1h(day), "events": [late]}).fails
+    assert classify(_bar(stored), {**_bar(new), "open_interest": 5}, **_kw1h(day)).fails
+
+
+def test_an_unchanged_volume_still_needs_no_slack():
+    stored, new, day = OLIL_1H[0]
+    v = classify(_bar(stored), {**_bar(new), "volume": 71396}, **_kw1h(day))
+    assert v.classification == "CA_ADJUSTMENT" and "volume_slack" not in v.explained_by

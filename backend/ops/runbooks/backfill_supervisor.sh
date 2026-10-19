@@ -207,6 +207,7 @@ tick() {
     disk_low*) say "SUPERVISOR_ALERT disk_low (backfill stopped itself; storage rule applies)" ;;
     token_invalid*|relogin_failed*) say "SUPERVISOR_ALERT token:${last} (next tick retries with --login)" ;;
     stage_*_not_complete*) say "SUPERVISOR_ALERT vendor_stop:${last} (resumable; agent reviews)" ;;
+    streams_failed_*) say "SUPERVISOR_ALERT streams_failed:${last#streams_failed_} (fail-closed streams; other instruments and stages continued)" ;;
     *) say "SUPERVISOR_ALERT unknown_stop:${last}" ;;
   esac
   archive_oldest

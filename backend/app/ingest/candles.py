@@ -488,7 +488,9 @@ class CandleIngestor:
                                  fetch_date=fetched.astimezone(IST).date(),
                                  tick=ticks[r["instrument_id"]], events=events[key],
                                  is_global=key.split("|", 1)[0] in GLOBAL_SEGMENTS,
-                                 last_bar_of_session=last_bar)
+                                 last_bar_of_session=last_bar,
+                                 minutes=0 if width is None else
+                                 int(width.total_seconds() // 60))
                 if v.fails:
                     checks.add(AnomalySeverity.FAIL, AnomalyKind.DUPLICATE_KEY, key,
                                reason="a different bar is already stored and no rule explains "

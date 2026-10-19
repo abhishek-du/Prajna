@@ -58,6 +58,7 @@ say() { echo "[$(TZ=Asia/Kolkata date '+%F %T IST')] $*"; }
 STATUS="started"
 TICK=""
 RELOGGED=0
+FAILED_TF=()
 finish() {
   local rc=$?
   [[ -n "$TICK" ]] && { pkill -P "$TICK" 2>/dev/null; kill "$TICK" 2>/dev/null; }
@@ -184,14 +185,30 @@ for st in "${STAGES[@]}"; do
   set -e
   say "   ${TF} exit ${rc}"
   progress "$TF" "$FROM"
+  # failed windows only (no vendor stop): those streams stay fail-closed at their
+  # checkpoint, the other instruments and the later stages go on (2026-10-19: one OLIL
+  # stream that failed closed kept every later stage from starting on 2026-10-17)
+  nfail=0
+  if [[ $rc -eq 1 && -z "$stopped" ]]; then
+    nfail="$("$P" -c "import json,sys; d=json.load(open(sys.argv[1])); print(len(d.get('failed') or []) if not d.get('aborted') else 0)" "var/logs/backfill/${TF}_${STAMP}.json" 2>/dev/null || echo 0)"
+  fi
   case $rc in
     0) ;;                                  # stage complete -> next stage
     124|130|137) STATUS="time_limit_resumable"; say "stopped at the time limit (resumable)"; exit 0 ;;
-    *) say "   stopped: ${stopped:-?}"
+    *) if [[ "${nfail:-0}" -gt 0 ]]; then
+         FAILED_TF+=("$TF")
+         say "BACKFILL_STREAMS_FAILED tf=${TF} windows=${nfail} (fail-closed, see ${TF}_${STAMP}.json); next stage continues"
+         continue
+       fi
+       say "   stopped: ${stopped:-?}"
        STATUS="stage_${TF}_not_complete"
        say "stage ${TF} not complete (see log); stopping, resumable"; exit "$rc" ;;
   esac
 done
+if (( ${#FAILED_TF[@]} > 0 )); then
+  STATUS="streams_failed_$(IFS=,; echo "${FAILED_TF[*]}")"
+  say "stages run; failed-closed streams in ${FAILED_TF[*]} need review (resumable)"; exit 6
+fi
 if [[ "$SELECT" == "1h,1m,15m" ]]; then
   STATUS="all_stages_complete"; say "all stages complete to the approved depth"
 else
