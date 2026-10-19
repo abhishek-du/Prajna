@@ -111,11 +111,13 @@ def score(s: dict[str, list], hyp: str, d: int, regular: list[bool],
 
 # ── universe and arms ────────────────────────────────────────────────────────────────
 def eligible(series: dict[str, dict], d: int, suspect: dict[str, set[int]], hyp: str, *,
-             top: int = E4.UNIVERSE_TOP) -> list[tuple[str, float, float, float]]:
+             top: int = E4.UNIVERSE_TOP, base: list | None = None
+             ) -> list[tuple[str, float, float, float]]:
     """e4.eligible (daily rules at d - 1, |gap| <= 25%), then open-consistent names whose
-    signal bar exists: [(key, turnover, volatility, axis)], turnover order kept."""
+    signal bar exists: [(key, turnover, volatility, axis)], turnover order kept. `base`:
+    e4.eligible(series, d, suspect, top=top) already computed (shared by B1-B3)."""
     out = []
-    for k, t, v, _ in E4.eligible(series, d, suspect, top=top):
+    for k, t, v, _ in (E4.eligible(series, d, suspect, top=top) if base is None else base):
         if not open_consistent(series[k], d):
             continue
         a = axis(series[k], hyp, d)
@@ -126,11 +128,11 @@ def eligible(series: dict[str, dict], d: int, suspect: dict[str, set[int]], hyp:
 
 def form_session(series: dict[str, dict], d: int, suspect: dict[str, set[int]], hyp: str,
                  regular: list[bool], ca_ex: dict[str, set[int]] | None = None, *,
-                 k: int = K, seed: int = 0) -> dict[str, Any]:
+                 k: int = K, seed: int = 0, base: list | None = None) -> dict[str, Any]:
     """Every arm at the signal instant of hyp. Reads daily bars < d, the open of d and
     the signal bar of d only."""
     ca_ex = ca_ex or {}
-    u = eligible(series, d, suspect, hyp)
+    u = eligible(series, d, suspect, hyp, base=base)
     keys = [r[0] for r in u]
     ok = sorted(((sc, key) for key in keys
                  if (sc := score(series[key], hyp, d, regular, ca_ex.get(key, set())))
