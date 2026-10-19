@@ -1,4 +1,4 @@
-# Stage 1: fundamentals, R&D and proposal (2026-10-19, NOT BUILT, needs approval)
+# Stage 1: fundamentals, R&D and build (approved 2026-10-19; BUILT, not yet on production)
 
 **Question (user, 2026-10-19):** what is the best way to get fundamentals so that Stage 1 can be called 100% complete?
 
@@ -74,7 +74,7 @@ The status reply of 2026-10-19 said "only shareholding snapshots exist". **That 
 | **F2** | **Results calendar** | Parse Board Meeting Intimation ("to consider … financial results … on <date>") into an append-only `results_calendar`: ISIN, meeting date, period, announcement time | Knowable at the announcement's timestamp. Feeds the "avoid earnings day" filter (diagram Stage 5) and event features (days to results, results today) |
 | **F3** | **Ratios computed by us** | P/E and P/B daily from the PIT price and the TTM EPS / book value of F1's snapshots. The vendor's key-ratios snapshot stays a cross-check | Fully PIT, daily, no extra requests |
 | **F4** | **History before 2026-09-24** | Values: **NOT_AVAILABLE_HISTORICALLY** (the existing Stage 4 policy, never zero). Results dates: optional, from a **manual** NSE Financial Results CSV export by the user (2022–2026, offered for download), loaded once with provenance | The dates are exact. Values only from a licensed vendor (a cost decision) |
-| **F5** | **Earnings estimates** | **OUT_OF_SCOPE** (as Stage 1 H and L), documented | n/a |
+| **F5** | **Earnings estimates** | **In scope (user, 2026-10-19):** F5a seasonal-random-walk expectation, F5b street verdict from headlines, F5c numeric consensus needs a licensed vendor (§5) | F5a and F5b are point-in-time by construction |
 
 **Stage 1 acceptance would gain criterion FUND.** It PASSES when, over 10 sessions:
 - F1 refreshed every ISIN with a results event within 1 trading day, with `knowable_at` > the event's timestamp;
@@ -92,7 +92,44 @@ The status reply of 2026-10-19 said "only shareholding snapshots exist". **That 
   - only about one year exists anyway.
   - If ever wanted, it stays research-only, flagged ASSUMED.
 
-## 4. Decisions requested
+## 4. Decisions (user, 2026-10-19)
+
+"haan F1 F2 F3 f4 shuru karo, 5m 12 mahine theek hai OR ISKO SCOPE MAI LAAO 5. F5":
+- F1–F4 approved.
+- 5m approved for 12 months.
+- **F5 is brought into scope** (it is no longer OUT_OF_SCOPE).
+
+## 5. Built (2026-10-19)
+
+| Part | Code | What |
+|---|---|---|
+| Migration 0023 | `results_event`, `fundamental_refresh` (append-only) | Applied to `prajna_test`. **Production after a backup**, in the daytime window |
+| F2 + F1 trigger + F5b | `app/fundamentals/events.py` (pure), `store.extract_events`, `prajna fundamentals events` | Real data, 2026-09-28..10-19: 652 results intimations parsed (641 with meeting date and period; 11 periods dropped as impossible, e.g. "June 2027" in October 2026, flagged `PERIOD_AFTER_MEETING`); 216 outcomes; 20 estimate headlines (16 BEAT, 4 MISS) |
+| F1 | `store.refresh`, `prajna fundamentals refresh`, `ops/runbooks/fundamentals_events.sh` | One Upstox run per due ISIN (batch 1). Cron proposed 13:15 daily, commented `APPROVED_NOT_INSTALLED` in `ops/cron/prajna.cron` |
+| F3 + F5a | `app/fundamentals/ratios.py` (pure), `store.ratios_as_of`, `prajna fundamentals ratios KEY [--as-of]` | Share count from **standalone** PAT / EPS: TCS 3.618 bn, RELIANCE 13.53 bn, INFY 4.12 bn, HDFCBANK 15.36 bn. Consolidated overstated RELIANCE at 16.0 bn |
+| F4 | `store.import_results_csv`, `prajna fundamentals import-results-csv FILE` | Waits for the user's CSV export (below) |
+| FUND | `store.fund_report`, `prajna acceptance fundamentals` | A report only; not wired into the Stage 1 gate until it PASSES |
+
+**Bug found while building:** a float threshold 0.9 is bound by asyncpg as numeric 0.9000000000000000222…, which silently excluded every 0.900-confidence link. That is almost every NSE announcement link. It is now a `Decimal`, and a test covers it.
+
+### F5 in scope
+
+- **F5a (built):** the analyst-free expectation, a seasonal random walk (Foster, Olsen & Shevlin 1984). It covers every name with stored quarters, from the first quarter whose year-ago quarter was snapshotted (the Sep 2026 results onward).
+- **F5b (built):** the street's verdict (BEAT / MISS / INLINE / MIXED) from results headlines of the already-approved news sources. It covers about the 100–200 most-followed names.
+- **F5c (numeric consensus EPS, needs a decision):** no free or compliant source exists.
+  - **Twelve Data:** `/earnings_estimate` and `/eps_trend`, NSE listed, a documented API.
+  - **LSEG I/B/E/S:** the reference, enterprise priced.
+  - **Trendlyne Forecaster:** about 900 companies; an API only on request.
+  - Yahoo pages are not an API, and their terms forbid scraping.
+  - The choice needs the user's budget and a new secret in `.env`.
+
+### F4: how to export the CSV (a manual download, allowed by NSE's terms)
+
+1. Open nseindia.com → Companies Listing → Corporate Filings → Financial Results.
+2. Pick a date range (2022-01-01 onward, one year at a time if the site limits it) and choose **Download (.csv)**.
+3. Save the files under `backend/var/imports/nse_results/`. Claude runs `prajna fundamentals import-results-csv <file>` (a dry run first). The loader refuses a file without symbol, period-ended and broadcast columns, and lists the header it saw.
+
+## 6. Decisions requested (earlier)
 
 | # | Decision | Proposed |
 |---|---|---|

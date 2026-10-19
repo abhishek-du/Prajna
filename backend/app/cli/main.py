@@ -2427,5 +2427,127 @@ def paper_daily(
     typer.echo(_json.dumps(res, default=str, indent=1))
 
 
+fundamentals_app = typer.Typer(help="fundamentals F1-F5 (docs/STAGE1_FUNDAMENTALS_RND.md)")
+app.add_typer(fundamentals_app, name="fundamentals")
+_TOKEN_HELP = "write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"  # noqa: S105 (help text)
+
+
+@fundamentals_app.command("events")
+def fundamentals_events(
+    commit: bool = typer.Option(False, "--commit", help="write to the database"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN", help=_TOKEN_HELP),
+):
+    """Results events from stored news (no vendor call): INTIMATION (results calendar),
+    OUTCOME (results disseminated) and ESTIMATE_NEWS (beat / miss headlines)."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.fundamentals.store import extract_events
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await extract_events(s, commit=commit, token=token)
+    typer.echo(_json.dumps(asyncio.run(_go()), indent=1, default=str))
+
+
+@fundamentals_app.command("refresh")
+def fundamentals_refresh(
+    commit: bool = typer.Option(False, "--commit", help="fetch and write"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN", help=_TOKEN_HELP),
+    max_age_days: int = typer.Option(10, help="only OUTCOME events this recent"),
+    limit: int = typer.Option(None, help="at most this many ISINs"),
+):
+    """F1: refetch Upstox fundamentals for every instrument with a new results OUTCOME.
+    Dry run lists the due ISINs without a vendor call."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.fundamentals.store import refresh
+    from app.storage.payload_store import PayloadStore
+    from app.vendor.upstox.auth import load_cached
+    from app.vendor.upstox.rest import UpstoxRestClient
+
+    rec = load_cached() if commit else None
+    if commit and rec is None:
+        get_logger("cli").error("upstox_token_missing", action="run `prajna upstox login`")
+        raise typer.Exit(3)
+
+    async def _go():
+        rest = UpstoxRestClient(rec.access_token) if rec else None
+        try:
+            async with get_sessionmaker()() as s:
+                return await refresh(s, rest, PayloadStore(get_settings().archive_dir),
+                                     commit=commit, token=token, max_age_days=max_age_days,
+                                     limit=limit)
+        finally:
+            if rest is not None:
+                await rest.aclose()
+    out = asyncio.run(_go())
+    typer.echo(_json.dumps(out, indent=1, default=str))
+    raise typer.Exit(0 if not out.get("problems") and not out.get("stopped") else 1)
+
+
+@fundamentals_app.command("ratios")
+def fundamentals_ratios(
+    key: str = typer.Argument(..., help="instrument key, e.g. NSE_EQ|INE467B01029"),
+    as_of: str = typer.Option(None, help="ISO timestamp (default: now)"),
+):
+    """F3 / F5a: P/E, P/B, earnings yield, TTM EPS and the seasonal-random-walk surprise
+    from what was knowable at as_of (read-only)."""
+    import datetime as _dt
+    import json as _json
+
+    from app.core.clock import now
+    from app.db.engine import get_sessionmaker
+    from app.fundamentals.store import ratios_as_of
+
+    at = _dt.datetime.fromisoformat(as_of) if as_of else now()
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await ratios_as_of(s, key, at)
+    typer.echo(_json.dumps(asyncio.run(_go()), indent=1, default=str))
+
+
+@fundamentals_app.command("import-results-csv")
+def fundamentals_import_csv(
+    path: str = typer.Argument(..., help="a CSV exported by hand from nseindia.com "
+                                         "(Corporate Filings > Financial Results)"),
+    commit: bool = typer.Option(False, "--commit", help="write to the database"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN", help=_TOKEN_HELP),
+):
+    """F4: historical results dates (HISTORICAL_FILING) from a user-exported NSE CSV."""
+    import json as _json
+    import pathlib
+
+    from app.db.engine import get_sessionmaker
+    from app.fundamentals.store import import_results_csv
+
+    p = pathlib.Path(path)
+    data = p.read_bytes()
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await import_results_csv(s, data, p.name, commit=commit, token=token)
+    typer.echo(_json.dumps(asyncio.run(_go()), indent=1, default=str))
+
+
+@acceptance_app.command("fundamentals")
+def acceptance_fundamentals():
+    """Criterion FUND (report only; not part of the Stage 1 gate until it PASSES and the
+    user wires it in)."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.fundamentals.store import fund_report
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await fund_report(s)
+    out = asyncio.run(_go())
+    typer.echo(_json.dumps(out, indent=1, default=str))
+    raise typer.Exit(0 if out["status"] == "PASS" else 1)
+
+
 if __name__ == "__main__":
     app()

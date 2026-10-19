@@ -48,6 +48,9 @@ LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 # Saturday 10:00  corporate actions; 1st of month 11:00 calendar +60d and fundamentals
 0 10 * * 6    cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.3 ops/runbooks/daily.sh --login weekly >> var/logs/cron.log 2>&1
 0 11 1 * *    cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.3 ops/runbooks/daily.sh --login monthly >> var/logs/cron.log 2>&1
+# Event-driven fundamentals F1/F2/F5b (docs/STAGE1_FUNDAMENTALS_RND.md, approved 2026-10-19):
+# APPROVED_NOT_INSTALLED until migration 0023 is on production; the user installs it.
+# 15 13 * * *   cd $B && ops/runbooks/fundamentals_events.sh >> var/logs/cron.log 2>&1
 # Stage 3 feature snapshots: decision SCHEDULE APPROVED 2026-09-28 (PRE_OPEN option B); INSTALLED
 # 2026-09-29 with PRAJNA_STAGE3_ENABLED=true in backend/.env (user go-live authorisation).
 # Every run re-checks every lock (Stage 1 fresh, Stage 2 report, kill switch, flag, token) and
