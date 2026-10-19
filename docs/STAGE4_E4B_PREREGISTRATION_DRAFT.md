@@ -1,6 +1,6 @@
-# Stage 4 E4b: intraday bars (1h / 15m), pre-registration draft (NOT APPROVED, NOT BUILT, NOT RUN)
+# Stage 4 E4b: intraday bars (1h / 15m), pre-registration (APPROVED 2026-10-19; step 1 BUILT; NOT RUN)
 
-**Status:** DRAFT, 2026-10-19, for the user's review. No code, label, calibration or test look exists.
+**Status:** APPROVED 2026-10-19 (D1–D6, "haan sab decisions approve, step 1 shuru karo"). Step 1 (code + synthetic tests, `app/training/e4b.py`, `tests/training/test_e4b.py`) built; no production data read. No label, calibration or test look exists.
 **Label:** research only. PAPER ONLY. No profitability claim.
 
 **Written blind to outcomes.** Before this draft, the only 1h/15m data looked at was structural:
@@ -120,6 +120,10 @@ All are long-only (E4 D2), with K = 10 at ₹10 L (₹1 L orders). K = 5 is a se
 | B3 | gap quintile (= E4a) |
 
 - **Arms as E4a:** P, C2, PL (placebo), PLC, C0 (the random universe).
+- **Unmatched picks are reported per session (step 1 finding, 2026-10-19).** B1 and B2 match on their own signal axis, so the top cells are depleted by the picks.
+  - In an 80-name synthetic universe (45 cells), about 6.5 of 10 picks found no control and the placebo arm was biased under a strong planted momentum (+22 bps).
+  - At 250 names, about 0.6 were unmatched and the placebo was clean (+1.7 ± 5.3 bps).
+  - The real universe is 500. The look reports the unmatched rate, and step 2 reports it before the look. No rule is changed.
 - **Inference: C2 from the start.** It is the inversion of the paired sign-flip randomization test (`e4.signflip_ci`, 10,000 fixed sign vectors). This is the method E4a found ADEQUATE; no bootstrap variant is tried.
 - **Multiplicity:** Bonferroni over B1, B2, B3. Each CI is two-sided at **98.33%** (α = 0.05 / 3 per hypothesis).
 
