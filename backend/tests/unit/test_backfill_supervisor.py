@@ -89,7 +89,7 @@ def test_no_start_in_trading_hours_but_weekends_run(tmp_path):
 
 def test_disk_below_the_guard_alerts_and_does_not_start(tmp_path):
     root = tree(tmp_path)
-    out = tick(root, free=55)
+    out = tick(root, free=5)
     assert "SUPERVISOR_ALERT disk_below_guard" in out and started(root) is None
 
 
@@ -107,7 +107,7 @@ def test_storage_rule_archives_oldest_verified_and_keeps_the_newest_two(tmp_path
         names.append(f.name)
     digests = {n: hashlib.sha256((root / "var/backups" / n).read_bytes()).hexdigest()
                for n in names}
-    out = tick(root, free=66, archive=archive)          # needs two moves (+5 GB each, test)
+    out = tick(root, free=16, archive=archive)          # needs two moves (+5 GB each, test)
     assert out.count("SUPERVISOR_ARCHIVED") == 2
     for n in names[:2]:
         assert not (root / "var/backups" / n).exists()
@@ -123,14 +123,14 @@ def test_storage_rule_never_moves_the_newest_two_even_when_short(tmp_path):
     archive.mkdir()
     for i in range(2):
         (root / "var/backups" / f"b{i}.dump").write_bytes(b"x" * 10)
-    tick(root, free=61, archive=archive)
+    tick(root, free=11, archive=archive)
     assert sorted(p.name for p in (root / "var/backups").iterdir()) == ["b0.dump", "b1.dump"]
 
 
 def test_missing_archive_is_an_alert_not_a_move(tmp_path):
     root = tree(tmp_path)
     (root / "var/backups" / "a.dump").write_bytes(b"x")
-    out = tick(root, free=70)
+    out = tick(root, free=20)
     assert "SUPERVISOR_ALERT storage_archive_unavailable" in out
     assert (root / "var/backups" / "a.dump").exists()
 
@@ -200,8 +200,8 @@ def _sent(root):
 
 def test_alerts_are_sent_to_telegram_once_per_hour(tmp_path):
     root = tree(tmp_path)
-    tick(root, free=55)
-    tick(root, free=55)
+    tick(root, free=5)
+    tick(root, free=5)
     assert _sent(root).count("Prajna backfill ISSUE: SUPERVISOR_ALERT disk_below_guard") == 1
 
 

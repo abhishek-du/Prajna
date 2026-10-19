@@ -41,6 +41,9 @@ TESTS = {
 }
 
 
+D_BATCH = 50          # instrument ids per criterion-D comparison batch
+
+
 async def _one(s, sql, **kw):
     return (await s.execute(text(sql), kw)).one()
 
@@ -188,11 +191,19 @@ async def evaluate(s: AsyncSession, tests: dict | None = None,
         "D4: daily label 00:00 IST; event = the session's own hours (Muhurat sessions "
         "included); knowable after it")
     # D
-    dk = await _one(s, """select count(*) from canon_market_bar c join ohlcv_bar b
+    # The same full comparison, in instrument_id batches: one join of the whole canonical
+    # layer with ohlcv_bar (92 M x 92 M rows) spilled ~40 GB of temp files at 4 MB work_mem
+    # and tripped the backfill disk guard (2026-10-19 05:52). Every row is still compared.
+    hi = (await _one(s, "select coalesce(max(instrument_id), 0) from instrument"))[0]
+    dk = [0]
+    for lo in range(0, hi + 1, D_BATCH):
+        dk[0] += (await _one(s, """select count(*) from canon_market_bar c join ohlcv_bar b
             on b.instrument_id=c.instrument_id and b.timeframe=c.timeframe
             and b.bar_start_utc=c.bar_start_utc and b.session_date=c.market_date
-            where b.knowable_at <> c.knowable_at or b.fetched_at <> c.fetched_at
-               or b.payload_sha256 <> c.payload_sha256""")
+            where c.instrument_id >= :lo and c.instrument_id < :hi
+              and b.instrument_id >= :lo and b.instrument_id < :hi
+              and (b.knowable_at <> c.knowable_at or b.fetched_at <> c.fetched_at
+               or b.payload_sha256 <> c.payload_sha256)""", lo=lo, hi=lo + D_BATCH))[0]
     add("D", "Is knowable_at preserved?",
         PASS if dk[0] == 0 and gate["knowable_after_fetched"]["status"] == PASS else FAIL,
         {"canonical_vs_stage1_mismatches": dk[0],

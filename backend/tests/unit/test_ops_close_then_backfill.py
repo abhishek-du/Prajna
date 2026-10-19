@@ -194,7 +194,7 @@ exit 0
     _exe(bin_ / "pgrep", f"exit {0 if other_job else 1}\n")
     dfn = base / "df_calls"
     low = (f'n=$(( $(cat {dfn} 2>/dev/null || echo 0) + 1 )); echo $n > {dfn}\n'
-           f'[ "$n" -gt {df_low_after} ] && {{ printf \'Avail\\n10G\\n\'; exit 0; }}\n'
+           f'[ "$n" -gt {df_low_after} ] && {{ printf \'Avail\\n5G\\n\'; exit 0; }}\n'
            if df_low_after is not None else "")
     _exe(bin_ / "df", low + "printf 'Avail\\n500G\\n'\n")
     env = {**os.environ, "PATH": f"{bin_}:{os.environ['PATH']}",
@@ -247,7 +247,7 @@ class TestBackfillStages:
 
 class TestBackfillDiskGuard:
     def test_low_disk_during_a_stage_interrupts_it_resumably(self, base):
-        """free disk drops below 60 GB while the 1h stage runs: the ingest is
+        """free disk drops below 10 GB while the 1h stage runs: the ingest is
         interrupted (SIGINT, like the time limit), no later stage starts, exit 5."""
         import time
         t0 = time.monotonic()
@@ -263,7 +263,7 @@ class TestBackfillDiskGuard:
     def test_low_disk_before_a_stage_still_refuses_it(self, base):
         p, calls = _backfill(base, df_low_after=0)
         assert p.returncode == 5 and "ingest candles" not in calls
-        assert "STOP: free disk 10 GB < 60 GB" in p.stdout
+        assert "STOP: free disk 5 GB < 10 GB" in p.stdout
 
 
 class TestBackfillMarkers:

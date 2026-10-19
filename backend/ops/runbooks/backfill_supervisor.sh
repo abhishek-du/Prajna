@@ -13,7 +13,7 @@
 # tick (default):
 #   0 var/run/backfill.paused exists      -> SUPERVISOR_PAUSED, nothing else
 #   1 var/run/backfill.done exists        -> SUPERVISOR_DONE, nothing else
-#   2 storage rule (pre-approved): free < ARCHIVE_BELOW_GB (75) -> move the OLDEST
+#   2 storage rule (pre-approved): free < ARCHIVE_BELOW_GB (25) -> move the OLDEST
 #     backup dumps (+ .sha256) to the archive dir (another filesystem), verifying the
 #     sha256 after the copy, never touching the newest KEEP_BACKUPS (2); stop as soon
 #     as free >= ARCHIVE_BELOW_GB. Never deletes anything else. No archive dir or
@@ -25,7 +25,7 @@
 #     (flock -w 600), which was skipped, so the 06:45 CA run met an expired token
 #   4b trading day from 16:00: wait for today's CLOSE_COMPLETED (the close job first);
 #     after 23:30 without one -> SUPERVISOR_ALERT close_missing, then start
-#   5 free < GUARD_GB (60)        -> SUPERVISOR_ALERT disk_below_guard (no start)
+#   5 free < GUARD_GB (10)        -> SUPERVISOR_ALERT disk_below_guard (no start)
 #   6 the candles lock is free    -> start backfill.sh --login --stages <STAGES>
 #     detached (fraction 0.5), log SUPERVISOR_STARTED; the lock busy (the close or
 #     morning job) -> SUPERVISOR_WAITING_LOCK
@@ -57,8 +57,8 @@ elif [[ -f var/run/backfill.phase1_done ]]; then STAGES="1h,1m,15m"
 else STAGES="$PHASE1_STAGES"; fi
 FAST_FRACTION="${PRAJNA_BACKFILL_FAST_FRACTION:-0.9}"     # alone on the historical API
 SHARED_FRACTION="${PRAJNA_BACKFILL_SHARED_FRACTION:-0.5}" # another Upstox job running
-ARCHIVE_BELOW_GB="${PRAJNA_ARCHIVE_BELOW_GB:-75}"
-GUARD_GB="${PRAJNA_BACKFILL_MIN_FREE_GB:-60}"
+ARCHIVE_BELOW_GB="${PRAJNA_ARCHIVE_BELOW_GB:-25}"   # 2026-10-19: 75 -> 25 with the 10 GB guard
+GUARD_GB="${PRAJNA_BACKFILL_MIN_FREE_GB:-10}"   # user 2026-10-19: 60 -> 10 GB
 KEEP_BACKUPS="${PRAJNA_KEEP_BACKUPS:-2}"
 BACKUPS="${PRAJNA_BACKUP_DIR:-var/backups}"
 ARCHIVE="${PRAJNA_BACKUP_ARCHIVE_DIR:-/windows/prajna_archive}"

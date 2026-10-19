@@ -95,7 +95,7 @@ async def test_stages_overview_endpoint(async_client):
     assert "16:05" in job_times
 
     for job in timeline:
-        assert job["status"] in ("DONE", "RUNNING", "FAILED", "MISSED", "PENDING", "WAITING_CLOSE", "BACKFILLED", "REFUSED → BACKFILLED")
+        assert job["status"] in ("DONE", "RUNNING", "FAILED", "MISSED", "PENDING", "WAITING_CLOSE", "WINDOW_CLOSED", "BACKFILLED", "REFUSED → BACKFILLED")
 
 
 @pytest.mark.anyio

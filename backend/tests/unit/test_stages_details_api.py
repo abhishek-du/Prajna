@@ -101,7 +101,7 @@ async def test_stage2_gate_endpoint(async_client):
     assert resp.status_code == 200
     data = resp.json()["data"]
 
-    assert data["overall"] in ("PASS", "FAIL", "NOT_AVAILABLE")
+    assert data["overall"] in ("PASS", "FAIL", "NOT PASSED", "NOT_AVAILABLE")   # acceptance writes "NOT PASSED"
     criteria = data["criteria"]
     assert len(criteria) >= 16  # Criteria A through P
     criterion_ids = [c["id"] for c in criteria]

@@ -15,7 +15,7 @@
 # stream checkpoints ([covered_from, through]); rerunning it continues where it
 # stopped and re-stored bars are no-ops. It stops by itself at --until (IST,
 # default 06:50: the morning daily run and the pre-open come next), on a
-# 429/auth error (the ingest aborts cleanly), and when free disk < 60 GB - checked
+# 429/auth error (the ingest aborts cleanly), and when free disk < 10 GB (was 60 until 2026-10-19) - checked
 # before every stage AND every PRAJNA_BACKFILL_DISK_POLL_S (default 5) s during a
 # stage: the running ingest is interrupted like at the time limit (resumable).
 # Run it under the candles lock (see ops/cron/prajna.cron) so it never shares
@@ -64,11 +64,11 @@ finish() {
   say "BACKFILL_COMPLETED rc=${rc} status=${STATUS}"
 }
 trap finish EXIT
-MIN_FREE_GB=60
+MIN_FREE_GB="${PRAJNA_BACKFILL_MIN_FREE_GB:-10}"   # user 2026-10-19: lowered from 60 to 10 GB
 free_gb() { df -BG --output=avail / | tail -1 | tr -dc 0-9; }
-progress() {  # progress <tf> <from>: instruments whose checkpoint reaches the depth
+progress() {  # progress <tf> <from>: ACTIVE instruments (the fetched universe) whose checkpoint reaches the depth
   local n
-  n="$("${CLI[@]}" db sql "select count(*) filter (where (r.request_params->'outcome'->'checkpoint'->>'covered_from')::date <= '$2'), count(*) from instrument i left join ingest_watermark w on w.source='UPSTOX_REST_V3' and w.stream='ohlcv.$1.'||i.instrument_key left join ingest_run r on r.run_id=w.last_run_id where i.valid_to='infinity' and i.segment in ('NSE_EQ','NSE_INDEX')" 2>/dev/null | sed -n 3p | awk '{print $1 "/" $2}')" || true
+  n="$("${CLI[@]}" db sql "select count(*) filter (where (r.request_params->'outcome'->'checkpoint'->>'covered_from')::date <= '$2'), count(*) from instrument i left join ingest_watermark w on w.source='UPSTOX_REST_V3' and w.stream='ohlcv.$1.'||i.instrument_key left join ingest_run r on r.run_id=w.last_run_id where i.valid_to='infinity' and i.segment in ('NSE_EQ','NSE_INDEX') and i.lifecycle_status='ACTIVE'" 2>/dev/null | sed -n 3p | awk '{print $1 "/" $2}')" || true
   say "BACKFILL_PROGRESS tf=$1 from=$2 covered=${n:-unknown}"
 }
 
