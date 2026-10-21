@@ -642,7 +642,11 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
 
     # T. replay: random COMMIT runs per family, archive -> parser -> DB
     rp = await replay_sample(s)
-    arch = await verify_archive(s)
+    acp = await OS.latest(s, scope="raw_archive")
+    arch = await verify_archive(s, since=acp["through"] if acp else None)
+    if acp:                          # mismatches the checkpoint found stay counted
+        arch["mismatched"] += int(acp["counts"].get("mismatched", 0))
+        arch["checkpoint"] = f"#{acp['id']} {acp['method']} through {acp['through'].isoformat()}"
     t_ok = rp["runs"] > 0 and rp["mismatches"] == 0 and all(
         v["runs"] for v in rp["by_family"].values() if v["available"]) \
         and arch["mismatched"] == 0 and arch["missing"] == 0
@@ -939,26 +943,40 @@ def to_markdown(rep: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-async def verify_archive(s: AsyncSession) -> dict:
-    """Every raw_payload row: its archived bytes still hash to its sha256.
-    File payloads are read whole; WebSocket frames (<archive>#seq=n) are
-    re-read from their frame archive and each frame re-hashed."""
+async def verify_archive(s: AsyncSession, since: _dt.datetime | None = None) -> dict:
+    """Every raw_payload row: its archived file exists, and its bytes still hash to its
+    sha256. File payloads are read whole; WebSocket frames (<archive>#seq=n) are re-read
+    from their frame archive and each frame re-hashed.
+    `since` (GATE-INCR, the latest archive checkpoint's cut): every file is still checked
+    for existence, but only payloads first seen by a run finished after `since` or still
+    running (and frame archives holding one) are re-hashed; the earlier ones were hashed
+    by the checkpoint (weekly FULL rehash)."""
     import hashlib
 
     from app.storage.frame_archive import FrameArchiveReader
     from app.storage.payload_store import PayloadStore
 
-    rows = await _all(s, "select payload_sha256, storage_uri from raw_payload")
-    files = [(h, u) for h, u in rows if "#seq=" not in u]
+    rows = await _all(s, """select p.payload_sha256, p.storage_uri,
+        (cast(:since as timestamptz) is null or r.finished_at is null
+         or r.finished_at > cast(:since as timestamptz)) as fresh
+        from raw_payload p left join ingest_run r on r.run_id = p.first_seen_run""",
+                      since=since)
+    files = [(h, u, f) for h, u, f in rows if "#seq=" not in u]
     framed: dict[str, dict[int, str]] = {}
-    for h, u in rows:
+    fresh_frames: set[str] = set()
+    for h, u, f in rows:
         if "#seq=" in u:
             path, seq = u.split("#seq=")
             framed.setdefault(path, {})[int(seq)] = h
-    ok = bad = missing = 0
-    for h, u in files:
+            if f:
+                fresh_frames.add(path)
+    ok = bad = missing = existing_only = 0
+    for h, u, f in files:
         if not anchored(u).exists():
             missing += 1
+            continue
+        if not f:
+            existing_only += 1
             continue
         try:
             PayloadStore.read(anchored(u), h)
@@ -969,6 +987,9 @@ async def verify_archive(s: AsyncSession) -> dict:
     for path, want in framed.items():
         if not anchored(path).exists():
             missing += len(want)
+            continue
+        if path not in fresh_frames:
+            existing_only += len(want)
             continue
         seen = {}
         for rec in FrameArchiveReader(anchored(path)):
@@ -982,4 +1003,6 @@ async def verify_archive(s: AsyncSession) -> dict:
             else:
                 bad += 1
     return {"file_payloads_verified": ok, "frame_payloads_verified": frames_ok,
-            "frame_archives": len(framed), "mismatched": bad, "missing": missing}
+            "frame_archives": len(framed), "mismatched": bad, "missing": missing,
+            "exist_checked_hash_by_checkpoint": existing_only,
+            "hashed_since": since.isoformat() if since else None}

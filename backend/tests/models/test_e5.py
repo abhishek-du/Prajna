@@ -125,3 +125,12 @@ def test_controls_are_positions_in_the_universe():
     cells = [tuple(EV.E4.bins(sess.col(f)[u], n)[j] for f, n in (
         ("turnover_20", 3), ("volatility_20", 3), ("ret_5d", 5))) for j in range(len(u))]
     assert len(c) == len(picks) and [cells[j] for j in c] == [cells[j] for j in picks]
+
+
+def test_bundle_round_trips_through_pickle(strong):
+    import pickle
+    p, b = strong
+    back = pickle.loads(pickle.dumps(b, protocol=5))
+    assert back.sha256() == b.sha256()
+    t = len(p) - 1
+    assert np.array_equal(R.predict(back, p, t)["score"], R.predict(b, p, t)["score"])

@@ -77,14 +77,58 @@ class Bundle:
     meta: dict = field(default_factory=dict)
     weights: dict[str, float] = field(default_factory=dict)
 
+    def __getstate__(self) -> dict:
+        """Pickle the LSTM as its weights (the network class is built lazily, so torch is
+        imported only where a model is used)."""
+        st = dict(self.__dict__)
+        mem = dict(st["members"])
+        if "lstm_clf" in mem and not isinstance(mem["lstm_clf"], bytes):
+            mem["lstm_clf"] = _dump(mem["lstm_clf"])
+        st["members"] = mem
+        return st
+
+    def __setstate__(self, st: dict) -> None:
+        mem = dict(st["members"])
+        if isinstance(mem.get("lstm_clf"), bytes):
+            import torch
+            net = _LSTMNet()
+            net.load_state_dict(torch.load(io.BytesIO(mem["lstm_clf"]), weights_only=True))
+            mem["lstm_clf"] = net.eval()
+        st["members"] = mem
+        self.__dict__.update(st)
+
     def sha256(self) -> str:
         h = hashlib.sha256(json.dumps({"version": VERSION, "trained_on": self.trained_on,
                                        "winsor": self.winsor, "cost": self.cost,
                                        "weights": self.weights}, sort_keys=True).encode())
         for name in sorted(self.members):
             h.update(name.encode())
-            h.update(_dump(self.members[name]))
+            h.update(_fingerprint(name, self.members[name]))
         return h.hexdigest()
+
+
+def _probe() -> tuple[np.ndarray, np.ndarray]:
+    """A fixed input (unit-rank-like values): the model's identity is what it computes."""
+    g = np.random.default_rng(SEED)
+    return (g.uniform(-0.5, 0.5, (512, len(D.CORE))),
+            g.uniform(-0.5, 0.5, (512, D.SEQ_LEN, len(D.CORE))).astype(np.float32))
+
+
+def _fingerprint(name: str, m: Any) -> bytes:
+    """The member's outputs on the probe, 12 significant digits (serialisation-free: a
+    pickled and restored model has the same fingerprint)."""
+    X, seq = _probe()
+    if isinstance(m, np.ndarray):
+        v = np.column_stack([np.ones(len(X)), X]) @ m
+    elif name == "lstm_clf":
+        import torch
+        with torch.no_grad():
+            v = torch.sigmoid(m(torch.from_numpy(seq))).numpy()
+    elif hasattr(m, "predict_proba"):
+        v = m.predict_proba(X)[:, 1]
+    else:
+        v = m.predict(X)
+    return json.dumps([float(f"{x:.12g}") for x in np.asarray(v, dtype=float)]).encode()
 
 
 def _dump(m: Any) -> bytes:

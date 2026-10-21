@@ -26,7 +26,13 @@ OUT="var/logs/daily/stage1_checkpoint_${TODAY}.json"
 t0=$(date +%s)
 "${CLI[@]}" acceptance stage1-checkpoint "${MODE[@]}" --commit > "$OUT" 2>> "$LOG"
 rc=$?
-line="$(.venv/bin/python -c 'import json,sys; d=json.load(open(sys.argv[1])); print(f"cut={d.get(\"cut\")} consistent={d.get(\"consistent\")} rows={(d.get(\"counts\") or {}).get(\"rows\")}")' "$OUT" 2>/dev/null || echo unreadable)"
+line="$(.venv/bin/python - "$OUT" <<'PY' 2>/dev/null || echo unreadable
+import json, sys
+d = json.load(open(sys.argv[1]))
+print(f"cut={d.get('cut')} consistent={d.get('consistent')} "
+      f"rows={(d.get('counts') or {}).get('rows')}")
+PY
+)"
 say "STAGE1_CHECKPOINT rc=${rc} mode=${MODE[*]:-incremental} seconds=$(( $(date +%s) - t0 )) ${line}"
 if [[ $rc -ne 0 ]]; then
   say "STAGE1_CHECKPOINT_ALERT rc=${rc}"

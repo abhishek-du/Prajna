@@ -85,3 +85,27 @@ async def test_ohlcv_bar_is_append_only(db_session):
             await s.execute(text("update ohlcv_bar set close = close + 1"))
     finally:
         clock.unfreeze()
+
+
+async def test_archive_checkpoint_keeps_the_full_result(db_session):
+    """The raw archive (T): a checkpoint's mismatches stay counted, a payload of a later run
+    is hashed again, and a missing file is found without a rehash."""
+    from app.acceptance import stage1 as S1
+    s = db_session
+    clock.freeze(W.NOW)
+    try:
+        ids = await W.seed(s)
+        full = await S1.verify_archive(s)
+        cp = await OS.checkpoint(s, full=True, commit=True, token=TOKEN)
+        assert cp["archive"]["mismatched_total"] == full["mismatched"]
+        a = await OS.latest(s, "raw_archive")
+        inc = await S1.verify_archive(s, since=a["through"])
+        assert inc["file_payloads_verified"] + inc["mismatched"] == 0        # nothing new
+        assert inc["missing"] == full["missing"]
+        await _later_run(s, ids)                    # a new payload (seeded at /dev/null)
+        inc = await S1.verify_archive(s, since=a["through"])
+        assert inc["file_payloads_verified"] + inc["mismatched"] == 1
+        assert inc["mismatched"] + a["counts"]["mismatched"] == (await S1.verify_archive(s))[
+            "mismatched"]
+    finally:
+        clock.unfreeze()

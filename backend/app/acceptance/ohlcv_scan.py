@@ -91,10 +91,10 @@ def add(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
     return {"counts": {c: a["counts"][c] + b["counts"][c] for c in COUNTS}, "bars": bars}
 
 
-async def latest(s: AsyncSession) -> dict[str, Any] | None:
+async def latest(s: AsyncSession, scope: str = "ohlcv_bar") -> dict[str, Any] | None:
     r = (await s.execute(text("""select id, method, through_finished_at, counts, bars,
-        created_at from gate_scan_checkpoint where scope = 'ohlcv_bar'
-        order by id desc limit 1"""))).first()
+        created_at from gate_scan_checkpoint where scope = :sc
+        order by id desc limit 1"""), {"sc": scope})).first()
     if r is None:
         return None
     return {"id": r.id, "method": r.method, "through": r.through_finished_at,
@@ -141,7 +141,27 @@ async def checkpoint(s: AsyncSession, *, full: bool, commit: bool = False,
         cur = {k: inc[k] for k in ("counts", "bars")}
         out["consistent"] = None
     out["counts"] = cur["counts"]
+    # the raw archive (criterion T): FULL rehashes every payload, INCREMENTAL those fetched
+    # after the previous archive checkpoint; mismatches accumulate
+    from app.acceptance.stage1 import verify_archive
+    aprev = await latest(s, "raw_archive")
+    afull = full or aprev is None
+    arch = await verify_archive(s, since=None if afull else aprev["through"])
+    acut = cut                       # the same run cut as the ohlcv_bar counts
+    amis = arch["mismatched"] + (0 if afull else int(aprev["counts"].get("mismatched", 0)))
+    out["archive"] = {**arch, "mismatched_total": amis, "full": afull}
     if commit:
+        if acut is not None:
+            await s.execute(text("""insert into gate_scan_checkpoint (scope, method,
+                through_finished_at, counts, bars, consistent, previous_id, created_at,
+                code_git_sha, authz_token_sha256) values ('raw_archive', :m, :t,
+                cast(:c as jsonb), '{}'::jsonb, null, :pid, :at, :g, :fp)"""),
+                {"m": "FULL" if afull else "INCREMENTAL", "t": acut,
+                 "c": json.dumps({"mismatched": amis, "missing": arch["missing"],
+                                  "hashed": arch["file_payloads_verified"]
+                                  + arch["frame_payloads_verified"]}),
+                 "pid": aprev["id"] if aprev else None, "at": now(),
+                 "g": code_version()["git_sha"], "fp": fp})
         await s.execute(text("""insert into gate_scan_checkpoint (scope, method,
             through_finished_at, counts, bars, consistent, previous_id, created_at,
             code_git_sha, authz_token_sha256) values ('ohlcv_bar', :m, :t, cast(:c as jsonb),
