@@ -71,7 +71,7 @@ async def test_events_are_extracted_once_and_point_in_time(db_session):
                 knowable=T0 + _dt.timedelta(days=7))
     await _news(s, pid, source="NSE_ANNOUNCEMENTS", title="X", summary="consider Fund raising",
                 category="Board Meeting Intimation")
-    await _news(s, pid, source="ET_STOCKS_RSS", links=((KEY2, 0.95),),
+    await _news(s, pid, source="ET_STOCKS_RSS", links=((KEY2, 0.8),),     # news links: 0.8
                 title="LTTS Q2 results: Net profit jumps 54%, beats estimates")
     await _news(s, pid, source="ET_STOCKS_RSS", links=((KEY, 0.95), (KEY2, 0.95)),
                 title="TCS, LTTS Q2 results beat estimates")        # two names: ambiguous

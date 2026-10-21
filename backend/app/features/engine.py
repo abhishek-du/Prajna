@@ -32,24 +32,29 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.canon import pit
+from app.canon import results_pit as RP
 from app.core.clock import now
 from app.db.models import FeatureValue
 from app.features import inputs as I
 from app.features import locks
 from app.features import news_features as NF
 from app.features.compute import MISSING_INPUT, NOT_APPLICABLE, Result, miss, ok
+from app.features.compute import analyst as AN
 from app.features.compute import context as CX
 from app.features.compute import event as EV
+from app.features.compute import fund_own as FO
 from app.features.compute import fundamental as FU
 from app.features.compute import liquidity as LQ
 from app.features.compute import preopen as PO
 from app.features.compute import price as PR
+from app.features.compute import results as RS
 from app.features.registry import (
     BY_ID,
     CONTEXT_INDEX_KEYS,
     FEATURES,
     MARKET_KEY,
     REGISTRY_SHA256,
+    V5_IDS,
     VIX_KEY,
 )
 from app.features.snapshots import Snapshot
@@ -212,15 +217,82 @@ _GROUPS = {"daily_bars": ("daily_bars",), "nifty_bars": ("daily_bars", "nifty"),
            "key_ratios": ("fundamentals",), "income_yearly": ("fundamentals",),
            "income_quarterly": ("fundamentals",), "balance_sheet": ("fundamentals",),
            "corporate_actions": ("corporate_actions",), "news": ("news",),
-           "preopen": ("preopen", "daily_bars")}
+           "preopen": ("preopen", "daily_bars"),
+           # features-v5
+           "fundamentals_history": ("fundamentals_history",), "results_events": ("results",),
+           "analyst_news": ("analyst",)}
 _BAR_INPUTS = {"daily_bars", "nifty_bars", "preopen"}
 
 
+# ── features-v5 (docs/STAGE3_FEATURES_V5.md; computed only for specs in FEATURES) ──────
+@dataclass
+class V5Context:
+    """Per-snapshot reads shared by every instrument (one query each)."""
+    results: dict[str, list[RP.ResultsEvent]]
+    results_coverage_from: _dt.datetime | None
+    analyst: dict[str, list[tuple[_dt.datetime, str, int]]]
+    analyst_covered: bool
+
+
+def v5_ids(snap: Snapshot) -> set[str]:
+    return {f.id for f in FEATURES if f.id in V5_IDS and snap.kind in f.snapshots}
+
+
+async def v5_context(s: AsyncSession, snap: Snapshot) -> V5Context | None:
+    """None unless a v5 results / analyst spec is in the registry (the canary's process)."""
+    want = {i for f in FEATURES if f.id in V5_IDS for i in f.inputs}
+    if not want & {"results_events", "analyst_news"}:
+        return None
+    res = await RP.events(s, snap.as_of) if "results_events" in want else {}
+    cov = await RP.coverage_from(s, snap.as_of)
+    heads, covered = {}, False
+    if "analyst_news" in want:
+        heads = await RP.linked_headlines(s, snap.as_of, AN.WINDOW, AN.PREFILTER)
+        first = (await s.execute(text("""select min(finished_at) from news_poll
+            where mode = 'PRODUCTION' and outcome in ('OK', 'NOT_MODIFIED')
+              and finished_at < :a"""), {"a": snap.as_of})).scalar()
+        covered = (first is not None and first <= snap.as_of - AN.WINDOW
+                   and await NF.coverage_state(s, snap.as_of) == "NORMAL")
+    return V5Context(res, cov, heads, covered)
+
+
+def _v5_features(inp: I.InstrumentInputs, snap: Snapshot, v5: V5Context | None
+                 ) -> dict[str, Result]:
+    out: dict[str, Result] = {}
+    out["dist_high_252"], out["dist_low_252"] = PR.range_position(inp.daily, 252)
+    if inp.fundamentals_history is not None:
+        close = inp.daily[-1].close if inp.daily else None
+        out.update(FO.own(inp.fundamentals_history, close, inp.corporate_actions,
+                          snap.session_date))
+    if v5 is None:
+        return out
+    if not inp.key.startswith("NSE_EQ|"):        # an index has no results or analysts
+        for f in ("results_days_to_next", "results_today", "results_days_since",
+                  "street_verdict_90d", "analyst_upgrades_30d", "analyst_downgrades_30d"):
+            out[f] = miss(NOT_APPLICABLE)
+        return out
+    ev, cov, d = v5.results.get(inp.key, []), v5.results_coverage_from, snap.session_date
+    inp.tracked["results"] = I.Tracked(I._h(RP.provenance(ev)),
+                                       max((e.knowable_at for e in ev), default=None))
+    out["results_days_to_next"] = RS.days_to_next(ev, d, cov, snap.as_of)
+    out["results_today"] = RS.today(ev, d, cov, snap.as_of)
+    out["results_days_since"] = RS.days_since(ev, d, cov, snap.as_of)
+    out["street_verdict_90d"] = RS.street_verdict(ev, cov, snap.as_of)
+    heads = v5.analyst.get(inp.key, [])
+    inp.tracked["analyst"] = I.Tracked(I._h([[i, k.isoformat()] for k, _, i in heads]),
+                                       max((k for k, _, _ in heads), default=None))
+    out["analyst_upgrades_30d"], out["analyst_downgrades_30d"] = AN.counts(
+        [(k, t) for k, t, _ in heads], snap.as_of, v5.analyst_covered)
+    return out
+
+
 def instrument_rows(inp: I.InstrumentInputs, snap: Snapshot, nifty: list,
-                    nifty_tracked: I.Tracked) -> list[FeatureRow]:
+                    nifty_tracked: I.Tracked, v5: V5Context | None = None) -> list[FeatureRow]:
     inp.tracked["nifty"] = nifty_tracked
     vals = {**_daily_features(inp.daily, nifty), **_fundamental_features(inp.fundamentals),
             **_event_features(inp, snap), **_preopen_features(inp, snap)}
+    if v5_ids(snap):
+        vals.update(_v5_features(inp, snap, v5))
     rows = []
     for spec in FEATURES:
         # computed by their own steps: sector_rs_20 (_sector_rows) and the multi-source
@@ -253,9 +325,19 @@ async def context_rows(s: AsyncSession, snap: Snapshot) -> list[FeatureRow]:
     vix, tr = await I.index_bars(s, VIX_KEY, snap)
     closes = [b.close for b in vix]
     level = ok(closes[-1]) if closes else miss(MISSING_INPUT)
-    for fid, res in (("india_vix_level", level), ("india_vix_change_5d", CX.vix_change(closes, 5))):
+    v5 = v5_ids(snap)
+    vix_rows = [("india_vix_level", level), ("india_vix_change_5d", CX.vix_change(closes, 5))]
+    if "india_vix_pctile_252" in v5:
+        vix_rows.append(("india_vix_pctile_252", CX.percentile_rank(closes, 252)))
+    for fid, res in vix_rows:
         res = miss(MISSING_INPUT) if _index_stale(vix, snap) else res
         rows.append(FeatureRow("CONTEXT", VIX_KEY, fid, *res, tr.sha256, tr.max_knowable_at))
+    if "market_regime_trend" in v5:
+        nb, ntr = await I.index_bars(s, BENCHMARK, snap)
+        res = (miss(MISSING_INPUT) if _index_stale(nb, snap)
+               else CX.regime_trend([b.close for b in nb]))
+        rows.append(FeatureRow("CONTEXT", BENCHMARK, "market_regime_trend", *res, ntr.sha256,
+                               ntr.max_knowable_at))
     macro, tr = await I.macro_rows(s, snap)
     for who in ("FII", "DII"):
         for n in (1, 5):
@@ -308,6 +390,8 @@ async def news_rows(s: AsyncSession, snap: Snapshot, keys: list[str], *,
                 continue
             mine = by.get(k, [])
             vals = NF.compute_company(mine, snap.as_of, state)
+            if any(f.id in NF.SENTIMENT_FEATURES for f in co):         # features-v5
+                vals.update(NF.compute_company_sentiment(mine, snap.as_of, state))
             sha, kn = _news_provenance(mine, state)
             out += [FeatureRow("INSTRUMENT", k, f.id, *vals[f.id], sha, kn) for f in co]
     return out
@@ -363,12 +447,14 @@ async def compute_snapshot(s: AsyncSession, snap: Snapshot, keys: list[str], *,
     res = SnapshotResult(snap)
     nifty, ntr = await I.index_bars(s, BENCHMARK, snap)
     ret20: dict[str, tuple[float | None, I.InstrumentInputs]] = {}
+    v5 = await v5_context(s, snap)
+    fund_history = any(f.id in V5_IDS and "fundamentals_history" in f.inputs for f in FEATURES)
     for k in keys:
         if kill_check and locks.kill_switch_engaged():
             raise KillSwitchEngaged("Stage 3 kill switch engaged during the run")
-        inp = await I.instrument_inputs(s, k, snap)
+        inp = await I.instrument_inputs(s, k, snap, fund_history=fund_history)
         res.refused_bars.update(inp.refused)
-        res.rows.extend(instrument_rows(inp, snap, nifty, ntr))
+        res.rows.extend(instrument_rows(inp, snap, nifty, ntr, v5))
         ret20[k] = (None if inp.stale else PR.ret(inp.daily, 20)[0], inp)
     stock_keys = [k for k in keys if k.startswith("NSE_EQ|")]
     if with_sector and stock_keys:

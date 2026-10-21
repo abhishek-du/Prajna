@@ -261,6 +261,26 @@ def compute_company(rows: list[dict[str, Any]], as_of: _dt.datetime, state: str
     }
 
 
+SENTIMENT_FEATURES = {"mnews_company_sentiment_24h": 24, "mnews_company_sentiment_3d": 72}
+
+
+def compute_company_sentiment(rows: list[dict[str, Any]], as_of: _dt.datetime, state: str
+                              ) -> dict[str, Result]:
+    """features-v5: mean headline direction of one company's de-duplicated, non-backlog
+    articles (app.features.compute.analyst.sentiment); the quality rules of
+    compute_company (no coverage -> MISSING_INPUT, INVALID -> MALFORMED_INPUT)."""
+    from app.features.compute import analyst as AN
+
+    q = quality(rows, as_of, state)
+    if q == "INVALID":
+        return {f: miss(MALFORMED_INPUT) for f in SENTIMENT_FEATURES}
+    if q != "NORMAL":
+        return {f: miss(MISSING_INPUT) for f in SENTIMENT_FEATURES}
+    rows = [r for r in rows if r.get("dedup_decision") != "DUPLICATE_ARTICLE"
+            and not r.get("backlog")]
+    return {f: AN.sentiment(rows, as_of, h) for f, h in SENTIMENT_FEATURES.items()}
+
+
 async def snapshot_inputs(s: AsyncSession, as_of: _dt.datetime
                           ) -> tuple[list[dict[str, Any]], str]:
     """Every PRODUCTION multi-source row of the 3 days before as_of (one read) and the

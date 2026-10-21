@@ -266,7 +266,7 @@ if F3_PAYLOAD_BASIS_ACTIVE:
                      for f in FEATURES)
     VERSION = "features-v4"
 
-# features-v5 (PREPARED 2026-10-13, NOT ACTIVE; decision CA-TO-UNSUPPORTED pending):
+# features-v5, part 1 (prepared 2026-10-13; approved 2026-10-21 with FEATURES-V5):
 # ca_days_to_{any,dividend,split,bonus} have never had a value. Upstox lists a
 # corporate action only on or after its ex-date (2,344 events, max ex-date - first
 # fetch = 0 days), so "days until the next knowable ex-date" has no source. Active,
@@ -274,6 +274,7 @@ if F3_PAYLOAD_BASIS_ACTIVE:
 # the engine stops computing and storing them, and the registry becomes features-v5
 # with a new hash. Inactive (now), the registry document and hash are byte-identical
 # to features-v4. Values stored under v1..v4 keep their own version and hash.
+# It activates together with part 2 (FEATURES_V5_ACTIVE below).
 CA_TO_FEATURES = tuple(f"ca_days_to_{k}" for k in CA_KINDS)
 CA_TO_UNSUPPORTED_REASON = ("UNSUPPORTED: the vendor lists a corporate action only on or "
                             "after its ex-date, so no future ex-date is ever knowable")
@@ -287,7 +288,77 @@ def apply_ca_to_unsupported(features: tuple[FeatureSpec, ...]) -> tuple[FeatureS
                  for f in features)
 
 
-if CA_TO_UNSUPPORTED_ACTIVE:
+# features-v5, part 2 (decision FEATURES-V5, user 2026-10-21 "sab approve hai you go
+# ahead"; docs/STAGE3_FEATURES_V5.md). New diagram coverage: earnings dates (the results
+# calendar from NSE announcements), earnings surprises (seasonal random walk + the street's
+# verdict), analyst up/downgrades, company headline sentiment, market regime, 52-week range,
+# Prajna's own P/E and P/B. ACTIVATED only after a production canary (like FEATURE-NEWS-V2);
+# until then the specs are computed by ops/measure/features_v5_canary.py in its own
+# process only, and the registry document and hash stay byte-identical to features-v4.
+V5_RESULTS = ("results_events",)
+V5_ANALYST = ("analyst_news",)
+V5_FUND = ("fundamentals_history", "daily_bars", "corporate_actions")
+FEATURES_V5_NEW: tuple[FeatureSpec, ...] = (
+    _p("dist_high_252", PRICE, "close / max(high, last 252 sessions) - 1 (52-week high)",
+       params={"n": 252}, lookback=252),
+    _p("dist_low_252", PRICE, "close / min(low, last 252 sessions) - 1 (52-week low)",
+       params={"n": 252}, lookback=252),
+    _p("pe_ttm", FUND, "previous close / TTM EPS; TTM = 4 latest consecutive quarters of net "
+       "profit, shares = FY PAT / FY basic EPS (standalone preferred); a split/bonus after "
+       "that FY -> MISSING_INPUT (app.fundamentals.ratios fund-ratios-v1)", inputs=V5_FUND,
+       lookback=1),
+    _p("earnings_yield_ttm", FUND, "TTM EPS / previous close (defined for losses)",
+       inputs=V5_FUND, lookback=1),
+    _p("pb_own", FUND, "previous close x shares / book (latest FY total assets - total "
+       "liabilities)", inputs=V5_FUND, lookback=1),
+    _p("eps_surprise_srw", FUND, "seasonal random walk surprise: (net profit q - q-4) / "
+       "|q-4|, q = the latest known quarter (Foster, Olsen & Shevlin 1984; no consensus)",
+       inputs=("fundamentals_history",)),
+    _p("eps_surprise_srw_price", FUND, "(net profit q - q-4) per share / previous close",
+       inputs=V5_FUND, lookback=1),
+    _p("results_days_to_next", EVENT, "days from the session to the next results board meeting "
+       "known at as_of (NSE intimation; per period the latest); none -> NOT_APPLICABLE; no "
+       "announcements coverage -> MISSING_INPUT", inputs=V5_RESULTS),
+    _p("results_today", EVENT, "1 if a known results board meeting is on the session date, "
+       "else 0", inputs=V5_RESULTS),
+    _p("results_days_since", EVENT, "days from the latest results dissemination (NSE outcome) "
+       "to the session; none within the first 120 days of coverage -> MISSING_INPUT",
+       params={"min_coverage_days": 120}, inputs=V5_RESULTS),
+    _p("street_verdict_90d", EVENT, "latest results headline verdict vs the street's estimates "
+       "in the 90 days before as_of: BEAT +1, MISS -1, INLINE/MIXED 0 (results-events-v1)",
+       params={"days": 90}, inputs=V5_RESULTS),
+    _p("analyst_upgrades_30d", EVENT, "headlines linked to exactly this company in the 30 days "
+       "before as_of with an upgrade or a raised target (analyst-v1 rules)",
+       params={"days": 30}, inputs=V5_ANALYST),
+    _p("analyst_downgrades_30d", EVENT, "the same with a downgrade or a cut target",
+       params={"days": 30}, inputs=V5_ANALYST),
+    _p("mnews_company_sentiment_24h", EVENT, "mean headline direction of the company's "
+       "de-duplicated articles knowable in the 24 h before as_of (assess-v1 rules: POSITIVE "
+       "+1, NEGATIVE -1, MIXED/NEUTRAL 0, UNKNOWN not counted); none -> NOT_APPLICABLE",
+       params={"hours": 24}, inputs=("multi_news",)),
+    _p("mnews_company_sentiment_3d", EVENT, "the same over the 3 days before as_of",
+       params={"hours": 72}, inputs=("multi_news",)),
+    _p("market_regime_trend", CTX, "NIFTY 50 regime-v1: +1 if close > SMA200 and SMA50 > SMA200, "
+       "-1 if close < SMA200 and SMA50 < SMA200, else 0", params={"fast": 50, "slow": 200},
+       scope="CONTEXT", lookback=200),
+    _p("india_vix_pctile_252", CTX, "share of the last 252 India VIX closes <= the latest close",
+       params={"n": 252}, scope="CONTEXT", lookback=252),
+)
+V5_IDS = frozenset(f.id for f in FEATURES_V5_NEW)
+FEATURES_V5_ACTIVE = False
+CA_TO_UNSUPPORTED_ACTIVE = CA_TO_UNSUPPORTED_ACTIVE or FEATURES_V5_ACTIVE
+
+
+def features_v5(features: tuple[FeatureSpec, ...]) -> tuple[FeatureSpec, ...]:
+    """The v5 feature tuple from the v4 one (also used by the canary, in its process)."""
+    return apply_ca_to_unsupported(features) + FEATURES_V5_NEW
+
+
+FEATURES_V4 = FEATURES
+if FEATURES_V5_ACTIVE:
+    FEATURES = features_v5(FEATURES)
+    VERSION = "features-v5"
+elif CA_TO_UNSUPPORTED_ACTIVE:
     FEATURES = apply_ca_to_unsupported(FEATURES)
     VERSION = "features-v5"
 
@@ -364,6 +435,76 @@ DIAGRAM: tuple[dict, ...] = (
      "partial": "UNSUPPORTED: pre-open-specific events (no event source); news published before "
                 "the snapshot is counted"},
 )
+
+
+
+_V5_DIAGRAM: dict[str, dict] = {   # item -> what v5 changes (OUT_OF_SCOPE: user 2026-10-21)
+    "Support/resistance, breakouts": {
+        "features": ["dist_high_20", "dist_low_20", "breakout_20", "breakdown_20",
+                     "dist_high_252", "dist_low_252"],
+        "partial": "support/resistance LEVELS: no definition in any source; the 20-session "
+                   "and 52-week ranges are provided"},
+    "Turnover, bid-ask spread": {
+        "partial": "OUT_OF_SCOPE (user 2026-10-21): bid-ask spread needs an all-day quote/tick "
+                   "store (Stage 1 criterion L)"},
+    "Order book imbalance": {
+        "status": "OUT_OF_SCOPE", "reason": "user 2026-10-21: an all-day order book needs a "
+        "live tick store (Stage 1 criterion L); the pre-open book imbalance is "
+        "preopen_imbalance"},
+    "Valuation ratios (P/E, P/B, etc.)": {
+        "features": ["pe", "pb", "ev_ebitda", "pe_to_sector", "pb_to_sector", "pe_ttm",
+                     "earnings_yield_ttm", "pb_own"]},
+    "Earnings surprises": {
+        "features": ["eps_surprise_srw", "eps_surprise_srw_price", "street_verdict_90d"],
+        "status": None, "reason": None,
+        "partial": "no numeric consensus: the expectation is the seasonal random walk "
+                   "(analyst-free) and the street's verdict comes from results headlines; "
+                   "numeric consensus EPS (F5c) OUT_OF_SCOPE until a licensed vendor is "
+                   "chosen (user 2026-10-21)"},
+    "Earnings dates": {
+        "features": ["results_days_to_next", "results_today", "results_days_since"],
+        "status": None, "reason": None,
+        "partial": "from NSE announcements (results intimations / outcomes) since "
+                   "2026-09-29; earlier sessions -> MISSING_INPUT"},
+    "News sentiment": {
+        "features": ["news_count_24h", "news_count_7d", "news_hours_since_last",
+                     *[f.id for f in NEWS_V2_FEATURES],
+                     "mnews_company_sentiment_24h", "mnews_company_sentiment_3d"],
+        "partial": "rule-based headline direction (assess-v1), not a language model; news "
+                   "volume and recency are not sentiment"},
+    "Analyst upgrades/downgrades": {
+        "features": ["analyst_upgrades_30d", "analyst_downgrades_30d"],
+        "status": None, "reason": None,
+        "partial": "rule-based from news headlines (analyst-v1), not a ratings feed"},
+    "Sector/market events": {
+        "features": ["mnews_market_wide_news_count_24h", "mnews_macro_scope_news_count_24h",
+                     "mnews_regulatory_news_count_24h", "mnews_geopolitical_news_count_24h"],
+        "status": None, "reason": None,
+        "partial": "market-wide events as scope-v1 / assess-v1 news counts; SECTOR-level "
+                   "events OUT_OF_SCOPE (no definition in any source; user 2026-10-21)"},
+    "Market regime (bull/bear/sideways)": {
+        "features": ["market_regime_trend", "india_vix_pctile_252"],
+        "status": None, "reason": None,
+        "partial": "regime-v1: a rule on NIFTY 50 vs its SMA50/SMA200 (a modelling choice "
+                   "approved by the user 2026-10-21), plus the VIX percentile"},
+}
+
+
+def diagram_v5(diagram: tuple[dict, ...]) -> tuple[dict, ...]:
+    out = []
+    for d in diagram:
+        ch = _V5_DIAGRAM.get(d["item"])
+        if ch is None:
+            out.append(d)
+            continue
+        d = {**d, **ch}
+        out.append({k: v for k, v in d.items() if v is not None})
+    assert {d["item"] for d in out} >= set(_V5_DIAGRAM), "a v5 item is not in the diagram"
+    return tuple(out)
+
+
+if FEATURES_V5_ACTIVE:
+    DIAGRAM = diagram_v5(DIAGRAM)
 
 BY_ID = {f.id: f for f in FEATURES}
 CONTEXT_INDEX_KEYS = ("NSE_INDEX|Nifty 50", "NSE_INDEX|Nifty Bank")

@@ -596,12 +596,12 @@ class TestSnapshotConsistency:
         MISSING_INPUT, as when it began, with no mix of the two states."""
         real, calls = I.instrument_inputs, {"n": 0}
 
-        async def mid_run(s, key, sn):
+        async def mid_run(s, key, sn, **kw):
             calls["n"] += 1
             if calls["n"] == 2:                  # the run has read the index and W.A
                 await concurrent.commit_fii(_dt.date(2026, 9, 23), 100, 40,
                                             W.ist(2026, 9, 24, 8))
-            return await real(s, key, sn)
+            return await real(s, key, sn, **kw)
         monkeypatch.setattr(I, "instrument_inputs", mid_run)
         r = await run(world)
         assert calls["n"] > 2 and r["committed"] is True       # committed mid-run

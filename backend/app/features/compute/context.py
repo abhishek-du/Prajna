@@ -88,3 +88,26 @@ def sector_rs(stock_ret: float | None, member_rets: list[float]) -> Result:
     if len(member_rets) < 3:
         return miss(INSUFFICIENT_HISTORY)
     return ok(stock_ret - statistics.median(member_rets))
+
+
+# ── features-v5 (docs/STAGE3_FEATURES_V5.md) ─────────────────────────────────────
+def regime_trend(closes: list[float], fast: int = 50, slow: int = 200) -> Result:
+    """Market regime of the index (regime-v1): +1 bull when close > SMA(slow) and
+    SMA(fast) > SMA(slow); -1 bear when close < SMA(slow) and SMA(fast) < SMA(slow);
+    0 sideways otherwise (the two disagree)."""
+    if len(closes) < slow:
+        return miss(INSUFFICIENT_HISTORY)
+    c, f, s = closes[-1], sum(closes[-fast:]) / fast, sum(closes[-slow:]) / slow
+    if c > s and f > s:
+        return ok(1.0)
+    if c < s and f < s:
+        return ok(-1.0)
+    return ok(0.0)
+
+
+def percentile_rank(closes: list[float], n: int = 252) -> Result:
+    """Share of the last n closes (the latest included) at or below the latest close."""
+    if len(closes) < n:
+        return miss(INSUFFICIENT_HISTORY)
+    w = closes[-n:]
+    return ok(sum(1 for x in w if x <= w[-1]) / n)

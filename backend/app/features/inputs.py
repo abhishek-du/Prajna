@@ -74,6 +74,8 @@ class InstrumentInputs:
     preopen_tick: dict[str, Any] | None
     tracked: dict[str, Tracked] = field(default_factory=dict)
     previous_session: _dt.date | None = None
+    # features-v5 only: every snapshot of FUND_HISTORY_TYPES knowable before as_of
+    fundamentals_history: dict[str, list[tuple[_dt.datetime, Any]]] | None = None
 
     @property
     def stale(self) -> bool:
@@ -87,7 +89,13 @@ class InstrumentInputs:
         return _h([x.sha256 for x in t]), (max(kn) if kn else None)
 
 
-async def instrument_inputs(s: AsyncSession, key: str, snap: Snapshot) -> InstrumentInputs:
+FUND_HISTORY_TYPES = ("income:consolidated:quarterly", "income:consolidated:yearly",
+                      "income:standalone:quarterly", "income:standalone:yearly",
+                      "balance_sheet:consolidated", "balance_sheet:standalone")
+
+
+async def instrument_inputs(s: AsyncSession, key: str, snap: Snapshot, *,
+                            fund_history: bool = False) -> InstrumentInputs:
     as_of, day = snap.as_of, snap.session_date
     start = day - _dt.timedelta(days=DAILY_LOOKBACK_DAYS)
     adj = await pit.bars_adjusted(s, key, "1d", as_of, start=start)
@@ -103,6 +111,14 @@ async def instrument_inputs(s: AsyncSession, key: str, snap: Snapshot) -> Instru
                                           ("id", "action_type", "ex_date", "knowable_at"))
     news = await pit.news(s, as_of, key, since=as_of - _dt.timedelta(days=8))
     tracked["news"] = _track(news, as_of, f"{key} news", ("news_id", "published_at", "knowable_at"))
+    hist = None
+    if fund_history:
+        hrows = await pit.fundamentals_history(s, key, as_of, FUND_HISTORY_TYPES)
+        tracked["fundamentals_history"] = _track(hrows, as_of, f"{key} fundamentals history", (
+            "statement_type", "knowable_at", "payload_sha256"))
+        hist = {}
+        for r in hrows:
+            hist.setdefault(r["statement_type"], []).append((r["knowable_at"], r["payload"]))
     tick = None
     if snap.kind == "PRE_OPEN":
         ticks = await pit.preopen(s, key, as_of, market_date=day)
@@ -115,7 +131,8 @@ async def instrument_inputs(s: AsyncSession, key: str, snap: Snapshot) -> Instru
         corporate_actions=[{"id": c["id"], "action_type": c["action_type"],
                             "ex_date": c["ex_date"]} for c in ca],
         news_published=[n["published_at"] for n in news if n.get("published_at")],
-        preopen_tick=tick, tracked=tracked, previous_session=snap.previous_session)
+        preopen_tick=tick, tracked=tracked, previous_session=snap.previous_session,
+        fundamentals_history=hist)
 
 
 async def index_bars(s: AsyncSession, key: str, snap: Snapshot) -> tuple[list[Bar], Tracked]:

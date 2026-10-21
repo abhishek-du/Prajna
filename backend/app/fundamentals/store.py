@@ -34,7 +34,10 @@ from app.core.clock import IST, now
 from app.fundamentals import events as E
 
 # a Decimal: a float 0.9 is bound as numeric 0.90000000000000002..., which excludes 0.900
-LINK_MIN_CONFIDENCE = Decimal("0.9")
+LINK_MIN_CONFIDENCE = Decimal("0.9")         # NSE announcements (symbol / company name)
+# the news sources' links reach 0.80 (company name) / 0.85 (alias) only (2026-10-21: the
+# 0.9 threshold excluded every news headline); a headline must also name exactly one
+NEWS_LINK_MIN_CONFIDENCE = Decimal("0.8")
 ANNOUNCEMENT_SOURCE = "NSE_ANNOUNCEMENTS"
 ANNOUNCEMENT_CATEGORIES = ("Board Meeting Intimation", *E.OUTCOME_CATEGORIES,
                            *E.OUTCOME_IF_RESULTS)
@@ -64,7 +67,7 @@ async def _candidates(s: AsyncSession) -> list[Any]:
                  count(*) over (partition by l.item_id) as n_links,
                  row_number() over (partition by l.item_id
                                     order by l.confidence desc, l.instrument_key) as rk
-            from news_entity_link l where l.confidence >= cast(:c as numeric))
+            from news_entity_link l where l.confidence >= cast(:cn as numeric))
         select n.id, n.source, n.category_raw, n.title, n.summary, n.published_at,
                greatest(n.knowable_at, k.knowable_at) as knowable_at, k.instrument_key,
                k.n_links, i.isin
@@ -72,11 +75,13 @@ async def _candidates(s: AsyncSession) -> list[Any]:
           join links k on k.item_id = n.id and k.rk = 1
           left join instrument i on i.instrument_key = k.instrument_key
                                 and i.valid_to = 'infinity'
-         where ((n.source = :ann and n.category_raw = any(cast(:cats as text[])))
+         where ((n.source = :ann and n.category_raw = any(cast(:cats as text[]))
+                 and k.confidence >= cast(:c as numeric))
              or (n.source <> :ann and n.title ~* :pre))
            and not exists (select 1 from results_event e where e.news_item_id = n.id
                              and e.parser_version = :pv)
-         order by n.id"""), {"c": LINK_MIN_CONFIDENCE, "ann": ANNOUNCEMENT_SOURCE,
+         order by n.id"""), {"c": LINK_MIN_CONFIDENCE, "cn": NEWS_LINK_MIN_CONFIDENCE,
+                             "ann": ANNOUNCEMENT_SOURCE,
                              "cats": list(ANNOUNCEMENT_CATEGORIES), "pre": NEWS_PREFILTER,
                              "pv": E.PARSER_VERSION})).all()
 

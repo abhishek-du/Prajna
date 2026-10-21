@@ -192,6 +192,18 @@ async def fundamentals(s: AsyncSession, instrument_key: str, as_of: _dt.datetime
                        k=instrument_key, st=statement_type)
 
 
+async def fundamentals_history(s: AsyncSession, instrument_key: str, as_of: _dt.datetime,
+                               types: tuple[str, ...]) -> list[dict]:
+    """EVERY snapshot of the given statement types knowable before as_of, oldest first
+    (features-v5: histories merged across snapshots, app.fundamentals.ratios)."""
+    return await _rows(s, """
+        select statement_type, knowable_at, payload, payload_sha256 from canon_fundamental
+        where instrument_key = :k and knowable_at < :as_of
+          and statement_type = any(cast(:t as text[]))
+        order by knowable_at, statement_type""", "fundamentals history", as_of,
+                       k=instrument_key, t=list(types))
+
+
 async def sector(s: AsyncSession, instrument_key: str, as_of: _dt.datetime) -> str | None:
     """The sector of the latest profile snapshot knowable before as_of. The only
     historical access path: canon_instrument.sector is today's sector."""

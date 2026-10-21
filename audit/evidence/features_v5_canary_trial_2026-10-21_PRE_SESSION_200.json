@@ -1,0 +1,139 @@
+{
+ "session": "2026-10-21",
+ "kind": "PRE_SESSION",
+ "as_of": "2026-10-21T03:29:59+00:00",
+ "generated_at": "2026-10-21T09:24:45.495575+00:00",
+ "instruments": 200,
+ "active_registry": {
+  "version": "features-v4",
+  "sha256": "6f998a76c49462c3244b5eecb2d783e75c6fff9d26365ae3540c8e88dbb201c3"
+ },
+ "v5_features": 17,
+ "checks": {
+  "pit": {
+   "pass": true,
+   "late": []
+  },
+  "v4_unchanged": {
+   "pass": true,
+   "dropped": [
+    "ca_days_to_any",
+    "ca_days_to_bonus",
+    "ca_days_to_dividend",
+    "ca_days_to_split"
+   ],
+   "changed": []
+  },
+  "determinism": {
+   "pass": true,
+   "instruments": 60
+  },
+  "recount": {
+   "pass": true,
+   "independent": 43,
+   "reader": 43,
+   "only_independent": [],
+   "only_reader": []
+  },
+  "pe_vs_vendor": {
+   "pass": true,
+   "both": 137,
+   "share_in_band": 0.9781021897810219,
+   "median_ratio": 0.9733160654314229,
+   "outside": [
+    [
+     "NSE_EQ|INE013801027",
+     27.6,
+     8.13
+    ],
+    [
+     "NSE_EQ|INE01II01013",
+     33.27,
+     18.73
+    ],
+    [
+     "NSE_EQ|INE030C01015",
+     14.35,
+     23.96
+    ]
+   ]
+  }
+ },
+ "coverage": {
+  "analyst_downgrades_30d": {
+   "MISSING_INPUT": 200
+  },
+  "analyst_upgrades_30d": {
+   "MISSING_INPUT": 200
+  },
+  "dist_high_252": {
+   "VALUE": 149,
+   "INSUFFICIENT_HISTORY": 39,
+   "MISSING_INPUT": 12
+  },
+  "dist_low_252": {
+   "VALUE": 149,
+   "INSUFFICIENT_HISTORY": 39,
+   "MISSING_INPUT": 12
+  },
+  "earnings_yield_ttm": {
+   "MISSING_INPUT": 28,
+   "VALUE": 157,
+   "INSUFFICIENT_HISTORY": 15
+  },
+  "eps_surprise_srw": {
+   "MISSING_INPUT": 24,
+   "INSUFFICIENT_HISTORY": 163,
+   "VALUE": 13
+  },
+  "eps_surprise_srw_price": {
+   "MISSING_INPUT": 26,
+   "INSUFFICIENT_HISTORY": 161,
+   "VALUE": 13
+  },
+  "india_vix_pctile_252": {
+   "VALUE": 1
+  },
+  "market_regime_trend": {
+   "VALUE": 1
+  },
+  "mnews_company_sentiment_24h": {
+   "NOT_APPLICABLE": 199,
+   "VALUE": 1
+  },
+  "mnews_company_sentiment_3d": {
+   "NOT_APPLICABLE": 196,
+   "VALUE": 4
+  },
+  "pb_own": {
+   "MISSING_INPUT": 23,
+   "VALUE": 172,
+   "DIVISION_UNDEFINED": 5
+  },
+  "pe_ttm": {
+   "MISSING_INPUT": 28,
+   "VALUE": 137,
+   "INSUFFICIENT_HISTORY": 15,
+   "DIVISION_UNDEFINED": 20
+  },
+  "results_days_since": {
+   "MISSING_INPUT": 189,
+   "VALUE": 11
+  },
+  "results_days_to_next": {
+   "NOT_APPLICABLE": 167,
+   "VALUE": 33
+  },
+  "results_today": {
+   "VALUE": 200
+  },
+  "street_verdict_90d": {
+   "NOT_APPLICABLE": 200
+  }
+ },
+ "seconds": {
+  "v4": 145.8,
+  "v5": 147.3
+ },
+ "pass": true
+}

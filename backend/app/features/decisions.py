@@ -66,4 +66,20 @@ DECISIONS: dict[str, dict[str, str]] = {
                     "version + 1; stored features-v1..v3 values are never re-labelled",
         "ref": "user 2026-10-09 ('option 1 aur F3 fix dono implement karo'); review "
                "docs/STAGE4_POST_BACKFILL_REVIEW.md F3"},
+    "FEATURES-V5": {
+        "status": "APPROVED",
+        "decision": "Registry features-v5: ca_days_to_* registered UNSUPPORTED (no future "
+                    "ex-date is knowable; CA-TO-UNSUPPORTED) and new point-in-time features "
+                    "for the diagram items that had none - the results calendar from NSE "
+                    "announcements (days to the next / since the last results, results "
+                    "today), the earnings surprise as a seasonal random walk plus the "
+                    "street's verdict from results headlines, analyst up/downgrades and "
+                    "company headline sentiment (rule-based), the market regime (NIFTY 50 vs "
+                    "SMA50/SMA200) and the VIX percentile, the 52-week range, Prajna's own "
+                    "P/E, earnings yield and P/B. Bid-ask spread / order book and sector "
+                    "events OUT_OF_SCOPE; numeric consensus EPS OUT_OF_SCOPE until a vendor "
+                    "is chosen. Activated only after a production canary "
+                    "(ops/measure/features_v5_canary.py) at a session boundary; values "
+                    "stored under features-v1..v4 keep their own registry hash",
+        "ref": "user 2026-10-21 ('sab approve hai you go ahead'); docs/STAGE3_FEATURES_V5.md"},
 }
