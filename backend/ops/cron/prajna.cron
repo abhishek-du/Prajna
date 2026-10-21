@@ -48,9 +48,6 @@ LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 # Saturday 10:00  corporate actions; 1st of month 11:00 calendar +60d and fundamentals
 0 10 * * 6    cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.3 ops/runbooks/daily.sh --login weekly >> var/logs/cron.log 2>&1
 0 11 1 * *    cd $B && PRAJNA_UPSTOX_RATE_FRACTION=0.3 ops/runbooks/daily.sh --login monthly >> var/logs/cron.log 2>&1
-# Event-driven fundamentals F1/F2/F5b (docs/STAGE1_FUNDAMENTALS_RND.md, approved 2026-10-19):
-# APPROVED_NOT_INSTALLED until migration 0023 is on production; the user installs it.
-# 15 13 * * *   cd $B && ops/runbooks/fundamentals_events.sh >> var/logs/cron.log 2>&1
 # Stage 3 feature snapshots: decision SCHEDULE APPROVED 2026-09-28 (PRE_OPEN option B); INSTALLED
 # 2026-09-29 with PRAJNA_STAGE3_ENABLED=true in backend/.env (user go-live authorisation).
 # Every run re-checks every lock (Stage 1 fresh, Stage 2 report, kill switch, flag, token) and
@@ -92,4 +89,16 @@ LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 # Stage 7-8 forward PAPER job (decision 2026-10-16 under the user's delegation): sessions
 # from 2026-10-16 (after the research TEST windows), then the PAPER report to Telegram.
 # PAPER ONLY. Needs the user's install.
-40 15 * * 1-5  cd $B && ops/runbooks/paper_daily.sh >> var/logs/cron.log 2>&1
+40 15 * * 1-5  cd /home/cis/windows/prajna/backend && ops/runbooks/paper_daily.sh >> var/logs/cron.log 2>&1
+
+# Stage 1 gate checkpoint (decision GATE-INCR, user 2026-10-21; installed by the user
+# 2026-10-21): after the backfill stops (06:25), before the 09:00 Stage 3 lock check;
+# Saturday --full (every bar rescanned and compared with the increments)
+35 6 * * *     cd $B && ops/runbooks/stage1_checkpoint.sh >> var/logs/cron.log 2>&1
+# Stage 4 E5 forward test (docs/STAGE4_E5_PREREGISTRATION.md; installed 2026-10-21): waits for
+# today's Stage 3 PRE_SESSION run until 09:13, writes predictions before the 09:15 open.
+# PAPER ONLY.
+6 9 * * 1-5    cd $B && ops/runbooks/model_predict.sh >> var/logs/cron.log 2>&1
+# Event-driven fundamentals F1/F2/F5b (docs/STAGE1_FUNDAMENTALS_RND.md, approved 2026-10-19;
+# migration 0023 on production 2026-10-21; installed 2026-10-21)
+15 13 * * *    cd $B && ops/runbooks/fundamentals_events.sh >> var/logs/cron.log 2>&1
