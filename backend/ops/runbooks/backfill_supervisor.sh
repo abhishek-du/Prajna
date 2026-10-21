@@ -44,16 +44,19 @@ set -uo pipefail
 cd "$(dirname "$0")/../.."
 RB="${PRAJNA_RUNBOOK_DIR:-ops/runbooks}"
 # phase 1 = 1h + 15m first (user 2026-10-15: "1h and 15m ASAP"); phase 2 = all three
-# (1h/15m resume as no-ops from their checkpoints, then 1m), which alone can end it
+# (1h/15m resume as no-ops from their checkpoints, then 1m), which alone can end it.
+# 2026-10-21: 5m (12 months, user 2026-10-19) joins the full set; a run that completed
+# the earlier set 1h,1m,15m does not end the backfill (backfill.sh names its set)
 PHASE1_STAGES="1h,15m"
+FULL_STAGES="1h,1m,15m,5m"
 # var/run/backfill.stages: an operator override (2026-10-17: one 1h stream, OLIL, fails
 # closed on an UNEXPLAINED revision, and the fixed 1h,15m order kept 15m from ever
 # starting). It only chooses stages; every gate and fail-closed rule stays as it is.
-OVERRIDE_RE='^(1h|15m|1m)(,(1h|15m|1m))*$'
+OVERRIDE_RE='^(1h|15m|1m|5m)(,(1h|15m|1m|5m))*$'
 if [[ -n "${PRAJNA_BACKFILL_STAGES:-}" ]]; then STAGES="$PRAJNA_BACKFILL_STAGES"
 elif [[ -f var/run/backfill.stages ]] && [[ "$(tr -d ' \n' < var/run/backfill.stages)" =~ $OVERRIDE_RE ]]; then
   STAGES="$(tr -d ' \n' < var/run/backfill.stages)"
-elif [[ -f var/run/backfill.phase1_done ]]; then STAGES="1h,1m,15m"
+elif [[ -f var/run/backfill.phase1_done ]]; then STAGES="$FULL_STAGES"
 else STAGES="$PHASE1_STAGES"; fi
 FAST_FRACTION="${PRAJNA_BACKFILL_FAST_FRACTION:-0.9}"     # alone on the historical API
 SHARED_FRACTION="${PRAJNA_BACKFILL_SHARED_FRACTION:-0.5}" # another Upstox job running
@@ -194,13 +197,16 @@ tick() {
   if [[ -f var/run/backfill.done ]]; then say "SUPERVISOR_DONE"; return 0; fi
   local last; last="$(last_completed)"
   case "${last:-none}" in
-    all_stages_complete*)                  # only a run of ALL three stages ends it
-      touch var/run/backfill.done; say "SUPERVISOR_DONE all stages complete"; return 0 ;;
+    all_stages_complete*)                  # only a run of the CURRENT full set ends it
+      if grep -q "complete to the approved depth (${FULL_STAGES})" \
+           "$(ls -1t var/logs/backfill/backfill_*.log 2>/dev/null | head -1)" 2>/dev/null; then
+        touch var/run/backfill.done; say "SUPERVISOR_DONE all stages complete"; return 0
+      fi ;;                                # an earlier, smaller set: resume with the full one
     selected_stages_complete*)               # only a run of exactly 1h,15m ends phase 1
       if [[ "$STAGES" == "$PHASE1_STAGES" ]] && grep -q "selected stages (${PHASE1_STAGES}) complete" \
            "$(ls -1t var/logs/backfill/backfill_*.log 2>/dev/null | head -1)" 2>/dev/null; then
-        touch var/run/backfill.phase1_done; STAGES="1h,1m,15m"
-        say "SUPERVISOR_PHASE1_DONE 1h and 15m complete; phase 2 adds 1m"
+        touch var/run/backfill.phase1_done; STAGES="$FULL_STAGES"
+        say "SUPERVISOR_PHASE1_DONE 1h and 15m complete; phase 2 adds 1m and 5m"
       fi ;;
     none|started*|time_limit_resumable*|time_window_over*|selected_stages_complete*|\
     another_candles_job_running*|refused_trading_hours*|plan_only*) ;;   # known, resumable

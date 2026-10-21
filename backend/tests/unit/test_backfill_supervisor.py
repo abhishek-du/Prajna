@@ -45,9 +45,11 @@ def tick(root, *, free=150, hhmm="2345", trading="true", archive=None, cmd="tick
     return r.stdout
 
 
-def last_run(root, status, selected="1h,15m"):
+def last_run(root, status, selected="1h,15m", full="1h,1m,15m,5m"):
     extra = (f"[x] selected stages ({selected}) complete; others not run\n"
-             if status == "selected_stages_complete" else "")
+             if status == "selected_stages_complete" else
+             f"[x] all stages complete to the approved depth ({full})\n"
+             if status == "all_stages_complete" and full else "")
     (root / "var/logs/backfill/backfill_2026-10-15_2330.log").write_text(
         f"{extra}[x] BACKFILL_COMPLETED rc=0 status={status}\n")
 
@@ -73,12 +75,23 @@ def test_only_all_stages_complete_ends_the_backfill(tmp_path):
     root = tree(tmp_path)
     last_run(root, "selected_stages_complete")          # tonight's 1h-only run
     out = tick(root)                                    # phase 1 just finished
-    assert "SUPERVISOR_PHASE1_DONE" in out and "SUPERVISOR_STARTED stages=1h,1m,15m" in out
-    assert started(root) == "--login --stages 1h,1m,15m --until 06:25"
+    assert "SUPERVISOR_PHASE1_DONE" in out and "SUPERVISOR_STARTED stages=1h,1m,15m,5m" in out
+    assert started(root) == "--login --stages 1h,1m,15m,5m --until 06:25"
     assert not (root / "var/run/backfill.done").exists()
     last_run(root, "all_stages_complete")
     assert "SUPERVISOR_DONE all stages complete" in tick(root)
     assert (root / "var/run/backfill.done").exists()
+
+
+def test_a_run_complete_for_the_earlier_three_stages_resumes_with_5m(tmp_path):
+    """2026-10-21: 1h,1m,15m completed (unnamed or named set) before 5m was added."""
+    for full in (None, "1h,1m,15m"):
+        root = tree(tmp_path / (full or "unnamed"))
+        (root / "var/run/backfill.phase1_done").touch()
+        last_run(root, "all_stages_complete", full=full)
+        out = tick(root)
+        assert "SUPERVISOR_DONE" not in out and not (root / "var/run/backfill.done").exists()
+        assert started(root) == "--login --stages 1h,1m,15m,5m --until 06:25"
 
 
 def test_no_start_in_trading_hours_but_weekends_run(tmp_path):

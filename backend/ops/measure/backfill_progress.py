@@ -4,7 +4,7 @@ Telegram update (ops/runbooks/backfill_supervisor.sh hourly).
   .venv/bin/python ops/measure/backfill_progress.py
 
 Per timeframe: instruments whose stream checkpoint reaches the approved depth (1h and 15m
-since 2022-01-01, 1m for the last 92 days), the historical runs and bars of the last hour,
+since 2022-01-01, 1m for the last 92 days, 5m for the last 365 days), the historical runs and bars of the last hour,
 and an ETA at that pace.
 """
 

@@ -87,7 +87,7 @@ async def test_stage1_backfill_endpoint(async_client):
     assert isinstance(data["progress"], list)
     assert len(data["progress"]) >= 1
     for p in data["progress"]:
-        assert p["timeframe"] in ("1h", "15m", "1d", "1m")
+        assert p["timeframe"] in ("1h", "15m", "1d", "1m", "5m")
         assert p["total"] >= 0                      # the test DB may hold no instrument
         assert 0.0 <= p["pct"] <= 100.0
     # progress is the database truth (shared with the Telegram update), not a log line

@@ -5,8 +5,9 @@ API, so both report the same numbers.
 
 Per timeframe:
   covered   instruments whose stream checkpoint covers the approved depth (1h and 15m
-            since 2022-01-01, 1m for the last 92 days) through the last session (3 days
-            of lag allowed) - the rule of Stage 1 criterion F (acceptance/stage1.py)
+            since 2022-01-01, 1m for the last 92 days, 5m for the last 365 days) through
+            the last session (3 days of lag allowed) - the rule of Stage 1 criterion F
+            (acceptance/stage1.py)
   total     current ACTIVE NSE_EQ/NSE_INDEX instruments: the universe backfill.sh fetches.
             Instruments REMOVED_FROM_MASTER are not served by the vendor any more and are
             never fetched; counting them made 1h stop at 3579/3585 (fixed 2026-10-19)
@@ -30,6 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 INTRADAY_FROM = _dt.date(2022, 1, 1)
 M1_DAYS = 92
+M5_DAYS = 365      # user 2026-10-19: 5m for 12 months
 UNIVERSE = ("i.valid_to = 'infinity' and i.segment in ('NSE_EQ', 'NSE_INDEX') "
             "and i.lifecycle_status = 'ACTIVE'")
 LAG = _dt.timedelta(days=3)
@@ -37,7 +39,8 @@ LAG = _dt.timedelta(days=3)
 
 def depths(today: _dt.date | None = None) -> dict[str, _dt.date]:
     today = today or _dt.date.today()
-    return {"1h": INTRADAY_FROM, "15m": INTRADAY_FROM, "1m": today - _dt.timedelta(days=M1_DAYS)}
+    return {"1h": INTRADAY_FROM, "15m": INTRADAY_FROM, "1m": today - _dt.timedelta(days=M1_DAYS),
+            "5m": today - _dt.timedelta(days=M5_DAYS)}
 
 
 async def rows(s: AsyncSession, today: _dt.date | None = None) -> list[dict[str, Any]]:

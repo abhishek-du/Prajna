@@ -227,7 +227,7 @@ class TestFailClosedStreams:
 
     def test_failed_windows_do_not_stop_the_later_stages(self, base):
         p, calls = _backfill(base, stage_rc={"1h": 1}, stage_out={"1h": FAILED_1H})
-        assert _ingests(calls) == ["1h", "1m", "15m"], p.stdout
+        assert _ingests(calls) == ["1h", "1m", "15m", "5m"], p.stdout
         assert "BACKFILL_STREAMS_FAILED tf=1h windows=1" in p.stdout
         assert p.returncode == 6
         assert "BACKFILL_COMPLETED rc=6 status=streams_failed_1h" in p.stdout
@@ -258,12 +258,18 @@ class TestBackfillStages:
         assert [ln.split("--from ")[1].split(" ")[0] for ln in calls.splitlines()
                 if "ingest candles" in ln] == ["2022-01-01", "2022-01-01"]
 
-    def test_default_still_runs_all_three(self, base):
+    def test_default_runs_all_four(self, base):
         p, calls = _backfill(base)
-        assert _ingests(calls) == ["1h", "1m", "15m"]
+        assert _ingests(calls) == ["1h", "1m", "15m", "5m"]
         assert "status=all_stages_complete" in p.stdout
+        assert "complete to the approved depth (1h,1m,15m,5m)" in p.stdout
 
-    @pytest.mark.parametrize("bad", ["5m", "", "1h,1d"])
+    def test_the_earlier_three_stages_are_a_subset_now(self, base):
+        p, calls = _backfill(base, args=("--login", "--until", None, "--stages", "1h,1m,15m"))
+        assert p.returncode == 0 and _ingests(calls) == ["1h", "1m", "15m"]
+        assert "status=selected_stages_complete" in p.stdout
+
+    @pytest.mark.parametrize("bad", ["30m", "", "1h,1d"])
     def test_unknown_stage_is_refused_before_anything(self, base, bad):
         p, calls = _backfill(base, args=("--stages", bad))
         assert p.returncode == 2 and calls == ""
@@ -304,13 +310,15 @@ class TestBackfillMarkers:
         p, calls = _backfill(base)
         assert p.returncode == 0, p.stdout + p.stderr
         six = (_dt.date.fromisoformat(TODAY) - _dt.timedelta(days=92)).isoformat()   # option B
+        year = (_dt.date.fromisoformat(TODAY) - _dt.timedelta(days=365)).isoformat()  # 5m
         ingests = [ln for ln in calls.splitlines() if "ingest candles" in ln]
         assert [ln.split("--timeframe ")[1].split(" --to")[0] for ln in ingests] == [
-            "1h --from 2022-01-01", f"1m --from {six}", "15m --from 2022-01-01"]
+            "1h --from 2022-01-01", f"1m --from {six}", "15m --from 2022-01-01",
+            f"5m --from {year}"]
         assert all("--all-instruments --commit" in ln for ln in ingests)
         out = p.stdout
         assert f"BACKFILL_STARTED until={UNTIL} fraction=0.5" in out
-        assert out.count("BACKFILL_PROGRESS") == 6                # before + after each stage
+        assert out.count("BACKFILL_PROGRESS") == 8                # before + after each stage
         assert "BACKFILL_PROGRESS tf=1h from=2022-01-01 covered=12/3528" in out
         assert "BACKFILL_COMPLETED rc=0 status=all_stages_complete" in out
 

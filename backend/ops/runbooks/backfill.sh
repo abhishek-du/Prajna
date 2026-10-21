@@ -2,11 +2,14 @@
 # Stage-1 intraday history backfill to the approved depth (decision D1):
 #   1h since 2022-01, 1m for the last 3 months (92 days; option B, user 2026-10-15:
 #   the 6-month depth needs 73 GB and would breach the 60 GB disk guard after 1h + 15m;
-#   PRAJNA_BACKFILL_1M_DAYS overrides), 15m since 2022-01.
+#   PRAJNA_BACKFILL_1M_DAYS overrides), 15m since 2022-01, 5m for the last 12 months
+#   (365 days; user 2026-10-19 "5m 12 mahine theek hai", ~19-25 GB; PRAJNA_BACKFILL_5M_DAYS
+#   overrides). 5m is history only: its live timing margin stays unvalidated
+#   (contracts.timing OUT_OF_SCOPE_MARGIN_S), which a historical fetch never meets.
 #
-#   ops/runbooks/backfill.sh [--login] [--until HH:MM] [--stages 1h[,1m[,15m]]] [--plan]
+#   ops/runbooks/backfill.sh [--login] [--until HH:MM] [--stages 1h[,1m[,15m[,5m]]]] [--plan]
 #
-# --stages  run only these stages (approved order and depths kept; default all three).
+# --stages  run only these stages (approved order and depths kept; default all four).
 #           A run with --stages 1h never starts 1m or 15m.
 # --plan    print the exact bounded ingest commands and exit: no login, no token check,
 #           no vendor call, no write (one read-only query for the last session).
@@ -28,7 +31,8 @@ set -euo pipefail
 
 LOGIN=0
 UNTIL="06:50"
-SELECT="1h,1m,15m"
+ALL_STAGES="1h,1m,15m,5m"
+SELECT="$ALL_STAGES"
 PLAN=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -36,13 +40,13 @@ while [[ $# -gt 0 ]]; do
     --until) UNTIL="$2"; shift 2 ;;
     --stages) SELECT="$2"; shift 2 ;;
     --plan) PLAN=1; shift ;;
-    *) echo "usage: $0 [--login] [--until HH:MM] [--stages 1h[,1m[,15m]]] [--plan]" >&2; exit 2 ;;
+    *) echo "usage: $0 [--login] [--until HH:MM] [--stages 1h[,1m[,15m[,5m]]]] [--plan]" >&2; exit 2 ;;
   esac
 done
 IFS=, read -r -a WANT <<< "$SELECT"
 if (( ${#WANT[@]} == 0 )); then echo "--stages: empty" >&2; exit 2; fi
 for w in "${WANT[@]}"; do
-  case "$w" in 1h|1m|15m) ;; *) echo "--stages: unknown stage '$w' (1h, 1m, 15m)" >&2; exit 2 ;; esac
+  case "$w" in 1h|1m|15m|5m) ;; *) echo "--stages: unknown stage '$w' (1h, 1m, 15m, 5m)" >&2; exit 2 ;; esac
 done
 wanted() { local w; for w in "${WANT[@]}"; do [[ "$w" == "$1" ]] && return 0; done; return 1; }
 
@@ -74,13 +78,14 @@ progress() {  # progress <tf> <from>: ACTIVE instruments (the fetched universe) 
 }
 
 stage_list() {   # the approved stages (order, depth), filtered by --stages
-  local today last six
+  local today last six year
   today="$(TZ=Asia/Kolkata date +%F)"
   last="$("${CLI[@]}" db sql "select max(session_date) from trading_session where is_trading_day and session_date < '${today}'" | sed -n 3p | tr -d ' ')"
   six="$(TZ=Asia/Kolkata date -d "${today} -${PRAJNA_BACKFILL_1M_DAYS:-92} days" +%F)"
+  year="$(TZ=Asia/Kolkata date -d "${today} -${PRAJNA_BACKFILL_5M_DAYS:-365} days" +%F)"
   LAST="$last"
   STAGES=()
-  for st in "1h 2022-01-01" "1m ${six}" "15m 2022-01-01"; do
+  for st in "1h 2022-01-01" "1m ${six}" "15m 2022-01-01" "5m ${year}"; do
     if wanted "${st%% *}"; then STAGES+=("$st"); fi
   done
   return 0
@@ -209,8 +214,10 @@ if (( ${#FAILED_TF[@]} > 0 )); then
   STATUS="streams_failed_$(IFS=,; echo "${FAILED_TF[*]}")"
   say "stages run; failed-closed streams in ${FAILED_TF[*]} need review (resumable)"; exit 6
 fi
-if [[ "$SELECT" == "1h,1m,15m" ]]; then
-  STATUS="all_stages_complete"; say "all stages complete to the approved depth"
+if [[ "$SELECT" == "$ALL_STAGES" ]]; then
+  # the stage set is named: the supervisor ends the backfill only for the CURRENT set
+  # (an older "complete" run of 1h,1m,15m does not end it once 5m was added)
+  STATUS="all_stages_complete"; say "all stages complete to the approved depth (${ALL_STAGES})"
 else
   STATUS="selected_stages_complete"; say "selected stages (${SELECT}) complete; others not run"
 fi
