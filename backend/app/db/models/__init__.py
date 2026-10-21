@@ -13,6 +13,7 @@ from app.db.models.contracts import (
 from app.db.models.control import IngestAnomaly, IngestRun, IngestWatermark, RawPayload
 from app.db.models.features import FeatureValue, Stage3Event
 from app.db.models.fundamentals import FundamentalRefresh, ResultsEvent
+from app.db.models.models import GateScanCheckpoint, ModelPrediction, ModelVersion
 from app.db.models.news import (
     NewsAIEnrichment,
     NewsAssessment,
@@ -60,6 +61,7 @@ from app.db.models.reference import (
 __all__ = [
     "Base",
     "ResultsEvent", "FundamentalRefresh",
+    "ModelVersion", "ModelPrediction", "GateScanCheckpoint",
     "IngestRun", "RawPayload", "IngestWatermark", "IngestAnomaly",
     "TradingSession", "Instrument", "InstrumentUniverseMembership",
     "InstrumentLifecyclePeriod", "InstrumentAttributeVersion", "InstrumentSecurityClass",

@@ -2549,5 +2549,87 @@ def acceptance_fundamentals():
     raise typer.Exit(0 if out["status"] == "PASS" else 1)
 
 
+@acceptance_app.command("stage1-checkpoint")
+def acceptance_stage1_checkpoint(
+    full: bool = typer.Option(False, "--full", help="rescan every bar and verify the increments"),
+    commit: bool = typer.Option(False, "--commit", help="store the checkpoint"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN", help=_TOKEN_HELP),
+):
+    """The Stage 1 gate's ohlcv_bar check counts up to the latest finished run (GATE-INCR):
+    the gate then adds only the runs after it. Exit 1 when a FULL rescan disagrees."""
+    import json as _json
+
+    from app.acceptance.ohlcv_scan import checkpoint
+    from app.db.engine import get_sessionmaker
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await checkpoint(s, full=full, commit=commit, token=token)
+    out = asyncio.run(_go())
+    typer.echo(_json.dumps(out, indent=1, default=str))
+    raise typer.Exit(1 if out.get("consistent") is False else 0)
+
+
+# ── Stage 4 E5 models (docs/STAGE4_E5_PREREGISTRATION.md; PAPER ONLY) ─────────────────
+models_app = typer.Typer(help="E5 ML models: freeze, daily prediction, status, the single look")
+app.add_typer(models_app, name="models")
+
+
+def _models(fn, **kw):
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.models import forward as F
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await getattr(F, fn)(s, **kw)
+    try:
+        out = asyncio.run(_go())
+    except F.Refused as e:
+        typer.echo(_json.dumps({"refused": str(e)}))
+        raise typer.Exit(2) from e
+    typer.echo(_json.dumps(out, indent=1, default=str))
+
+
+@models_app.command("freeze")
+def models_freeze(
+    commit: bool = typer.Option(False, "--commit", help="store the artefact and model_version"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN", help=_TOKEN_HELP),
+    through: str = typer.Option(None, help="last training session (YYYY-MM-DD)"),
+    allow_dirty: bool = typer.Option(False, "--allow-dirty", help="dry runs only"),
+):
+    """Fit the E5 recipe on the latest 120 labelled sessions and freeze it (FORWARD_TEST)."""
+    import datetime as _dt
+    _models("freeze", commit=commit, token=token, allow_dirty=allow_dirty and not commit,
+            through=_dt.date.fromisoformat(through) if through else None)
+
+
+@models_app.command("predict")
+def models_predict(
+    date: str = typer.Option(None, help="session (default: today, IST)"),
+    commit: bool = typer.Option(False, "--commit", help="write the predictions"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN", help=_TOKEN_HELP),
+):
+    """Today's outputs from the frozen model, written before the open (refused after it)."""
+    import datetime as _dt
+
+    from app.core.clock import IST, now
+    day = _dt.date.fromisoformat(date) if date else now().astimezone(IST).date()
+    _models("predict_live", day=day, commit=commit, token=token)
+
+
+@models_app.command("status")
+def models_status():
+    """Operational counts only (no performance before the single look)."""
+    _models("status")
+
+
+@models_app.command("report")
+def models_report(look: bool = typer.Option(False, "--look", help="take the single look")):
+    """The confirmatory look after 40 forward sessions (recorded; a second is refused)."""
+    _models("report", look=look)
+
+
 if __name__ == "__main__":
     app()

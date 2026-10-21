@@ -31,6 +31,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Stage 4 models only (E5, user 2026-10-21). Imported lazily by app/models: the ingestion
+# and feature processes never load them. torch from the CPU wheel index
+# (uv pip install --index-url https://download.pytorch.org/whl/cpu torch).
+ml = [
+  "scikit-learn>=1.6",
+  "scipy>=1.14",
+  "lightgbm>=4.5",
+  "torch>=2.5",
+]
 dev = [
   "pytest>=8.3",
   "pytest-asyncio>=0.25",

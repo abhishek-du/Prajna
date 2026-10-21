@@ -31,7 +31,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.contracts import timing as T
+from app.acceptance import ohlcv_scan as OS
 from app.core.clock import IST, now
 from app.core.config import BACKEND_ROOT
 
@@ -246,7 +246,8 @@ async def _latest_session(s) -> _dt.date:
                           "is_trading_day and session_date < :t", t=today))[0]
 
 
-async def _candle_depth(s, tf: str, since: _dt.date, last: _dt.date) -> dict[str, Any]:
+async def _candle_depth(s, tf: str, since: _dt.date, last: _dt.date,
+                        bar_counts: dict[str, int] | None = None) -> dict[str, Any]:
     """Per NSE instrument: does its checkpoint cover [since, last - 1 session]?"""
     rows = await _all(s, """
         select i.instrument_key,
@@ -258,8 +259,9 @@ async def _candle_depth(s, tf: str, since: _dt.date, last: _dt.date) -> dict[str
         left join ingest_run r on r.run_id = w.last_run_id
         where i.valid_to = 'infinity' and i.segment in ('NSE_EQ','NSE_INDEX')
           and i.lifecycle_status = 'ACTIVE'""", tf=tf)
-    bars = dict(await _all(s, """select instrument_key, count(*) from ohlcv_bar
-                                 where timeframe=:tf group by 1""", tf=tf))
+    bars = bar_counts if bar_counts is not None else dict(await _all(
+        s, """select instrument_key, count(*) from ohlcv_bar where timeframe=:tf group by 1""",
+        tf=tf))
     lag = _dt.timedelta(days=3)
     covered = [k for k, t, c in rows if t and c and c <= since and t >= last - lag]
     none = [k for k, t, c in rows if t is None]
@@ -294,10 +296,21 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
     out.append(Criterion("A", "Database isolation", PASS if db == "prajna" else FAIL,
                          {"current_database": db, "v1_database": "autotrade_pro (never used)"}))
 
+    # the ohlcv_bar checks (B, C, X, F-J evidence) in one pass: the latest checkpoint +
+    # the runs after it (decision GATE-INCR, app/acceptance/ohlcv_scan.py)
+    ob = await OS.totals(s)
+    oc = ob["counts"]
+
     # B. provenance, per table
     prov: dict[str, Any] = {}
     bad_total = 0
     for t in PROV_TABLES:
+        if t == "ohlcv_bar":
+            prov[t] = {"rows": oc["rows"], "bad_run": oc["bad_run"],
+                       "no_payload": oc["no_payload"], "no_basis": oc["no_basis"],
+                       "method": ob["method"]}
+            bad_total += oc["bad_run"] + oc["no_payload"] + oc["no_basis"]
+            continue
         # table names come from the PROV_TABLES constant, never from input
         r = await _one(s, f"""
             select count(*),
@@ -317,8 +330,8 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
                          {"violations": bad_total}, prov))
 
     # C. point-in-time: knowable_at <= fetched_at everywhere
-    pit = {t: (await _one(s, f"select count(*) from {t} "
-                             "where knowable_at > fetched_at"))[0]
+    pit = {t: oc["pit"] if t == "ohlcv_bar" else (await _one(
+        s, f"select count(*) from {t} where knowable_at > fetched_at"))[0]
            for t in PROV_TABLES}
     out.append(Criterion("C", "Point-in-time safety (knowable_at <= fetched_at)",
                          PASS if not any(pit.values()) else FAIL, {"violations": pit}))
@@ -399,7 +412,8 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
     six_months = today - _dt.timedelta(days=183)
     depth = {"1d": _dt.date(2020, 1, 1), "1m": six_months, "15m": _dt.date(2022, 1, 3),
              "1h": _dt.date(2022, 1, 3)}
-    dd = {tf: await _candle_depth(s, tf, since, last) for tf, since in depth.items()}
+    dd = {tf: await _candle_depth(s, tf, since, last, ob["bars"].get(tf, {}))
+          for tf, since in depth.items()}
     failed_1d = await _all(s, """select r.request_params->>'instrument_key', a.detail->>'reason',
             a.subject from ingest_watermark w right join (
               select distinct on (stream) stream, run_id, status, request_params from ingest_run
@@ -675,19 +689,8 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
 
     # X. no look-ahead (data-time rules)
     la = {
-        "daily_nse_fetched_same_day": (await _one(s, """select count(*) from ohlcv_bar b
-            join instrument i on i.instrument_id=b.instrument_id where b.timeframe='1d'
-            and i.segment not like 'GLOBAL%'
-            and (b.fetched_at at time zone 'Asia/Kolkata')::date <= b.session_date"""))[0],
-        "intraday_before_end_plus_margin": (await _one(s, """select count(*) from ohlcv_bar
-            where timeframe in ('1m','5m','15m','1h') and bar_start_utc + case timeframe
-            when '1m' then interval '1 minute' when '5m' then interval '5 minutes'
-            when '15m' then interval '15 minutes' else interval '1 hour' end
-            + make_interval(secs => case when timeframe in ('1m','15m','1h') then
-                case when fetched_at < cast(:eff as timestamptz) then cast(:prev as float8)
-                else cast(:cur as float8) end else cast(:oos as float8) end)
-            > fetched_at""", eff=T.MARGIN_EFFECTIVE_FROM, prev=T.PREVIOUS_MARGIN_S,
-            cur=T.COMPLETION_MARGIN_S["1m"], oos=T.OUT_OF_SCOPE_MARGIN_S["5m"]))[0],
+        "daily_nse_fetched_same_day": oc["la_daily"],
+        "intraday_before_end_plus_margin": oc["la_intraday"],
         "fii_dii_same_day": (await _one(s, """select count(*) from macro_observation
             where observation_date >= (fetched_at at time zone 'Asia/Kolkata')::date"""))[0],
         "news_published_after_knowable": (await _one(s, """select count(*) from news_article

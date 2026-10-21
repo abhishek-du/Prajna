@@ -1,0 +1,254 @@
+{
+ "session": "2026-10-21",
+ "kind": "PRE_SESSION",
+ "as_of": "2026-10-21T03:29:59+00:00",
+ "generated_at": "2026-10-21T12:12:24.394436+00:00",
+ "instruments": 3565,
+ "active_registry": {
+  "version": "features-v4",
+  "sha256": "6f998a76c49462c3244b5eecb2d783e75c6fff9d26365ae3540c8e88dbb201c3"
+ },
+ "v5_features": 17,
+ "checks": {
+  "pit": {
+   "pass": true,
+   "late": []
+  },
+  "v4_unchanged": {
+   "pass": true,
+   "dropped": [
+    "ca_days_to_any",
+    "ca_days_to_bonus",
+    "ca_days_to_dividend",
+    "ca_days_to_split"
+   ],
+   "changed": []
+  },
+  "determinism": {
+   "pass": true,
+   "instruments": 60
+  },
+  "recount": {
+   "pass": true,
+   "independent": 566,
+   "reader": 566,
+   "only_independent": [],
+   "only_reader": []
+  },
+  "pe_vs_vendor": {
+   "pass": true,
+   "both": 2060,
+   "share_in_band": 0.920388349514563,
+   "median_ratio": 0.9502641066749271,
+   "outside": [
+    [
+     "NSE_EQ|INE013801027",
+     27.6,
+     8.13
+    ],
+    [
+     "NSE_EQ|INE01II01013",
+     33.27,
+     18.73
+    ],
+    [
+     "NSE_EQ|INE030C01015",
+     14.35,
+     23.96
+    ],
+    [
+     "NSE_EQ|INE042A01014",
+     21.98,
+     12.35
+    ],
+    [
+     "NSE_EQ|INE043A01012",
+     1.79,
+     0.12
+    ],
+    [
+     "NSE_EQ|INE050M01012",
+     17.46,
+     36.78
+    ],
+    [
+     "NSE_EQ|INE058A01010",
+     34.06,
+     16.05
+    ],
+    [
+     "NSE_EQ|INE05J901018",
+     9.3,
+     3.79
+    ],
+    [
+     "NSE_EQ|INE060X01034",
+     1.66,
+     0.59
+    ],
+    [
+     "NSE_EQ|INE06IR01021",
+     2.22,
+     1.23
+    ],
+    [
+     "NSE_EQ|INE077F01035",
+     5.29,
+     0.67
+    ],
+    [
+     "NSE_EQ|INE077P01034",
+     5.57,
+     30.61
+    ],
+    [
+     "NSE_EQ|INE082W01014",
+     8.33,
+     18.34
+    ],
+    [
+     "NSE_EQ|INE083K01017",
+     8.96,
+     23.98
+    ],
+    [
+     "NSE_EQ|INE08PH01015",
+     31.43,
+     14.58
+    ],
+    [
+     "NSE_EQ|INE08ZM01014",
+     27.03,
+     12.04
+    ],
+    [
+     "NSE_EQ|INE092B01025",
+     13.88,
+     24.7
+    ],
+    [
+     "NSE_EQ|INE0ALR01029",
+     22.47,
+     11.46
+    ],
+    [
+     "NSE_EQ|INE0DD101019",
+     69.54,
+     37.48
+    ],
+    [
+     "NSE_EQ|INE0F3301020",
+     4.65,
+     7.57
+    ],
+    [
+     "NSE_EQ|INE0HF201011",
+     13.3,
+     8.74
+    ],
+    [
+     "NSE_EQ|INE0IQ001011",
+     13.54,
+     2.22
+    ],
+    [
+     "NSE_EQ|INE0MLS01022",
+     25.79,
+     0.97
+    ],
+    [
+     "NSE_EQ|INE0O4R01018",
+     3.38,
+     0.66
+    ],
+    [
+     "NSE_EQ|INE0OK701014",
+     1.79,
+     0.86
+    ]
+   ]
+  }
+ },
+ "coverage": {
+  "analyst_downgrades_30d": {
+   "MISSING_INPUT": 3562,
+   "NOT_APPLICABLE": 3
+  },
+  "analyst_upgrades_30d": {
+   "MISSING_INPUT": 3562,
+   "NOT_APPLICABLE": 3
+  },
+  "dist_high_252": {
+   "VALUE": 2611,
+   "INSUFFICIENT_HISTORY": 802,
+   "MISSING_INPUT": 152
+  },
+  "dist_low_252": {
+   "VALUE": 2611,
+   "INSUFFICIENT_HISTORY": 802,
+   "MISSING_INPUT": 152
+  },
+  "earnings_yield_ttm": {
+   "MISSING_INPUT": 982,
+   "VALUE": 2406,
+   "INSUFFICIENT_HISTORY": 177
+  },
+  "eps_surprise_srw": {
+   "MISSING_INPUT": 871,
+   "INSUFFICIENT_HISTORY": 2562,
+   "VALUE": 132
+  },
+  "eps_surprise_srw_price": {
+   "MISSING_INPUT": 928,
+   "INSUFFICIENT_HISTORY": 2522,
+   "VALUE": 115
+  },
+  "india_vix_pctile_252": {
+   "VALUE": 1
+  },
+  "market_regime_trend": {
+   "VALUE": 1
+  },
+  "mnews_company_sentiment_24h": {
+   "NOT_APPLICABLE": 3555,
+   "VALUE": 7
+  },
+  "mnews_company_sentiment_3d": {
+   "NOT_APPLICABLE": 3521,
+   "VALUE": 41
+  },
+  "pb_own": {
+   "MISSING_INPUT": 633,
+   "VALUE": 2826,
+   "DIVISION_UNDEFINED": 106
+  },
+  "pe_ttm": {
+   "MISSING_INPUT": 982,
+   "VALUE": 2071,
+   "INSUFFICIENT_HISTORY": 177,
+   "DIVISION_UNDEFINED": 335
+  },
+  "results_days_since": {
+   "MISSING_INPUT": 3407,
+   "VALUE": 155,
+   "NOT_APPLICABLE": 3
+  },
+  "results_days_to_next": {
+   "NOT_APPLICABLE": 3135,
+   "VALUE": 430
+  },
+  "results_today": {
+   "VALUE": 3562,
+   "NOT_APPLICABLE": 3
+  },
+  "street_verdict_90d": {
+   "NOT_APPLICABLE": 3558,
+   "VALUE": 7
+  }
+ },
+ "seconds": {
+  "v4": 196.1,
+  "v5": 215.3
+ },
+ "pass": true
+}
