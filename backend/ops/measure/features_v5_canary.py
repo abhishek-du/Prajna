@@ -84,6 +84,7 @@ async def canary(session: _dt.date | None, kind: str, limit: int | None) -> dict
         keys = await E.universe(s)
         keys = keys[:limit] if limit else keys
         base = E.FEATURES
+        E.FEATURES = R.FEATURES_V4                          # the v4 baseline, explicitly
         t0 = time.monotonic()
         v4 = await E.compute_snapshot(s, snap, keys)
         t4 = time.monotonic() - t0

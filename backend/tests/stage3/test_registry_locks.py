@@ -46,7 +46,9 @@ class TestRegistry:
     def test_specs_are_complete_and_unique(self):
         assert len(R.BY_ID) == len(R.FEATURES)
         for f in R.FEATURES:
-            assert f.status == "IMPLEMENTED" and f.group and f.definition and f.inputs
+            # features-v5: ca_days_to_* stay registered as UNSUPPORTED (CA-TO-UNSUPPORTED)
+            assert f.status == "IMPLEMENTED" or f.id in R.CA_TO_FEATURES
+            assert f.group and f.definition and f.inputs
             assert f.param_status in ("SPECIFIED", "PROPOSED")
             assert f.scope in ("INSTRUMENT", "CONTEXT")
             assert set(f.snapshots) <= {"PRE_SESSION", "PRE_OPEN"}

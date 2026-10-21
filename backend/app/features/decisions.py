@@ -81,5 +81,9 @@ DECISIONS: dict[str, dict[str, str]] = {
                     "is chosen. Activated only after a production canary "
                     "(ops/measure/features_v5_canary.py) at a session boundary; values "
                     "stored under features-v1..v4 keep their own registry hash",
-        "ref": "user 2026-10-21 ('sab approve hai you go ahead'); docs/STAGE3_FEATURES_V5.md"},
+        "ref": "user 2026-10-21 ('sab approve hai you go ahead'); docs/STAGE3_FEATURES_V5.md",
+        "activation": {"status": "ACTIVATED", "registry": "features-v5",
+                       "effective": "2026-10-22 PRE_SESSION",
+                       "evidence": "canary PASS on 12 real snapshots 2026-10-13..10-21; "
+                                   "audit/evidence/features_v5_canary_*.json"}},
 }

@@ -44,17 +44,20 @@ class Dataset:
 
 
 DATASETS = {
-    # builder v3 (2026-10-09): the active features-v4 code (CA-OBSERVED + F3-PAYLOAD-BASIS).
+    # builder v4 (2026-10-21): the features-v5 registry (FEATURES-V5). The v3 datasets
+    # (features-v4, 2026-10-09) stay stored and readable - E1..E5 used them - and frozen.
     # train_strict: corporate actions knowable when Prajna observed them (0017/0018)
-    "strict": Dataset("stage4-ds-v3-strict", STRICT, "train_strict, public",
-                      ("PRE_SESSION", "PRE_OPEN")),
+    "strict": Dataset("stage4-ds-v4-strict", STRICT, "train_strict, public",
+                      ("PRE_SESSION", "PRE_OPEN"), "features-v5"),
     # no historical pre-open data exists, so AS_IF_LIVE has PRE_SESSION only
-    "asif": Dataset("stage4-ds-v3-asif", ASIF, "train_asif2, public", ("PRE_SESSION",)),
+    "asif": Dataset("stage4-ds-v4-asif", ASIF, "train_asif2, public", ("PRE_SESSION",),
+                    "features-v5"),
 }
 # Built under earlier code and registries: immutable. A build into any of them is refused
 # (it would append rows computed with different feature semantics).
 FROZEN = frozenset({"stage4-ds-v1-strict", "stage4-ds-v1-asif", "stage4-ds-v1-strict-pilot",
-                    "stage4-ds-v1-asif-pilot", "stage4-ds-v2-strict", "stage4-ds-v2-asif"})
+                    "stage4-ds-v1-asif-pilot", "stage4-ds-v2-strict", "stage4-ds-v2-asif",
+                    "stage4-ds-v3-strict", "stage4-ds-v3-asif"})
 
 
 def _ceil_minute(seconds: float) -> int:

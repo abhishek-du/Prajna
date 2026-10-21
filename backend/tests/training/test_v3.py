@@ -100,7 +100,7 @@ class TestBuildContract:
                                 None, "test", code={"git_sha": "abc", "dirty": False})
         r = (await world.execute(text("""select code_git_sha, build_contract, registry_version
             from training_dataset_run where run_id = :r"""), {"r": rid})).one()
-        assert r[0] == "abc" and r[2] == "features-v4"
+        assert r[0] == "abc" and r[2] == "features-v5"          # builder v4 (2026-10-21)
         assert r[1]["search_path"] == "train_strict, public" and r[1]["code_dirty"] is False
 
     async def test_strict_shadow_equals_the_production_views(self, world):

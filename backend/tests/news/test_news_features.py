@@ -79,13 +79,13 @@ def test_activated_in_the_stage3_registry_after_the_canary():
     # is registered exactly once, with the multi-source input and the right scope
     # (features-v3 CA-OBSERVED and features-v4 F3-PAYLOAD-BASIS re-version only
     # corporate-action / adjusted-bar features: the news features are unchanged)
-    assert R.NEWS_V2_ACTIVE and R.VERSION == "features-v4"
+    assert R.NEWS_V2_ACTIVE and R.VERSION == "features-v5"
     assert all(R.BY_ID[f].version == 1 for f in (*NF.FEATURES, *NF.COMPANY_FEATURES))
     assert set(NF.FEATURES) | set(NF.COMPANY_FEATURES) <= set(R.BY_ID)
     assert all(R.BY_ID[f].scope == "CONTEXT" for f in NF.FEATURES)
     assert all(R.BY_ID[f].scope == "INSTRUMENT" for f in NF.COMPANY_FEATURES)
     assert all(R.BY_ID[f].inputs == ("multi_news",) for f in (*NF.FEATURES, *NF.COMPANY_FEATURES))
-    assert len(R.FEATURES) == len(R.FEATURES_V1) + 39 == 104
+    assert len(R.FEATURES_V4) == len(R.FEATURES_V1) + 39 == 104       # v5 adds 17 more
     d = NF.DECISION["FEATURE-NEWS-V2"]
     assert d["status"] == "APPROVED" and d["activation"]["status"] == "ACTIVATED"
 

@@ -133,22 +133,23 @@ class TestHistoricalRecompute:
         sig = lambda res: sorted((r.feature_id, r.value, r.reason, r.inputs_sha256)  # noqa: E731
                                  for r in res.rows)
         assert sig(again) == sig(before)
-        assert {r.feature_id: r.reason for r in again.rows}["ca_days_to_dividend"] \
-            == "MISSING_INPUT"
+        # features-v5: ca_days_to_* are UNSUPPORTED (never computed)
+        assert "ca_days_to_dividend" not in {r.feature_id for r in again.rows}
 
 
 class TestRegistryV3:
     def test_versions_bumped_only_for_ca_dependent_features(self):
         # features-v3 introduced the bump; features-v4 (F3-PAYLOAD-BASIS) adds its own
-        assert RG.CA_OBSERVED_ACTIVE and RG.VERSION in ("features-v3", "features-v4")
+        assert RG.CA_OBSERVED_ACTIVE and RG.VERSION in ("features-v3", "features-v4",
+                                                        "features-v5")
         f3 = getattr(RG, "F3_PAYLOAD_BASIS_ACTIVE", False)
         v1 = {f.id: f.version for f in RG.FEATURES_V1 + RG.NEWS_V2_FEATURES}
-        for f in RG.FEATURES:
+        for f in RG.FEATURES_V4:                # the v1/v2 features (v5 adds new ones)
             dependent = f.scope == "INSTRUMENT" and bool(
                 {"daily_bars", "nifty_bars", "corporate_actions"} & set(f.inputs))
             later = 1 if f3 and RG._f3_payload_basis(f) else 0
             assert f.version - later == v1[f.id] + (1 if dependent else 0), f.id
-        bumped = {f.id for f in RG.FEATURES if f.version != v1[f.id]}
+        bumped = {f.id for f in RG.FEATURES_V4 if f.version != v1[f.id]}
         assert {"ret_1d", "sma_200", "beta_60", "ca_days_to_any", "sector_rs_20",
                 "preopen_gap_pct"} <= bumped
         assert not bumped & {"index_ret_1d", "india_vix_level", "global_ret_1d",

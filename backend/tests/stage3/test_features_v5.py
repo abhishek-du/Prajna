@@ -1,9 +1,9 @@
 """features-v5 (decision FEATURES-V5, user 2026-10-21; docs/STAGE3_FEATURES_V5.md).
 
-Inactive (before the canary): the registry stays features-v4 byte for byte. The v5 specs,
-given to the engine (as the canary does, in its own process), add exactly the new rows,
-drop the four ca_days_to_* rows and change no v4 value; every input is knowable before
-as_of (results events, analyst headlines, the fundamentals history)."""
+ACTIVE since 2026-10-21 (canary 12/12). The features-v4 document stays reproducible (its
+hash is what stored v4 values and the Stage 4 v3 datasets refer to). Against the v4 list,
+v5 adds exactly the new rows, drops the four ca_days_to_* rows and changes no v4 value;
+every input is knowable before as_of (results events, analyst headlines, fundamentals)."""
 
 from __future__ import annotations
 
@@ -32,6 +32,7 @@ from tests.support.stage2_seed import _run
 D = _dt.date
 UTC = _dt.UTC
 V4_SHA = "6f998a76c49462c3244b5eecb2d783e75c6fff9d26365ae3540c8e88dbb201c3"
+V5_SHA = "466790726ac24c7b50bac417cae8e438cc48859ac8d3d865dffe3fdf69b18387"
 
 
 def at(y, m, d, hh=12):
@@ -39,34 +40,41 @@ def at(y, m, d, hh=12):
 
 
 # ── registry ────────────────────────────────────────────────────────────────────
-def test_inactive_v5_leaves_features_v4_byte_for_byte():
-    assert R.FEATURES_V5_ACTIVE is False
-    assert R.VERSION == "features-v4" and R.REGISTRY_SHA256 == V4_SHA
-    assert not R.V5_IDS & {f.id for f in R.FEATURES}
+def test_v5_is_active_and_v4_stays_reproducible():
+    import hashlib
+    import json
+    assert R.FEATURES_V5_ACTIVE is True
+    assert R.VERSION == "features-v5" and R.REGISTRY_SHA256 == V5_SHA
+    assert R.V5_IDS <= {f.id for f in R.FEATURES}
+    assert hashlib.sha256(json.dumps(R.v4_document(), sort_keys=True,
+                                     default=str).encode()).hexdigest() == V4_SHA
+    assert R.features_v5(R.FEATURES_V4) == R.FEATURES
 
 
 def test_v5_feature_list_and_diagram():
-    v5 = R.features_v5(R.FEATURES)
+    v5 = R.features_v5(R.FEATURES_V4)
     ids = [f.id for f in v5]
     assert len(ids) == len(set(ids)) == 104 + len(R.FEATURES_V5_NEW)
     assert {f.id for f in v5 if f.status == "UNSUPPORTED"} == set(R.CA_TO_FEATURES)
     assert all(f.version == 1 and f.status == "IMPLEMENTED" for f in R.FEATURES_V5_NEW)
-    diagram = R.diagram_v5(R.DIAGRAM)
-    assert [d["item"] for d in diagram] == [d["item"] for d in R.DIAGRAM]
+    diagram = R.diagram_v5(R.DIAGRAM_V4)
+    assert diagram == R.DIAGRAM
+    assert [d["item"] for d in diagram] == [d["item"] for d in R.DIAGRAM_V4]
     known = set(ids)
     assert all(f in known for d in diagram for f in d["features"])
     st = {d["item"]: R.diagram_status(d) for d in diagram}
     for item in ("Earnings dates", "Earnings surprises", "Analyst upgrades/downgrades",
                  "Market regime (bull/bear/sideways)", "Sector/market events"):
         assert st[item] == "PARTIAL", item           # implemented, with its limits named
-    assert st["Order book imbalance"] == "OUT_OF_SCOPE"
+    ob = next(d for d in diagram if d["item"] == "Order book imbalance")
+    assert st["Order book imbalance"] == "UNSUPPORTED" and ob["reason"].startswith("OUT_OF_SCOPE")
     bad = [d["item"] for d in diagram
-           if (R.diagram_status(d) in ("UNSUPPORTED", "UNKNOWN", "OUT_OF_SCOPE")
-               and not d.get("reason"))
+           if (R.diagram_status(d) in ("UNSUPPORTED", "UNKNOWN") and not d.get("reason"))
            or (R.diagram_status(d) == "PARTIAL" and not d.get("partial"))]
     assert not bad
-    assert not [d for d in diagram if R.diagram_status(d) in ("UNSUPPORTED", "UNKNOWN")
-                and d["item"] != "Corporate actions"]
+    # every remaining UNSUPPORTED / UNKNOWN item is an approved OUT_OF_SCOPE
+    assert all(d.get("reason", "").startswith("OUT_OF_SCOPE") for d in diagram
+               if R.diagram_status(d) in ("UNSUPPORTED", "UNKNOWN"))
 
 
 # ── results calendar (pure) ──────────────────────────────────────────────────────
@@ -287,8 +295,9 @@ async def test_engine_v5_adds_rows_and_changes_no_v4_value(world, monkeypatch): 
     clock.freeze(W.NOW)
     snap = await SN.resolve(world, W.SESSION, "PRE_SESSION")
     keys = [W.A, W.B, W.NIFTY]
+    monkeypatch.setattr(E, "FEATURES", R.FEATURES_V4)
     before = await E.compute_snapshot(world, snap, keys)
-    monkeypatch.setattr(E, "FEATURES", R.features_v5(R.FEATURES))
+    monkeypatch.setattr(E, "FEATURES", R.FEATURES)
     after = await E.compute_snapshot(world, snap, keys)
     b = {(r.instrument_key, r.feature_id): asdict(r) for r in before.rows}
     a = {(r.instrument_key, r.feature_id): asdict(r) for r in after.rows}

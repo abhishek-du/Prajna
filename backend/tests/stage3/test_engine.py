@@ -107,7 +107,7 @@ class TestValues:
         assert v[(W.A, "pe")] == (20.0, None) and v[(W.A, "pe_to_sector")] == (0.8, None)
         assert v[(W.A, "revenue_yoy")] == (0.2, None)
         assert v[(W.A, "liabilities_to_assets")] == (0.5, None)
-        assert v[(W.A, "ca_days_to_dividend")] == (11.0, None)
+        assert (W.A, "ca_days_to_dividend") not in v      # features-v5: UNSUPPORTED
         assert v[(W.A, "news_count_24h")] == (1.0, None)
         assert v[(W.A, "sma_200")] == (None, "INSUFFICIENT_HISTORY")
         assert v[("MARKET", "fii_net_cash_1d")] == (None, "MISSING_INPUT")

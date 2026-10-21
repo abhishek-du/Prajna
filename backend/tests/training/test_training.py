@@ -210,16 +210,21 @@ class TestCorporateActionKnowability:
         await E.consistent_read(world, read_only=True)
         prod = await E.compute_snapshot(world, sn, [W.C], with_context=False)
         await world.rollback()
-        assert {r.feature_id: r.reason for r in prod.rows}["ca_days_to_split"] == "MISSING_INPUT"
+        # features-v5: ca_days_to_* are UNSUPPORTED (no future ex-date is knowable): the
+        # late action reaches no stored feature; its invisibility is shown by the views below
+        assert "ca_days_to_split" not in {r.feature_id for r in prod.rows}
         kn_ca = (await world.execute(text("""select count(*) from canon_corporate_action_kn_ca
             where instrument_key = :k and knowable_at < :a"""), {"k": W.C, "a": sn.as_of})).scalar()
         assert kn_ca == 1                        # under KN-CA it was visible (7 days to the split)
         await run(world, STRICT, sn)
         await run(world, ASIF, sn)
-        assert (await stored(world, STRICT))[(W.C, "ca_days_to_split")][:2] == (
-            None, "MISSING_INPUT")
-        assert (await stored(world, ASIF))[(W.C, "ca_days_to_split")][:2] == (
-            None, "MISSING_INPUT")                    # ex-date + 2 days is after as_of too
+        for ds, schema in ((STRICT, "train_strict"), (ASIF, "train_asif2")):
+            assert (W.C, "ca_days_to_split") not in await stored(world, ds)
+            seen = (await world.execute(text(
+                f"""select count(*) from {schema}.canon_corporate_action
+                where instrument_key = :k and knowable_at < :a"""),
+                {"k": W.C, "a": sn.as_of})).scalar()
+            assert seen == 0                          # ex-date + 2 days is after as_of too
 
 
 # ── AS_IF_LIVE: shadow views ─────────────────────────────────────────────────────

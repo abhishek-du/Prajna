@@ -1,4 +1,4 @@
-# Stage 3: features-v5 (APPROVED 2026-10-21; BUILT; NOT ACTIVE until the canary passes)
+# Stage 3: features-v5 (APPROVED 2026-10-21; ACTIVE from the 2026-10-22 PRE_SESSION run)
 
 **Decision FEATURES-V5** (user, 2026-10-21: "sab approve hai you go ahead"). The aim is that every item of the Stage 3 diagram is either implemented or OUT_OF_SCOPE with its reason named. Nothing is left silently unsupported.
 
@@ -37,6 +37,19 @@ The registry has 104 v4 features. v5 adds 17 and keeps the four `ca_days_to_*` r
 1. The canary, `ops/measure/features_v5_canary.py` (read-only, the whole universe), runs on real snapshots: PIT, v4 rows unchanged, determinism, an independent SQL recount of the results calendar, own vs vendor P/E, coverage and time. Evidence goes to `audit/evidence/features_v5_canary_<session>_<kind>.json`.
 2. When it passes on 12 snapshots (6 sessions × 2), `FEATURES_V5_ACTIVE = True` at a session boundary: after the PRE_OPEN run, before the next 09:00. The registry becomes features-v5 with a new hash.
 3. Values stored under features-v1..v4 keep their own hash. Stage 4 datasets v3 stay pinned to features-v4 (immutable); a later dataset version uses v5.
+
+## Activation record
+
+- **Canary:** 12 of 12 snapshots PASS (2026-10-13, 14, 15, 16, 19, 21; PRE_SESSION and PRE_OPEN; 3,565 instruments each). Evidence: `audit/evidence/features_v5_canary_*.json`.
+  - PIT: 0 inputs at or after as_of;
+  - v4 rows identical, except the four `ca_days_to_*`;
+  - determinism holds;
+  - the independent results-calendar recount equals the reader (248 to 566 instruments);
+  - own vs vendor P/E: 92 % in band;
+  - the extra time is 8–23 s per snapshot.
+- **Activated 2026-10-21 evening** (a session boundary: after the PRE_OPEN run, before the next 09:00).
+- **Registry:** features-v5, sha256 `466790726ac24c7b50bac417cae8e438cc48859ac8d3d865dffe3fdf69b18387`, 121 features (117 IMPLEMENTED; the four `ca_days_to_*` UNSUPPORTED).
+- **The v4 document** stays reproducible (`registry.v4_document()`, sha `6f998a76…`).
 
 ## Known limits
 

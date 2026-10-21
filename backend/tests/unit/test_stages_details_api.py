@@ -134,16 +134,18 @@ async def test_stage3_gate_endpoint(async_client):
 
 @pytest.mark.anyio
 async def test_stage3_registry_endpoint(async_client):
-    """GET /api/v1/stages/3/registry returns all 104 registered features grouped."""
+    """GET /api/v1/stages/3/registry returns every registered feature grouped (features-v5:
+    121 registered, the four ca_days_to_* UNSUPPORTED)."""
+    from app.features.registry import FEATURES
     resp = await async_client.get("/api/v1/stages/3/registry")
     assert resp.status_code == 200
     data = resp.json()["data"]
 
     assert data["version"]
     assert data["registry_sha256"]
-    assert data["feature_count"] == 104
-    assert data["implemented_count"] == 104
-    assert len(data["features"]) == 104
+    assert data["feature_count"] == len(FEATURES) == 121
+    assert data["implemented_count"] == 117
+    assert len(data["features"]) == 121
 
     groups = data["groups"]
     assert "price_technical" in groups

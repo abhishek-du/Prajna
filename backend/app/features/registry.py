@@ -345,7 +345,10 @@ FEATURES_V5_NEW: tuple[FeatureSpec, ...] = (
        params={"n": 252}, scope="CONTEXT", lookback=252),
 )
 V5_IDS = frozenset(f.id for f in FEATURES_V5_NEW)
-FEATURES_V5_ACTIVE = False
+# ACTIVATED 2026-10-21 (user "sab approve hai you go ahead") after the canary passed on
+# 12 real snapshots (2026-10-13 .. 10-21, PRE_SESSION and PRE_OPEN, 3,565 instruments;
+# audit/evidence/features_v5_canary_*.json), effective from the 2026-10-22 PRE_SESSION run
+FEATURES_V5_ACTIVE = True
 CA_TO_UNSUPPORTED_ACTIVE = CA_TO_UNSUPPORTED_ACTIVE or FEATURES_V5_ACTIVE
 
 
@@ -448,8 +451,8 @@ _V5_DIAGRAM: dict[str, dict] = {   # item -> what v5 changes (OUT_OF_SCOPE: user
         "partial": "OUT_OF_SCOPE (user 2026-10-21): bid-ask spread needs an all-day quote/tick "
                    "store (Stage 1 criterion L)"},
     "Order book imbalance": {
-        "status": "OUT_OF_SCOPE", "reason": "user 2026-10-21: an all-day order book needs a "
-        "live tick store (Stage 1 criterion L); the pre-open book imbalance is "
+        "status": "UNSUPPORTED", "reason": "OUT_OF_SCOPE (user 2026-10-21): an all-day order "
+        "book needs a live tick store (Stage 1 criterion L); the pre-open book imbalance is "
         "preopen_imbalance"},
     "Valuation ratios (P/E, P/B, etc.)": {
         "features": ["pe", "pb", "ev_ebitda", "pe_to_sector", "pb_to_sector", "pe_ttm",
@@ -503,8 +506,22 @@ def diagram_v5(diagram: tuple[dict, ...]) -> tuple[dict, ...]:
     return tuple(out)
 
 
+DIAGRAM_V4 = DIAGRAM
 if FEATURES_V5_ACTIVE:
     DIAGRAM = diagram_v5(DIAGRAM)
+
+
+def v4_document() -> dict:
+    """The features-v4 registry document (stored v4 values and the Stage 4 v3 datasets
+    refer to its hash); kept reproducible after the activation of v5."""
+    return {"version": "features-v4", "features": [asdict(f) for f in FEATURES_V4],
+            "diagram": list(_v4_diagram())}
+
+
+def _v4_diagram() -> tuple[dict, ...]:
+    return tuple({k: v for k, v in d.items() if k != "partial"} | (
+        {"partial": d["partial"]} if "partial" in d and not d["partial"].startswith(
+            "ca_days_to_*") else {}) for d in DIAGRAM_V4)
 
 BY_ID = {f.id: f for f in FEATURES}
 CONTEXT_INDEX_KEYS = ("NSE_INDEX|Nifty 50", "NSE_INDEX|Nifty Bank")

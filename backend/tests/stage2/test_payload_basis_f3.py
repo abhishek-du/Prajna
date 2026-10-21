@@ -128,9 +128,9 @@ async def test_evidence_must_name_this_action(world):
 
 def test_registry_v4_versions_only_adjusted_bar_features():
     from app.features import registry as RG
-    assert RG.VERSION == "features-v4" and RG.F3_PAYLOAD_BASIS_ACTIVE
+    assert RG.VERSION == "features-v5" and RG.F3_PAYLOAD_BASIS_ACTIVE
     base = {f.id: f.version for f in RG.FEATURES_V1 + RG.NEWS_V2_FEATURES}
-    for f in RG.FEATURES:
+    for f in RG.FEATURES_V4:                    # the v1/v2 features (v5 adds new ones)
         bars = f.scope == "INSTRUMENT" and bool({"daily_bars", "nifty_bars"} & set(f.inputs))
         ca = f.scope == "INSTRUMENT" and "corporate_actions" in f.inputs
         assert f.version == base[f.id] + (1 if (bars or ca) else 0) + (1 if bars else 0), f.id
