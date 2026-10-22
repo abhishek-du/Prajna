@@ -20,6 +20,8 @@ case "${1:-start}" in
     if running; then exit 0; fi
     AWS_BEARER_TOKEN_BEDROCK="$(grep '^AWS_BEARER_TOKEN_BEDROCK=' .env 2>/dev/null | cut -d= -f2-)"
     [[ -n "$AWS_BEARER_TOKEN_BEDROCK" ]] && export AWS_BEARER_TOKEN_BEDROCK
+    FRED_API_KEY="$(grep '^FRED_API_KEY=' .env 2>/dev/null | cut -d= -f2-)"
+    [[ -n "$FRED_API_KEY" ]] && export FRED_API_KEY
     nohup .venv/bin/python -m app.dashboard --host 127.0.0.1 --port "$PORT" >> var/logs/dashboard.log 2>&1 &
     echo $! > "$PIDF"
     echo "[$(TZ=Asia/Kolkata date '+%F %T IST')] DASHBOARD_STARTED pid $! http://127.0.0.1:${PORT}" | tee -a var/logs/dashboard.log

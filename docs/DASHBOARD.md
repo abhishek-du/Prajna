@@ -73,7 +73,10 @@
 - GIFT Nifty, Sensex, S&P 500, Dow, US Tech 100, US 30 futures, Nikkei, Hang Seng, FTSE, DAX and CAC come from Upstox live quotes, every live cycle.
 - Brent, WTI and USD/INR come from Upstox intraday 30-minute candles, every 5 min (the quote API refuses those keys). Their change is against the last stored daily close.
 - FII/DII cash net comes from NSE (published the next morning).
-- **Not available from Upstox, so shown as missing:** KOSPI, US 10-year yield, dollar index (DXY). Adding them needs a non-Upstox source, which is the user's decision.
+- **Non-Upstox series (user 2026-10-22: "FRED se US10Y aur DXY add kar do"):** display only, never stored, never a feature or model input. Read every 3 h (`app/dashboard/macro_ext.py`). Both are daily and about a day behind.
+  - **US 10-year yield:** US Treasury's Daily Par Yield Curve CSV (official, public domain; FRED's DGS10 is this series). FRED's own CSV endpoint times out from this network.
+  - **US dollar index:** FRED DTWEXBGS, the Federal Reserve's broad dollar index. It is **not** ICE's DXY, which is proprietary and not on FRED, and it is labelled so. It needs a free `FRED_API_KEY` in `backend/.env`; without one it is listed as not available.
+- **Still not available:** KOSPI (not offered by Upstox, not on FRED daily).
 
 **Daily "Market News & Impact" report** (`app/dashboard/report.py`, `dash-report-v3`; Report tab):
 - **Schedule:** 08:45 (pre-market) and 16:20 (after the close) Mon–Fri via `ops/runbooks/market_report.sh`, and sent to Telegram. "Generate now" is on the page.

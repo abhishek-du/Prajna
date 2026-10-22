@@ -87,7 +87,8 @@ def facts(view: dict[str, Any], glob: list[dict[str, Any]], news: dict[str, Any]
                            "as_of": i.get("price_at") or i.get("close_date")}
                           for i in view["indices"]],
         "global": [{"name": g["name"], "level": g["ltp"], "change_pct": pct(g.get("change")),
-                    "as_of": g.get("at")} for g in glob],
+                    **({"change_bps": g["change_bps"]} if g.get("change_bps") is not None
+                       else {}), "as_of": g.get("at") or g.get("date")} for g in glob],
         "breadth": view["breadth"], "market_regime": (view.get("regime") or {}).get("label"),
         "sectors_up": [{"sector": x["sector"], "median_change_pct": pct(x["day"])}
                        for x in sectors if x["stocks"] >= 8][:6],
@@ -136,7 +137,7 @@ async def generate(fx: dict[str, Any], model, model_id: str, *, timeout_s: float
                            "model_id": model_id, "prompt_version": PROMPT_VERSION,
                            "inputs": {k: (len(v) if isinstance(v, list) else None)
                                       for k, v in fx.items()},
-                           "not_available": NOT_AVAILABLE,
+                           "not_available": fx.get("not_available", NOT_AVAILABLE),
                            # shown under the AI text from the data itself, so nothing the
                            # model leaves out is lost
                            "themes": fx.get("themes"), "results_today": fx.get("results_today"),

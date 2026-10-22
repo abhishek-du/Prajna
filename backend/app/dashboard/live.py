@@ -37,6 +37,7 @@ GLOBAL_QUOTES = {"GLOBAL_INDEX|SGX NIFTY": "GIFT Nifty", "BSE_INDEX|SENSEX": "Se
 INDICATORS = {"GLOBAL_INDICATOR|BZUSD": "Brent crude ($)", "GLOBAL_INDICATOR|CLUSD":
               "WTI crude ($)", "GLOBAL_INDICATOR|USDINR": "USD / INR"}
 INDICATOR_EVERY_S = 300.0
+EXT_EVERY_S = 3 * 3600.0           # US Treasury 10Y / FRED dollar index: daily series
 
 
 class LiveQuotes:
@@ -56,6 +57,9 @@ class LiveQuotes:
         self.globals: dict[str, dict[str, Any]] = {}       # global / BSE / commodity / FX
         self._indicator_at = 0.0
         self._prev_close: dict[str, float] = {}
+        self._ext_at = -1e9
+        self.ext_missing: list[str] = ["US 10-year Treasury yield", "US dollar index"]
+        self._ext_keys: list[str] = []
 
     # ── public ──────────────────────────────────────────────────────────────────
     def start(self) -> None:
@@ -71,7 +75,7 @@ class LiveQuotes:
         return q.get("date") == str(now().astimezone(IST).date())
 
     def global_view(self) -> list[dict[str, Any]]:
-        order = [*GLOBAL_QUOTES, *INDICATORS]
+        order = [*GLOBAL_QUOTES, *INDICATORS, *self._ext_keys]
         return [self.globals[k] for k in order if k in self.globals]
 
     def summary(self) -> dict[str, Any]:
@@ -175,6 +179,16 @@ class LiveQuotes:
                                               "basis": "live quote"}
         except Exception as e:
             log.warning("global quotes: %s", e)
+        if time.monotonic() - self._ext_at >= EXT_EVERY_S:
+            self._ext_at = time.monotonic()
+            from app.dashboard import macro_ext as MX
+            try:
+                got, self.ext_missing = await MX.fetch(now().astimezone(IST).date())
+                for g in got:
+                    self.globals[g["key"]] = g
+                self._ext_keys = [g["key"] for g in got]
+            except Exception as e:                    # shown as missing, never fatal
+                log.warning("external macro: %s", e)
         if time.monotonic() - self._indicator_at < INDICATOR_EVERY_S:
             return
         self._indicator_at = time.monotonic()

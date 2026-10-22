@@ -165,3 +165,20 @@ def test_market_report_validation_and_themes():
     rec = {"status": "OK", "date": "2026-10-22", "generated_at": "2026-10-22T16:20:00",
            "report": {**good, "indian_market": [item]}}
     assert "not a trading recommendation" in RP.telegram_text(rec)
+
+
+async def test_us10y_from_the_treasury_csv(monkeypatch):
+    import datetime as dt
+
+    import httpx
+
+    from app.dashboard import macro_ext as MX
+    csv_text = ('Date,"1 Mo","10 Yr","30 Yr"\n10/21/2026,4.09,5.13,5.42\n'
+                "10/20/2026,4.10,5.12,5.40\n")
+    t = httpx.MockTransport(lambda req: httpx.Response(200, text=csv_text))
+    async with httpx.AsyncClient(transport=t) as c:
+        x = await MX.us10y(c, dt.date(2026, 10, 22))
+    assert (x["ltp"], x["change_bps"], x["date"]) == (5.13, 1.0, "2026-10-21")
+    monkeypatch.delenv("FRED_API_KEY", raising=False)
+    async with httpx.AsyncClient(transport=t) as c:
+        assert await MX.broad_dollar(c, dt.date(2026, 10, 22)) is None   # no key: not shown

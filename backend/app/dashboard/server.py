@@ -256,12 +256,12 @@ async def global_() -> JSONResponse:
         flows = await DD.fii_dii(s)
         await s.rollback()
     m = await _view()
-    from app.dashboard.report import NOT_AVAILABLE
     return _json({"india": m["indices"], "global": LIVE.global_view(), "flows": flows,
-                  "not_available": NOT_AVAILABLE, "live": LIVE.summary(),
+                  "not_available": ["KOSPI", *LIVE.ext_missing], "live": LIVE.summary(),
                   "note": "Global indices and Sensex: Upstox live quotes; Brent, WTI and USD/INR: "
-                          "Upstox intraday 30-minute candles (every 5 min); FII/DII: NSE cash "
-                          "market, published the next morning. Display only."})
+                          "Upstox intraday 30-minute candles (every 5 min); US 10Y: US Treasury "
+                          "and dollar index: FRED (daily, about a day behind); FII/DII: NSE "
+                          "cash market, published the next morning. Display only."})
 
 
 @app.get("/api/report")
@@ -297,6 +297,7 @@ async def report_generate(telegram: bool = False) -> JSONResponse:
     from app.news.ai import bedrock_model
     if "model_long" not in _cache:                 # a report needs more than 600 tokens
         _cache["model_long"] = (0.0, bedrock_model(st_.PRAJNA_NEWS_AI_REGION, max_tokens=3000))
+    fx["not_available"] = ["KOSPI", *LIVE.ext_missing]
     rec = await RP.generate(fx, _cache["model_long"][1], st_.PRAJNA_NEWS_AI_MODEL_ID)
     if telegram:
         rec["telegram_sent"] = await asyncio.to_thread(RP.send_telegram, rec, NOTIFY)

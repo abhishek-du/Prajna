@@ -68,9 +68,10 @@ async function market() {
   </div>
   <h2>Global & macro <small>${esc(gl.note)}</small></h2>
   <div class="grid g4">${gl.global.map(g => `<div class="card"><h3>${esc(g.name)}</h3><div class="big">${num(g.ltp)}</div>
-    <div>${pct(g.change)} <span class="small muted">${g.at ? new Date(g.at).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}</span></div></div>`).join("")}
+    <div>${g.change_bps != null ? `<span class="${g.change_bps > 0 ? "up" : g.change_bps < 0 ? "down" : ""}">${g.change_bps > 0 ? "+" : ""}${g.change_bps} bps</span>` : pct(g.change)} <span class="small muted">${g.at ? new Date(g.at).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : esc(g.date || "")}</span></div>
+    ${g.basis && g.key && g.key.startsWith("EXT|") ? `<div class="small muted">${esc(g.basis)}</div>` : ""}</div>`).join("")}
     <div class="card"><h3>FII / DII cash (₹ Cr, net)</h3><table>${gl.flows.slice(0, 4).map(f => `<tr><td class="small">${esc(f.date)}</td><td class="num">FII ${f.fii_net == null ? "–" : `<span class="${f.fii_net >= 0 ? "up" : "down"}">${num(f.fii_net, 0)}</span>`}</td><td class="num">DII ${f.dii_net == null ? "–" : `<span class="${f.dii_net >= 0 ? "up" : "down"}">${num(f.dii_net, 0)}</span>`}</td></tr>`).join("")}</table></div>
-    <div class="card"><h3>Not available</h3><div class="small muted">${gl.not_available.map(esc).join(", ")}: not offered by Upstox (Prajna's market-data source)</div></div>
+    <div class="card"><h3>Not available</h3><div class="small muted">${gl.not_available.map(esc).join(", ")}: not available (KOSPI is not offered by Upstox; the dollar index needs FRED_API_KEY in .env)</div></div>
   </div>
   <div class="grid g2">
     <div><h2>Top gainers <small>last session</small></h2><div class="card">${rowsTable(mv.gainers, COLS.slice(0, 3).concat(COLS.slice(5)))}</div></div>
