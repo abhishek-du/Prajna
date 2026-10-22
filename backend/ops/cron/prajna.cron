@@ -107,3 +107,7 @@ LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 # News AI enrichment every 30 min (NEWS-CONTENT, user 2026-10-22): no model call while the
 # Bedrock key in .env is empty; knowable_at = generated_at; docs/NEWS_AI_ENRICHMENT.md
 10,40 * * * *  cd $B && ops/runbooks/news_ai.sh >> var/logs/cron.log 2>&1
+
+# E5.1 training data (docs/STAGE4_E5_AFTER_THE_LOOK.md, user 2026-10-22): label-v2 up to yesterday,
+# stage4-ds-v4b-asif up to the last labelled session, samples; after the 07:00 bars and Stage 3
+5 10 * * 1-5  cd $B && ops/runbooks/e51_data.sh daily >> var/logs/cron.log 2>&1

@@ -1,4 +1,4 @@
-# Stage 4 E5: after the look, and the E5.1 retraining policy (DRAFT 2026-10-22; not active)
+# Stage 4 E5: after the look, and the E5.1 retraining policy (2026-10-22; prerequisites built, refit inactive until ACCEPTED)
 
 This plan is fixed **before** any forward-test result exists. It is written while forward day 1 of 40 is done and nothing about performance is known. That way the outcome cannot shape what happens after it. Each step below needs the user's approval when its time comes.
 
@@ -44,14 +44,22 @@ Stage 5 may use E5's picks in **paper** trading. A model left unretrained decays
 - **Stop rule:** if the rolling 40-session mean s_d is below 0 and its sign-flip CI (0.975) lies wholly below 0, paper use stops and an alert is sent. Restarting is a new decision.
 - Feature drift of the 24 core features against the training window is checked weekly and reported. It is not a stop rule.
 
-### Prerequisites for E5.1 (not built; needed before the first refit)
+### Prerequisites for E5.1 (BUILT 2026-10-22; the refit stays inactive until ACCEPTED)
 
-1. **Daily labels.** `label-v2` exists up to 2026-10-08. A job must label each closed session the next morning, after the 07:00 daily bars.
-2. **Daily training rows.** Stage 4 datasets end at 2026-10-09 (`stage4-ds-v3-*`), and the builder-v4 datasets on features-v5 are defined but not built.
-   - A refit needs the AS_IF_LIVE rows of every session in its window, so a daily append (or a builder-v4 backfill plus a daily append) is needed.
-   - Alternative: train on production PRE_SESSION `feature_value`. Its core-feature versions are current only from 2026-10-09, so 120 sessions exist only around April 2027, and its rows differ in kind from E5's training rows.
-3. **Migration:** a `model_version.purpose` value for production refits (today only FORWARD_TEST and RESEARCH are allowed), plus a predecessor column for lineage.
-4. **Tests:** the refusal rules, lineage, one model per session, and the swap timing (never after the 09:15 deadline).
+| # | Prerequisite | Built |
+|---|---|---|
+| 1 | Daily labels | `ops/runbooks/e51_data.sh daily` labels the closed sessions after the last labelled one, up to yesterday. `label-v2` was caught up for 2026-10-09..10-21 (246,150 rows, drift 0) |
+| 2 | Daily training rows | The same runbook then builds `stage4-ds-v4b-asif` (AS_IF_LIVE, PRE_SESSION, features-v5) up to the last labelled session, then the samples. A session is never sampled before its labels: samples are append-only, so it would otherwise stay NO_LABEL for good. Backfill 2026-05-01..10-21 started 2026-10-22 17:57 IST (3 builders) |
+| 3 | Migration 0026 | `model_version.purpose` adds PRODUCTION; `previous_sha256` (FK) is required for PRODUCTION (CHECK). Applied to production 2026-10-22 18:3x IST after a verified backup (`prajna_20261022T1752_pre_0026_e51.dump`, sha256 `506aae18…`, in /windows/prajna_archive) |
+| 4 | Refit and tests | `prajna models refit [--commit]` applies every refusal rule above and stores the refit as PRODUCTION with its predecessor. `prajna models production-model --date D` names the model for session D: the latest of the lineage created before D, refused if another lineage model already predicted D. `tests/models/test_e51.py` |
+
+**Found while building (2026-10-22):** the parallel input readers of `compute_snapshot` (PREOPEN-TAIL) did not take the caller's search_path. A training replay sets `train_asif2` on its own transaction only, so the readers read the public views. The first `stage4-ds-v4-asif` snapshot (2026-10-21) had 11,840 of 245,255 rows different from a sequential recompute.
+- Fixed: the readers set the caller's search_path and check it.
+- Verified: 4 readers equal a sequential recompute for all 245,255 rows; v4b 2026-10-21 differs in 0.
+- `stage4-ds-v4-asif` is frozen and its run SUPERSEDED; the rows are kept.
+- Production Stage 3 reads the public views and was not affected: 0 of 506,856 differ.
+
+**Scheduled:** the daily data job runs at 10:05 Mon–Fri (installed 2026-10-22), after the 07:00 bars and the Stage 3 runs. The refit itself gets no cron until E5 is ACCEPTED.
 
 ## 5. What stays fixed in every branch
 
