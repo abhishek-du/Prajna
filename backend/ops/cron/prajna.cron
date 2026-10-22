@@ -116,3 +116,8 @@ LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 # keep alive every 10 min (dashboard.sh start is a no-op while it runs)
 @reboot        cd $B && ops/runbooks/dashboard.sh start >> var/logs/cron.log 2>&1
 */10 * * * *   cd $B && ops/runbooks/dashboard.sh start >> var/logs/cron.log 2>&1
+
+# Daily market news & impact report (user 2026-10-22): the dashboard writes it from its facts
+# (Bedrock) and sends it to Telegram; pre-market and after the close
+45 8 * * 1-5   cd $B && ops/runbooks/market_report.sh >> var/logs/cron.log 2>&1
+20 16 * * 1-5  cd $B && ops/runbooks/market_report.sh >> var/logs/cron.log 2>&1

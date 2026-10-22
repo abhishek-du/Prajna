@@ -103,7 +103,7 @@ async def enrich(item: ItemObs, model: Model, model_id: str, *,
         return res("INVALID", version=version, error=str(e)[:300])
 
 
-def bedrock_model(region: str | None = None) -> Model:            # pragma: no cover - network
+def bedrock_model(region: str | None = None, max_tokens: int = 600) -> Model:  # pragma: no cover
     """A Bedrock Converse call through boto3's standard credential chain."""
     import boto3  # imported only when AI is enabled
     from botocore.config import Config
@@ -117,7 +117,7 @@ def bedrock_model(region: str | None = None) -> Model:            # pragma: no c
         def _run():
             r = client.converse(modelId=model_id, messages=[
                 {"role": "user", "content": [{"text": prompt}]}],
-                inferenceConfig={"maxTokens": 600, "temperature": 0})
+                inferenceConfig={"maxTokens": max_tokens, "temperature": 0})
             text = r["output"]["message"]["content"][0]["text"]
             return text, r.get("ResponseMetadata", {}).get("HTTPHeaders", {}).get(
                 "x-amzn-bedrock-model-version")

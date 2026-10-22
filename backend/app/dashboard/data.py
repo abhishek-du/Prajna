@@ -474,3 +474,35 @@ async def e5_board(s: AsyncSession) -> dict[str, Any]:
             "forward_day": days, "forward_needed": 40,
             "note": "E5 forward test: today's outputs only. Past picks and their returns stay "
                     "hidden until the single look after 40 sessions (pre-registration)."}
+
+
+async def fii_dii(s: AsyncSession, days: int = 5) -> list[dict[str, Any]]:
+    """Cash-market net flows (buy - sell, vendor crore) for the latest sessions."""
+    await read_only(s)
+    rows = (await s.execute(text("""select observation_date, series_code, value
+        from canon_macro_observation where series_code like any (array[
+          'FII|NSE_EQ|CASH|1D|%', 'DII|NSE_EQ|CASH|1D|%'])
+          and observation_date >= current_date - 20 order by observation_date desc"""))).all()
+    by: dict[Any, dict[str, float]] = {}
+    for d, code, v in rows:
+        who, side = code.split("|")[0], code.rsplit("|", 1)[1]
+        by.setdefault(d, {})[f"{who}_{side}"] = _num(v)
+    out = []
+    for d in sorted(by, reverse=True)[:days]:
+        x = by[d]
+        out.append({"date": str(d),
+                    "fii_net": (x.get("FII_buy_amt") or 0) - (x.get("FII_sell_amt") or 0)
+                    if "FII_buy_amt" in x else None,
+                    "dii_net": (x.get("DII_buy_amt") or 0) - (x.get("DII_sell_amt") or 0)
+                    if "DII_buy_amt" in x else None})
+    return out
+
+
+async def results_today(s: AsyncSession, day: _dt.date) -> list[dict[str, Any]]:
+    """Results outcomes announced today, with the parsed street verdict when known."""
+    await read_only(s)
+    rows = (await s.execute(text("""select c.trading_symbol, r.kind, r.verdict, r.period_end
+        from results_event r join canon_instrument c using (instrument_key)
+        where (r.event_at at time zone 'Asia/Kolkata')::date = :d and r.kind = 'OUTCOME'
+        order by c.trading_symbol"""), {"d": day})).mappings().all()
+    return [{k: (str(v) if v is not None else None) for k, v in r.items()} for r in rows]

@@ -67,6 +67,22 @@
 - Candle analysis adds a plain-language reading of the last 5 candles' patterns.
 - **These are fixed technical rules on an unvalidated model:** not validated, not investment advice, paper research only.
 
+## Global & macro, and the daily report (2026-10-22)
+
+**Global & macro (Market tab):**
+- GIFT Nifty, Sensex, S&P 500, Dow, US Tech 100, US 30 futures, Nikkei, Hang Seng, FTSE, DAX and CAC come from Upstox live quotes, every live cycle.
+- Brent, WTI and USD/INR come from Upstox intraday 30-minute candles, every 5 min (the quote API refuses those keys). Their change is against the last stored daily close.
+- FII/DII cash net comes from NSE (published the next morning).
+- **Not available from Upstox, so shown as missing:** KOSPI, US 10-year yield, dollar index (DXY). Adding them needs a non-Upstox source, which is the user's decision.
+
+**Daily "Market News & Impact" report** (`app/dashboard/report.py`, `dash-report-v3`; Report tab):
+- **Schedule:** 08:45 (pre-market) and 16:20 (after the close) Mon–Fri via `ops/runbooks/market_report.sh`, and sent to Telegram. "Generate now" is on the page.
+- **Inputs:** Bedrock gets only the facts: indices, breadth, sectors, large-cap movers, global, commodities / FX, FII/DII, today's results, and today's media headlines (ranked by AI impact and scope, also grouped by theme).
+- **Rules for the model:** numbers from headlines must name their source; reported facts are kept apart from potential impact; no recommendation, no target. The answer is validated against a closed schema.
+- **Not left to the model:** today's parsed results and the headlines by theme are shown under the AI text straight from the data, so nothing the model omits is lost.
+- **Storage:** `backend/var/dashboard/reports/`.
+- **Model calls:** Bedrock calls for the report allow 3,000 output tokens and the stock note 1,200. News enrichment stays at 600; at 600 a report was cut and failed validation.
+
 ## Data freshness
 
 - Market figures come from the latest Stage 3 PRE_SESSION snapshot and the last daily bars (07:00 job).

@@ -23,6 +23,7 @@ from app.dashboard import live as LV
 from app.db.engine import get_sessionmaker
 
 STATIC = pathlib.Path(__file__).resolve().parent / "static"
+NOTIFY = str(pathlib.Path(__file__).resolve().parents[2] / "ops/runbooks/telegram_notify.sh")
 MARKET_TTL_S = 120
 CAPS_TTL_S = 6 * 3600
 
@@ -244,9 +245,62 @@ async def ai(symbol: str) -> JSONResponse:
         st = await DD.stock(s, await _key(s, symbol))
         await s.rollback()
     from app.news.ai import bedrock_model
-    if "model" not in _cache:
-        _cache["model"] = (0.0, bedrock_model(st_.PRAJNA_NEWS_AI_REGION))
-    return _json(await AIS.generate(st, _cache["model"][1], st_.PRAJNA_NEWS_AI_MODEL_ID))
+    if "model_note" not in _cache:
+        _cache["model_note"] = (0.0, bedrock_model(st_.PRAJNA_NEWS_AI_REGION, max_tokens=1200))
+    return _json(await AIS.generate(st, _cache["model_note"][1], st_.PRAJNA_NEWS_AI_MODEL_ID))
+
+
+@app.get("/api/global")
+async def global_() -> JSONResponse:
+    async with get_sessionmaker()() as s:
+        flows = await DD.fii_dii(s)
+        await s.rollback()
+    m = await _view()
+    from app.dashboard.report import NOT_AVAILABLE
+    return _json({"india": m["indices"], "global": LIVE.global_view(), "flows": flows,
+                  "not_available": NOT_AVAILABLE, "live": LIVE.summary(),
+                  "note": "Global indices and Sensex: Upstox live quotes; Brent, WTI and USD/INR: "
+                          "Upstox intraday 30-minute candles (every 5 min); FII/DII: NSE cash "
+                          "market, published the next morning. Display only."})
+
+
+@app.get("/api/report")
+async def report_list() -> JSONResponse:
+    from app.dashboard import report as RP
+    return _json({"reports": RP.latest(10)})
+
+
+@app.post("/api/report/generate")
+async def report_generate(telegram: bool = False) -> JSONResponse:
+    from app.core.config import get_settings
+    from app.dashboard import report as RP
+    st_ = get_settings()
+    if not (st_.PRAJNA_NEWS_AI_ENABLED and st_.PRAJNA_NEWS_AI_MODEL_ID):
+        raise HTTPException(409, "AI is disabled (PRAJNA_NEWS_AI_ENABLED / MODEL_ID)")
+    m = await _view()
+    from app.core.clock import IST, now
+    today = now().astimezone(IST)
+    async with get_sessionmaker()() as s:
+        news_ = await DD.hot_news(s, max(6, today.hour + 1), 300, "MEDIA")
+        flows = await DD.fii_dii(s)
+        res = await DD.results_today(s, today.date())
+        await s.rollback()
+    glob = LIVE.global_view()
+    india = m["indices"] + [g for g in glob if g["key"] in ("BSE_INDEX|SENSEX",
+                                                           "GLOBAL_INDEX|SGX NIFTY")]
+    india = [{"name": x.get("name"), "close": x.get("close", x.get("ltp")),
+              "day_change": x.get("day_change", x.get("change")), "price_at": x.get("price_at",
+                                                                                   x.get("at"))}
+             for x in india]
+    fx = RP.facts({**m, "indices": india}, [g for g in glob if g["key"] not in (
+        "BSE_INDEX|SENSEX", "GLOBAL_INDEX|SGX NIFTY")], news_, DD.sectors(m["stocks"]), flows, res)
+    from app.news.ai import bedrock_model
+    if "model_long" not in _cache:                 # a report needs more than 600 tokens
+        _cache["model_long"] = (0.0, bedrock_model(st_.PRAJNA_NEWS_AI_REGION, max_tokens=3000))
+    rec = await RP.generate(fx, _cache["model_long"][1], st_.PRAJNA_NEWS_AI_MODEL_ID)
+    if telegram:
+        rec["telegram_sent"] = await asyncio.to_thread(RP.send_telegram, rec, NOTIFY)
+    return _json(rec)
 
 
 @app.get("/api/e5")

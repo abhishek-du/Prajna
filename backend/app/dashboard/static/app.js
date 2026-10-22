@@ -51,8 +51,8 @@ const COLS = [
 
 // ── market ───────────────────────────────────────────────────────────────────────
 async function market() {
-  const [m, mv, nw, sc] = await Promise.all([api("/api/market"), api("/api/movers?bucket=ALL&period=day&n=8"),
-    api("/api/news?hours=24&source=MEDIA&limit=10"), api("/api/sectors")]);
+  const [m, mv, nw, sc, gl] = await Promise.all([api("/api/market"), api("/api/movers?bucket=ALL&period=day&n=8"),
+    api("/api/news?hours=24&source=MEDIA&limit=10"), api("/api/sectors"), api("/api/global")]);
   setAsOf(m.as_of, m.live);
   const b = m.breadth, tot = b.advances + b.declines + b.unchanged || 1;
   view.innerHTML = `
@@ -65,6 +65,12 @@ async function market() {
     <div class="card"><h3>Breadth (last session)</h3>
       <div class="bar"><i style="width:${100 * b.advances / tot}%;background:var(--up)"></i><i style="width:${100 * b.unchanged / tot}%;background:var(--muted)"></i><i style="width:${100 * b.declines / tot}%;background:var(--down)"></i></div>
       <div class="small" style="margin-top:6px"><span class="up">${b.advances} up</span> · ${b.unchanged} flat · <span class="down">${b.declines} down</span></div></div>
+  </div>
+  <h2>Global & macro <small>${esc(gl.note)}</small></h2>
+  <div class="grid g4">${gl.global.map(g => `<div class="card"><h3>${esc(g.name)}</h3><div class="big">${num(g.ltp)}</div>
+    <div>${pct(g.change)} <span class="small muted">${g.at ? new Date(g.at).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}</span></div></div>`).join("")}
+    <div class="card"><h3>FII / DII cash (₹ Cr, net)</h3><table>${gl.flows.slice(0, 4).map(f => `<tr><td class="small">${esc(f.date)}</td><td class="num">FII ${f.fii_net == null ? "–" : `<span class="${f.fii_net >= 0 ? "up" : "down"}">${num(f.fii_net, 0)}</span>`}</td><td class="num">DII ${f.dii_net == null ? "–" : `<span class="${f.dii_net >= 0 ? "up" : "down"}">${num(f.dii_net, 0)}</span>`}</td></tr>`).join("")}</table></div>
+    <div class="card"><h3>Not available</h3><div class="small muted">${gl.not_available.map(esc).join(", ")}: not offered by Upstox (Prajna's market-data source)</div></div>
   </div>
   <div class="grid g2">
     <div><h2>Top gainers <small>last session</small></h2><div class="card">${rowsTable(mv.gainers, COLS.slice(0, 3).concat(COLS.slice(5)))}</div></div>
@@ -290,6 +296,28 @@ async function drawChart(d) {
   } else chart.timeScale().fitContent();
 }
 
+// ── report ───────────────────────────────────────────────────────────────────────
+async function reportView() {
+  const d = await api("/api/report");
+  const r0 = d.reports[0];
+  const sec = (xs, name) => xs && xs.length ? `<h2>${name}</h2>${xs.map((x, i) => `<div class="card" style="margin-bottom:8px"><b>${i + 1}. ${esc(x.headline)}</b><div style="margin-top:4px">${esc(x.text)}</div><div class="small" style="margin-top:4px"><b>Impact:</b> ${esc(x.impact)}</div></div>`).join("")}` : "";
+  const body = r0 && r0.status === "OK" ? (() => { const r = r0.report; return `
+    <div class="card"><h3>${esc(r0.date)} · generated ${new Date(r0.generated_at).toLocaleTimeString("en-IN")} · ${esc(r0.model_id)} · ${esc(r0.prompt_version)}</h3><div class="big">${esc(r.title)}</div></div>
+    ${sec(r.indian_market, "Indian market")}${sec(r.global_market, "Global market")}
+    <div class="grid g2"><div><h2>Key variables to monitor</h2><div class="card">${r.variables_to_monitor.map(x => `<div class="small">• ${esc(x)}</div>`).join("")}</div></div>
+    <div><h2>Overall assessment</h2><div class="card">${esc(r.overall)}</div></div></div>
+    <h2>From the data <small>not written by AI: today's results and the headlines by theme</small></h2>
+    <div class="grid g2"><div class="card"><h3>Results today</h3>${(r0.results_today || []).map(x => `<span class="pill">${stockLink(x.trading_symbol)} ${x.verdict ? pill(x.verdict, x.verdict === "BEAT" ? "BULLISH" : x.verdict === "MISS" ? "BEARISH" : "NEUTRAL") : ""}</span>`).join("") || '<span class="muted small">None parsed</span>'}</div>
+    <div class="card"><h3>Headlines by theme</h3>${Object.entries(r0.themes || {}).map(([k, v]) => `<div style="margin-bottom:6px"><b class="small">${esc(k.replace(/_/g, " "))}</b>${v.map(x => `<div class="small">• ${esc(x.title)} <span class="muted">(${esc(x.source)})</span></div>`).join("")}</div>`).join("")}</div></div>
+    <p class="muted small">Written by AI from Prajna's facts only (indices, breadth, sectors, movers, global quotes, FII/DII, today's results and media headlines). Missing inputs: ${(r0.not_available || []).map(esc).join(", ")}. A news summary, not a trading recommendation.</p>`; })()
+    : `<div class="card">${r0 ? `<span class="down">Last attempt ${esc(r0.status)} ${esc(r0.error || "")}</span>` : "No report yet."}</div>`;
+  view.innerHTML = `<div class="controls"><button class="btn primary" id="gen">Generate now</button>
+    <span class="small muted" style="align-self:center">Scheduled 08:45 (pre-market) and 16:20 (after the close) Mon–Fri; also sent to Telegram</span></div>${body}
+    <h2>Earlier reports</h2><div class="card">${d.reports.slice(1).map(x => `<div class="small">${esc(x.date)} ${esc((x.generated_at || "").slice(11, 16))} · ${esc(x.status)} · ${esc((x.report || {}).title || "")}</div>`).join("") || '<span class="muted small">None</span>'}</div>`;
+  $("#gen").onclick = async () => { $("#gen").textContent = "Generating… (about a minute)"; $("#gen").disabled = true;
+    try { await api("/api/report/generate", { method: "POST" }); } catch (e) { alert(e.message); } reportView(); };
+}
+
 // ── model ────────────────────────────────────────────────────────────────────────
 async function model() {
   const d = await api("/api/e5");
@@ -331,6 +359,7 @@ async function route() {
     else if (p === "news") { await news(); every(30000, news); }
     else if (p === "stock") { await stock(arg); if (arg) every(30000, () => refreshPrice(arg)); }
     else if (p === "model") { await model(); every(120000, model); }
+    else if (p === "report") { await reportView(); }
     else about();
   } catch (e) { view.innerHTML = `<div class="card down">Could not load: ${esc(e.message)}</div>`; }
 }

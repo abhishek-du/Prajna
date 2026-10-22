@@ -26,6 +26,17 @@ log = logging.getLogger("dashboard.live")
 MARKET_FROM, MARKET_TO = _dt.time(9, 0), _dt.time(15, 45)
 FAST_S, SLOW_S = 30.0, 1200.0
 LIMITS = ((4, 1.0), (120, 60.0), (1500, 1800.0))
+# Global and BSE quotes (Upstox serves these through the same quote API); the commodity /
+# currency indicators only as intraday candles (the quote API refuses their keys).
+GLOBAL_QUOTES = {"GLOBAL_INDEX|SGX NIFTY": "GIFT Nifty", "BSE_INDEX|SENSEX": "Sensex",
+                 "GLOBAL_INDEX|^GSPC": "S&P 500", "GLOBAL_INDEX|^DJI": "Dow Jones",
+                 "GLOBAL_INDEX|IXIX": "US Tech 100", "GLOBAL_INDEX|DOW FUTURES": "US 30 futures",
+                 "GLOBAL_INDEX|^N225": "Nikkei 225", "GLOBAL_INDEX|^HSI": "Hang Seng",
+                 "GLOBAL_INDEX|^FTSE": "FTSE 100", "GLOBAL_INDEX|^GDAXI": "DAX",
+                 "GLOBAL_INDEX|^FCHI": "CAC 40"}
+INDICATORS = {"GLOBAL_INDICATOR|BZUSD": "Brent crude ($)", "GLOBAL_INDICATOR|CLUSD":
+              "WTI crude ($)", "GLOBAL_INDICATOR|USDINR": "USD / INR"}
+INDICATOR_EVERY_S = 300.0
 
 
 class LiveQuotes:
@@ -42,6 +53,9 @@ class LiveQuotes:
         self.history: dict[str, list] = {}
         self._history_day: _dt.date | None = None
         self.indicators: dict[str, dict[str, Any]] = {}    # live Stage 3 price features
+        self.globals: dict[str, dict[str, Any]] = {}       # global / BSE / commodity / FX
+        self._indicator_at = 0.0
+        self._prev_close: dict[str, float] = {}
 
     # ── public ──────────────────────────────────────────────────────────────────
     def start(self) -> None:
@@ -55,6 +69,10 @@ class LiveQuotes:
     @staticmethod
     def fresh_for_today(q: dict[str, Any]) -> bool:
         return q.get("date") == str(now().astimezone(IST).date())
+
+    def global_view(self) -> list[dict[str, Any]]:
+        order = [*GLOBAL_QUOTES, *INDICATORS]
+        return [self.globals[k] for k in order if k in self.globals]
 
     def summary(self) -> dict[str, Any]:
         return {"status": self.status, "error": self.error, "quotes": len(self.quotes),
@@ -133,12 +151,53 @@ class LiveQuotes:
                     q = parse(v)
                     if q:
                         got[q["key"]] = q
+            await self._globals(c, quotes_path)
         finally:
             await c.aclose()
         self.quotes.update(got)
         self.fetched_at = now()
         await self._indicators()
         self.cycles += 1
+
+    async def _globals(self, c, quotes_path) -> None:
+        """Global indices and Sensex from quotes; Brent / WTI / USD-INR from intraday
+        30-minute candles every INDICATOR_EVERY_S. Display only. A failure here never
+        stops the NSE quotes."""
+        import time
+
+        from app.vendor.upstox.rest import _key
+        try:
+            r = await c.get(quotes_path(list(GLOBAL_QUOTES)))
+            for v in (json.loads(r.data).get("data") or {}).values():
+                q = parse(v)
+                if q and q["key"] in GLOBAL_QUOTES:
+                    self.globals[q["key"]] = {**q, "name": GLOBAL_QUOTES[q["key"]],
+                                              "basis": "live quote"}
+        except Exception as e:
+            log.warning("global quotes: %s", e)
+        if time.monotonic() - self._indicator_at < INDICATOR_EVERY_S:
+            return
+        self._indicator_at = time.monotonic()
+        today = now().astimezone(IST).date()
+        if getattr(self, "_prev_day", None) != today:
+            self._prev_close = await _prev_daily_close(list(INDICATORS))
+            self._prev_day = today
+        for k, name in INDICATORS.items():
+            try:
+                r = await c.get(f"/v3/historical-candle/intraday/{_key(k)}/minutes/30")
+                cs = (json.loads(r.data).get("data") or {}).get("candles") or []
+                if not cs:
+                    continue
+                last = cs[0]                          # newest first
+                at = _dt.datetime.fromisoformat(last[0])
+                prev = self._prev_close.get(k)
+                self.globals[k] = {"key": k, "name": name, "ltp": float(last[4]),
+                                   "prev_close": prev,
+                                   "change": (float(last[4]) / prev - 1) if prev else None,
+                                   "at": at.isoformat(), "date": str(at.date()),
+                                   "basis": "intraday 30-min candle"}
+            except Exception as e:
+                log.warning("indicator %s: %s", k, e)
 
     async def _indicators(self) -> None:
         """Stage 3's price features with today's live bar (indicators.py), off the loop."""
@@ -153,6 +212,23 @@ class LiveQuotes:
             self._history_day = today
         fresh = {k: q for k, q in self.quotes.items() if self.fresh_for_today(q)}
         self.indicators = await asyncio.to_thread(IND.compute_all, self.history, fresh)
+
+
+async def _prev_daily_close(keys: list[str]) -> dict[str, float]:
+    """The latest stored daily close before today (raw ohlcv_bar: the canonical global
+    view waits for finality, days later)."""
+    from sqlalchemy import text
+
+    from app.db.engine import get_sessionmaker
+    today = now().astimezone(IST).date()
+    async with get_sessionmaker()() as s:
+        rows = (await s.execute(text("""select distinct on (i.instrument_key) i.instrument_key,
+            b.close from ohlcv_bar b join instrument i using (instrument_id)
+            where i.instrument_key = any(:k) and b.timeframe = '1d' and b.session_date < :d
+            order by i.instrument_key, b.session_date desc, b.fetched_at desc"""),
+            {"k": keys, "d": today})).all()
+        await s.rollback()
+    return {k: float(c) for k, c in rows}
 
 
 _LIMITER = None
