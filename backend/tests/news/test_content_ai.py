@@ -124,3 +124,16 @@ class TestAI:
         f = Settings.model_fields
         assert f["PRAJNA_NEWS_AI_ENABLED"].default is False
         assert f["PRAJNA_NEWS_AI_MODEL_ID"].default is None
+
+
+class TestPromptV2:
+    def test_closed_event_types_and_tolerant_json(self):
+        ok = AI.validate("```json\n" + json.dumps(GOOD) + "\n```")
+        assert ok["event_type"] == "order_win" and "event_type_raw" not in ok
+        odd = AI.validate("Here it is: " + json.dumps({**GOOD, "event_type": "Big Deal",
+                                                        "market_scope": "stock"}))
+        assert odd["event_type"] == "other" and odd["event_type_raw"] == "Big Deal"
+        assert odd["market_scope"] == "STOCK"
+        assert "order_win" in AI.PROMPT and AI.PROMPT_VERSION == "news-ai-v2"
+        with pytest.raises(ValueError):
+            AI.validate("no json at all")

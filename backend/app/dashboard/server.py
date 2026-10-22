@@ -11,6 +11,7 @@ import asyncio
 import os
 import pathlib
 import time
+from datetime import date as _date
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
@@ -38,6 +39,168 @@ LIVE = LV.LiveQuotes()
 async def _start_live() -> None:
     if os.environ.get("PRAJNA_DASHBOARD_LIVE", "1") == "1":
         LIVE.start()
+        _cache["alerts_task"] = (0.0, asyncio.create_task(_alert_loop()))
+
+
+# ── plans for every stock, the forward record, the watchlist and alerts ─────────────────
+def _plans_all(m: dict[str, Any]) -> list[dict[str, Any]]:
+    """Today's plan for every stock in the market view (stored daily bars + today's
+    official close / live quote as the last bar), the same rules as the stock page."""
+    from app.dashboard import analysis as A
+    out = []
+    for r in m["stocks"]:
+        k = r["key"]
+        q = LIVE.get(k)
+        hist = LIVE.history.get(k, [])
+        bars = [{"high": b.high, "low": b.low} for b in hist[-260:]]
+        if q and q.get("high") is not None:
+            bars.append({"high": q["high"], "low": q["low"]})
+        f = {**m["feat"].get(k, {}), **{x: v for x, v in (LIVE.indicators.get(k) or {}).items()
+                                        if v is not None}}
+        if not f or not r["close"]:
+            continue
+        e5 = m["e5map"].get(k)
+        sig = A.research_signal(f, e5, bool(e5 and e5["selected"]))
+        plan = A.trade_plan(r["close"], f, A.levels(bars), sig)
+        out.append({**plan, "key": k, "symbol": r["symbol"], "sector": r["sector"],
+                    "cap_bucket": r.get("cap_bucket"), "signal_score": sig["score"]})
+    return out
+
+
+@app.post("/api/signals/snapshot")
+async def signals_snapshot(overwrite: bool = False) -> JSONResponse:
+    from app.core.clock import IST, now
+    from app.dashboard import signals_log as SL
+    day = now().astimezone(IST).date()
+    if not await LIVE._trading_day(day):
+        return _json({"day": str(day), "skipped": "not a trading day"})
+    m = await _view()
+    return _json({**SL.write(day, _plans_all(m), overwrite=overwrite),
+                  "official_close": LIVE.bhav_day == str(day)})
+
+
+@app.get("/api/signals")
+async def signals(days: int = Query(60, le=400)) -> JSONResponse:
+    from sqlalchemy import text
+
+    from app.dashboard import signals_log as SL
+    recs = SL.load(days)
+    if not recs:
+        return _json({"stats": SL.stats([]), "records": []})
+    keys = sorted({r["key"] for r in recs})
+    first = min(r["day"] for r in recs)
+    async with get_sessionmaker()() as s:
+        await DD.read_only(s)
+        rows = (await s.execute(text("""select instrument_key, market_date, open, high, low,
+            close from canon_market_bar where timeframe = '1d' and instrument_key = any(:k)
+              and market_date > :d order by instrument_key, market_date"""),
+            {"k": keys, "d": _date.fromisoformat(first)})).all()
+        await s.rollback()
+    bars: dict[str, list[dict[str, Any]]] = {}
+    for k, d, o, h, lo, c in rows:
+        bars.setdefault(k, []).append({"date": str(d), "open": float(o), "high": float(h),
+                                       "low": float(lo), "close": float(c)})
+    ev = SL.evaluate(recs, bars)
+    return _json({"stats": SL.stats(ev),
+                  "records": sorted(ev, key=lambda x: (x["day"], -(x["signal_score"] or 0)),
+                                    reverse=True)[:400]})
+
+
+def _prev_plans() -> dict[str, dict[str, Any]]:
+    """The latest forward-record plans before today, by instrument key."""
+    from app.core.clock import IST, now
+    from app.dashboard import signals_log as SL
+    today = str(now().astimezone(IST).date())
+    files = sorted(p for p in SL.DIR.glob("*.jsonl") if p.stem < today) if SL.DIR.exists() \
+        else []
+    if not files:
+        return {}
+    import json as _j
+    return {r["key"]: r for r in (_j.loads(x) for x in files[-1].read_text().splitlines()
+                                  if x.strip())}
+
+
+@app.get("/api/watchlist")
+async def watch_get() -> JSONResponse:
+    from app.core.clock import IST, now
+    from app.dashboard import alerts as AL
+    m = await _view()
+    by_sym = {r["symbol"]: r for r in m["stocks"]}
+    prev = _prev_plans()
+    rows = []
+    for sym in AL.watchlist():
+        r = by_sym.get(sym)
+        if r:
+            rows.append({**r, "plan": prev.get(r["key"])})
+    return _json({"rows": rows, "alerts": AL.history(now().astimezone(IST).date()),
+                  "plans_from": next(iter(prev.values()))["day"] if prev else None})
+
+
+@app.post("/api/watchlist/{symbol}")
+async def watch_set(symbol: str, on: bool = True) -> JSONResponse:
+    from app.dashboard import alerts as AL
+    async with get_sessionmaker()() as s:
+        await _key(s, symbol)                          # 404 for an unknown symbol
+        await s.rollback()
+    return _json({"watchlist": AL.set_watch(symbol, on)})
+
+
+async def _alert_loop() -> None:
+    """In market hours: watchlist prices vs the previous session's plan levels, and
+    HIGH-impact news on watched stocks; each event once a day to Telegram."""
+    import datetime as _dt
+
+    from sqlalchemy import text
+
+    from app.core.clock import IST, now
+    from app.dashboard import alerts as AL
+    seen_cycle, news_since = -1, None
+    while True:
+        await asyncio.sleep(20)
+        try:
+            t = now().astimezone(IST)
+            if not (_dt.time(9, 15) <= t.time() <= _dt.time(15, 35)) or LIVE.cycles == seen_cycle:
+                continue
+            if not await LIVE._trading_day(t.date()):
+                continue
+            seen_cycle = LIVE.cycles
+            watch = AL.watchlist()
+            if not watch:
+                continue
+            m = await _view()
+            by_sym = {r["symbol"]: r for r in m["stocks"]}
+            prev = _prev_plans()
+            cands = []
+            for sym in watch:
+                r = by_sym.get(sym)
+                q = LIVE.get(r["key"]) if r else None
+                if not r or not q:
+                    continue
+                for ev, txt in AL.events(prev.get(r["key"]), q["ltp"]):
+                    cands.append((f"{t.date()}|{sym}|{ev}", f"{sym} {q['ltp']:,.2f}: {txt}"))
+            keys = [by_sym[s]["key"] for s in watch if s in by_sym]
+            since = news_since or (now() - _dt.timedelta(hours=1))
+            news_since = now()
+            async with get_sessionmaker()() as s:
+                await DD.read_only(s)
+                rows = (await s.execute(text("""select i.id, c.trading_symbol, i.title,
+                    e.output->>'impact_direction' d from news_ai_enrichment e
+                    join news_item i on i.id = e.item_id
+                    join news_entity_link l on l.item_id = i.id and l.confidence >= 0.8
+                    join canon_instrument c on c.instrument_key = l.instrument_key
+                    where e.status = 'OK' and e.output->>'potential_impact' = 'HIGH'
+                      and e.knowable_at > :t and l.instrument_key = any(:k)"""),
+                    {"t": since, "k": keys})).all()
+                await s.rollback()
+            for i, sym, title, d in rows:
+                cands.append((f"news|{i}", f"{sym} HIGH-impact news ({d or 'direction n/a'}): "
+                                           f"{title[:160]}"))
+            await asyncio.to_thread(AL.send, NOTIFY, t.date(), AL.due(t.date(), cands))
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:                        # an alert failure never stops the app
+            import logging
+            logging.getLogger("dashboard.alerts").warning("alerts: %s", e)
 
 
 def _live_row(m: dict[str, Any], r: dict[str, Any]) -> dict[str, Any]:

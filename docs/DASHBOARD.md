@@ -86,6 +86,27 @@
 - **Storage:** `backend/var/dashboard/reports/`.
 - **Model calls:** Bedrock calls for the report allow 3,000 output tokens and the stock note 1,200. News enrichment stays at 600; at 600 a report was cut and failed validation.
 
+## Forward record of the plans, watchlist and alerts (2026-10-22)
+
+**Forward record** (`app/dashboard/signals_log.py`; Signals tab):
+- **What is recorded:** every trading day at 16:45 (`ops/runbooks/signals_snapshot.sh`; waits for NSE's official close until 17:30), every BUY and SELL / AVOID plan goes to `backend/var/dashboard/signals/<day>.jsonl`. Each day is written once and never rewritten. The first record was 2026-10-22: 217 BUY and 1,888 SELL / AVOID plans.
+- **How BUY plans are evaluated:** only on the stored daily bars of the following sessions, up to 10.
+  - Filled when a low reaches the entry.
+  - A session touching both the stop and a target counts as the stop.
+  - At T1 half is booked and the stop moves to the entry; T2 books the rest.
+  - Results are in R (multiples of the plan's risk), without costs.
+- **How SELL / AVOID is evaluated:** as a view: its 5-session return, and whether downside 1 came before its stop.
+- This measures whether the rules work. Until weeks of records exist the plans remain unvalidated.
+
+**Watchlist and alerts** (`app/dashboard/alerts.py`; star button on the stock page, Watchlist tab):
+- **Where it is stored:** `backend/var/dashboard/watchlist.json`.
+- **What triggers an alert:** in market hours, after every live cycle, a watched stock's live price is checked against the previous session's recorded plan:
+  - BUY: entry zone, stop, T1, T2;
+  - HOLD / WAIT: breakout;
+  - SELL / AVOID: downside 1, view stop;
+  - any action: HIGH-impact AI-tagged news linked to the stock.
+- Each event is sent to Telegram once a day. Alerts are messages only; no order is ever placed.
+
 ## Official close after the session (2026-10-22)
 
 **Found:** REPL showed 78.69, while the user's Upstox app showed 77.68.

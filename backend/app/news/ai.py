@@ -25,15 +25,25 @@ from typing import Any
 from app.core.clock import now
 from app.news.model import ItemObs
 
-PROMPT_VERSION = "news-ai-v1"
+PROMPT_VERSION = "news-ai-v2"       # v2 (2026-10-22): closed event-type list, tolerant JSON
 TIMEOUT_S = 90.0                   # one call, its backoff retries included
 SCOPES = {"STOCK", "SECTOR", "INDEX", "MARKET", "MACRO", "GLOBAL", "UNKNOWN"}
 IMPACTS = {"LOW", "MEDIUM", "HIGH", "UNKNOWN"}
 DIRECTIONS = {"POSITIVE", "NEGATIVE", "MIXED", "NEUTRAL", "UNKNOWN"}
+EVENT_TYPES = (
+    "results", "results_date", "board_meeting", "dividend", "bonus_split", "buyback",
+    "fund_raising", "acquisition_merger", "order_win", "capacity_expansion", "product_launch",
+    "management_change", "regulatory_action", "regulatory_approval", "legal_dispute",
+    "credit_rating", "analyst_rating", "guidance_outlook", "shareholding_change",
+    "insider_trade", "investor_meet", "ipo_listing", "corporate_action_other",
+    "macro_economic", "government_policy", "monetary_policy", "commodity", "currency",
+    "global_markets", "market_update", "sector_trend", "other")
 PROMPT = """You annotate one Indian market news item for a research database.
 Use ONLY the text given. Do not predict prices. If unsure, use UNKNOWN.
-Answer with one JSON object and nothing else, with exactly these keys:
-summary (<= 60 words), entities (list of names), event_type (short label),
+Answer with one JSON object and nothing else (no code fence, no text before or after),
+with exactly these keys:
+summary (<= 60 words), entities (list of names),
+event_type (exactly one of: """ + ", ".join(EVENT_TYPES) + """),
 market_scope (STOCK|SECTOR|INDEX|MARKET|MACRO|GLOBAL|UNKNOWN),
 potential_impact (LOW|MEDIUM|HIGH|UNKNOWN),
 impact_direction (POSITIVE|NEGATIVE|MIXED|NEUTRAL|UNKNOWN),
@@ -63,11 +73,34 @@ def prompt_for(item: ItemObs) -> str:
                          summary=item.summary or "(none)")
 
 
+def _json_object(text: str) -> Any:
+    """The answer's JSON object, also when wrapped in a code fence or a sentence."""
+    t = text.strip()
+    try:
+        return json.loads(t)
+    except ValueError:
+        i, j = t.find("{"), t.rfind("}")
+        if i < 0 or j <= i:
+            raise
+        return json.loads(t[i:j + 1])
+
+
 def validate(text: str) -> dict[str, Any]:
-    d = json.loads(text)
+    d = _json_object(text)
+    if isinstance(d, dict):
+        for k in ("market_scope", "potential_impact", "impact_direction"):
+            if isinstance(d.get(k), str):
+                d[k] = d[k].strip().upper()
+        et = d.get("event_type")
+        if isinstance(et, str):
+            norm = et.strip().lower().replace(" ", "_").replace("-", "_")
+            if norm not in EVENT_TYPES:
+                d["event_type"], d["event_type_raw"] = "other", et
+            else:
+                d["event_type"] = norm
     need = {"summary", "entities", "event_type", "market_scope", "potential_impact",
             "impact_direction", "confidence", "key_facts", "risk_flags"}
-    if not isinstance(d, dict) or set(d) != need:
+    if not isinstance(d, dict) or set(d) - {"event_type_raw"} != need:
         raise ValueError(f"keys {sorted(d) if isinstance(d, dict) else type(d).__name__}")
     if (d["market_scope"] not in SCOPES or d["potential_impact"] not in IMPACTS
             or d["impact_direction"] not in DIRECTIONS):

@@ -1,6 +1,6 @@
 # News AI enrichment (decision NEWS-CONTENT; built 2026-10-22; LIVE from 2026-10-22 16:46 IST)
 
-**What it does:** every 30 min, `ops/runbooks/news_ai.sh` sends each news item of the last 48 h that has no enrichment yet to an AWS Bedrock model (Converse API, temperature 0). The model returns a closed JSON schema (`app/news/ai.py`, prompt `news-ai-v1`):
+**What it does:** every 30 min, `ops/runbooks/news_ai.sh` sends each news item of the last 48 h that has no enrichment yet to an AWS Bedrock model (Converse API, temperature 0). The model returns a closed JSON schema (`app/news/ai.py`, prompt `news-ai-v2` since 2026-10-22 21:0x IST; v1 rows stay):
 - `summary`, `entities`, `event_type`;
 - `market_scope`, `potential_impact`, `impact_direction`;
 - `confidence`, `key_facts`, `risk_flags`.
@@ -56,3 +56,11 @@ The prompt says "use only the text given, do not predict prices".
 **Off:** unset `PRAJNA_NEWS_AI_ENABLED`, or engage the news kill switch (`prajna news kill on`). The command then refuses with exit 3, makes no model call, and the runbook logs `NEWS_AI rc=3 REFUSED`.
 
 **Log:** `var/logs/daily/news_ai_<day>.log`, one `NEWS_AI` line per run. Telegram alerts when every call of a run failed (credentials, model access, quota).
+
+## Prompt v2 (2026-10-22)
+
+- `event_type` is one of a closed list of 32 (`EVENT_TYPES`: results, board_meeting, dividend, order_win, regulatory_action, monetary_policy, commodity, …). A label outside it is stored as `other`, with the model's own label kept in `event_type_raw`.
+- Scope, impact and direction are upper-cased before the check.
+- The JSON object is taken from a code fence or a sentence when the model adds one. Of the 135 v1 INVALIDs, 94 were "not JSON" and 31 an enum outside the schema.
+- **First test (20 items):** 20 OK, 0 INVALID.
+- A new prompt version enriches the 48-hour window again under its own key, inside the daily cap.

@@ -203,3 +203,70 @@ def test_bhavcopy_official_close_replaces_the_last_trade():
     a = BH.apply(q, b)
     assert a["ltp"] == 77.68 and a["last_trade"] == 78.69 and a["official_close"]
     assert a["change"] == pytest.approx(77.68 / 65.58 - 1)
+
+
+def _b(d, o, h, lo, c):
+    return {"date": d, "open": o, "high": h, "low": lo, "close": c}
+
+
+def test_forward_record_evaluation_rules():
+    from app.dashboard import signals_log as SL
+    buy = {"key": "k", "day": "2026-10-22", "action": "BUY", "price": 100.0, "entry": 99.0,
+           "stop_loss": 96.0, "t1": 103.5, "t2": 108.0, "signal_score": 4}
+    ev = lambda bars: SL.evaluate([buy], {"k": bars})[0]["outcome"]  # noqa: E731
+    assert ev([])["status"] == "WAITING"
+    assert ev([_b("2026-10-23", 101, 102, 100, 101)] * 10)["status"] == "NOT_FILLED"
+    # filled, then stop and target on the same later bar: the stop (conservative)
+    s = ev([_b("2026-10-23", 100, 100.5, 98.5, 99.5), _b("2026-10-26", 99, 104, 95, 100)])
+    assert s["status"] == "STOP" and s["r"] == -1.0
+    # T1 then T2: 0.5 x 1.5R + 0.5 x 3R = 2.25R
+    t = ev([_b("2026-10-23", 100, 104, 98, 103), _b("2026-10-26", 103, 109, 102, 108)])
+    assert t["status"] == "T2" and t["r"] == pytest.approx(2.25)
+    # T1, then back to the entry: half booked at 1.5R -> 0.75R
+    be = ev([_b("2026-10-23", 100, 104, 98, 103), _b("2026-10-26", 103, 103, 98.9, 99)])
+    assert be["status"] == "T1_THEN_ENTRY_STOP" and be["r"] == pytest.approx(0.75)
+    # a bar of the plan's own day is never used
+    assert ev([_b("2026-10-22", 100, 120, 90, 100)])["status"] == "WAITING"
+    view = {"key": "k", "day": "2026-10-22", "action": "SELL / AVOID", "price": 100.0,
+            "stop_loss": 103.0, "t1": 97.0, "t2": 94.0, "signal_score": -4}
+    v = SL.evaluate([view], {"k": [_b(f"2026-10-2{i}", 99, 99.5, 96.5, 97) for i in
+                                   range(3, 8)]})[0]["outcome"]
+    assert v["status"] == "DOWNSIDE_1" and v["ret"] == pytest.approx(-0.03) and v["complete"]
+    st = SL.stats(SL.evaluate([buy, view], {"k": [_b("2026-10-23", 100, 104, 98, 103),
+                                                  _b("2026-10-26", 103, 109, 102, 108)]}))
+    assert st["buy"]["closed"] == 1 and st["buy"]["win_rate"] == 1.0
+
+
+def test_forward_record_is_written_once(tmp_path, monkeypatch):
+    import datetime as dt
+
+    from app.dashboard import signals_log as SL
+    monkeypatch.setattr(SL, "DIR", tmp_path)
+    plans = [{"key": "a", "action": "BUY", "entry": 1}, {"key": "b", "action": "HOLD / WAIT"},
+             {"key": "c", "action": "SELL / AVOID"}]
+    assert SL.write(dt.date(2026, 10, 22), plans)["written"] == 2       # HOLD not recorded
+    assert SL.write(dt.date(2026, 10, 22), plans[:1])["exists"]          # never rewritten
+    assert [r["key"] for r in SL.load()] == ["a", "c"]
+
+
+def test_alert_events_and_once_a_day(tmp_path, monkeypatch):
+    import datetime as dt
+
+    from app.dashboard import alerts as AL
+    buy = {"action": "BUY", "entry": 99.0, "stop_loss": 96.0, "t1": 103.5, "t2": 108.0}
+    assert [e for e, _ in AL.events(buy, 95.0)] == ["STOP"]
+    assert [e for e, _ in AL.events(buy, 104.0)] == ["T1"]
+    assert [e for e, _ in AL.events(buy, 108.5)] == ["T2"]
+    assert [e for e, _ in AL.events(buy, 98.5)] == ["ENTRY_ZONE"]
+    assert AL.events(buy, 101.0) == [] and AL.events(None, 1.0) == []
+    assert [e for e, _ in AL.events({"action": "HOLD / WAIT", "buy_trigger": 50}, 51)] == \
+        ["BREAKOUT"]
+    assert [e for e, _ in AL.events({"action": "SELL / AVOID", "stop_loss": 110, "t1": 90},
+                                    89)] == ["DOWNSIDE_1"]
+    monkeypatch.setattr(AL, "SENT", tmp_path / "alerts")
+    monkeypatch.setattr(AL, "BASE", tmp_path)
+    monkeypatch.setattr(AL, "WATCH", tmp_path / "w.json")
+    d = dt.date(2026, 10, 23)
+    assert AL.due(d, [("a", "x"), ("b", "y")]) == [("a", "x"), ("b", "y")]
+    assert AL.due(d, [("a", "x"), ("c", "z")]) == [("c", "z")]            # a: already sent
+    assert AL.set_watch("tcs", True) == ["TCS"] and AL.set_watch("TCS", False) == []

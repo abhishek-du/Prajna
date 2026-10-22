@@ -121,3 +121,6 @@ LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 # (Bedrock) and sends it to Telegram; pre-market and after the close
 45 8 * * 1-5   cd $B && ops/runbooks/market_report.sh >> var/logs/cron.log 2>&1
 20 16 * * 1-5  cd $B && ops/runbooks/market_report.sh >> var/logs/cron.log 2>&1
+
+# Forward record of the dashboard trade plans (user 2026-10-22): after NSE official close
+45 16 * * 1-5  cd $B && ops/runbooks/signals_snapshot.sh >> var/logs/cron.log 2>&1

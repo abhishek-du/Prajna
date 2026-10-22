@@ -168,6 +168,7 @@ async function stock(sym) {
   const e5 = d.e5_today;
   const pl = d.plan || {};
   view.innerHTML = `
+  <div class="controls"><button class="btn" id="watchbtn">☆ Add to watchlist</button></div>
   <div class="card plan"><h3>Trade plan <span class="muted small">${esc(pl.version || "")} · ${esc(d.indicators_basis || "indicators from the morning snapshot")}</span></h3>
     <div class="grid g4">
       <div><div class="big">${actionPill(pl.action)}</div><div class="small muted">price ${num(pl.price)}</div></div>
@@ -233,7 +234,15 @@ async function stock(sym) {
   <p class="muted small">${esc(d.disclaimer)} Features as of the ${esc(d.features_session || "?")} pre-session snapshot.</p>`;
   view.querySelectorAll("button[data-tf]").forEach(b => b.onclick = () => { tf = b.dataset.tf; drawChart(d); view.querySelectorAll("button[data-tf]").forEach(x => x.classList.toggle("on", x.dataset.tf === tf)); });
   const ab = $("#aibtn"); if (ab) ab.onclick = () => genAI(d.symbol);
+  bindWatch(d.symbol);
   drawChart(d);
+}
+async function bindWatch(sym) {
+  const btn = $("#watchbtn"); if (!btn) return;
+  let on = (await api("/api/watchlist")).rows.some(r => r.symbol === sym);
+  const paint = () => { btn.textContent = on ? "★ In watchlist (remove)" : "☆ Add to watchlist"; btn.classList.toggle("primary", on); };
+  paint();
+  btn.onclick = async () => { await api(`/api/watchlist/${encodeURIComponent(sym)}?on=${!on}`, { method: "POST" }); on = !on; paint(); };
 }
 function priceBox(d) {
   const q = d.live;
@@ -296,6 +305,36 @@ async function drawChart(d) {
         shape: bull ? "arrowUp" : p === "DOJI" ? "circle" : "arrowDown", text: "" }; }));
     chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, bars.length - 260), to: bars.length + 3 });
   } else chart.timeScale().fitContent();
+}
+
+// ── watchlist ────────────────────────────────────────────────────────────────────
+async function watchView() {
+  const d = await api("/api/watchlist");
+  const lvl = (p) => !p ? '<span class="muted small">no plan yet (recorded at 16:45)</span>' :
+    `${actionPill(p.action)} <span class="small">${p.entry ? `entry ${num(p.entry)} · ` : ""}${p.buy_trigger ? `buy above ${num(p.buy_trigger)} · ` : ""}SL ${num(p.stop_loss)} · T1 ${num(p.t1)} · T2 ${num(p.t2)}</span>`;
+  view.innerHTML = `<div class="card"><h3>Watchlist <span class="muted small">alerts go to Telegram in market hours against the plan levels recorded at ${esc(d.plans_from || "the last session's")} 16:45</span></h3>
+    ${d.rows.length ? `<div class="tablewrap"><table><thead><tr><th>Stock</th><th class="num">Price</th><th class="num">Change</th><th>Plan (previous session)</th><th></th></tr></thead><tbody>
+    ${d.rows.map(r => `<tr><td>${stockLink(r.symbol)}<div class="muted small">${esc(r.name || "")}</div></td><td class="num">${num(r.close)}</td><td class="num">${pct(r.day_change)}</td><td>${lvl(r.plan)}</td><td><button class="btn" data-unwatch="${esc(r.symbol)}">Remove</button></td></tr>`).join("")}</tbody></table></div>`
+    : '<div class="muted">Empty. Open a stock and press "Add to watchlist".</div>'}</div>
+    <h2>Alerts today</h2><div class="card">${d.alerts.map(a => `<div class="small">${new Date(a.at).toLocaleTimeString("en-IN")} · ${esc(a.text)} ${a.sent ? "" : '<span class="down">(not sent)</span>'}</div>`).join("") || '<span class="muted small">None yet</span>'}</div>
+    <p class="muted small">Alerts: BUY plan: entry zone, stop-loss, T1, T2 · HOLD / WAIT: breakout above the trigger · SELL / AVOID: downside level, view stop · HIGH-impact news on the stock. Each once a day. Paper research, not advice.</p>`;
+  view.querySelectorAll("[data-unwatch]").forEach(b => b.onclick = async () => { await api(`/api/watchlist/${encodeURIComponent(b.dataset.unwatch)}?on=false`, { method: "POST" }); watchView(); });
+}
+
+// ── signals record ───────────────────────────────────────────────────────────────
+async function signalsView() {
+  const d = await api("/api/signals");
+  const s = d.stats, b = s.buy, v = s.sell_avoid;
+  const p = (x) => x == null ? "–" : (x * 100).toFixed(0) + "%";
+  view.innerHTML = `<div class="grid g4">
+    <div class="card"><h3>BUY plans recorded</h3><div class="big">${b.plans}</div><div class="small muted">${s.days.length} session(s): ${esc(s.days.slice(-1)[0] || "–")} latest</div></div>
+    <div class="card"><h3>BUY closed · win rate</h3><div class="big">${b.closed} · ${p(b.win_rate)}</div><div class="small muted">avg ${b.avg_r == null ? "–" : b.avg_r.toFixed(2) + " R"}</div></div>
+    <div class="card"><h3>BUY by status</h3>${Object.entries(b.by_status).map(([k, n]) => `<span class="pill">${esc(k.replace(/_/g, " ").toLowerCase())} ${n}</span>`).join("") || "–"}</div>
+    <div class="card"><h3>SELL / AVOID views</h3><div class="big">${v.views}</div><div class="small muted">complete ${v.complete} · fell ${p(v.fell)} · avg 5-day ${v.avg_5d_return == null ? "–" : pct(v.avg_5d_return)}</div></div></div>
+    <p class="muted small">${esc(s.note)}</p>
+    <h2>Recorded plans <small>latest first</small></h2><div class="card"><div class="tablewrap"><table><thead><tr><th>Day</th><th>Stock</th><th>Action</th><th class="num">Close</th><th class="num">Entry</th><th class="num">SL</th><th class="num">T1</th><th class="num">T2</th><th>Outcome</th><th class="num">R / ret</th></tr></thead><tbody>
+    ${d.records.slice(0, 300).map(r => `<tr><td class="small">${esc(r.day)}</td><td>${stockLink(r.symbol)}</td><td>${actionPill(r.action)}</td><td class="num">${num(r.price)}</td><td class="num">${num(r.entry)}</td><td class="num">${num(r.stop_loss)}</td><td class="num">${num(r.t1)}</td><td class="num">${num(r.t2)}</td>
+      <td class="small">${esc((r.outcome.status || "").replace(/_/g, " ").toLowerCase())}</td><td class="num">${r.outcome.r != null ? r.outcome.r.toFixed(2) + " R" : r.outcome.ret != null ? pct(r.outcome.ret) : "–"}</td></tr>`).join("") || '<tr><td colspan="10" class="muted">The first record is written today at 16:45.</td></tr>'}</tbody></table></div></div>`;
 }
 
 // ── report ───────────────────────────────────────────────────────────────────────
@@ -362,6 +401,8 @@ async function route() {
     else if (p === "stock") { await stock(arg); if (arg) every(30000, () => refreshPrice(arg)); }
     else if (p === "model") { await model(); every(120000, model); }
     else if (p === "report") { await reportView(); }
+    else if (p === "watchlist") { await watchView(); every(30000, watchView); }
+    else if (p === "signals") { await signalsView(); }
     else about();
   } catch (e) { view.innerHTML = `<div class="card down">Could not load: ${esc(e.message)}</div>`; }
 }

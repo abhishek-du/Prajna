@@ -64,7 +64,7 @@ async def test_enriches_recent_items_once_with_pit_knowable_at(db_session, unloc
         model_version, prompt_version from news_ai_enrichment order by item_id"""))).all()
     assert [(r.item_id, r.status) for r in rows] == [(ids[0], "OK"), (ids[1], "INVALID")]
     assert all(r.knowable_at == r.generated_at >= t0 for r in rows)
-    assert {(r.model_version, r.prompt_version) for r in rows} == {("v-test", "news-ai-v1")}
+    assert {(r.model_version, r.prompt_version) for r in rows} == {("v-test", AI.PROMPT_VERSION)}
 
     again = fake({})
     out2 = await AI.enrich_pending(s, again, "test-model", token=TOKEN)
