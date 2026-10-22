@@ -99,13 +99,18 @@ The third possibility above, built without leaving the archive-first rule: the p
 - A FAILED tail pass stops the tail. `preopen_day.sh` then runs the full replay as before (idempotent: the rows already committed are compared, not duplicated).
 - Without a verified marker by 09:14 the command exits 4 and writes nothing. The runbook logs `STAGE3_FALLBACK` and runs the old path: wait for "replay exit 0", then compute (LATE, as before).
 - `late_ticks` in the tail's output counts the ticks knowable before as_of that the ready pass did not hold. It is expected to be 0; otherwise a recompute would differ.
-- **Status 2026-10-22: the tail is OFF by default** (`PRAJNA_PREOPEN_TAIL=1` turns it on). Its full-rate rehearsal (today's archives re-written at 1× pace into `prajna_test`) was inconclusive: run inside one rolled-back transaction, its savepoints slowed the inserts (PostgreSQL CPU-bound past 64 subtransactions), and a rehearsal with real commits needs the test tables emptied afterwards, which is the user's call. The lock-once and parallel-compute changes are ON.
+- **Status: ON by default since 2026-10-22** (`PRAJNA_PREOPEN_TAIL=0` turns it off), after its full-rate rehearsal passed (user-approved):
+  - today's two real archives, 08:59:30–09:08:30, re-written at 1× pace into new archives while `tail_session` replayed them into `prajna_test` with real commits (the test tables were emptied afterwards);
+  - 1,085,761 rows in 98 runs (53 passes, 2 connections); a steady pass took about 4 s for about 13,000 rows per connection;
+  - the ready marker was written **14 s after ready_at** (ANALYZE 0.78 s), and the tail ended 6.5 s after the capture closed (final pass, stream sha256 verified);
+  - every tick of the real archives knowable before 09:08:00 was received before 09:08:05 (0 late; 21,288 in the last minute).
+  - The first rehearsal, inside one rolled-back transaction, was invalid: its savepoints made PostgreSQL CPU-bound past 64 subtransactions.
 
 **Parallel compute (ON):** `compute_snapshot` reads the instruments' inputs with 4 sessions on the run's exported snapshot (`pg_export_snapshot`; `PRAJNA_STAGE3_WORKERS`, 1 = sequential). The reads were 93 % of the compute. Verified 2026-10-22, read-only, on the whole universe: both of today's snapshots recomputed with 4 sessions equal the stored rows (246,290 and 260,566 rows, 0 differ). Compute 224 s → 81 s (PRE_SESSION), 237 s → 86 s (PRE_OPEN). A test savepoint or a READ COMMITTED transaction stays sequential. `persist` skips its re-read when every row was inserted (no conflict).
 
 **Expected timeline with all three:** PRE_SESSION done ≈ 09:05; PRE_OPEN lock check ≈ 09:06:30, marker ≈ 09:08:20, done ≈ 09:12. Without the tail: replay 09:20 → 09:33, PRE_OPEN done ≈ 09:38.
 
-**Cron (the user installs it):** PRE_OPEN moves from `22 9` (`--after-replay`) to `5 9 * * 1-5 cd $B && STAGE3_LOCK_WAIT=540 ops/runbooks/stage3_snapshot.sh PRE_OPEN --after-tail --token-from-dotenv`. It waits for the `stage3.lock` of PRE_SESSION, then for the marker. Install it only together with `PRAJNA_PREOPEN_TAIL=1`; until then the old 09:22 `--after-replay` line stays (with the tail on, its "replay exit 0" comes when the tail ends, at about 09:20).
+**Cron (the user installs it):** PRE_OPEN moves from `22 9` (`--after-replay`) to `5 9 * * 1-5 cd $B && STAGE3_LOCK_WAIT=540 ops/runbooks/stage3_snapshot.sh PRE_OPEN --after-tail --token-from-dotenv`. It waits for the `stage3.lock` of PRE_SESSION, then for the marker. It replaces the 09:22 line (never both). Until it is installed, the old 09:22 `--after-replay` line still works: with the tail on, its "replay exit 0" comes when the tail ends, at about 09:20.
 
 ## 5. Late runs
 

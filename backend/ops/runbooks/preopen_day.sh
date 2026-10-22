@@ -15,8 +15,8 @@
 #                 pass); after the first pass at PRE_OPEN as_of + 5 s it writes
 #                 var/run/preopen_ready_<day>.json for Stage 3 PRE_OPEN (--after-tail).
 #                 It ends when the archives are closed and verified. A failed tail falls
-#                 back to the full replay (idempotent). OFF until its full-rate rehearsal
-#                 has passed (2026-10-22): PRAJNA_PREOPEN_TAIL=1 enables it.
+#                 back to the full replay (idempotent). ON since its full-rate rehearsal
+#                 passed (2026-10-22); PRAJNA_PREOPEN_TAIL=0 disables it.
 #   6. acceptance grade the day; the report lands in var/acceptance/
 #
 # Start it any time before 08:50 IST. Everything is logged to
@@ -73,7 +73,7 @@ CERR="var/logs/capture_${DAY}.err"
   > "var/logs/capture_${DAY}.json" 2> "$CERR" &
 CPID=$!
 TPID=""
-if [[ "${PRAJNA_PREOPEN_TAIL:-0}" == 1 ]]; then
+if [[ "${PRAJNA_PREOPEN_TAIL:-1}" == 1 ]]; then
   # the capture names its session manifest on stderr as soon as it has written it
   for _ in $(seq 1 60); do
     grep -q "^session manifest: " "$CERR" && break
