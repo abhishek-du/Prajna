@@ -106,3 +106,43 @@ def test_live_quote_parse_and_overlay():
     assert (o["close"], o["close_date"], o["price_basis"]) == (216.49, "2026-10-22",
                                                                "live (Upstox quote)")
     assert row["close"] == 220.9 and LV.overlay(row, None) is row       # a copy; none: as is
+
+
+def test_trade_plan_levels_follow_the_rules():
+    f = {"atr_pct_14": 0.02, "close_to_sma_20": 0.05, "close_to_sma_50": 0.08}
+    lv = {"support_20": 90.0, "resistance_20": 104.0, "high_252": 120.0}
+    buy = A.trade_plan(100.0, f, lv, {"label": "BULLISH", "score": 4, "version": "v"})
+    assert buy["action"] == "BUY" and buy["entry_zone"] == [99.0, 100.0]
+    r = buy["entry"] - buy["stop_loss"]
+    assert buy["stop_loss"] == pytest.approx(99.5 - 1.5 * 2.0)        # 20-day low too far
+    assert buy["t1"] == pytest.approx(buy["entry"] + 1.5 * r, abs=0.01)
+    assert buy["t2"] == pytest.approx(buy["entry"] + 3 * r, abs=0.01)
+    assert any("breakout" in x for x in buy["when_buy"]) and "not investment advice" in \
+        buy["disclaimer"]
+    near = A.trade_plan(100.0, f, {**lv, "support_20": 96.5}, {"label": "BULLISH"})
+    assert near["stop_loss"] == pytest.approx(96.5 - 0.25 * 2.0)        # structural stop
+    sell = A.trade_plan(100.0, f, lv, {"label": "BEARISH"})
+    assert sell["action"] == "SELL / AVOID" and sell["t1"] == 97.0 and sell["t2"] == 94.0
+    assert sell["stop_loss"] == 103.0 and "avoid new buying" in sell["when_buy"][0]
+    wait = A.trade_plan(100.0, f, lv, {"label": "NEUTRAL"})
+    assert wait["action"] == "HOLD / WAIT" and wait["buy_trigger"] == 104.0
+    assert wait["holding_stop"] == 96.0                                   # max(90, 100 - 4)
+    assert A.trade_plan(None, f, lv, {"label": "BULLISH"})["action"] is None
+
+
+def test_live_indicators_use_the_stage3_definitions():
+    import datetime as dt
+
+    from app.dashboard import indicators as IND
+    from app.features.compute import Bar
+    from app.features.compute import price as PR
+    hist = [Bar(dt.date(2026, 1, 1) + dt.timedelta(days=i), 100 + i, 101 + i, 99 + i,
+                100.5 + i, 1000) for i in range(260)]
+    q = {"ltp": 380.0, "open": 361.0, "high": 381.0, "low": 359.0, "volume": 5000,
+         "date": "2026-12-31"}
+    out = IND.compute(hist, q)
+    bars = [*hist, Bar(dt.date(2026, 12, 31), 361.0, 381.0, 359.0, 380.0, 5000)]
+    assert out["rsi_14"] == PR.rsi(bars, 14)[0]
+    assert out["close_to_sma_50"] == PR.close_to_sma(bars, 50)[0]
+    assert out["ret_1d"] == pytest.approx(380.0 / 359.5 - 1)
+    assert IND.compute([], q) == {} and IND.compute(hist, {"ltp": None}) == {}

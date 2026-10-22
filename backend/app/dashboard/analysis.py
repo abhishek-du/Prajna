@@ -225,3 +225,136 @@ def cap_buckets(caps: dict[str, float]) -> dict[str, str]:
     order = sorted((k for k, v in caps.items() if v and v > 0), key=lambda k: -caps[k])
     return {k: "LARGE" if i < 100 else "MID" if i < 250 else "SMALL"
             for i, k in enumerate(order)}
+
+
+# ── trade plan (user 2026-10-22: "buy karna hai ya sell, target T1 T2, kab") ─────────────
+PLAN_VERSION = "dash-plan-v1"
+ACTIONS = {"BULLISH": "BUY", "NEUTRAL": "HOLD / WAIT", "BEARISH": "SELL / AVOID"}
+PLAN_DISCLAIMER = ("Rule-based plan from fixed technical rules (ATR, 20-day support and "
+                   "resistance, moving averages) and an unvalidated model. Not validated, "
+                   "not investment advice; paper research only - no order is ever placed.")
+
+
+def levels(bars: list[dict[str, Any]]) -> dict[str, float | None]:
+    """Support / resistance from the daily bars (oldest first; today's may be included)."""
+    def ext(n, k, f):
+        xs = [_f(b.get(k)) for b in bars[-n:]]
+        xs = [x for x in xs if x is not None]
+        return f(xs) if xs else None
+    return {"support_20": ext(20, "low", min), "resistance_20": ext(20, "high", max),
+            "swing_low_60": ext(60, "low", min), "swing_high_60": ext(60, "high", max),
+            "high_252": ext(252, "high", max), "low_252": ext(252, "low", min)}
+
+
+def _sma(close: float, c2s: float | None) -> float | None:
+    return close / (1 + c2s) if c2s is not None and c2s > -1 else None
+
+
+def trade_plan(close: float | None, feat: dict[str, Any], lv: dict[str, Any],
+               signal: dict[str, Any]) -> dict[str, Any]:
+    """BUY / HOLD-WAIT / SELL-AVOID with entry zone, stop-loss, T1 (1.5R), T2 (3R) and the
+    conditions to act, from fixed rules. R = entry - stop."""
+    c = _f(close)
+    if not c:
+        return {"action": None, "why": "no price"}
+    atr_pct = _f(feat.get("atr_pct_14")) or 0.02
+    atr = atr_pct * c
+    s20, r20 = _f(lv.get("support_20")), _f(lv.get("resistance_20"))
+    hi252 = _f(lv.get("high_252"))
+    sma20 = _sma(c, _f(feat.get("close_to_sma_20")))
+    sma50 = _sma(c, _f(feat.get("close_to_sma_50")))
+    action = ACTIONS.get(signal.get("label"), "HOLD / WAIT")
+    rnd = lambda x: None if x is None else round(x, 2)  # noqa: E731
+    basis = [f"ATR(14) = {atr:.2f} ({atr_pct:.1%} of price)"]
+
+    def stop_below(entry: float) -> float:
+        structural = (s20 - 0.25 * atr) if s20 is not None else None
+        if structural is None or structural >= entry - atr or structural <= entry - 3 * atr:
+            basis.append("stop = entry - 1.5 x ATR (the 20-day low is too near or too far)")
+            return entry - 1.5 * atr
+        basis.append(f"stop = 20-day low {s20:.2f} - 0.25 x ATR")
+        return structural
+
+    plan: dict[str, Any] = {"action": action, "version": PLAN_VERSION, "price": rnd(c)}
+    if action == "BUY":
+        lo = max(c - 0.5 * atr, sma20) if sma20 and sma20 < c else c - 0.5 * atr
+        entry = (lo + c) / 2
+        sl = stop_below(entry)
+        r = entry - sl
+        t1, t2 = entry + 1.5 * r, entry + 3 * r
+        plan.update(entry_zone=[rnd(lo), rnd(c)], entry=rnd(entry), stop_loss=rnd(sl),
+                    t1=rnd(t1), t2=rnd(t2), risk_per_share=rnd(r),
+                    reward_risk="T1 1.5 : 1, T2 3 : 1")
+        plan["when_buy"] = [f"in the entry zone {lo:.2f} - {c:.2f} while the price stays above "
+                            + (f"its 20-day average ({sma20:.2f})" if sma20 else "the stop"),
+                            *([f"or on a daily close above the 20-day high {r20:.2f} (breakout)"]
+                              if r20 and r20 > c else [])]
+        plan["when_sell"] = [f"stop-loss: exit on a daily close below {sl:.2f}",
+                             f"T1 {t1:.2f}: book part, move the stop to the entry {entry:.2f}",
+                             f"T2 {t2:.2f}: book the rest"
+                             + (f", or exit on a daily close below the 50-day average "
+                                f"({sma50:.2f})" if sma50 else "")]
+        if r20 and entry < r20 < t1:
+            plan["when_sell"].append(f"first resistance on the way: the 20-day high {r20:.2f}")
+        if hi252 and t1 < hi252 < t2:
+            plan["when_sell"].append(f"52-week high {hi252:.2f} lies between T1 and T2")
+    elif action == "SELL / AVOID":
+        bounce = min(x for x in (sma20, c + 0.5 * atr) if x is not None and x > c) \
+            if (sma20 and sma20 > c) else c + 0.5 * atr
+        r = 1.5 * atr
+        t1, t2 = c - r, c - 2 * r
+        plan.update(exit_zone=[rnd(c), rnd(bounce)], stop_loss=rnd(c + r), t1=rnd(t1),
+                    t2=rnd(t2), risk_per_share=rnd(r), reward_risk="downside levels 1R and 2R")
+        basis.append("downside levels: price - 1.5 x ATR and - 3 x ATR")
+        plan["when_sell"] = [f"if holding: exit now or on a bounce into {c:.2f} - {bounce:.2f}",
+                             f"downside levels if the fall continues: {t1:.2f}, then {t2:.2f}"
+                             + (f" (20-day low {s20:.2f})" if s20 else "")]
+        plan["when_buy"] = ["avoid new buying while the signal is SELL / AVOID",
+                            "reconsider only after a daily close above "
+                            + (f"the 50-day average ({sma50:.2f})" if sma50 else
+                               f"{c + r:.2f}") + " or when the signal turns BUY"]
+    else:
+        trig = r20 if r20 and r20 > c else c + 0.5 * atr
+        sl = stop_below(trig)
+        r = trig - sl
+        t1, t2 = trig + 1.5 * r, trig + 3 * r
+        hold_sl = max(x for x in (s20, c - 2 * atr) if x is not None)
+        plan.update(buy_trigger=rnd(trig), stop_loss=rnd(sl), t1=rnd(t1), t2=rnd(t2),
+                    risk_per_share=rnd(r), holding_stop=rnd(hold_sl),
+                    reward_risk="T1 1.5 : 1, T2 3 : 1 from the trigger")
+        plan["when_buy"] = [f"wait: buy only on a daily close above {trig:.2f} "
+                            + ("(the 20-day high, a breakout)" if trig == r20 else ""),
+                            f"then stop {sl:.2f}, T1 {t1:.2f}, T2 {t2:.2f}"]
+        plan["when_sell"] = [f"if holding: keep with a stop at {hold_sl:.2f}",
+                             "exit if the signal turns SELL / AVOID"]
+    plan["basis"] = [*basis, f"signal {signal.get('label')} (score {signal.get('score')}, "
+                     f"{signal.get('version')})", "T1 = entry + 1.5 R, T2 = entry + 3 R"]
+    plan["disclaimer"] = PLAN_DISCLAIMER
+    return plan
+
+
+MEANING = {
+    "BULLISH_ENGULFING": "bullish reversal sign (buyers took over the previous candle)",
+    "BEARISH_ENGULFING": "bearish reversal sign (sellers took over the previous candle)",
+    "HAMMER": "possible bottom: sellers pushed down, buyers closed it near the high",
+    "HANGING_MAN": "warning after a rise: long lower shadow at a high",
+    "SHOOTING_STAR": "possible top: buyers pushed up, sellers closed it near the low",
+    "INVERTED_HAMMER": "possible bottom attempt (needs a strong next candle)",
+    "DOJI": "indecision: buyers and sellers balanced",
+    "MARUBOZU_UP": "strong buying all session", "MARUBOZU_DOWN": "strong selling all session",
+    "GAP_UP": "opened above the previous high (strong demand)",
+    "GAP_DOWN": "opened below the previous low (strong supply)",
+    "INSIDE_BAR": "range contraction: a breakout either way may follow",
+    "VOLUME_SPIKE": "volume at least 2 x its 20-day average (the move has participation)"}
+
+
+def candle_read(candles_: list[dict[str, Any]], trend_: str | None, n: int = 5
+                ) -> list[str]:
+    """Plain-language reading of the last n candles' patterns."""
+    out = []
+    for c in candles_[-n:][::-1]:
+        for p in c.get("patterns") or []:
+            out.append(f"{c['date']}: {p.replace('_', ' ').lower()} - {MEANING.get(p, '')}")
+    if trend_:
+        out.append(f"overall trend: {trend_.lower()} (price vs its 20/50/200-day averages)")
+    return out

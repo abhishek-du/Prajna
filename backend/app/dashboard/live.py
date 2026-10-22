@@ -39,6 +39,9 @@ class LiveQuotes:
         self._keys_day: _dt.date | None = None
         self._trading: dict[_dt.date, bool] = {}
         self._task: asyncio.Task | None = None
+        self.history: dict[str, list] = {}
+        self._history_day: _dt.date | None = None
+        self.indicators: dict[str, dict[str, Any]] = {}    # live Stage 3 price features
 
     # ── public ──────────────────────────────────────────────────────────────────
     def start(self) -> None:
@@ -134,7 +137,22 @@ class LiveQuotes:
             await c.aclose()
         self.quotes.update(got)
         self.fetched_at = now()
+        await self._indicators()
         self.cycles += 1
+
+    async def _indicators(self) -> None:
+        """Stage 3's price features with today's live bar (indicators.py), off the loop."""
+        from app.dashboard import indicators as IND
+        today = now().astimezone(IST).date()
+        if self._history_day != today:
+            from app.db.engine import get_sessionmaker
+            async with get_sessionmaker()() as s:
+                await s.execute(__import__("sqlalchemy").text("set transaction read only"))
+                self.history = await IND.load_history(s, today)
+                await s.rollback()
+            self._history_day = today
+        fresh = {k: q for k, q in self.quotes.items() if self.fresh_for_today(q)}
+        self.indicators = await asyncio.to_thread(IND.compute_all, self.history, fresh)
 
 
 _LIMITER = None

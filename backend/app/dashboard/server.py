@@ -39,17 +39,40 @@ async def _start_live() -> None:
         LIVE.start()
 
 
+def _live_row(m: dict[str, Any], r: dict[str, Any]) -> dict[str, Any]:
+    """A market row with the live quote and the live indicators / signal applied."""
+    from app.dashboard import analysis as A
+    out = LV.overlay(r, LIVE.get(r["key"]))
+    ind = LIVE.indicators.get(r["key"])
+    if ind and "cap_bucket" in r:
+        f = {**m["feat"].get(r["key"], {}), **{k: v for k, v in ind.items() if v is not None}}
+        e5 = m["e5map"].get(r["key"])
+        sig = A.research_signal(f, e5, bool(e5 and e5["selected"]))
+        out.update(signal=sig["label"], signal_score=sig["score"], trend=sig["trend"],
+                   action=A.ACTIONS.get(sig["label"]), ret_5d=f.get("ret_5d"),
+                   ret_20d=f.get("ret_20d"), rsi_14=f.get("rsi_14"),
+                   volatility_20=f.get("volatility_20"), dist_high_252=f.get("dist_high_252"),
+                   indicators_basis="live")
+    return out
+
+
 async def _view() -> dict[str, Any]:
-    """The cached market view with the live quotes applied (per request, cheap)."""
+    """The cached market view with the live quotes, indicators and signals applied
+    (computed once per live cycle)."""
     m = await _market()
-    stocks = [LV.overlay(r, LIVE.get(r["key"])) for r in m["stocks"]]
+    memo = _cache.get("view")
+    if memo and memo[0] == (id(m), LIVE.cycles):
+        return memo[1]
+    stocks = [_live_row(m, r) for r in m["stocks"]]
     ups = sum(1 for r in stocks if (r["day_change"] or 0) > 0)
     downs = sum(1 for r in stocks if (r["day_change"] or 0) < 0)
-    return {**m, "stocks": stocks,
+    v = {**m, "stocks": stocks,
             "indices": [LV.overlay(r, LIVE.get(r["key"])) for r in m["indices"]],
             "breadth": {"advances": ups, "declines": downs,
                         "unchanged": len(stocks) - ups - downs},
             "live": LIVE.summary()}
+    _cache["view"] = ((id(m), LIVE.cycles), v)
+    return v
 
 
 def _json(x: Any) -> JSONResponse:
@@ -81,7 +104,8 @@ async def index() -> FileResponse:
 @app.get("/api/market")
 async def market() -> JSONResponse:
     m = await _view()
-    return _json({k: v for k, v in m.items() if k != "stocks"} | {"stocks": len(m["stocks"])})
+    return _json({k: v for k, v in m.items() if k not in ("stocks", "feat", "e5map")}
+                 | {"stocks": len(m["stocks"])})
 
 
 @app.get("/api/movers")
@@ -156,6 +180,21 @@ async def stock(symbol: str) -> JSONResponse:
     if q:
         out.update(LV.overlay({k: out[k] for k in ("close", "day_change", "close_date")}, q))
         out["live"] = q
+    ind = LIVE.indicators.get(out["key"])
+    if ind:
+        from app.dashboard import analysis as A
+        f = {**out["features"], **{k: v for k, v in ind.items() if v is not None}}
+        e5 = out["e5_today"]
+        sig = A.research_signal(f, e5, bool(e5 and e5.get("selected")))
+        lv = dict(out["levels"])
+        if q and q.get("low") is not None:
+            lv["support_20"] = min(x for x in (lv["support_20"], q["low"]) if x is not None)
+            lv["resistance_20"] = max(x for x in (lv["resistance_20"], q["high"]) if x is not None)
+        out.update(features=f, trend=A.trend(f), signal=sig, levels=lv,
+                   ranges=A.ranges(out["close"], f.get("atr_pct_14"), e5),
+                   plan=A.trade_plan(out["close"], f, lv, sig),
+                   indicators_basis="live: Stage 3 price definitions on stored daily bars "
+                                    "plus today's live bar")
     out["live_status"] = LIVE.summary()
     out["ai"] = AIS.cached(out["symbol"])
     return _json(out)

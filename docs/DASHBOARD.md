@@ -47,6 +47,26 @@
 - **Rate limit:** its own limiter (4/s, 120/min, 1500/30 min), well inside Upstox's per-API limits.
 - **Switch off:** `PRAJNA_DASHBOARD_LIVE=0`.
 
+## Live indicators and the trade plan (2026-10-22)
+
+**Indicators** (`app/dashboard/indicators.py`) are recomputed after every quote cycle (30 s in market hours). They use the same functions as Stage 3 (`app.features.compute.price`) on the stored daily bars up to the last session plus today's bar from the live quote. Indicators: returns, SMA 20/50/200 distance, RSI 14, MACD histogram, ATR %, 20-day volatility and the 52-week range.
+- The research signal, the trend, the market tables, the stock page and the trade plan all use them.
+- They are display only: never stored, never a model input.
+- The history is the stored daily bars, not the per-stock CA-adjusted read Stage 3 uses, so a stock with a recent split or bonus can differ a little.
+
+**Trade plan `dash-plan-v1`** (`analysis.trade_plan`). The action comes from the signal (BULLISH → BUY, NEUTRAL → HOLD / WAIT, BEARISH → SELL / AVOID).
+
+| Action | Levels |
+|---|---|
+| BUY | entry zone = [max(price − 0.5 ATR, SMA 20), price]; stop = 20-day low − 0.25 ATR, or entry − 1.5 ATR when that low is nearer than 1 ATR or farther than 3 ATR; R = entry − stop; T1 = entry + 1.5 R, T2 = entry + 3 R |
+| HOLD / WAIT | buy only above the 20-day high (else price + 0.5 ATR), with the same stop / T1 / T2 rule from that trigger; holding stop = max(20-day low, price − 2 ATR) |
+| SELL / AVOID | exit zone up to the 20-day average (or price + 0.5 ATR); downside levels price − 1.5 ATR and − 3 ATR; stop for the view = price + 1.5 ATR |
+
+- Every plan lists "when to buy", "when to sell / exit" and how each level was computed.
+- The levels are drawn on the chart.
+- Candle analysis adds a plain-language reading of the last 5 candles' patterns.
+- **These are fixed technical rules on an unvalidated model:** not validated, not investment advice, paper research only.
+
 ## Data freshness
 
 - Market figures come from the latest Stage 3 PRE_SESSION snapshot and the last daily bars (07:00 job).

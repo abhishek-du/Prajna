@@ -12,6 +12,8 @@ const pct = (x, d = 2) => x == null ? "–" :
 const num = (x, d = 2) => x == null ? "–" : Number(x).toLocaleString("en-IN", { maximumFractionDigits: d });
 const cr = (x) => x == null ? "–" : x >= 1e5 ? `${(x / 1e5).toFixed(2)} L Cr` : `${num(x, 0)} Cr`;
 const pill = (t, cls) => t ? `<span class="pill ${esc(cls || t)}">${esc(t)}</span>` : "";
+const ACT = { "BUY": "BULLISH", "HOLD / WAIT": "NEUTRAL", "SELL / AVOID": "BEARISH" };
+const actionPill = (a) => a ? `<span class="pill ${ACT[a] || ""}"><b>${esc(a)}</b></span>` : "";
 const ago = (iso) => { const m = (Date.now() - new Date(iso)) / 60000;
   return m < 60 ? `${Math.round(m)} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`; };
 
@@ -44,7 +46,7 @@ const COLS = [
   { h: "5D", n: 1, f: r => pct(r.ret_5d) },
   { h: "20D", n: 1, f: r => pct(r.ret_20d) },
   { h: "Cap", f: r => `${esc(r.cap_bucket || "")}<div class="muted small">${cr(r.cap_cr)}</div>` },
-  { h: "Signal", f: r => pill(r.signal) + (r.e5_pick ? pill("E5 pick", "NEUTRAL") : "") },
+  { h: "Action", f: r => actionPill(r.action) + (r.e5_pick ? pill("E5 pick", "NEUTRAL") : "") + (r.indicators_basis === "live" ? '<span class="muted small"> live</span>' : "") },
 ];
 
 // ── market ───────────────────────────────────────────────────────────────────────
@@ -109,8 +111,8 @@ async function movers() {
     <div><h2>Best returns</h2><div class="card">${rowsTable(d.gainers, COLS)}</div></div>
     <div><h2>Worst returns</h2><div class="card">${rowsTable(d.losers, COLS)}</div></div>
     <div><h2>Steadier <small>${esc(d.steadier_rule)}</small></h2><div class="card">${rowsTable(d.steadier, COLS.slice(0, 3).concat([{ h: "Vol 20D", n: 1, f: r => pct(r.volatility_20, 1) }], COLS.slice(5)))}</div></div>
-    <div><h2>Research: bullish <small>rules, not advice</small></h2><div class="card">${rowsTable(d.bullish, COLS)}</div>
-      <h2>Research: bearish</h2><div class="card">${rowsTable(d.bearish, COLS)}</div></div>
+    <div><h2>BUY signals <small>rule-based, not advice</small></h2><div class="card">${rowsTable(d.bullish, COLS)}</div>
+      <h2>SELL / AVOID signals</h2><div class="card">${rowsTable(d.bearish, COLS)}</div></div>
   </div><p class="muted small">Cap buckets: SEBI/AMFI rank by market cap (price × shares from annual results): 1–100 large, 101–250 mid, rest small. ${esc(d.disclaimer)}</p>`;
   view.querySelectorAll("button[data-k]").forEach(b => b.onclick = () => { mv[b.dataset.k] = b.dataset.v; movers(); });
   bindRows();
@@ -147,8 +149,26 @@ async function stock(sym) {
   setAsOf(null, d.live_status);
   const sg = d.signal, f = d.features || {}, r = d.ranges || {};
   const e5 = d.e5_today;
+  const pl = d.plan || {};
   view.innerHTML = `
-  <div class="grid g3">
+  <div class="card plan"><h3>Trade plan <span class="muted small">${esc(pl.version || "")} · ${esc(d.indicators_basis || "indicators from the morning snapshot")}</span></h3>
+    <div class="grid g4">
+      <div><div class="big">${actionPill(pl.action)}</div><div class="small muted">price ${num(pl.price)}</div></div>
+      ${pl.entry_zone ? `<div><div class="muted small">ENTRY ZONE</div><div class="big">${num(pl.entry_zone[0])} – ${num(pl.entry_zone[1])}</div></div>` : ""}
+      ${pl.exit_zone ? `<div><div class="muted small">EXIT ZONE (if holding)</div><div class="big">${num(pl.exit_zone[0])} – ${num(pl.exit_zone[1])}</div></div>` : ""}
+      ${pl.buy_trigger ? `<div><div class="muted small">BUY ONLY ABOVE</div><div class="big">${num(pl.buy_trigger)}</div></div>` : ""}
+      <div><div class="muted small">STOP-LOSS</div><div class="big down">${num(pl.stop_loss)}</div>${pl.holding_stop ? `<div class="small muted">holding stop ${num(pl.holding_stop)}</div>` : ""}</div>
+      <div><div class="muted small">${pl.action === "SELL / AVOID" ? "DOWNSIDE 1" : "TARGET T1"}</div><div class="big ${pl.action === "SELL / AVOID" ? "down" : "up"}">${num(pl.t1)}</div></div>
+      <div><div class="muted small">${pl.action === "SELL / AVOID" ? "DOWNSIDE 2" : "TARGET T2"}</div><div class="big ${pl.action === "SELL / AVOID" ? "down" : "up"}">${num(pl.t2)}</div><div class="small muted">${esc(pl.reward_risk || "")}</div></div>
+    </div>
+    <div class="grid g2" style="margin-top:10px">
+      <div><h3>When to buy</h3>${(pl.when_buy || []).map(x => `<div class="flag green small">${esc(x)}</div>`).join("")}</div>
+      <div><h3>When to sell / exit</h3>${(pl.when_sell || []).map(x => `<div class="flag red small">${esc(x)}</div>`).join("")}</div>
+    </div>
+    <div class="small muted" style="margin-top:8px">How: ${(pl.basis || []).map(esc).join(" · ")}</div>
+    <div class="small" style="margin-top:4px;color:#f5d68a">${esc(pl.disclaimer || "")}</div>
+  </div>
+  <div class="grid g3" style="margin-top:12px">
     <div class="card"><h3>${esc(d.segment)} · ${esc(d.sector || "no sector")}</h3>
       <div class="big">${esc(d.symbol)} <span class="muted" style="font-size:14px">${esc(d.name || "")}</span></div>
       <div id="pricebox">${priceBox(d)}</div>
@@ -167,9 +187,11 @@ async function stock(sym) {
   </div>
   <h2>Chart <small>${d.low_confidence_bars ? `${d.low_confidence_bars} older daily bars have a low-confidence split/bonus basis` : "split/bonus adjusted"}</small></h2>
   <div class="card"><div class="controls">${["1d", "1h", "15m", "5m"].map(t => `<button class="${t === tf ? "on" : ""}" data-tf="${t}">${t.toUpperCase()}</button>`).join("")}
-    <span class="small muted">SMA 20 (blue) · SMA 50 (orange) · markers: patterns of the last 60 daily candles</span></div><div id="chart"></div></div>
+    <span class="small muted">SMA 20 (blue) · SMA 50 (orange) · dashed: entry / SL / T1 / T2 of the plan · markers: candle patterns</span></div><div id="chart"></div></div>
   <div class="grid g2">
-    <div><h2>Candle analysis <small>last 15 sessions</small></h2><div class="card"><div class="tablewrap"><table><thead><tr><th>Date</th><th class="num">Change</th><th>Candle</th><th class="num">Body</th><th class="num">Vol × avg</th><th>Patterns</th></tr></thead><tbody>
+    <div><h2>Candle analysis <small>last 15 sessions</small></h2><div class="card">
+      <div style="margin-bottom:8px">${(d.candle_read || []).map(x => `<div class="small">• ${esc(x)}</div>`).join("") || '<span class="muted small">No notable pattern in the last 5 candles</span>'}</div>
+      <div class="tablewrap"><table><thead><tr><th>Date</th><th class="num">Change</th><th>Candle</th><th class="num">Body</th><th class="num">Vol × avg</th><th>Patterns</th></tr></thead><tbody>
       ${d.candles.slice(-15).reverse().map(c => `<tr><td>${esc(c.date)}</td><td class="num">${pct(c.change)}</td><td>${pill(c.direction === "UP" ? "UP" : c.direction === "DOWN" ? "DOWN" : "FLAT", c.direction === "UP" ? "BULLISH" : c.direction === "DOWN" ? "BEARISH" : "NEUTRAL")}</td>
         <td class="num">${c.body_share == null ? "–" : (c.body_share * 100).toFixed(0) + "%"}</td><td class="num">${c.volume_vs_avg == null ? "–" : c.volume_vs_avg.toFixed(1)}</td><td>${c.patterns.map(p => pill(p.replace(/_/g, " "), "x")).join("")}</td></tr>`).join("")}
       </tbody></table></div></div></div>
@@ -243,6 +265,11 @@ async function drawChart(d) {
   vs.setData(bars.map(b => ({ time: b.time, value: b.volume || 0, color: b.close >= b.open ? "rgba(46,194,126,.35)" : "rgba(242,84,91,.35)" })));
   chart.addLineSeries({ color: "#4f9dff", lineWidth: 1, priceLineVisible: false }).setData(sma(bars, 20));
   chart.addLineSeries({ color: "#f5a524", lineWidth: 1, priceLineVisible: false }).setData(sma(bars, 50));
+  const pl = d.plan || {};
+  const line = (p, color, title) => p && cs.createPriceLine({ price: p, color, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title });
+  line(pl.stop_loss, "#f2545b", "SL"); line(pl.t1, "#2ec27e", pl.action === "SELL / AVOID" ? "D1" : "T1");
+  line(pl.t2, "#2ec27e", pl.action === "SELL / AVOID" ? "D2" : "T2");
+  line(pl.entry, "#4f9dff", "entry"); line(pl.buy_trigger, "#4f9dff", "buy above");
   if (tf === "1d") {
     const keep = new Set(["BULLISH_ENGULFING", "BEARISH_ENGULFING", "HAMMER", "SHOOTING_STAR", "GAP_UP", "GAP_DOWN", "DOJI"]);
     cs.setMarkers(d.candles.filter(x => x.patterns.some(p => keep.has(p))).map(x => {

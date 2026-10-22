@@ -69,3 +69,5 @@ tr.click { cursor: pointer; } tr.click:hover { background: var(--panel2); }
 .small { font-size: 12px; } .right { float: right; }
 @media (max-width: 700px) { .g2, .g3 { grid-template-columns: 1fr; } #chart { height: 340px; } }
 .heat .up, .heat .down, .heat .muted { color: #fff; opacity: .92; }
+.plan { border-color: #3b4b5e; }
+.plan .big { font-size: 21px; }

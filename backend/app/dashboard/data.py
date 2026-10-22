@@ -166,6 +166,7 @@ async def market(s: AsyncSession, caps: dict[str, float] | None = None) -> dict[
         ek = e5.get(k)
         sig = A.research_signal(f, ek, bool(ek and ek["selected"])) if f else None
         rec["signal"] = sig["label"] if sig else None
+        rec["action"] = A.ACTIONS.get(sig["label"]) if sig else None
         rec["signal_score"] = sig["score"] if sig else None
         rec["trend"] = sig["trend"] if sig else None
         rec["e5_pick"] = bool(ek and ek["selected"])
@@ -183,6 +184,7 @@ async def market(s: AsyncSession, caps: dict[str, float] | None = None) -> dict[
                        "vix": vix},
             "indices": sorted(indices, key=lambda r: (r["name"] or "") not in INDEX_NAMES),
             "stocks": stocks, "e5_session": str(today) if e5 else None,
+            "feat": feat, "e5map": e5,                      # internal (never returned)
             "disclaimer": A.DISCLAIMER}
 
 
@@ -393,6 +395,9 @@ async def stock(s: AsyncSession, key: str) -> dict[str, Any]:
             if close and (prev_close if today_bar else len(bars) > 1) else None,
             "returns": ret, "features_session": str(day) if day else None, "features": f,
             "trend": A.trend(f), "signal": sig,
+            "levels": A.levels(bars),
+            "plan": A.trade_plan(close, f, A.levels(bars), sig),
+            "candle_read": A.candle_read(an, A.trend(f)["trend"]),
             "ranges": A.ranges(close, f.get("atr_pct_14"), e5),
             "candles": an[-60:], "low_confidence_bars": daily["low_confidence_bars"],
             "e5_today": None if not e5 else {k: (v.isoformat() if hasattr(v, "isoformat")
