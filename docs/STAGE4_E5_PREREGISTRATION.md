@@ -96,6 +96,14 @@ The frozen model is NOT retrained during the 40 sessions: the test is of one mod
 - `ops/runbooks/model_predict.sh` is proposed for cron at 09:06 Monday–Friday (the user installs it). It waits until 09:13 for today's Stage 3 PRE_SESSION run, then runs `models predict --commit`; the code refuses at or after the open.
 - **Known blocker (2026-10-21):** the Stage 3 PRE_SESSION run now finishes at 09:20–09:28. Its lock check evaluates the full Stage 1 gate on the 150 GB database. The forward test starts only after that is fixed.
 
+### Operations added 2026-10-22 (no change to the model, the recipe, the metric or the gates)
+
+- A daily Telegram heartbeat of counts only. An ISSUE alert when a forward day is missing or a closed session has no outcomes.
+- `models status` reports outcome readiness: at least 90 % of the predicted names have a canonical daily bar.
+- The look refuses until every one of its 40 sessions has its outcomes. A session without usable PRE_SESSION values is listed (`not_evaluable_sessions`), never dropped silently.
+- An end-to-end test of the look on synthetic sessions (`tests/models/test_e5_look.py`).
+- What happens after the look, including the E5.1 retraining policy, is fixed in advance in `docs/STAGE4_E5_AFTER_THE_LOOK.md`.
+
 ### Operational fixes after the freeze (2026-10-22; the model and the recipe are unchanged)
 
 These change no prediction of forward day 1, and the model sha (`4db89a70…`) is the same.

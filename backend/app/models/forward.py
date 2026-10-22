@@ -223,7 +223,36 @@ async def status(s: AsyncSession, model: str | None = None) -> dict[str, Any]:
             "last": ({"session": str(rows[-1].session_date), "rows": rows[-1].n,
                       "picks": rows[-1].picks, "predicted_at": rows[-1].at.isoformat()}
                      if rows else None),
+            "outcomes": _readiness_summary(await outcome_readiness(s, sha)),
             "performance": "not shown before the single look (pre-registration)"}
+
+
+def _readiness_summary(rd: list[dict[str, Any]]) -> dict[str, Any]:
+    today = now().astimezone(IST).date().isoformat()
+    closed = [r for r in rd if r["session"] < today]
+    return {"sessions_ready": sum(r["ready"] for r in closed),
+            "sessions_closed": len(closed),
+            "pending": [r["session"] for r in closed if not r["ready"]],
+            "rule": f">= {OUTCOME_READY_SHARE:.0%} of the predicted names with a 1d bar"}
+
+
+# A session's outcomes are READY when this share of its predicted names has a canonical
+# daily bar (a halted or suspended name has none: not evaluable, per the pre-registration).
+OUTCOME_READY_SHARE = 0.9
+
+
+async def outcome_readiness(s: AsyncSession, sha: str) -> list[dict[str, Any]]:
+    """Per predicted session: predicted names, names with a canonical 1d bar, ready.
+    Counts only - no price, no return (no look)."""
+    rows = (await s.execute(text("""
+        select p.session_date, count(*) as n,
+               count(b.instrument_key) as with_bar
+        from model_prediction p
+        left join canon_market_bar b on b.timeframe = '1d' and b.market_date = p.session_date
+             and b.instrument_key = p.instrument_key
+        where p.model_sha256 = :m group by 1 order by 1"""), {"m": sha})).all()
+    return [{"session": str(r.session_date), "predicted": r.n, "with_bar": r.with_bar,
+             "ready": r.n > 0 and r.with_bar >= OUTCOME_READY_SHARE * r.n} for r in rows]
 
 
 # ── report (the single look) ────────────────────────────────────────────────────────
@@ -254,11 +283,16 @@ async def report(s: AsyncSession, model: str | None = None, *, look: bool = Fals
     today = now().astimezone(IST).date()
     if days[-1] >= today:
         raise Refused("the last forward session has not closed")
+    ready = {r["session"]: r for r in await outcome_readiness(s, sha)}
+    pending = [str(d) for d in days if not ready.get(str(d), {}).get("ready")]
+    if pending:
+        raise Refused(f"outcomes not ready for {len(pending)} session(s) {pending[:5]}: the "
+                      "look waits for their canonical daily bars (operational status only)")
     if not look:
         raise Refused("the single look needs --look (it is recorded; a second is refused)")
     if _ledger_has(sha):
         raise Refused("this model already had its look")
-    per, placebo = [], []
+    per, placebo, not_evaluable = [], [], []
     rng = np.random.default_rng(R.SEED)
     for d in days:
         pr = (await s.execute(text("""select instrument_key, prob_up, exp_return, range_lo,
@@ -267,7 +301,8 @@ async def report(s: AsyncSession, model: str | None = None, *, look: bool = Fals
             {"m": sha, "d": d})).all()
         keys = [r.instrument_key for r in pr]
         live = await D.live_session(s, d)
-        if live is None:
+        if live is None:              # reported, never dropped silently
+            not_evaluable.append({"session": str(d), "reason": "no usable PRE_SESSION values"})
             continue
         pos = {k: i for i, k in enumerate(live.keys)}
         keys = [k for k in keys if k in pos]
@@ -306,6 +341,7 @@ async def report(s: AsyncSession, model: str | None = None, *, look: bool = Fals
            "sessions": [str(days[0]), str(days[-1])], "status": st, "pooled": pooled,
            "placebo": pp, "stress_mean": float(np.mean(stress)) if stress else None,
            "gates": gates, "verdict": "ACCEPTED" if all(gates.values()) else "NOT_ACCEPTED",
+           "not_evaluable_sessions": not_evaluable,
            "per_session": per, "note": "PAPER ONLY; not a profitability claim"}
     LEDGER.parent.mkdir(parents=True, exist_ok=True)
     with LEDGER.open("a") as f:

@@ -9,7 +9,9 @@
 # 2 waits (until 09:13 IST) for today's Stage 3 PRE_SESSION run (STAGE3_DONE PRE_SESSION
 #   <day> in var/logs/daily/stage3_<day>.log); not done by then -> MODEL_PREDICT_ALERT missed
 # 3 `models predict --commit` (refused by the code itself at/after the 09:15 open)
-# Log: var/logs/daily/model_predict_<day>.log; one MODEL_PREDICT line per run.
+# Log: var/logs/daily/model_predict_<day>.log; one MODEL_PREDICT line per run, then one
+# MODEL_HEARTBEAT (counts only) to Telegram; an ISSUE alert when a forward day is missing or
+# a closed session has no outcomes (canonical daily bars) yet.
 # Test hooks: PRAJNA_CLI, PRAJNA_TELEGRAM_CMD, PRAJNA_TEST_NOW_HHMM, PRAJNA_TEST_TRADING_DAY,
 # PRAJNA_PREDICT_WAIT_UNTIL (HHMM), PRAJNA_PREDICT_POLL_S.
 set -uo pipefail
@@ -55,5 +57,26 @@ else:
 EOF
 )"
 say "MODEL_PREDICT rc=${rc} ${line}"
-if [[ $rc -ne 0 ]]; then alert "predict rc=${rc}: ${line}"; fi
+if [[ $rc -ne 0 ]]; then alert "predict rc=${rc}: ${line}"; exit "$rc"; fi
+
+# Daily heartbeat (counts only, never performance: pre-registration) and the outcome check:
+# every closed forward session must have its canonical daily bars by now (07:00 job).
+ST="var/logs/daily/model_status_${TODAY}.json"
+"${CLI[@]}" models status > "$ST" 2>> "$LOG"
+hb="$(.venv/bin/python - "$ST" <<'PY' 2>/dev/null || echo "status unreadable"
+import json, sys
+d = json.load(open(sys.argv[1]))
+o, last = d.get("outcomes") or {}, d.get("last") or {}
+print(f"day {d['sessions_predicted']}/{d['forward_sessions_needed']} rows={last.get('rows')} "
+      f"picks={last.get('picks')} missing_days={len(d['missing_sessions'])} "
+      f"outcomes_ready={o.get('sessions_ready')}/{o.get('sessions_closed')} "
+      f"pending={','.join(o.get('pending') or []) or '-'}")
+PY
+)"
+say "MODEL_HEARTBEAT ${hb}"
+if [[ "$hb" == *"pending=-"* && "$hb" == *"missing_days=0"* ]]; then
+  "$NOTIFY" "Prajna E5 forward test: ${hb}" >/dev/null 2>&1 || true
+else
+  alert "heartbeat: ${hb}"
+fi
 exit "$rc"
