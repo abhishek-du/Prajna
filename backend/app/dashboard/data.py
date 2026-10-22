@@ -161,6 +161,8 @@ async def market(s: AsyncSession, caps: dict[str, float] | None = None) -> dict[
         if i["segment"] == "NSE_INDEX":
             indices.append(rec)
             continue
+        if (i["trading_symbol"] or "").endswith("-RE"):
+            continue                    # rights entitlements: not shares (OLAELEC-RE -40 %)
         rec["cap_cr"] = caps.get(k)
         rec["cap_bucket"] = bucket.get(k, "UNCLASSIFIED")
         ek = e5.get(k)
@@ -299,10 +301,13 @@ async def hot_news(s: AsyncSession, hours: int = 24, limit: int = 150,
 
 async def resolve(s: AsyncSession, q: str) -> str | None:
     q = q.strip().upper()
+    # a symbol can have two keys after an ISIN change (JSWDULUX 2026-10-22): the active,
+    # newest one
     return (await s.execute(text("""select instrument_key from canon_instrument
         where included and segment in ('NSE_EQ', 'NSE_INDEX')
           and (upper(trading_symbol) = :q or instrument_key = :raw)
-        order by segment limit 1"""), {"q": q, "raw": q})).scalar()
+        order by (lifecycle_status = 'ACTIVE') desc, segment, instrument_id desc limit 1"""),
+        {"q": q, "raw": q})).scalar()
 
 
 async def search(s: AsyncSession, q: str, limit: int = 15) -> list[dict[str, Any]]:

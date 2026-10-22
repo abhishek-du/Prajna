@@ -270,3 +270,12 @@ def test_alert_events_and_once_a_day(tmp_path, monkeypatch):
     assert AL.due(d, [("a", "x"), ("b", "y")]) == [("a", "x"), ("b", "y")]
     assert AL.due(d, [("a", "x"), ("c", "z")]) == [("c", "z")]            # a: already sent
     assert AL.set_watch("tcs", True) == ["TCS"] and AL.set_watch("TCS", False) == []
+
+
+def test_official_close_change_uses_the_adjusted_previous_close():
+    from app.dashboard import bhav as BH
+    b = {"close": 302.2, "last": 302.0, "prev_close": 2994.8, "open": 300.0, "high": 305.0,
+         "low": 298.0}
+    q = {"ltp": 302.0, "prev_close": 299.48, "change": 0.008}
+    assert BH.apply(q, b)["change"] == pytest.approx(302.2 / 299.48 - 1)   # not -89.9 %
+    assert BH.apply({"ltp": 1.0}, b)["change"] == pytest.approx(302.2 / 2994.8 - 1)

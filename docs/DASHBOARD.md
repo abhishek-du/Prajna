@@ -122,6 +122,14 @@
 - Every stored 2026-10-21 daily close vs NSE's official ClsPric: 3,434 of 3,434 identical.
 - Web-reported past closes (5paisa): RELIANCE 2026-10-09 1,170.30, TCS 2026-09-09 2,208 and 2026-09-17 2,190 match the stored bars. RELIANCE 2026-09-10: 5paisa says 1,268.70; NSE's bhavcopy says 1,274.00, which equals the stored bar.
 
+## Fixes from the 2026-10-22 evening check
+
+- **Split-adjusted change:** after the session, the change is taken against Upstox's previous close, which is adjusted for corporate actions. The bhavcopy's PrvsClsgPric is not: JSWDULUX, on its split (ISIN ...011 → ...029), showed −89.9 % instead of +0.9 %.
+- **Search after an ISIN change:** a symbol resolves to its ACTIVE, newest key.
+- **Rights entitlements** (`-RE` symbols, e.g. OLAELEC-RE −40 %) are not shares. They are left out of the market view, movers, sectors and breadth.
+- **Full test suite:** passed (live tests excluded). All 12 dashboard endpoints return 200.
+- **ET feed latency:** a 40-min night measurement of four ET feeds saw too few new items to conclude (stocks/news feed: 2 items, ~8 min). It will be measured again in market hours with `ops/measure/rss_latency.py`.
+
 ## Data freshness
 
 - Market figures come from the latest Stage 3 PRE_SESSION snapshot and the last daily bars (07:00 job).

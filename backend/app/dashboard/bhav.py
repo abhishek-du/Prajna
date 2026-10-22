@@ -59,8 +59,10 @@ async def fetch(day: _dt.date) -> dict[str, dict[str, Any]] | None:
 
 
 def apply(q: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
-    """A live quote with the official close in place of the last trade."""
-    prev = b["prev_close"] or q.get("prev_close")
+    """A live quote with the official close in place of the last trade. The change is
+    against Upstox's previous close, which is adjusted for corporate actions; the
+    bhavcopy's PrvsClsgPric is not (JSWDULUX 2026-10-22: a split showed as -89.9 %)."""
+    prev = q.get("prev_close") or b["prev_close"]
     return {**q, "ltp": b["close"], "last_trade": b["last"], "prev_close": prev,
             "open": b["open"] if b["open"] is not None else q.get("open"),
             "high": b["high"] if b["high"] is not None else q.get("high"),
