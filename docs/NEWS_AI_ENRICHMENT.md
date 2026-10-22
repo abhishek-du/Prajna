@@ -1,4 +1,4 @@
-# News AI enrichment (decision NEWS-CONTENT; built 2026-10-22, OFF until the user sets the key)
+# News AI enrichment (decision NEWS-CONTENT; built 2026-10-22; configured and scheduled, waiting for the key)
 
 **What it does:** every 30 min, `ops/runbooks/news_ai.sh` sends each news item of the last 48 h that has no enrichment yet to an AWS Bedrock model (Converse API, temperature 0). The model returns a closed JSON schema (`app/news/ai.py`, prompt `news-ai-v1`):
 - `summary`, `entities`, `event_type`;
@@ -29,6 +29,12 @@ The prompt says "use only the text given, do not predict prices".
 - At most 4,000 stored enrichments per IST day.
 - 20 s timeout per call.
 - Measured volume: 1,200–2,000 items per weekday (7 sources, mostly NSE announcements) and ~220 characters per item. That is roughly 350 input and 200 output tokens per call.
+
+## Status (2026-10-22)
+
+- **Configured:** `backend/.env` has `PRAJNA_NEWS_AI_ENABLED=true`, model `amazon.nova-pro-v1:0` and region `us-east-1`. Backup: `var/backups/env_20261022T164152.bak`.
+- **Scheduled:** the cron line is installed.
+- **Waiting for the key:** `AWS_BEARER_TOKEN_BEDROCK=` is empty. Every run logs `NEWS_AI_SKIP no AWS credentials` and makes no model call, until the user writes a new key there.
 
 ## Enable (the user)
 

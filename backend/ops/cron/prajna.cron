@@ -103,3 +103,7 @@ LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 # Event-driven fundamentals F1/F2/F5b (docs/STAGE1_FUNDAMENTALS_RND.md, approved 2026-10-19;
 # migration 0023 on production 2026-10-21; installed 2026-10-21)
 15 13 * * *    cd $B && ops/runbooks/fundamentals_events.sh >> var/logs/cron.log 2>&1
+
+# News AI enrichment every 30 min (NEWS-CONTENT, user 2026-10-22): no model call while the
+# Bedrock key in .env is empty; knowable_at = generated_at; docs/NEWS_AI_ENRICHMENT.md
+10,40 * * * *  cd $B && ops/runbooks/news_ai.sh >> var/logs/cron.log 2>&1

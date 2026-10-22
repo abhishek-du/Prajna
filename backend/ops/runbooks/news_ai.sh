@@ -22,6 +22,11 @@ export PRAJNA_SUPPLIED_TOKEN="$(grep '^PRAJNA_WRITE_TOKEN=' .env 2>/dev/null | c
 AWS_BEARER_TOKEN_BEDROCK="$(grep '^AWS_BEARER_TOKEN_BEDROCK=' .env 2>/dev/null | cut -d= -f2-)"
 [[ -n "$AWS_BEARER_TOKEN_BEDROCK" ]] && export AWS_BEARER_TOKEN_BEDROCK
 
+if [[ -z "${AWS_BEARER_TOKEN_BEDROCK:-}" && -z "${AWS_ACCESS_KEY_ID:-}" && ! -f "$HOME/.aws/credentials" ]]; then
+  say "NEWS_AI_SKIP no AWS credentials (AWS_BEARER_TOKEN_BEDROCK in .env is empty); no model call"
+  exit 0
+fi
+
 exec 9> var/run/news_ai.lock
 if ! flock -n 9; then say "NEWS_AI_SKIP another run holds var/run/news_ai.lock"; exit 0; fi
 
