@@ -96,6 +96,15 @@ The frozen model is NOT retrained during the 40 sessions: the test is of one mod
 - `ops/runbooks/model_predict.sh` is proposed for cron at 09:06 Monday–Friday (the user installs it). It waits until 09:13 for today's Stage 3 PRE_SESSION run, then runs `models predict --commit`; the code refuses at or after the open.
 - **Known blocker (2026-10-21):** the Stage 3 PRE_SESSION run now finishes at 09:20–09:28. Its lock check evaluates the full Stage 1 gate on the 150 GB database. The forward test starts only after that is fixed.
 
+### Operational fixes after the freeze (2026-10-22; the model and the recipe are unchanged)
+
+These change no prediction of forward day 1, and the model sha (`4db89a70…`) is the same.
+- **History positions:** a previous session without usable values is kept as an absent session (every name a zero row) at its own place in the LSTM sequence, instead of being dropped, which would move the older sessions one place nearer to today.
+  - Day 1 had 8 of 9: 2026-10-08's stored values are an older feature version (before the price-basis versions).
+  - The gap was the oldest, so the sequences are identical either way. Re-predicted read-only, the picks are identical. From 2026-10-23 the history is 9 of 9.
+- **Bit-reproducibility:** the random forest predicted with 8 jobs, summing its trees' probabilities in a varying order, so prob_up differed in its last bit (≤ 2.3e-16) between processes. Predictions now use one job (not a model parameter; the trees and the fingerprint are unchanged) and torch is single-threaded as in training. Three processes now give identical outputs.
+- **Log:** `inserted` counts the rows really added. asyncpg's executemany rowcount is -1, so it was logged as `inserted=-1`; the database held all 500. The log line shows `history=8/9 missing=…`.
+
 ## 7. Development results (EXPLORATORY; e5-recipe-v1, 2026-10-21)
 
 - **Sample:** 4 folds, 74 out-of-sample sessions, 2026-06-24 .. 2026-10-09.

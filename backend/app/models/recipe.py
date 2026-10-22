@@ -290,6 +290,13 @@ OUTPUTS = ("prob_up", "exp_return", "range_lo", "range_hi", "volatility", "confi
 def predict(b: Bundle, panel: list[D.Session], t: int) -> dict[str, Any]:
     """Outputs for the universe of panel[t] (inputs of sessions <= t only)."""
     import torch
+    torch.set_num_threads(1)                   # as in training
+    torch.use_deterministic_algorithms(True)
+    # The forest summed its trees' probabilities in 8 threads in a varying order, so prob_up
+    # varied in its last bit between processes (2026-10-22); one job sums them in order.
+    # n_jobs is not a model parameter: the trees are unchanged.
+    if getattr(b.members["rf_clf"], "n_jobs", 1) != 1:
+        b.members["rf_clf"].set_params(n_jobs=1)
 
     sess = panel[t]
     u = sess.universe()

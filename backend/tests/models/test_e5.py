@@ -134,3 +134,32 @@ def test_bundle_round_trips_through_pickle(strong):
     assert back.sha256() == b.sha256()
     t = len(p) - 1
     assert np.array_equal(R.predict(back, p, t)["score"], R.predict(b, p, t)["score"])
+
+
+def test_an_absent_session_keeps_the_others_in_place():
+    """Live history (2026-10-22): a previous session without usable values is an absent
+    session (zero rows) at its own position; dropping it would shift the older ones."""
+    p = panel(D.SEQ_LEN, signal=0.0, seed=3)
+    cur, hist = p[-1], p[:-1]
+    u = cur.universe()
+    gap = [*hist[:4], D.empty_session(hist[4].date), *hist[5:]]
+    seq, present = D.sequences(gap, cur, u)
+    full, _ = D.sequences(hist, cur, u)
+    assert (present == D.SEQ_LEN - 1).all()
+    assert (seq[:, 4] == 0).all()
+    keep = [t for t in range(D.SEQ_LEN) if t != 4]
+    assert np.array_equal(seq[:, keep], full[:, keep])
+    # the oldest absent: the same as a shorter history (2026-10-22's 8 of 9)
+    a, _ = D.sequences([D.empty_session(hist[0].date), *hist[1:]], cur, u)
+    b, _ = D.sequences(hist[1:], cur, u)
+    assert np.array_equal(a, b)
+
+
+def test_predict_is_identical_across_calls_and_the_forest_uses_one_job(strong):
+    p, b = strong
+    b.members["rf_clf"].set_params(n_jobs=8)
+    sha = b.sha256()
+    one = R.predict(b, p, R.TRAIN_SESSIONS + 1)
+    assert b.members["rf_clf"].n_jobs == 1 and b.sha256() == sha
+    two = R.predict(b, p, R.TRAIN_SESSIONS + 1)
+    assert all(np.array_equal(one[c], two[c]) for c in ("prob_up", "score", "exp_return"))

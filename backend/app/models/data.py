@@ -131,6 +131,13 @@ async def live_session(s: AsyncSession, day: _dt.date) -> Session | None:
     return Session(day, keys, X, y, masked, "feature_value")
 
 
+def empty_session(day: _dt.date) -> Session:
+    """A session with no usable rows: it holds its place in a sequence (every name absent,
+    a zero row), so the sessions around it keep their positions."""
+    return Session(day, [], np.zeros((0, len(CORE))), {lb: np.zeros(0) for lb in LABELS},
+                   np.zeros(0, dtype=bool), "absent")
+
+
 def sequences(history: list[Session], cur: Session, idx: np.ndarray,
               length: int = SEQ_LEN) -> tuple[np.ndarray, np.ndarray]:
     """LSTM inputs for the rows idx of `cur`: (len(idx), length, 24) unit ranks of each
@@ -143,6 +150,8 @@ def sequences(history: list[Session], cur: Session, idx: np.ndarray,
     off = length - len(past)
     want = {cur.keys[i]: j for j, i in enumerate(idx)}
     for t, sess in enumerate(past):
+        if not sess.keys:               # an absent session (empty_session): zero rows
+            continue
         if sess is cur and np.array_equal(idx, cur.universe()):
             u, r = idx, cur.universe_ranks()
         elif sess is cur:

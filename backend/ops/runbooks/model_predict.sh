@@ -48,7 +48,9 @@ if "refused" in d:
     print(f"refused={d['refused'][:160]}")
 else:
     print(f"inserted={d.get('inserted')} universe={d.get('universe')} "
-          f"history={d.get('history_sessions')} picks={len(d.get('picks') or [])} "
+          f"history={d.get('history_sessions')}/{d.get('history_expected')} "
+          f"missing={','.join(d.get('history_missing') or []) or '-'} "
+          f"picks={len(d.get('picks') or [])} "
           f"excluded_results={d.get('results_today_excluded')}")
 EOF
 )"

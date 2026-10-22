@@ -139,8 +139,17 @@ async def predict_live(s: AsyncSession, day: _dt.date, *, commit: bool = False,
     cur = await D.live_session(s, day)
     if cur is None:
         raise Refused(f"no Stage 3 {SNAPSHOT} features for {day} yet")
-    hist = [x for d in await _previous_sessions(s, day, D.SEQ_LEN - 1)
-            if (x := await D.live_session(s, d)) is not None]
+    # Every previous session keeps its position in the LSTM sequence: one without usable
+    # values (no Stage 3 run, or values of an older feature version - 2026-10-08, before
+    # the price-basis versions) is an absent session, not dropped (that would shift the
+    # older ones one place nearer to today).
+    hist, missing = [], []
+    for d in await _previous_sessions(s, day, D.SEQ_LEN - 1):
+        x = await D.live_session(s, d)
+        if x is None:
+            missing.append(str(d))
+            x = D.empty_session(d)
+        hist.append(x)
     panel = [*hist, cur]
     out = R.predict(b, panel, len(panel) - 1)
     evs = await RP.events(s, snap.as_of)
@@ -152,7 +161,9 @@ async def predict_live(s: AsyncSession, day: _dt.date, *, commit: bool = False,
     inputs = hashlib.sha256(json.dumps([[str(p.date), p.keys, p.X.round(12).tolist()]
                                         for p in panel]).encode()).hexdigest()
     res: dict[str, Any] = {"commit": commit, "session": str(day), "model_sha256": sha,
-                           "universe": len(out["keys"]), "history_sessions": len(hist),
+                           "universe": len(out["keys"]),
+                           "history_sessions": len(hist) - len(missing),
+                           "history_expected": D.SEQ_LEN - 1, "history_missing": missing,
                            "results_today_excluded": len(today & set(out["keys"])),
                            "picks": [out["keys"][j] for j in picks],
                            "deadline_at": deadline.isoformat(), "inserted": 0}
@@ -169,15 +180,27 @@ async def predict_live(s: AsyncSession, day: _dt.date, *, commit: bool = False,
              "v": float(out["volatility"][j]), "c": float(out["confidence"][j]),
              "sc": float(out["score"][j]), "r": rank[j], "sel": j in sel, "fa": snap.as_of,
              "ih": inputs, "pa": at, "dl": deadline} for j in range(len(out["keys"]))]
-    n = (await s.execute(text("""insert into model_prediction (model_sha256, session_date,
+    res["inserted"] = await insert_predictions(s, rows)
+    await s.commit()
+    res["authz"] = fp[:12] if fp else None
+    return res
+
+
+async def insert_predictions(s: AsyncSession, rows: list[dict[str, Any]]) -> int:
+    """Insert (idempotent) and return how many rows are new. Counted in the transaction:
+    an executemany's rowcount is -1 with asyncpg (2026-10-22 log: inserted=-1)."""
+    if not rows:
+        return 0
+    q = text("""select count(*) from model_prediction where model_sha256 = :m
+        and session_date = :d and snapshot = :sn""")
+    key = {"m": rows[0]["m"], "d": rows[0]["d"], "sn": rows[0]["sn"]}
+    before = (await s.execute(q, key)).scalar()
+    await s.execute(text("""insert into model_prediction (model_sha256, session_date,
         snapshot, instrument_key, prob_up, exp_return, range_lo, range_hi, volatility,
         confidence, score, rank, selected, features_as_of, inputs_sha256, predicted_at,
         deadline_at) values (:m, :d, :sn, :k, :p, :e, :lo, :hi, :v, :c, :sc, :r, :sel, :fa,
-        :ih, :pa, :dl) on conflict on constraint uq_model_prediction do nothing"""), rows))
-    await s.commit()
-    res["inserted"] = n.rowcount if n.rowcount is not None else len(rows)
-    res["authz"] = fp[:12] if fp else None
-    return res
+        :ih, :pa, :dl) on conflict on constraint uq_model_prediction do nothing"""), rows)
+    return int((await s.execute(q, key)).scalar() - before)
 
 
 # ── status (operational only) ───────────────────────────────────────────────────────
