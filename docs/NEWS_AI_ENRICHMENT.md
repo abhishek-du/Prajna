@@ -1,4 +1,4 @@
-# News AI enrichment (decision NEWS-CONTENT; built 2026-10-22; configured and scheduled, waiting for the key)
+# News AI enrichment (decision NEWS-CONTENT; built 2026-10-22; LIVE from 2026-10-22 16:46 IST)
 
 **What it does:** every 30 min, `ops/runbooks/news_ai.sh` sends each news item of the last 48 h that has no enrichment yet to an AWS Bedrock model (Converse API, temperature 0). The model returns a closed JSON schema (`app/news/ai.py`, prompt `news-ai-v1`):
 - `summary`, `entities`, `event_type`;
@@ -34,7 +34,9 @@ The prompt says "use only the text given, do not predict prices".
 
 - **Configured:** `backend/.env` has `PRAJNA_NEWS_AI_ENABLED=true`, model `amazon.nova-pro-v1:0` and region `us-east-1`. Backup: `var/backups/env_20261022T164152.bak`.
 - **Scheduled:** the cron line is installed.
-- **Waiting for the key:** `AWS_BEARER_TOKEN_BEDROCK=` is empty. Every run logs `NEWS_AI_SKIP no AWS credentials` and makes no model call, until the user writes a new key there.
+- **Key:** the user chose to keep the existing Bedrock API key (2026-10-22), rather than rotating it after it was pasted into a chat.
+- **First run (16:46 IST, 5 items):** 5 OK, 0 errors, about 1 s each, `knowable_at = generated_at` on every row. `model_version` comes back empty for Nova Pro: the header is not sent.
+- **Known limit, prompt `news-ai-v1`:** `event_type` is free text, so the labels vary in form (`PRODUCT_LAUNCH`, `Market Analysis`, `policy_announcement`). A feature must normalise them, or a `news-ai-v2` prompt with a closed list is needed before E6.
 
 ## Enable (the user)
 
