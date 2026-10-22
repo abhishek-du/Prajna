@@ -472,6 +472,10 @@ async def _inputs_parallel(s: AsyncSession, snap: Snapshot, keys: list[str], wor
     sid = (await s.execute(text("select pg_export_snapshot()"))).scalar()
     if not _SNAPSHOT_ID.match(sid or ""):
         raise SnapshotIsolationError(f"unexpected exported snapshot id {sid!r}")
+    # The readers must resolve names exactly as the caller does: a training replay sets
+    # `set local search_path = train_asif2, public` (AS_IF_LIVE views) on ITS transaction
+    # only, and a new session would read the public views (found 2026-10-22).
+    search_path = (await s.execute(text("show search_path"))).scalar()
     it = iter(keys)
     out: dict[str, Any] = {}
 
@@ -479,6 +483,10 @@ async def _inputs_parallel(s: AsyncSession, snap: Snapshot, keys: list[str], wor
         async with AsyncSession(s.bind) as ws:
             await ws.execute(text("set transaction isolation level repeatable read, read only"))
             await ws.execute(text(f"set transaction snapshot '{sid}'"))
+            await ws.execute(text("select set_config('search_path', :p, true)"),
+                             {"p": search_path})
+            if (await ws.execute(text("show search_path"))).scalar() != search_path:
+                raise SnapshotIsolationError("a reader session did not take the search_path")
             for k in it:
                 if kill_check and locks.kill_switch_engaged():
                     raise KillSwitchEngaged("Stage 3 kill switch engaged during the run")

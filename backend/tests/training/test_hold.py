@@ -11,6 +11,7 @@ from sqlalchemy import text
 
 from app.training import e2 as X
 from app.training import hold as HL
+from app.training import policy as P
 from app.training import splits as SP
 from tests.support import stage3_seed as W
 from tests.training.test_v3 import CUTOFF, world  # noqa: F401  (fixture)
@@ -188,6 +189,6 @@ class TestBuildersOnTheTestDatabase:
 
     async def test_e5_splits_refuse_other_labels(self, world):  # noqa: F811
         with pytest.raises(ValueError, match="does not use scheme"):
-            await SP.build(world, "stage4-ds-v4-asif", "label-v2", scheme=SP.SCHEME_E5)
+            await SP.build(world, P.DATASETS["asif"].version, "label-v2", scheme=SP.SCHEME_E5)
         with pytest.raises(ValueError, match="does not use scheme"):
-            await SP.build(world, "stage4-ds-v4-asif", HL.VERSION)
+            await SP.build(world, P.DATASETS["asif"].version, HL.VERSION)

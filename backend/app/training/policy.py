@@ -50,14 +50,19 @@ DATASETS = {
     "strict": Dataset("stage4-ds-v4-strict", STRICT, "train_strict, public",
                       ("PRE_SESSION", "PRE_OPEN"), "features-v5"),
     # no historical pre-open data exists, so AS_IF_LIVE has PRE_SESSION only
-    "asif": Dataset("stage4-ds-v4-asif", ASIF, "train_asif2, public", ("PRE_SESSION",),
+    # v4b (2026-10-22): v4-asif's one snapshot (2026-10-21, run ddb9a316) was computed by
+    # parallel readers that did not take the train_asif2 search_path (fixed in
+    # engine._inputs_parallel): 11,840 of 245,255 rows differ from a sequential recompute.
+    # Its rows stay, frozen; v4b is the AS_IF_LIVE dataset on features-v5.
+    "asif": Dataset("stage4-ds-v4b-asif", ASIF, "train_asif2, public", ("PRE_SESSION",),
                     "features-v5"),
 }
 # Built under earlier code and registries: immutable. A build into any of them is refused
 # (it would append rows computed with different feature semantics).
 FROZEN = frozenset({"stage4-ds-v1-strict", "stage4-ds-v1-asif", "stage4-ds-v1-strict-pilot",
                     "stage4-ds-v1-asif-pilot", "stage4-ds-v2-strict", "stage4-ds-v2-asif",
-                    "stage4-ds-v3-strict", "stage4-ds-v3-asif"})
+                    "stage4-ds-v3-strict", "stage4-ds-v3-asif",
+                    "stage4-ds-v4-asif"})      # contaminated, see "asif" above
 
 
 def _ceil_minute(seconds: float) -> int:
