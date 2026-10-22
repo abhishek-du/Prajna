@@ -2740,6 +2740,29 @@ def models_predict(
     _models("predict_live", day=day, commit=commit, token=token)
 
 
+@models_app.command("refit")
+def models_refit(
+    commit: bool = typer.Option(False, "--commit", help="store the refit (PRODUCTION)"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN", help=_TOKEN_HELP),
+    through: str = typer.Option(None, help="last training session (YYYY-MM-DD)"),
+):
+    """E5.1: refit the ACCEPTED E5 recipe on the latest 120 labelled sessions (refused
+    until E5's look is ACCEPTED; see docs/STAGE4_E5_AFTER_THE_LOOK.md). PAPER ONLY."""
+    import datetime as _dt
+    _models("refit", commit=commit, token=token,
+            through=_dt.date.fromisoformat(through) if through else None)
+
+
+@models_app.command("production-model")
+def models_production_model(date: str = typer.Option(None, help="session (default: today)")):
+    """E5.1: which model predicts this session in production (refused until ACCEPTED)."""
+    import datetime as _dt
+
+    from app.core.clock import IST, now
+    day = _dt.date.fromisoformat(date) if date else now().astimezone(IST).date()
+    _models("production_model_for", day=day)
+
+
 @models_app.command("status")
 def models_status():
     """Operational counts only (no performance before the single look)."""

@@ -1,5 +1,5 @@
-"""Stage 4 E5.1 prerequisites: production refits and their lineage (docs/STAGE4_E5_AFTER_THE_LOOK.md;
-user 2026-10-22)
+"""Stage 4 E5.1 prerequisites: production refits and their lineage
+(docs/STAGE4_E5_AFTER_THE_LOOK.md; user 2026-10-22)
 
 Additive only.
   model_version.purpose          + 'PRODUCTION' (a scheduled refit of an ACCEPTED recipe)

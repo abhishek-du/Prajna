@@ -78,7 +78,8 @@ _COLS = ", ".join(f"max(value) filter (where feature_id = '{f}') as f{i}"
                   for i, f in enumerate(CORE))
 
 
-async def training_session(s: AsyncSession, day: _dt.date) -> Session | None:
+async def training_session(s: AsyncSession, day: _dt.date,
+                           dataset: str = TRAIN_DATASET) -> Session | None:
     rows = (await s.execute(text(f"""
         with smp as (select instrument_key, masks, label_flags from training_sample
               where dataset_version = :v and label_version = :lv and snapshot = 'PRE_SESSION'
@@ -88,7 +89,7 @@ async def training_session(s: AsyncSession, day: _dt.date) -> Session | None:
               where dataset_version = :v and snapshot = 'PRE_SESSION' and session_date = :d
                 and status = 'VALID' and feature_id = any(:ids) group by 1)
         select * from smp join f using (instrument_key) order by instrument_key"""),  # noqa: S608
-        {"v": TRAIN_DATASET, "lv": TRAIN_LABELS, "d": day, "ids": list(CORE)})).mappings().all()
+        {"v": dataset, "lv": TRAIN_LABELS, "d": day, "ids": list(CORE)})).mappings().all()
     rows = [r for r in rows if all(r[f"f{i}"] is not None for i in range(len(CORE)))]
     if not rows:
         return None
@@ -100,13 +101,13 @@ async def training_session(s: AsyncSession, day: _dt.date) -> Session | None:
     masked = np.array([any(m in E1.EVAL_MASKS for m in (r["masks"] or []))
                        or any(fl.startswith(E1.EVAL_FLAG_PREFIXES)
                               for fl in (r["label_flags"] or [])) for r in rows])
-    return Session(day, keys, X, y, masked, TRAIN_DATASET)
+    return Session(day, keys, X, y, masked, dataset)
 
 
-async def training_sessions(s: AsyncSession) -> list[_dt.date]:
+async def training_sessions(s: AsyncSession, dataset: str = TRAIN_DATASET) -> list[_dt.date]:
     return list((await s.execute(text("""select session_date from training_session_done
         where dataset_version = :v and snapshot = 'PRE_SESSION' order by 1"""),
-        {"v": TRAIN_DATASET})).scalars())
+        {"v": dataset})).scalars())
 
 
 # feature versions of the CORE ids as computed by the live engine (registry independent:

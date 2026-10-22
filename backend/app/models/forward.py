@@ -350,3 +350,135 @@ async def report(s: AsyncSession, model: str | None = None, *, look: bool = Fals
     (LEDGER.parent / f"forward_look_{sha[:12]}.json").write_text(
         json.dumps(rep, indent=1, default=str) + "\n")
     return rep
+
+
+# ── E5.1: scheduled refits of the ACCEPTED recipe (docs/STAGE4_E5_AFTER_THE_LOOK.md §4) ──
+# Inactive until E5's single look is ACCEPTED (ledger). No tuning: the recipe, window,
+# universe and selection are E5's; only the training sessions move forward.
+E51_DATASET = "stage4-ds-v4b-asif"        # AS_IF_LIVE on features-v5, appended daily
+REFIT_EVERY = 20                          # labelled sessions after the previous model's window
+MIN_UNIVERSE = 400
+
+
+def look_verdict(sha: str) -> str | None:
+    if not LEDGER.exists():
+        return None
+    for x in LEDGER.read_text().splitlines():
+        if x.strip():
+            d = json.loads(x)
+            if d.get("model_sha256") == sha and d.get("phase") == "look":
+                return d.get("verdict")
+    return None
+
+
+async def _base(s: AsyncSession) -> Any:
+    row = (await s.execute(text("""select model_sha256, trained_to from model_version
+        where purpose = 'FORWARD_TEST' order by id limit 1"""))).first()
+    if row is None:
+        raise Refused("no FORWARD_TEST model")
+    return row
+
+
+async def production_lineage(s: AsyncSession) -> list[Any]:
+    """The accepted E5 model, then every PRODUCTION refit, oldest first."""
+    base = await _base(s)
+    if look_verdict(base.model_sha256) != "ACCEPTED":
+        raise Refused("E5.1 is inactive: E5's single look is not ACCEPTED "
+                      "(docs/STAGE4_E5_AFTER_THE_LOOK.md)")
+    refits = (await s.execute(text("""select model_sha256, trained_to, created_at,
+        previous_sha256 from model_version where purpose = 'PRODUCTION' order by id"""))).all()
+    return [base, *refits]
+
+
+async def production_model_for(s: AsyncSession, day: _dt.date) -> str:
+    """The model that predicts `day` in production: the latest of the lineage created
+    before that day (a refit is effective from the next session). One model per session:
+    refused if another model of the lineage already predicted the day."""
+    chain = await production_lineage(s)
+    usable = [m for m in chain if not hasattr(m, "created_at")
+              or m.created_at.astimezone(IST).date() < day]
+    sha = usable[-1].model_sha256
+    others = {m.model_sha256 for m in chain} - {sha}
+    clash = (await s.execute(text("""select distinct model_sha256 from model_prediction
+        where session_date = :d and model_sha256 = any(:o)"""),
+        {"d": day, "o": list(others)})).scalars().all()
+    if clash:
+        raise Refused(f"{day} already has predictions of {clash[0][:12]}: one model per session")
+    return sha
+
+
+async def refit(s: AsyncSession, *, commit: bool = False, token: str | None = None,
+                through: _dt.date | None = None) -> dict[str, Any]:
+    """One E5.1 refit: e5-recipe-v2 on the latest 120 labelled sessions of E51_DATASET.
+    Refused (the previous model stays; the caller alerts) on: E5 not ACCEPTED, a dirty tree,
+    fewer than 120 labelled sessions, fewer than REFIT_EVERY new labelled sessions since the
+    previous model's window, a universe below MIN_UNIVERSE, a failed or missing member,
+    every stacking weight 0, or a hash that changes through the artefact."""
+    from app.training.replay import code_version
+    code = code_version()
+    if code["dirty"]:
+        raise Refused("the working tree is dirty; commit first (the model records its code)")
+    fp = authorize_write(token) if commit else None
+    chain = await production_lineage(s)
+    prev = chain[-1]
+    days = [d for d in await D.training_sessions(s, E51_DATASET)
+            if through is None or d <= through]
+    panel = []
+    for d in days[-(R.TRAIN_SESSIONS + D.SEQ_LEN):]:
+        x = await D.training_session(s, d, E51_DATASET)
+        if x is not None:
+            panel.append(x)
+    labelled = [t for t, p in enumerate(panel) if not np.isnan(p.y["ret_oc"]).all()]
+    train = labelled[-R.TRAIN_SESSIONS:]
+    if len(train) < R.TRAIN_SESSIONS:
+        raise Refused(f"{len(train)} labelled sessions in {E51_DATASET}; "
+                      f"{R.TRAIN_SESSIONS} needed")
+    new = [t for t in train if panel[t].date > prev.trained_to]
+    if len(new) < REFIT_EVERY:
+        raise Refused(f"{len(new)} labelled sessions after {prev.trained_to}; a refit every "
+                      f"{REFIT_EVERY}")
+    n_u = len(panel[train[-1]].universe())
+    if n_u < MIN_UNIVERSE:
+        raise Refused(f"universe {n_u} < {MIN_UNIVERSE} on {panel[train[-1]].date}")
+    try:
+        b = R.fit(panel, train)
+    except Exception as e:                        # the previous model stays
+        raise Refused(f"refit failed: {type(e).__name__}: {e}"[:300]) from e
+    expected = {"ridge", "lgbm_reg", "lgbm_clf", "rf_clf", "lstm_clf", "lgbm_q10",
+                "lgbm_q90", "lgbm_range"}
+    if set(b.members) != expected or any(v is None for v in b.members.values()):
+        raise Refused(f"members {sorted(b.members)} differ from the recipe")
+    if not any(w > 0 for w in b.weights.values()):
+        raise Refused("every stacking weight is 0 (no member carries signal)")
+    sha = b.sha256()
+    if pickle.loads(pickle.dumps(b, protocol=5)).sha256() != sha:  # noqa: S301 - our own
+        raise Refused("the model hash changes through its artefact")
+    if (await s.execute(text("select 1 from model_version where model_sha256 = :m"),
+                        {"m": sha})).first():
+        raise Refused(f"model {sha[:12]} exists already")
+    out: dict[str, Any] = {"commit": commit, "model_sha256": sha, "previous": prev.model_sha256,
+                           "recipe": R.VERSION, "dataset": E51_DATASET,
+                           "trained": [str(panel[train[0]].date), str(panel[train[-1]].date)],
+                           "new_sessions": len(new), "universe": n_u,
+                           "weights": b.weights, "rows": b.meta["rows"]}
+    if not commit:
+        return out
+    d = ART / sha
+    d.mkdir(parents=True, exist_ok=True)
+    path = d / "bundle.pkl"
+    path.write_bytes(pickle.dumps(b, protocol=5))
+    out["artefact_sha256"] = _sha_file(path)
+    (d / "bundle.pkl.sha256").write_text(out["artefact_sha256"] + "\n")
+    cfg = {"recipe": R.VERSION, "e51": True, "dataset": E51_DATASET, "labels": D.TRAIN_LABELS,
+           "refit_every": REFIT_EVERY, "train_sessions": R.TRAIN_SESSIONS, "seed": R.SEED,
+           "k": R.K, "round_trip_cost": b.cost}
+    await s.execute(text("""insert into model_version (model_sha256, recipe, purpose,
+        trained_from, trained_to, train_sessions, train_rows, artefact_path, artefact_sha256,
+        code_git_sha, config, created_at, authz_token_sha256, previous_sha256) values (:m, :r,
+        'PRODUCTION', :a, :b, :n, :rows, :p, :ps, :g, cast(:c as jsonb), :t, :fp, :prev)"""),
+        {"m": sha, "r": R.VERSION, "a": panel[train[0]].date, "b": panel[train[-1]].date,
+         "n": len(train), "rows": b.meta["rows"], "p": str(path.relative_to(ROOT)),
+         "ps": out["artefact_sha256"], "g": code["git_sha"], "c": json.dumps(cfg), "t": now(),
+         "fp": fp, "prev": prev.model_sha256})
+    await s.commit()
+    return out
