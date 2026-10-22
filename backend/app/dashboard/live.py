@@ -38,6 +38,8 @@ INDICATORS = {"GLOBAL_INDICATOR|BZUSD": "Brent crude ($)", "GLOBAL_INDICATOR|CLU
               "WTI crude ($)", "GLOBAL_INDICATOR|USDINR": "USD / INR"}
 INDICATOR_EVERY_S = 300.0
 EXT_EVERY_S = 3 * 3600.0           # US Treasury 10Y / FRED dollar index: daily series
+BHAV_FROM = _dt.time(15, 50)       # NSE publishes the CM bhavcopy at about 16:30 IST
+BHAV_EVERY_S = 600.0
 
 
 class LiveQuotes:
@@ -60,6 +62,9 @@ class LiveQuotes:
         self._ext_at = -1e9
         self.ext_missing: list[str] = ["US 10-year Treasury yield", "US dollar index"]
         self._ext_keys: list[str] = []
+        self.bhav: dict[str, dict[str, Any]] = {}          # NSE official close (bhav.py)
+        self.bhav_day: str | None = None
+        self._bhav_at = -1e9
 
     # ── public ──────────────────────────────────────────────────────────────────
     def start(self) -> None:
@@ -68,7 +73,13 @@ class LiveQuotes:
 
     def get(self, key: str) -> dict[str, Any] | None:
         q = self.quotes.get(key)
-        return q if q and self.fresh_for_today(q) else None
+        if not q or not self.fresh_for_today(q):
+            return None
+        b = self.bhav.get(key) if self.bhav_day == q["date"] else None
+        if b:
+            from app.dashboard.bhav import apply
+            return {**apply(q, b), "basis": "NSE official close (bhavcopy)"}
+        return q
 
     @staticmethod
     def fresh_for_today(q: dict[str, Any]) -> bool:
@@ -80,6 +91,7 @@ class LiveQuotes:
 
     def summary(self) -> dict[str, Any]:
         return {"status": self.status, "error": self.error, "quotes": len(self.quotes),
+                "official_close_day": self.bhav_day, "official_closes": len(self.bhav),
                 "fetched_at": self.fetched_at.isoformat() if self.fetched_at else None,
                 "cycles": self.cycles, "source": "Upstox market quote (display only)"}
 
@@ -160,6 +172,7 @@ class LiveQuotes:
             await c.aclose()
         self.quotes.update(got)
         self.fetched_at = now()
+        await self._bhavcopy()
         await self._indicators()
         self.cycles += 1
 
@@ -213,6 +226,27 @@ class LiveQuotes:
             except Exception as e:
                 log.warning("indicator %s: %s", k, e)
 
+    async def _bhavcopy(self) -> None:
+        """After the session: NSE's official closes, once they are published."""
+        import time
+
+        from app.dashboard import bhav as BH
+        t = now().astimezone(IST)
+        if self.bhav_day == str(t.date()) or t.time() < BHAV_FROM:
+            return
+        if time.monotonic() - self._bhav_at < BHAV_EVERY_S:
+            return
+        self._bhav_at = time.monotonic()
+        if not await self._trading_day(t.date()):
+            return
+        try:
+            got = await BH.fetch(t.date())
+        except Exception as e:                        # retried in BHAV_EVERY_S
+            log.warning("bhavcopy: %s", e)
+            return
+        if got:
+            self.bhav, self.bhav_day = got, str(t.date())
+
     async def _indicators(self) -> None:
         """Stage 3's price features with today's live bar (indicators.py), off the loop."""
         from app.dashboard import indicators as IND
@@ -224,7 +258,7 @@ class LiveQuotes:
                 self.history = await IND.load_history(s, today)
                 await s.rollback()
             self._history_day = today
-        fresh = {k: q for k, q in self.quotes.items() if self.fresh_for_today(q)}
+        fresh = {k: g for k in self.quotes if (g := self.get(k))}
         self.indicators = await asyncio.to_thread(IND.compute_all, self.history, fresh)
 
 
@@ -283,5 +317,6 @@ def overlay(rec: dict[str, Any], q: dict[str, Any] | None) -> dict[str, Any]:
         return rec
     out = dict(rec)
     out.update(close=q["ltp"], day_change=q["change"], close_date=q["date"], price_at=q["at"],
-               price_basis="live (Upstox quote)")
+               price_basis=("NSE official close (bhavcopy)" if q.get("official_close")
+                            else "live (Upstox quote)"))
     return out

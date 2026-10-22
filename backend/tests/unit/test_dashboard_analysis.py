@@ -182,3 +182,24 @@ async def test_us10y_from_the_treasury_csv(monkeypatch):
     monkeypatch.delenv("FRED_API_KEY", raising=False)
     async with httpx.AsyncClient(transport=t) as c:
         assert await MX.broad_dollar(c, dt.date(2026, 10, 22)) is None   # no key: not shown
+
+
+def test_bhavcopy_official_close_replaces_the_last_trade():
+    import datetime as dt
+    import io
+    import zipfile
+
+    from app.dashboard import bhav as BH
+    head = ("TradDt,TckrSymb,SctySrs,ISIN,OpnPric,HghPric,LwPric,ClsPric,LastPric,"
+            "PrvsClsgPric,TtlTradgVol\n")
+    row = "2026-10-22,REPL,EQ,INE364Z01019,68.00,78.69,67.22,77.68,78.69,65.58,630609\n"
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("b.csv", head + row)
+    b = BH.parse(buf.getvalue(), dt.date(2026, 10, 22))["NSE_EQ|INE364Z01019"]
+    assert (b["close"], b["last"], b["prev_close"]) == (77.68, 78.69, 65.58)
+    q = {"ltp": 78.69, "prev_close": 65.58, "change": .1999, "open": 68, "high": 78.69,
+         "low": 67.22, "date": "2026-10-22"}
+    a = BH.apply(q, b)
+    assert a["ltp"] == 77.68 and a["last_trade"] == 78.69 and a["official_close"]
+    assert a["change"] == pytest.approx(77.68 / 65.58 - 1)

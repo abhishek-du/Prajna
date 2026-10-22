@@ -239,12 +239,13 @@ function priceBox(d) {
   const q = d.live;
   return `<div class="big">${num(d.close)} ${pct(d.day_change)}</div>
     <div class="small muted">${esc(d.price_basis)}${d.price_at ? " · " + new Date(d.price_at).toLocaleString("en-IN") : " · " + esc(d.close_date || "")}</div>
+    ${q && q.official_close && q.last_trade != null && Math.abs(q.last_trade - q.ltp) > 0.004 ? `<div class="small muted">last trade ${num(q.last_trade)} (NSE's close is the weighted average of the last 30 minutes, not the last trade)</div>` : ""}
     ${q ? `<div class="small" style="margin-top:4px">O ${num(q.open)} · H ${num(q.high)} · L ${num(q.low)} · prev ${num(q.prev_close)} · vol ${num(q.volume, 0)}
       ${q.lower_circuit ? `<div class="muted">circuit ${num(q.lower_circuit)} – ${num(q.upper_circuit)}</div>` : ""}</div>` : ""}`;
 }
 async function refreshPrice(sym) {
   try { const r = await api(`/api/quote/${encodeURIComponent(sym)}`); const el = $("#pricebox");
-    if (el && r.quote) { const q = r.quote; el.innerHTML = priceBox({ close: q.ltp, day_change: q.change, price_basis: "live (Upstox quote)", price_at: q.at, live: q }); }
+    if (el && r.quote) { const q = r.quote; el.innerHTML = priceBox({ close: q.ltp, day_change: q.change, price_basis: q.official_close ? "NSE official close (bhavcopy)" : "live (Upstox quote)", price_at: q.at, live: q }); }
     setAsOf(null, r.live); } catch (e) { /* keep the last price */ }
 }
 function aiBox(a) {

@@ -86,6 +86,21 @@
 - **Storage:** `backend/var/dashboard/reports/`.
 - **Model calls:** Bedrock calls for the report allow 3,000 output tokens and the stock note 1,200. News enrichment stays at 600; at 600 a report was cut and failed validation.
 
+## Official close after the session (2026-10-22)
+
+**Found:** REPL showed 78.69, while the user's Upstox app showed 77.68.
+- 78.69 was its last trade, at the upper circuit. NSE's official close is the weighted average of the last 30 minutes' trades, 77.68.
+- After the session, Upstox's quote holds the last trade for some names and the official close for others (SPENCERS, TRANSWORLD).
+
+**Now:** from 15:50 the dashboard polls NSE's public CM bhavcopy every 10 min until it is published (about 16:30; `app/dashboard/bhav.py`).
+- Its ClsPric becomes every name's price and change (keyed by ISIN), and the stock page also shows the last trade when it differs.
+- Display only, never stored. The stored daily bar still comes from Upstox the next morning.
+
+**Cross-check (2026-10-22):**
+- Prices on the dashboard vs the bhavcopy, 24 names: 20 matched exactly before the fix. The rest were the last-trade / close cases above, plus HPCL / TATAMOTORS, which trade on NSE as HINDPETRO and the post-demerger symbols.
+- Every stored 2026-10-21 daily close vs NSE's official ClsPric: 3,434 of 3,434 identical.
+- Web-reported past closes (5paisa): RELIANCE 2026-10-09 1,170.30, TCS 2026-09-09 2,208 and 2026-09-17 2,190 match the stored bars. RELIANCE 2026-09-10: 5paisa says 1,268.70; NSE's bhavcopy says 1,274.00, which equals the stored bar.
+
 ## Data freshness
 
 - Market figures come from the latest Stage 3 PRE_SESSION snapshot and the last daily bars (07:00 job).
