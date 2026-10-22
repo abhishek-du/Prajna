@@ -119,3 +119,79 @@ def bedrock_model(region: str | None = None) -> Model:            # pragma: no c
                 "x-amzn-bedrock-model-version")
         return await asyncio.to_thread(_run)
     return call
+
+
+# ── the enrichment job (NEWS-CONTENT; enabled by the user 2026-10-22) ─────────────────
+# Point in time: an enrichment is knowable when it was generated (knowable_at =
+# generated_at, the moment the answer was received), never at the item's own time. A
+# feature that reads it filters knowable_at < as_of like every other input.
+WINDOW_H = 48                      # items first knowable within this many hours
+RUN_LIMIT = 400                    # model calls per run at most
+CONCURRENCY = 4
+DAILY_MAX = 4000                   # stored enrichments per IST day at most (cost guard)
+FINAL = ("OK", "INVALID")          # stored; ERROR / TIMEOUT are retried by a later run
+
+
+def item_obs(r) -> ItemObs:
+    return ItemObs(source_article_id=r.source_article_id, title=r.title, url=r.url,
+                   publisher=r.publisher, published_at=r.published_at,
+                   published_at_raw=r.published_at_raw, summary=r.summary)
+
+
+async def enrich_pending(s, model: Model, model_id: str, *, token: str | None,
+                         limit: int = RUN_LIMIT, window_h: int = WINDOW_H,
+                         concurrency: int = CONCURRENCY, daily_max: int = DAILY_MAX,
+                         timeout_s: float = TIMEOUT_S) -> dict[str, Any]:
+    """Enrich the items of the last `window_h` hours that have no OK/INVALID enrichment
+    for (model_id, PROMPT_VERSION), newest first. One commit per run. A transient
+    failure (ERROR, TIMEOUT) is counted, not stored, and retried by the next run."""
+    from collections import Counter
+
+    from sqlalchemy import text
+
+    from app.core.authz import authorize_write
+    from app.core.clock import IST
+
+    authorize_write(token)
+    day0 = _dt.datetime.combine(now().astimezone(IST).date(), _dt.time(), tzinfo=IST)
+    done_today = (await s.execute(text("""select count(*) from news_ai_enrichment
+        where generated_at >= :d0"""), {"d0": day0})).scalar()
+    budget = max(0, min(limit, daily_max - done_today))
+    rows = (await s.execute(text("""
+        select i.id, i.source_article_id, i.title, i.url, i.publisher, i.published_at,
+               i.published_at_raw, i.summary
+        from news_item i
+        where i.knowable_at > cast(:at as timestamptz) - make_interval(hours => :h)
+          and i.knowable_at <= cast(:at as timestamptz)
+          and not exists (select 1 from news_ai_enrichment e where e.item_id = i.id
+                          and e.model_id = :m and e.prompt_version = :pv)
+        order by i.knowable_at desc, i.id desc limit :n"""),
+        {"h": window_h, "m": model_id, "pv": PROMPT_VERSION, "n": budget, "at": now()})).all()
+    sem = asyncio.Semaphore(concurrency)
+
+    async def one(r):
+        async with sem:
+            return r.id, await enrich(item_obs(r), model, model_id, timeout_s=timeout_s)
+
+    results = await asyncio.gather(*(one(r) for r in rows))
+    status = Counter(res.status for _, res in results)
+    stored = 0
+    for item_id, res in results:
+        if res.status not in FINAL:
+            continue
+        n = (await s.execute(text("""insert into news_ai_enrichment (item_id, status,
+            model_id, model_version, prompt_version, input_sha256, output, error,
+            generated_at, knowable_at) values (:i, :st, :m, :v, :pv, :sha,
+            cast(:o as jsonb), :e, :g, :g)
+            on conflict on constraint uq_news_ai do nothing"""),
+            {"i": item_id, "st": res.status, "m": res.model_id, "v": res.model_version,
+             "pv": res.prompt_version, "sha": res.input_sha256,
+             "o": None if res.output is None else json.dumps(res.output),
+             "e": res.error, "g": res.generated_at})).rowcount
+        stored += n or 0
+    await s.commit()
+    errors = sorted({res.error for _, res in results
+                     if res.status in ("ERROR", "TIMEOUT") and res.error})[:5]
+    return {"model_id": model_id, "prompt_version": PROMPT_VERSION, "window_h": window_h,
+            "done_today_before": done_today, "budget": budget, "candidates": len(rows),
+            "status": dict(status), "stored": stored, "errors": errors}

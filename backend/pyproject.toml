@@ -40,6 +40,11 @@ ml = [
   "lightgbm>=4.5",
   "torch>=2.5",
 ]
+# News AI enrichment only (NEWS-CONTENT, enabled 2026-10-22): AWS Bedrock Converse, imported
+# lazily by app/news/ai.py. >= 1.39: Bedrock API keys (AWS_BEARER_TOKEN_BEDROCK).
+ai = [
+  "boto3>=1.39",
+]
 dev = [
   "pytest>=8.3",
   "pytest-asyncio>=0.25",

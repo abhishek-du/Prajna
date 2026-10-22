@@ -1965,6 +1965,46 @@ def news_redecide(
     typer.echo(_json.dumps(asyncio.run(_go()), indent=2))
 
 
+@news_app.command("ai-enrich")
+def news_ai_enrich(
+    commit: bool = typer.Option(False, "--commit", help="required: calls the model, writes"),
+    limit: int = typer.Option(400, "--limit", help="model calls in this run at most"),
+    hours: int = typer.Option(48, "--hours", help="items first knowable in the last N hours"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN"),
+):
+    """AI enrichment of recent news items (decision NEWS-CONTENT; AWS Bedrock Converse).
+    Enrichment only, never a source fact: news_ai_enrichment with model_id,
+    prompt_version, input_sha256 and knowable_at = generated_at (PIT). Refused (exit 3)
+    unless PRAJNA_NEWS_AI_ENABLED and PRAJNA_NEWS_AI_MODEL_ID are set and the news kill
+    switch is off. Credentials: the standard AWS chain of the process only (e.g.
+    AWS_BEARER_TOKEN_BEDROCK in the environment), never argv, never logged."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.news import ai as AI
+    from app.news import locks as NL
+
+    if not commit:
+        typer.echo("news ai-enrich calls the model and writes: pass --commit")
+        raise typer.Exit(2)
+    st = get_settings()
+    why = [w for ok, w in (
+        (st.PRAJNA_NEWS_AI_ENABLED, "PRAJNA_NEWS_AI_ENABLED is false"),
+        (bool(st.PRAJNA_NEWS_AI_MODEL_ID), "PRAJNA_NEWS_AI_MODEL_ID is not set"),
+        (not NL.kill_engaged(), "the news kill switch is engaged")) if not ok]
+    if why:
+        typer.echo("REFUSED: news AI enrichment: " + "; ".join(why) + "; no model call")
+        raise typer.Exit(3)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await AI.enrich_pending(
+                s, AI.bedrock_model(st.PRAJNA_NEWS_AI_REGION), st.PRAJNA_NEWS_AI_MODEL_ID,
+                token=token, limit=limit, window_h=hours)
+
+    typer.echo(_json.dumps(asyncio.run(_go()), indent=2, default=str))
+
+
 @news_app.command("kill")
 def news_kill(state: str = typer.Argument(..., help="on | off"),
               reason: str = typer.Option("", "--reason")):
