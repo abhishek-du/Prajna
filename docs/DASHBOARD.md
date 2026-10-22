@@ -14,7 +14,7 @@
 | Market | Nifty 50 / Bank / VIX; regime (regime-v1); breadth; top gainers and losers; AI-tagged hot topics; stocks in the news; sector heat map; latest news |
 | Movers | Best and worst returns by cap bucket (large / mid / small) and period (session / 5 d / 20 d); "steadier" (large/mid, uptrend, lowest 20-day volatility: lower volatility, not safe); research bullish / bearish |
 | Sectors | Every sector's median move. Click a sector for its stocks |
-| News | 6 h – 7 d. Topics, most mentioned stocks, each item with its description and its AI enrichment (summary, impact, direction) |
+| News | 6 h – 7 d. Tabs: Media news (default), All, and one per source, each with its count. A per-source table shows items, AI-tagged, linked to a stock, and median delay (published → seen). Topics and most mentioned stocks are counted over every item in the window. Each item shows its description, AI enrichment and delay. Before 2026-10-22 the list was the latest 120 items of all sources, about 87 % NSE filings, so media news was crowded out |
 | Stock | Candles 1D (split/bonus adjusted, all history) / 1H / 15M / 5M with SMA 20/50 and pattern markers; candle-by-candle analysis; research signal with every reason; typical ranges; E5 today; AI note (on request); forensic flags; valuation vs sector; shareholding; results; corporate actions; 30 days of news |
 | Model | E5's ranking for today only. Its past picks and their returns stay hidden until the single look after session 40 (pre-registration) |
 

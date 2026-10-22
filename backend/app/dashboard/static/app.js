@@ -52,7 +52,7 @@ const COLS = [
 // ── market ───────────────────────────────────────────────────────────────────────
 async function market() {
   const [m, mv, nw, sc] = await Promise.all([api("/api/market"), api("/api/movers?bucket=ALL&period=day&n=8"),
-    api("/api/news?hours=24"), api("/api/sectors")]);
+    api("/api/news?hours=24&source=MEDIA&limit=10"), api("/api/sectors")]);
   setAsOf(m.as_of, m.live);
   const b = m.breadth, tot = b.advances + b.declines + b.unchanged || 1;
   view.innerHTML = `
@@ -93,7 +93,7 @@ function bindHeat() {
 }
 function newsList(items) {
   return items.map(n => `<div class="news-item"><div class="t"><a href="${esc(n.url || "#")}" target="_blank" rel="noopener noreferrer">${esc(n.title)}</a></div>
-    <div class="meta">${esc(n.publisher)} · ${ago(n.at)} ${n.stocks ? n.stocks.map(stockLink).join(" ") : ""}
+    <div class="meta">${esc(n.publisher)} · seen ${ago(n.at)}${n.delay_min != null ? ` · ${n.delay_min} min after publishing` : ""} ${n.stocks ? n.stocks.map(stockLink).join(" ") : ""}
     ${n.ai ? pill(n.ai.impact_direction) + pill(n.ai.potential_impact) + pill((n.ai.event_type || "").replace(/_/g, " "), "x") : ""}</div>
     ${n.summary && n.summary !== n.title ? `<div class="small muted" style="margin-top:3px">${esc(n.summary)}</div>` : ""}
     ${n.ai && n.ai.summary ? `<div class="ai">AI: ${esc(n.ai.summary)}</div>` : ""}</div>`).join("") || '<div class="muted">No news</div>';
@@ -131,14 +131,24 @@ async function sectors(name) {
 }
 
 // ── news ─────────────────────────────────────────────────────────────────────────
-let newsHours = 24;
+let newsHours = 24, newsSource = "MEDIA";
+const SRC = { NSE_ANNOUNCEMENTS: "NSE filings", CNBCTV18_NEWS_SITEMAP: "CNBC-TV18", ET_STOCKS_RSS: "Economic Times",
+  MINT_MARKETS_RSS: "Mint", BL_MARKETS_RSS: "BusinessLine", BS_MARKETS_RSS: "Business Standard", SEBI_RSS: "SEBI" };
 async function news() {
-  const d = await api(`/api/news?hours=${newsHours}`);
-  view.innerHTML = `<div class="controls">${[6, 24, 72, 168].map(h => `<button class="${h === newsHours ? "on" : ""}" data-h="${h}">${h < 48 ? h + " h" : h / 24 + " days"}</button>`).join("")}</div>
-  <div class="grid g2"><div><h2>Topics</h2><div class="card">${d.topics.map(([t, n]) => `<span class="pill">${esc(t.replace(/_/g, " "))} · ${n}</span>`).join("") || '<span class="muted">None yet</span>'}</div></div>
-  <div><h2>Most mentioned stocks</h2><div class="card">${d.stocks.map(([s, x]) => `<span class="pill">${stockLink(s)} ${x.items}${x.positive ? ` <span class="up">+${x.positive}</span>` : ""}${x.negative ? ` <span class="down">−${x.negative}</span>` : ""}</span>`).join("")}</div></div></div>
-  <h2>News <small>${esc(d.ai_note)}</small></h2><div class="card">${newsList(d.items)}</div>`;
+  const d = await api(`/api/news?hours=${newsHours}&limit=200${newsSource ? "&source=" + newsSource : ""}`);
+  const tab = (k, l, n) => `<button class="${newsSource === k ? "on" : ""}" data-s="${k}">${l}${n != null ? ` <span class="muted">${n}</span>` : ""}</button>`;
+  const media = d.sources.filter(x => !["NSE_ANNOUNCEMENTS", "SEBI_RSS"].includes(x.source)).reduce((a, x) => a + x.items, 0);
+  view.innerHTML = `<div class="controls">${[6, 24, 72, 168].map(h => `<button class="${h === newsHours ? "on" : ""}" data-h="${h}">${h < 48 ? h + " h" : h / 24 + " days"}</button>`).join("")}
+    <span class="muted small" style="align-self:center">last poll ${d.last_poll ? ago(d.last_poll) : "–"} · ${d.total} items in ${newsHours} h</span></div>
+  <div class="controls">${tab("MEDIA", "Media news", media)}${tab("", "All", d.total)}${d.sources.map(x => tab(x.source, SRC[x.source] || x.source, x.items)).join("")}</div>
+  <div class="card"><h3>Sources in this window</h3><table><thead><tr><th>Source</th><th class="num">Items</th><th class="num">AI-tagged</th><th class="num">Linked to a stock</th><th class="num">Median delay (published → seen)</th></tr></thead><tbody>
+    ${d.sources.map(x => `<tr><td>${esc(SRC[x.source] || x.source)}</td><td class="num">${x.items}</td><td class="num">${x.ai}</td><td class="num">${x.linked}</td><td class="num">${x.median_delay_min == null ? "–" : x.median_delay_min + " min"}</td></tr>`).join("")}</tbody></table>
+    <div class="small muted" style="margin-top:6px">Delay = when Prajna first saw an item minus the publisher's own timestamp (polling 2–5 min in market hours; a feed that publishes late shows a longer delay).</div></div>
+  <div class="grid g2"><div><h2>Topics <small>all sources</small></h2><div class="card">${d.topics.map(([t, n]) => `<span class="pill">${esc(t.replace(/_/g, " "))} · ${n}</span>`).join("") || '<span class="muted">None yet</span>'}</div></div>
+  <div><h2>Most mentioned stocks <small>all sources</small></h2><div class="card">${d.stocks.map(([s, x]) => `<span class="pill">${stockLink(s)} ${x.items}${x.positive ? ` <span class="up">+${x.positive}</span>` : ""}${x.negative ? ` <span class="down">−${x.negative}</span>` : ""}</span>`).join("")}</div></div></div>
+  <h2>${esc(newsSource === "MEDIA" ? "Media news" : newsSource ? SRC[newsSource] || newsSource : "All news")} <small>${esc(d.ai_note)}</small></h2><div class="card">${newsList(d.items)}</div>`;
   view.querySelectorAll("button[data-h]").forEach(b => b.onclick = () => { newsHours = +b.dataset.h; news(); });
+  view.querySelectorAll("button[data-s]").forEach(b => b.onclick = () => { newsSource = b.dataset.s; news(); });
 }
 
 // ── stock ────────────────────────────────────────────────────────────────────────
@@ -318,7 +328,7 @@ async function route() {
     if (p === "market") { await market(); every(30000, market); }
     else if (p === "movers") { await movers(); every(30000, movers); }
     else if (p === "sectors") { await sectors(arg); }
-    else if (p === "news") { await news(); every(60000, news); }
+    else if (p === "news") { await news(); every(30000, news); }
     else if (p === "stock") { await stock(arg); if (arg) every(30000, () => refreshPrice(arg)); }
     else if (p === "model") { await model(); every(120000, model); }
     else about();

@@ -212,31 +212,48 @@ def sectors(stocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(out, key=lambda r: -(r["day"] or -9))
 
 
-async def hot_news(s: AsyncSession, hours: int = 24, limit: int = 120) -> dict[str, Any]:
-    """Recent items with their AI enrichment (when it exists) and linked stocks."""
+MEDIA_EXCLUDE = ("NSE_ANNOUNCEMENTS", "SEBI_RSS")       # filings / regulator, not media
+
+
+async def hot_news(s: AsyncSession, hours: int = 24, limit: int = 150,
+                   source: str | None = None) -> dict[str, Any]:
+    """Every item first seen in the window (all sources) for the topic / stock / source
+    counts, with its AI enrichment when it exists; the list is filtered by `source`
+    (a source key, MEDIA = every source except exchange filings and the regulator, or
+    None = all) and capped at `limit`. Each item carries its delay: published -> seen."""
     await read_only(s)
     since = now() - _dt.timedelta(hours=hours)
     items = (await s.execute(text("""
-        select i.id, i.title, i.summary, i.publisher, i.url, i.knowable_at, i.source,
-               e.output as ai, e.knowable_at as ai_at
+        select i.id, i.title, i.summary, i.publisher, i.url, i.knowable_at, i.published_at,
+               i.discovered_at, i.source, i.backlog, e.output as ai
         from news_item i
-        left join lateral (select output, knowable_at from news_ai_enrichment x
+        left join lateral (select output from news_ai_enrichment x
                            where x.item_id = i.id and x.status = 'OK'
                            order by x.id desc limit 1) e on true
-        where i.knowable_at > :t order by i.knowable_at desc limit :n"""),
-        {"t": since, "n": limit})).mappings().all()
+        where i.knowable_at > :t order by i.knowable_at desc"""),
+        {"t": since})).mappings().all()
     ids = [r["id"] for r in items]
-    links = (await s.execute(text("""select l.item_id, l.instrument_key, c.trading_symbol
+    links = (await s.execute(text("""select l.item_id, c.trading_symbol
         from news_entity_link l join canon_instrument c using (instrument_key)
         where l.item_id = any(:i) and l.confidence >= 0.8"""), {"i": ids})).all()
     by: dict[int, list[str]] = {}
-    for i, _k, sym in links:
+    for i, sym in links:
         by.setdefault(i, []).append(sym)
     topics: dict[str, int] = {}
     stocks: dict[str, dict[str, int]] = {}
+    sources: dict[str, dict[str, Any]] = {}
     out = []
     for r in items:
         ai = r["ai"] or {}
+        src = sources.setdefault(r["source"], {"items": 0, "ai": 0, "linked": 0, "delays": []})
+        src["items"] += 1
+        src["ai"] += bool(ai)
+        src["linked"] += bool(by.get(r["id"]))
+        delay = None
+        if r["published_at"] and not r["backlog"]:
+            delay = (r["discovered_at"] - r["published_at"]).total_seconds() / 60
+            if delay >= 0:
+                src["delays"].append(delay)
         et = (ai.get("event_type") or "").strip().lower().replace(" ", "_").replace("-", "_") \
             or None
         if et:
@@ -248,15 +265,33 @@ async def hot_news(s: AsyncSession, hours: int = 24, limit: int = 120) -> dict[s
                 d["positive"] += 1
             elif ai.get("impact_direction") == "NEGATIVE":
                 d["negative"] += 1
-        out.append({"title": r["title"], "summary": (r["summary"] or "")[:300],
-                    "publisher": r["publisher"], "url": r["url"],
-                    "at": r["knowable_at"].isoformat(), "source": r["source"],
-                    "stocks": by.get(r["id"], []),
-                    "ai": None if not ai else {k: ai.get(k) for k in (
-                        "summary", "event_type", "market_scope", "potential_impact",
-                        "impact_direction", "confidence", "entities")}})
-    return {"hours": hours, "items": out,
-            "topics": sorted(topics.items(), key=lambda x: -x[1])[:20],
+        if source == "MEDIA" and r["source"] in MEDIA_EXCLUDE:
+            continue
+        if source and source != "MEDIA" and r["source"] != source:
+            continue
+        if len(out) < limit:
+            out.append({"title": r["title"], "summary": (r["summary"] or "")[:300],
+                        "publisher": r["publisher"], "url": r["url"],
+                        "at": r["knowable_at"].isoformat(), "source": r["source"],
+                        "published_at": r["published_at"].isoformat() if r["published_at"]
+                        else None,
+                        "delay_min": None if delay is None or delay < 0 else round(delay, 1),
+                        "stocks": by.get(r["id"], []),
+                        "ai": None if not ai else {k: ai.get(k) for k in (
+                            "summary", "event_type", "market_scope", "potential_impact",
+                            "impact_direction", "confidence", "entities")}})
+
+    def med(xs):
+        xs = sorted(xs)
+        return round(xs[len(xs) // 2], 1) if xs else None
+    src_out = sorted(({"source": k, "items": v["items"], "ai": v["ai"], "linked": v["linked"],
+                       "median_delay_min": med(v["delays"])} for k, v in sources.items()),
+                     key=lambda x: -x["items"])
+    last_poll = (await s.execute(text("""select max(finished_at) from news_poll
+        where mode = 'PRODUCTION'"""))).scalar()
+    return {"hours": hours, "source": source, "items": out, "total": len(items),
+            "sources": src_out, "last_poll": last_poll.isoformat() if last_poll else None,
+            "topics": sorted(topics.items(), key=lambda x: -x[1])[:25],
             "stocks": sorted(stocks.items(), key=lambda x: -x[1]["items"])[:30],
             "ai_note": "AI enrichment (Bedrock Nova Pro): a description of the text, never "
                        "a fact or a price prediction"}

@@ -148,9 +148,10 @@ async def stocks(sector: str | None = None, bucket: str | None = None,
 
 
 @app.get("/api/news")
-async def news(hours: int = Query(24, ge=1, le=168)) -> JSONResponse:
+async def news(hours: int = Query(24, ge=1, le=168), source: str | None = None,
+               limit: int = Query(150, ge=1, le=500)) -> JSONResponse:
     async with get_sessionmaker()() as s:
-        out = await DD.hot_news(s, hours)
+        out = await DD.hot_news(s, hours, limit, source)
         await s.rollback()
     return _json(out)
 
