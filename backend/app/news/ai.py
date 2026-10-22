@@ -26,7 +26,7 @@ from app.core.clock import now
 from app.news.model import ItemObs
 
 PROMPT_VERSION = "news-ai-v1"
-TIMEOUT_S = 20.0
+TIMEOUT_S = 90.0                   # one call, its backoff retries included
 SCOPES = {"STOCK", "SECTOR", "INDEX", "MARKET", "MACRO", "GLOBAL", "UNKNOWN"}
 IMPACTS = {"LOW", "MEDIUM", "HIGH", "UNKNOWN"}
 DIRECTIONS = {"POSITIVE", "NEGATIVE", "MIXED", "NEUTRAL", "UNKNOWN"}
@@ -106,8 +106,12 @@ async def enrich(item: ItemObs, model: Model, model_id: str, *,
 def bedrock_model(region: str | None = None) -> Model:            # pragma: no cover - network
     """A Bedrock Converse call through boto3's standard credential chain."""
     import boto3  # imported only when AI is enabled
+    from botocore.config import Config
 
-    client = boto3.client("bedrock-runtime", region_name=region)
+    # Bedrock throttles bursts (2026-10-22: ~1/3 of the calls of a 4-concurrent run got
+    # ThrottlingException): botocore's adaptive mode backs off and retries within the call.
+    client = boto3.client("bedrock-runtime", region_name=region, config=Config(
+        retries={"mode": "adaptive", "max_attempts": 8}, connect_timeout=10, read_timeout=40))
 
     async def call(model_id: str, prompt: str) -> tuple[str, str | None]:
         def _run():
@@ -127,7 +131,7 @@ def bedrock_model(region: str | None = None) -> Model:            # pragma: no c
 # feature that reads it filters knowable_at < as_of like every other input.
 WINDOW_H = 48                      # items first knowable within this many hours
 RUN_LIMIT = 400                    # model calls per run at most
-CONCURRENCY = 4
+CONCURRENCY = 2                    # 4 drew ThrottlingException on ~1/3 of the calls
 DAILY_MAX = 4000                   # stored enrichments per IST day at most (cost guard)
 FINAL = ("OK", "INVALID")          # stored; ERROR / TIMEOUT are retried by a later run
 

@@ -25,9 +25,11 @@ The prompt says "use only the text given, do not predict prices".
 
 ## Limits (cost guard)
 
-- At most 400 calls per run and 4 concurrent calls.
+- At most 400 calls per run and 2 concurrent calls.
+- botocore adaptive retries (8 attempts, with backoff); 90 s per call including retries.
+  - Before this fix (4 concurrent, no backoff), about 1/3 of the calls of a run got `ThrottlingException`.
+  - After it, a 40-item test run (2026-10-22 18:4x) gave 0 throttled calls (39 OK, 1 INVALID, 73 s).
 - At most 4,000 stored enrichments per IST day.
-- 20 s timeout per call.
 - Measured volume: 1,200–2,000 items per weekday (7 sources, mostly NSE announcements) and ~220 characters per item. That is roughly 350 input and 200 output tokens per call.
 
 ## Status (2026-10-22)
