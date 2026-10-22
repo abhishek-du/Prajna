@@ -21,7 +21,12 @@ async function api(path, opts) {
   return r.json();
 }
 function every(ms, fn) { clearInterval(timer); timer = setInterval(fn, ms); }
-function setAsOf(t) { $("#asof").textContent = t ? `Data as of ${new Date(t).toLocaleString("en-IN")}` : ""; }
+function setAsOf(t, live) {
+  const l = live ? (live.status === "live" ? `● LIVE · quotes ${new Date(live.fetched_at).toLocaleTimeString("en-IN")}`
+    : live.status === "after-hours" ? `Market closed · last quotes ${live.fetched_at ? new Date(live.fetched_at).toLocaleTimeString("en-IN") : "–"}`
+    : `Live quotes unavailable (${live.error || live.status}) · stored bars`) : "";
+  $("#asof").textContent = [l, t ? `features/cache ${new Date(t).toLocaleString("en-IN")}` : ""].filter(Boolean).join(" · ");
+}
 
 function stockLink(sym) { return `<a href="#/stock/${encodeURIComponent(sym)}">${esc(sym)}</a>`; }
 function rowsTable(rows, cols) {
@@ -46,7 +51,7 @@ const COLS = [
 async function market() {
   const [m, mv, nw, sc] = await Promise.all([api("/api/market"), api("/api/movers?bucket=ALL&period=day&n=8"),
     api("/api/news?hours=24"), api("/api/sectors")]);
-  setAsOf(m.as_of);
+  setAsOf(m.as_of, m.live);
   const b = m.breadth, tot = b.advances + b.declines + b.unchanged || 1;
   view.innerHTML = `
   <div class="grid g4">
@@ -96,7 +101,7 @@ function newsList(items) {
 let mv = { bucket: "ALL", period: "day" };
 async function movers() {
   const d = await api(`/api/movers?bucket=${mv.bucket}&period=${mv.period}&n=20`);
-  setAsOf(d.as_of);
+  setAsOf(d.as_of, (await api("/api/health")).live);
   const btn = (k, v, l) => `<button class="${mv[k] === v ? "on" : ""}" data-k="${k}" data-v="${v}">${l}</button>`;
   view.innerHTML = `<div class="controls">${btn("bucket", "ALL", "All")}${btn("bucket", "LARGE", "Large cap")}${btn("bucket", "MID", "Mid cap")}${btn("bucket", "SMALL", "Small cap")}
     <span style="width:16px"></span>${btn("period", "day", "Last session")}${btn("period", "5d", "5 days")}${btn("period", "20d", "20 days")}</div>
@@ -139,15 +144,14 @@ let tf = "1d";
 async function stock(sym) {
   if (!sym) { view.innerHTML = `<div class="card">Search a stock above (symbol or name).</div>`; return; }
   const d = await api(`/api/stock/${encodeURIComponent(sym)}`);
-  setAsOf(null);
+  setAsOf(null, d.live_status);
   const sg = d.signal, f = d.features || {}, r = d.ranges || {};
   const e5 = d.e5_today;
   view.innerHTML = `
   <div class="grid g3">
     <div class="card"><h3>${esc(d.segment)} · ${esc(d.sector || "no sector")}</h3>
       <div class="big">${esc(d.symbol)} <span class="muted" style="font-size:14px">${esc(d.name || "")}</span></div>
-      <div class="big">${num(d.close)} ${pct(d.day_change)}</div>
-      <div class="small muted">${esc(d.price_basis)}${d.price_at ? " · " + new Date(d.price_at).toLocaleString("en-IN") : " · " + esc(d.close_date || "")}</div>
+      <div id="pricebox">${priceBox(d)}</div>
       <div>${Object.entries(d.returns).map(([k, v]) => `<span class="pill">${k} ${pct(v, 1)}</span>`).join("")}</div></div>
     <div class="card"><h3>Research signal <span class="muted small">${esc(sg.version)}</span></h3>
       <div class="big">${pill(sg.label)} <span class="small muted">score ${sg.score}</span></div>
@@ -191,6 +195,18 @@ async function stock(sym) {
   view.querySelectorAll("button[data-tf]").forEach(b => b.onclick = () => { tf = b.dataset.tf; drawChart(d); view.querySelectorAll("button[data-tf]").forEach(x => x.classList.toggle("on", x.dataset.tf === tf)); });
   const ab = $("#aibtn"); if (ab) ab.onclick = () => genAI(d.symbol);
   drawChart(d);
+}
+function priceBox(d) {
+  const q = d.live;
+  return `<div class="big">${num(d.close)} ${pct(d.day_change)}</div>
+    <div class="small muted">${esc(d.price_basis)}${d.price_at ? " · " + new Date(d.price_at).toLocaleString("en-IN") : " · " + esc(d.close_date || "")}</div>
+    ${q ? `<div class="small" style="margin-top:4px">O ${num(q.open)} · H ${num(q.high)} · L ${num(q.low)} · prev ${num(q.prev_close)} · vol ${num(q.volume, 0)}
+      ${q.lower_circuit ? `<div class="muted">circuit ${num(q.lower_circuit)} – ${num(q.upper_circuit)}</div>` : ""}</div>` : ""}`;
+}
+async function refreshPrice(sym) {
+  try { const r = await api(`/api/quote/${encodeURIComponent(sym)}`); const el = $("#pricebox");
+    if (el && r.quote) { const q = r.quote; el.innerHTML = priceBox({ close: q.ltp, day_change: q.change, price_basis: "live (Upstox quote)", price_at: q.at, live: q }); }
+    setAsOf(null, r.live); } catch (e) { /* keep the last price */ }
 }
 function aiBox(a) {
   if (a && a.status === "OK") { const o = a.output; return `<div>${esc(o.summary)}</div>
@@ -272,11 +288,11 @@ async function route() {
   document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("active", a.getAttribute("href") === `#/${p}`));
   clearInterval(timer);
   try {
-    if (p === "market") { await market(); every(60000, market); }
-    else if (p === "movers") { await movers(); every(60000, movers); }
+    if (p === "market") { await market(); every(30000, market); }
+    else if (p === "movers") { await movers(); every(30000, movers); }
     else if (p === "sectors") { await sectors(arg); }
     else if (p === "news") { await news(); every(60000, news); }
-    else if (p === "stock") { await stock(arg); if (arg) every(120000, () => stock(arg)); }
+    else if (p === "stock") { await stock(arg); if (arg) every(30000, () => refreshPrice(arg)); }
     else if (p === "model") { await model(); every(120000, model); }
     else about();
   } catch (e) { view.innerHTML = `<div class="card down">Could not load: ${esc(e.message)}</div>`; }

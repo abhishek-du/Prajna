@@ -19,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.dashboard import ai_summary as AIS
 from app.dashboard import data as DD
+from app.dashboard import live as LV
 from app.db.engine import get_sessionmaker
 
 STATIC = pathlib.Path(__file__).resolve().parent / "static"
@@ -29,6 +30,26 @@ app = FastAPI(title="Prajna research dashboard", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 _cache: dict[str, tuple[float, Any]] = {}
 _lock = asyncio.Lock()
+LIVE = LV.LiveQuotes()
+
+
+@app.on_event("startup")
+async def _start_live() -> None:
+    if os.environ.get("PRAJNA_DASHBOARD_LIVE", "1") == "1":
+        LIVE.start()
+
+
+async def _view() -> dict[str, Any]:
+    """The cached market view with the live quotes applied (per request, cheap)."""
+    m = await _market()
+    stocks = [LV.overlay(r, LIVE.get(r["key"])) for r in m["stocks"]]
+    ups = sum(1 for r in stocks if (r["day_change"] or 0) > 0)
+    downs = sum(1 for r in stocks if (r["day_change"] or 0) < 0)
+    return {**m, "stocks": stocks,
+            "indices": [LV.overlay(r, LIVE.get(r["key"])) for r in m["indices"]],
+            "breadth": {"advances": ups, "declines": downs,
+                        "unchanged": len(stocks) - ups - downs},
+            "live": LIVE.summary()}
 
 
 def _json(x: Any) -> JSONResponse:
@@ -59,14 +80,14 @@ async def index() -> FileResponse:
 
 @app.get("/api/market")
 async def market() -> JSONResponse:
-    m = await _market()
+    m = await _view()
     return _json({k: v for k, v in m.items() if k != "stocks"} | {"stocks": len(m["stocks"])})
 
 
 @app.get("/api/movers")
 async def movers(bucket: str = "ALL", period: str = "day", n: int = Query(15, le=50)
                  ) -> JSONResponse:
-    m = await _market()
+    m = await _view()
     rows = [r for r in m["stocks"] if bucket == "ALL" or r["cap_bucket"] == bucket]
     field = {"day": "day_change", "5d": "ret_5d", "20d": "ret_20d"}.get(period, "day_change")
     have = [r for r in rows if r[field] is not None and r["close"]]
@@ -88,14 +109,14 @@ async def movers(bucket: str = "ALL", period: str = "day", n: int = Query(15, le
 
 @app.get("/api/sectors")
 async def sectors() -> JSONResponse:
-    m = await _market()
+    m = await _view()
     return _json({"sectors": DD.sectors(m["stocks"]), "as_of": m["as_of"]})
 
 
 @app.get("/api/stocks")
 async def stocks(sector: str | None = None, bucket: str | None = None,
                  signal: str | None = None) -> JSONResponse:
-    m = await _market()
+    m = await _view()
     rows = [r for r in m["stocks"] if (not sector or r["sector"] == sector)
             and (not bucket or r["cap_bucket"] == bucket) and (not signal or r["signal"] == signal)]
     return _json({"rows": sorted(rows, key=lambda r: -(r["cap_cr"] or 0))[:300],
@@ -131,8 +152,22 @@ async def stock(symbol: str) -> JSONResponse:
     async with get_sessionmaker()() as s:
         out = await DD.stock(s, await _key(s, symbol))
         await s.rollback()
+    q = LIVE.get(out["key"])
+    if q:
+        out.update(LV.overlay({k: out[k] for k in ("close", "day_change", "close_date")}, q))
+        out["live"] = q
+    out["live_status"] = LIVE.summary()
     out["ai"] = AIS.cached(out["symbol"])
     return _json(out)
+
+
+@app.get("/api/quote/{symbol}")
+async def quote(symbol: str) -> JSONResponse:
+    """The cached live quote of one stock (no vendor call per request)."""
+    async with get_sessionmaker()() as s:
+        k = await _key(s, symbol)
+        await s.rollback()
+    return _json({"symbol": symbol, "quote": LIVE.get(k), "live": LIVE.summary()})
 
 
 @app.get("/api/candles/{symbol}")
@@ -142,7 +177,14 @@ async def candles(symbol: str, tf: str = Query("1d", pattern="^(1d|1h|15m|5m|1m)
         k = await _key(s, symbol)
         out = await DD.candles_for(s, k, tf)
         if tf == "1d":
-            pb = await DD.provisional_daily(s, k, out["bars"][-1]["date"] if out["bars"] else None)
+            last = out["bars"][-1]["date"] if out["bars"] else None
+            q = LIVE.get(k)
+            if q and (not last or last < q["date"]) and q["open"] is not None:
+                pb = {"time": q["date"], "date": q["date"], "open": q["open"],
+                      "high": q["high"], "low": q["low"], "close": q["ltp"],
+                      "volume": q["volume"], "provisional": True, "source": "live quote"}
+            else:
+                pb = await DD.provisional_daily(s, k, last)
             if pb:
                 out["bars"].append(pb)
                 out["provisional_today"] = True
@@ -179,4 +221,4 @@ async def e5() -> JSONResponse:
 async def health() -> JSONResponse:
     hit = _cache.get("market")
     return _json({"ok": True, "market_cached_s": None if not hit
-                  else round(time.monotonic() - hit[0])})
+                  else round(time.monotonic() - hit[0]), "live": LIVE.summary()})

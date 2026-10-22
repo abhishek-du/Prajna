@@ -36,6 +36,17 @@
   - The stock note is generated on request: one Bedrock call per stock per day, cached in `backend/var/dashboard/ai/`.
   - The model gets only the page's facts and is told not to predict prices or advise. An answer with advice or a price target is rejected.
 
+## Live quotes (2026-10-22, user: "sab live hona chaiye")
+
+`app/dashboard/live.py` runs a poller inside the dashboard process. It reads Upstox `/v2/market-quote/quotes` for every active NSE instrument (3,569; 500 keys a request).
+- **Cadence:** every 30 s from 09:00 to 15:45 IST on a trading day, every 20 min otherwise. The day's close shows as soon as the session ends.
+- **What uses it:** prices, changes, breadth, indices, movers and sectors; the stock page's price box (O/H/L, previous close, volume, circuit limits; refreshed every 30 s); and today's provisional candle.
+- **Display only.** Quotes stay in memory. They are never written to the database and are never an input of a feature or a model, which stay point in time.
+- **Read-only market data.** No order API is ever called.
+- **Token:** the dashboard uses the cached Upstox token and never logs in. Without a valid token it shows "Live quotes unavailable" and falls back to stored bars.
+- **Rate limit:** its own limiter (4/s, 120/min, 1500/30 min), well inside Upstox's per-API limits.
+- **Switch off:** `PRAJNA_DASHBOARD_LIVE=0`.
+
 ## Data freshness
 
 - Market figures come from the latest Stage 3 PRE_SESSION snapshot and the last daily bars (07:00 job).

@@ -89,3 +89,20 @@ def test_ai_note_validation():
                 {**GOOD, "watch": ["a price target of 1500"]}):
         with pytest.raises(ValueError):
             AIS.validate(json.dumps(bad))
+
+
+def test_live_quote_parse_and_overlay():
+    from app.dashboard import live as LV
+    v = {"instrument_token": "NSE_EQ|X", "last_price": 216.49, "net_change": -4.41,
+         "ohlc": {"open": 216.49, "high": 216.49, "low": 216.49, "close": 216.49},
+         "volume": 28801, "last_trade_time": "1792665305062",
+         "lower_circuit_limit": 216.49, "upper_circuit_limit": 225.31}
+    q = LV.parse(v)
+    assert q["key"] == "NSE_EQ|X" and q["prev_close"] == pytest.approx(220.9)
+    assert q["change"] == pytest.approx(216.49 / 220.9 - 1) and q["date"] == "2026-10-22"
+    assert LV.parse({"instrument_token": "k"}) is None                 # no price: no quote
+    row = {"close": 220.9, "day_change": -0.09, "close_date": "2026-10-21", "x": 1}
+    o = LV.overlay(row, q)
+    assert (o["close"], o["close_date"], o["price_basis"]) == (216.49, "2026-10-22",
+                                                               "live (Upstox quote)")
+    assert row["close"] == 220.9 and LV.overlay(row, None) is row       # a copy; none: as is
