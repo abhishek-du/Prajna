@@ -48,10 +48,15 @@ class ModelVersion(Base):
     config: Mapped[dict] = mapped_column(JSONB, nullable=False)
     created_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
     authz_token_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    previous_sha256: Mapped[str | None] = mapped_column(        # lineage (0026)
+        CHAR(64), ForeignKey("model_version.model_sha256", name="fk_model_version_previous",
+                             ondelete="RESTRICT"), nullable=True)
 
     __table_args__ = (
-        CheckConstraint("purpose in ('FORWARD_TEST','RESEARCH')",
+        CheckConstraint("purpose in ('FORWARD_TEST','RESEARCH','PRODUCTION')",
                         name="ck_model_version_purpose"),
+        CheckConstraint("purpose <> 'PRODUCTION' or previous_sha256 is not null",
+                        name="ck_model_version_lineage"),
         CheckConstraint("trained_from <= trained_to", name="ck_model_version_dates"),
         UniqueConstraint("model_sha256", name="uq_model_version_sha"),
     )
