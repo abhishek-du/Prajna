@@ -27,7 +27,8 @@ A special session (for example 2026-09-19, which has no pre-open window) gets PR
 | Job | Start | Command |
 |---|---|---|
 | PRE_SESSION (**approved**) | 09:00:30 IST, Mon–Fri | `ops/runbooks/stage3_snapshot.sh PRE_SESSION --token-from-dotenv` |
-| PRE_OPEN, option B (**approved**) | 09:22 IST, Mon–Fri; waits for the pre-open replay | `ops/runbooks/stage3_snapshot.sh PRE_OPEN --after-replay --token-from-dotenv` |
+| PRE_OPEN, PREOPEN-TAIL (**installed 2026-10-22**, §4a) | 09:05 IST, Mon–Fri; waits for PRE_SESSION's lock, then the verified ready marker (until 09:14) | `STAGE3_LOCK_WAIT=540 ops/runbooks/stage3_snapshot.sh PRE_OPEN --after-tail --token-from-dotenv` |
+| PRE_OPEN, option B (approved 2026-09-28; replaced 2026-10-22; still the fallback) | 09:22 IST, Mon–Fri; waits for the pre-open replay | `ops/runbooks/stage3_snapshot.sh PRE_OPEN --after-replay --token-from-dotenv` |
 | PRE_OPEN, option A (not chosen) | 09:08:30 IST | not prepared in the cron file |
 
 Option B is at 09:22 rather than 09:21 only because 09:21 is `timing_monitor.sh`'s cron slot, and the cron file keeps one job per slot (a test enforces this). The run waits for the replay, which finishes at 09:31 or later, so the minute changes nothing.
@@ -110,7 +111,7 @@ The third possibility above, built without leaving the archive-first rule: the p
 
 **Expected timeline with all three:** PRE_SESSION done ≈ 09:05; PRE_OPEN lock check ≈ 09:06:30, marker ≈ 09:08:20, done ≈ 09:12. Without the tail: replay 09:20 → 09:33, PRE_OPEN done ≈ 09:38.
 
-**Cron (the user installs it):** PRE_OPEN moves from `22 9` (`--after-replay`) to `5 9 * * 1-5 cd $B && STAGE3_LOCK_WAIT=540 ops/runbooks/stage3_snapshot.sh PRE_OPEN --after-tail --token-from-dotenv`. It waits for the `stage3.lock` of PRE_SESSION, then for the marker. It replaces the 09:22 line (never both). Until it is installed, the old 09:22 `--after-replay` line still works: with the tail on, its "replay exit 0" comes when the tail ends, at about 09:20.
+**Cron (installed 2026-10-22, the user ran `crontab`; backup `backend/var/backups/crontab_20261022T152906.txt`):** PRE_OPEN moves from `22 9` (`--after-replay`) to `5 9 * * 1-5 cd $B && STAGE3_LOCK_WAIT=540 ops/runbooks/stage3_snapshot.sh PRE_OPEN --after-tail --token-from-dotenv`. It waits for the `stage3.lock` of PRE_SESSION, then for the marker. It replaces the 09:22 line (never both). Until it is installed, the old 09:22 `--after-replay` line still works: with the tail on, its "replay exit 0" comes when the tail ends, at about 09:20.
 
 ## 5. Late runs
 
@@ -191,4 +192,4 @@ Do this only **after** the first production run is explicitly authorised (`PRAJN
 1. Remove the `APPROVED_NOT_INSTALLED: ` prefix from the two lines in `backend/ops/cron/prajna.cron`.
 2. Install the file with `crontab ops/cron/prajna.cron`.
 
-`tests/unit/test_stage3_schedule.py` checks the prepared lines: PRE_SESSION at 09:00(+30 s), PRE_OPEN option B at 09:22 with `--after-replay`, the token taken from the environment only, and no collision with an installed slot. It also checks that neither line is active today.
+`tests/unit/test_stage3_schedule.py` checks the prepared lines: PRE_SESSION at 09:00(+30 s), PRE_OPEN at 09:05 with `--after-tail` (option B's 09:22 `--after-replay` until 2026-10-22), the token taken from the environment only, and no collision with an installed slot. It also checks that neither line is active today.

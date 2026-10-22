@@ -31,7 +31,8 @@ def test_installed_jobs_match_canonical_repository_jobs():
 
 APPROVED_STAGE3 = (
     ("0 9 * * 1-5", "stage3_snapshot.sh PRE_SESSION --token-from-dotenv"),
-    ("22 9 * * 1-5", "stage3_snapshot.sh PRE_OPEN --after-replay --token-from-dotenv"),
+    ("5 9 * * 1-5", "STAGE3_LOCK_WAIT=540 ops/runbooks/stage3_snapshot.sh PRE_OPEN --after-tail "
+                    "--token-from-dotenv"),
 )
 
 

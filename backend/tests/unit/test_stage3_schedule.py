@@ -23,8 +23,10 @@ def test_exactly_the_two_approved_stage3_jobs_are_active():
     assert ps.split()[:5] == ["0", "9", "*", "*", "1-5"] and "sleep 30" in ps   # 09:00:30
     assert "stage3_snapshot.sh PRE_SESSION --token-from-dotenv" in ps
     assert "--after-replay" not in ps
-    assert po.split()[:5] == ["22", "9", "*", "*", "1-5"]                       # 09:22
-    assert "stage3_snapshot.sh PRE_OPEN --after-replay --token-from-dotenv" in po  # option B
+    assert po.split()[:5] == ["5", "9", "*", "*", "1-5"]                        # 09:05
+    # PREOPEN-TAIL (user 2026-10-22; installed 2026-10-22): replaces option B's 09:22 line
+    assert "stage3_snapshot.sh PRE_OPEN --after-tail --token-from-dotenv" in po
+    assert "STAGE3_LOCK_WAIT=540" in po and "--after-replay" not in po
 
 
 def test_no_other_stage3_job_no_backfill_no_leftover_marker():
