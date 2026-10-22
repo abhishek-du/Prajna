@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prajna Research Dashboard</title>
+<link rel="stylesheet" href="/static/style.css">
+<!-- TradingView Lightweight Charts v4.1.3 (Apache-2.0), served locally: this network re-signs TLS, so a CDN fails -->
+<script src="/static/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+<header>
+  <div class="brand">Prajna <span>research dashboard</span></div>
+  <nav id="nav">
+    <a href="#/market">Market</a>
+    <a href="#/movers">Movers</a>
+    <a href="#/sectors">Sectors</a>
+    <a href="#/news">News</a>
+    <a href="#/stock">Stock</a>
+    <a href="#/model">Model</a>
+    <a href="#/about">About</a>
+  </nav>
+  <div class="search">
+    <input id="q" placeholder="Search stock (e.g. RELIANCE)" autocomplete="off">
+    <div id="suggest" class="suggest"></div>
+  </div>
+</header>
+<div class="banner">Paper research only &mdash; not investment advice. Signals come from fixed rules and an unvalidated model; no order is ever placed. <span id="asof"></span></div>
+<main id="view"><div class="loading">Loading&hellip;</div></main>
+<script src="/static/app.js"></script>
+</body>
+</html>

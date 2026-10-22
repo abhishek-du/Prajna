@@ -111,3 +111,8 @@ LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 # E5.1 training data (docs/STAGE4_E5_AFTER_THE_LOOK.md, user 2026-10-22): label-v2 up to yesterday,
 # stage4-ds-v4b-asif up to the last labelled session, samples; after the 07:00 bars and Stage 3
 5 10 * * 1-5  cd $B && ops/runbooks/e51_data.sh daily >> var/logs/cron.log 2>&1
+
+# Research dashboard http://127.0.0.1:8600 (read only, localhost; user 2026-10-22): start at boot,
+# keep alive every 10 min (dashboard.sh start is a no-op while it runs)
+@reboot        cd $B && ops/runbooks/dashboard.sh start >> var/logs/cron.log 2>&1
+*/10 * * * *   cd $B && ops/runbooks/dashboard.sh start >> var/logs/cron.log 2>&1

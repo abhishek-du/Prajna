@@ -1,0 +1,298 @@
+// Prajna research dashboard - paper research only, never advice. Read-only API.
+"use strict";
+const $ = (s) => document.querySelector(s);
+const view = $("#view");
+let timer = null;
+let chart = null;
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pct = (x, d = 2) => x == null ? "–" :
+  `<span class="${x > 0 ? "up" : x < 0 ? "down" : ""}">${x > 0 ? "+" : ""}${(x * 100).toFixed(d)}%</span>`;
+const num = (x, d = 2) => x == null ? "–" : Number(x).toLocaleString("en-IN", { maximumFractionDigits: d });
+const cr = (x) => x == null ? "–" : x >= 1e5 ? `${(x / 1e5).toFixed(2)} L Cr` : `${num(x, 0)} Cr`;
+const pill = (t, cls) => t ? `<span class="pill ${esc(cls || t)}">${esc(t)}</span>` : "";
+const ago = (iso) => { const m = (Date.now() - new Date(iso)) / 60000;
+  return m < 60 ? `${Math.round(m)} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`; };
+
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 200)}`);
+  return r.json();
+}
+function every(ms, fn) { clearInterval(timer); timer = setInterval(fn, ms); }
+function setAsOf(t) { $("#asof").textContent = t ? `Data as of ${new Date(t).toLocaleString("en-IN")}` : ""; }
+
+function stockLink(sym) { return `<a href="#/stock/${encodeURIComponent(sym)}">${esc(sym)}</a>`; }
+function rowsTable(rows, cols) {
+  return `<div class="tablewrap"><table><thead><tr>${cols.map(c => `<th class="${c.n ? "num" : ""}">${c.h}</th>`).join("")}</tr></thead><tbody>${
+    rows.map(r => `<tr class="click" data-sym="${esc(r.symbol)}">${cols.map(c => `<td class="${c.n ? "num" : ""}">${c.f(r)}</td>`).join("")}</tr>`).join("")
+  }</tbody></table></div>`;
+}
+function bindRows() {
+  view.querySelectorAll("tr.click[data-sym]").forEach(tr => tr.onclick = () => location.hash = `#/stock/${encodeURIComponent(tr.dataset.sym)}`);
+}
+const COLS = [
+  { h: "Stock", f: r => `${stockLink(r.symbol)}<div class="muted small">${esc((r.name || "").slice(0, 28))}</div>` },
+  { h: "Close", n: 1, f: r => num(r.close) },
+  { h: "Day", n: 1, f: r => pct(r.day_change) },
+  { h: "Today*", n: 1, f: r => r.intraday ? pct(r.intraday.change) : "–" },
+  { h: "5D", n: 1, f: r => pct(r.ret_5d) },
+  { h: "20D", n: 1, f: r => pct(r.ret_20d) },
+  { h: "Cap", f: r => `${esc(r.cap_bucket || "")}<div class="muted small">${cr(r.cap_cr)}</div>` },
+  { h: "Signal", f: r => pill(r.signal) + (r.e5_pick ? pill("E5 pick", "NEUTRAL") : "") },
+];
+
+// ── market ───────────────────────────────────────────────────────────────────────
+async function market() {
+  const [m, mv, nw, sc] = await Promise.all([api("/api/market"), api("/api/movers?bucket=ALL&period=day&n=8"),
+    api("/api/news?hours=24"), api("/api/sectors")]);
+  setAsOf(m.as_of);
+  const b = m.breadth, tot = b.advances + b.declines + b.unchanged || 1;
+  view.innerHTML = `
+  <div class="grid g4">
+    ${m.indices.map(i => `<div class="card"><h3>${esc(i.name || i.symbol)}</h3><div class="big">${num(i.close)}</div>
+      <div>${pct(i.day_change)} <span class="muted small">close ${esc(i.close_date || "")}</span></div>
+      <div class="small muted">5D ${pct(i.ret_5d)} · 20D ${pct(i.ret_20d)}</div></div>`).join("")}
+    <div class="card"><h3>Market regime</h3><div class="big">${pill(m.regime.label || "UNKNOWN")}</div>
+      <div class="small muted">Nifty 50 vs its 50/200-day averages (regime-v1)</div></div>
+    <div class="card"><h3>Breadth (last session)</h3>
+      <div class="bar"><i style="width:${100 * b.advances / tot}%;background:var(--up)"></i><i style="width:${100 * b.unchanged / tot}%;background:var(--muted)"></i><i style="width:${100 * b.declines / tot}%;background:var(--down)"></i></div>
+      <div class="small" style="margin-top:6px"><span class="up">${b.advances} up</span> · ${b.unchanged} flat · <span class="down">${b.declines} down</span></div></div>
+  </div>
+  <div class="grid g2">
+    <div><h2>Top gainers <small>last session</small></h2><div class="card">${rowsTable(mv.gainers, COLS.slice(0, 3).concat(COLS.slice(6)))}</div></div>
+    <div><h2>Top losers <small>last session</small></h2><div class="card">${rowsTable(mv.losers, COLS.slice(0, 3).concat(COLS.slice(6)))}</div></div>
+  </div>
+  <div class="grid g2">
+    <div><h2>Hot topics <small>AI-tagged news, 24 h</small></h2><div class="card">
+      ${nw.topics.map(([t, n]) => `<span class="pill">${esc(t.replace(/_/g, " "))} · ${n}</span>`).join("") || '<span class="muted">No AI-tagged news yet</span>'}
+      <h3 style="margin-top:12px">Stocks in the news</h3>
+      ${nw.stocks.slice(0, 16).map(([s, d]) => `<span class="pill">${stockLink(s)} ${d.items}${d.positive ? ` <span class="up">+${d.positive}</span>` : ""}${d.negative ? ` <span class="down">−${d.negative}</span>` : ""}</span>`).join("")}
+    </div></div>
+    <div><h2>Sectors <small>median move, last session</small></h2><div class="card heat">${heat(sc.sectors.filter(x => x.stocks >= 5).slice(0, 8).concat(sc.sectors.filter(x => x.stocks >= 5).slice(-8)))}</div></div>
+  </div>
+  <h2>Latest news <small>${esc(nw.ai_note)}</small></h2><div class="card">${newsList(nw.items.slice(0, 10))}</div>
+  <p class="muted small">*Today = the latest stored intraday bar vs the last daily close (intraday bars are stored after each session). ${esc(m.disclaimer)}</p>`;
+  bindRows(); bindHeat();
+}
+
+function heat(list) {
+  return list.map(s => { const d = s.day ?? 0, a = Math.min(1, Math.abs(d) / 0.03);
+    const bg = d >= 0 ? `rgba(46,194,126,${0.15 + 0.6 * a})` : `rgba(242,84,91,${0.15 + 0.6 * a})`;
+    return `<div style="background:${bg}" data-sector="${esc(s.sector)}"><b>${esc(s.sector)}</b>${pct(s.day)} <span class="muted">· ${s.stocks}</span><div class="small muted">20D ${pct(s.ret_20d, 1)}</div></div>`; }).join("");
+}
+function bindHeat() {
+  view.querySelectorAll("[data-sector]").forEach(d => d.onclick = () => location.hash = `#/sectors/${encodeURIComponent(d.dataset.sector)}`);
+}
+function newsList(items) {
+  return items.map(n => `<div class="news-item"><div class="t"><a href="${esc(n.url || "#")}" target="_blank" rel="noopener noreferrer">${esc(n.title)}</a></div>
+    <div class="meta">${esc(n.publisher)} · ${ago(n.at)} ${n.stocks ? n.stocks.map(stockLink).join(" ") : ""}
+    ${n.ai ? pill(n.ai.impact_direction) + pill(n.ai.potential_impact) + pill((n.ai.event_type || "").replace(/_/g, " "), "x") : ""}</div>
+    ${n.summary && n.summary !== n.title ? `<div class="small muted" style="margin-top:3px">${esc(n.summary)}</div>` : ""}
+    ${n.ai && n.ai.summary ? `<div class="ai">AI: ${esc(n.ai.summary)}</div>` : ""}</div>`).join("") || '<div class="muted">No news</div>';
+}
+
+// ── movers ───────────────────────────────────────────────────────────────────────
+let mv = { bucket: "ALL", period: "day" };
+async function movers() {
+  const d = await api(`/api/movers?bucket=${mv.bucket}&period=${mv.period}&n=20`);
+  setAsOf(d.as_of);
+  const btn = (k, v, l) => `<button class="${mv[k] === v ? "on" : ""}" data-k="${k}" data-v="${v}">${l}</button>`;
+  view.innerHTML = `<div class="controls">${btn("bucket", "ALL", "All")}${btn("bucket", "LARGE", "Large cap")}${btn("bucket", "MID", "Mid cap")}${btn("bucket", "SMALL", "Small cap")}
+    <span style="width:16px"></span>${btn("period", "day", "Last session")}${btn("period", "5d", "5 days")}${btn("period", "20d", "20 days")}</div>
+  <div class="grid g2">
+    <div><h2>Best returns</h2><div class="card">${rowsTable(d.gainers, COLS)}</div></div>
+    <div><h2>Worst returns</h2><div class="card">${rowsTable(d.losers, COLS)}</div></div>
+    <div><h2>Steadier <small>${esc(d.steadier_rule)}</small></h2><div class="card">${rowsTable(d.steadier, COLS.slice(0, 3).concat([{ h: "Vol 20D", n: 1, f: r => pct(r.volatility_20, 1) }], COLS.slice(6)))}</div></div>
+    <div><h2>Research: bullish <small>rules, not advice</small></h2><div class="card">${rowsTable(d.bullish, COLS)}</div>
+      <h2>Research: bearish</h2><div class="card">${rowsTable(d.bearish, COLS)}</div></div>
+  </div><p class="muted small">Cap buckets: SEBI/AMFI rank by market cap (price × shares from annual results): 1–100 large, 101–250 mid, rest small. ${esc(d.disclaimer)}</p>`;
+  view.querySelectorAll("button[data-k]").forEach(b => b.onclick = () => { mv[b.dataset.k] = b.dataset.v; movers(); });
+  bindRows();
+}
+
+// ── sectors ──────────────────────────────────────────────────────────────────────
+async function sectors(name) {
+  const d = await api("/api/sectors");
+  setAsOf(d.as_of);
+  let html = `<h2>All sectors <small>median move of their stocks, last session</small></h2><div class="card heat">${heat(d.sectors)}</div>`;
+  if (name) {
+    const s = await api(`/api/stocks?sector=${encodeURIComponent(name)}`);
+    html = `<h2>${esc(name)} <small>${s.count} stocks · by market cap</small></h2><div class="card">${rowsTable(s.rows, COLS)}</div>` + html;
+  }
+  view.innerHTML = html; bindRows(); bindHeat();
+}
+
+// ── news ─────────────────────────────────────────────────────────────────────────
+let newsHours = 24;
+async function news() {
+  const d = await api(`/api/news?hours=${newsHours}`);
+  view.innerHTML = `<div class="controls">${[6, 24, 72, 168].map(h => `<button class="${h === newsHours ? "on" : ""}" data-h="${h}">${h < 48 ? h + " h" : h / 24 + " days"}</button>`).join("")}</div>
+  <div class="grid g2"><div><h2>Topics</h2><div class="card">${d.topics.map(([t, n]) => `<span class="pill">${esc(t.replace(/_/g, " "))} · ${n}</span>`).join("") || '<span class="muted">None yet</span>'}</div></div>
+  <div><h2>Most mentioned stocks</h2><div class="card">${d.stocks.map(([s, x]) => `<span class="pill">${stockLink(s)} ${x.items}${x.positive ? ` <span class="up">+${x.positive}</span>` : ""}${x.negative ? ` <span class="down">−${x.negative}</span>` : ""}</span>`).join("")}</div></div></div>
+  <h2>News <small>${esc(d.ai_note)}</small></h2><div class="card">${newsList(d.items)}</div>`;
+  view.querySelectorAll("button[data-h]").forEach(b => b.onclick = () => { newsHours = +b.dataset.h; news(); });
+}
+
+// ── stock ────────────────────────────────────────────────────────────────────────
+let tf = "1d";
+async function stock(sym) {
+  if (!sym) { view.innerHTML = `<div class="card">Search a stock above (symbol or name).</div>`; return; }
+  const d = await api(`/api/stock/${encodeURIComponent(sym)}`);
+  setAsOf(null);
+  const sg = d.signal, f = d.features || {}, r = d.ranges || {};
+  const e5 = d.e5_today;
+  view.innerHTML = `
+  <div class="grid g3">
+    <div class="card"><h3>${esc(d.segment)} · ${esc(d.sector || "no sector")}</h3>
+      <div class="big">${esc(d.symbol)} <span class="muted" style="font-size:14px">${esc(d.name || "")}</span></div>
+      <div class="big">${num(d.close)} <span class="small muted">close ${esc(d.close_date || "")}</span></div>
+      <div>${Object.entries(d.returns).map(([k, v]) => `<span class="pill">${k} ${pct(v, 1)}</span>`).join("")}</div></div>
+    <div class="card"><h3>Research signal <span class="muted small">${esc(sg.version)}</span></h3>
+      <div class="big">${pill(sg.label)} <span class="small muted">score ${sg.score}</span></div>
+      <div>${pill(sg.trend)} ${pill(sg.momentum, "x")}</div>
+      <ul class="reasons small">${sg.reasons.map(x => `<li><span class="pts ${x.points > 0 ? "up" : "down"}">${x.points > 0 ? "+" : ""}${x.points}</span>${esc(x.why)}</li>`).join("")}</ul>
+      <div class="small muted">${esc(sg.disclaimer)}</div></div>
+    <div class="card"><h3>Typical ranges <span class="muted small">${esc(r.basis || "")}</span></h3>
+      ${r.next_session_q10_q90 ? `<div>Next session (E5 q10–q90): <b>${num(r.next_session_q10_q90.low)} – ${num(r.next_session_q10_q90.high)}</b></div>` : '<div class="muted small">Not in today\'s E5 universe (top 500 by turnover)</div>'}
+      ${r.five_day ? `<div style="margin-top:6px">About a week (±ATR×√5): <b>${num(r.five_day.low)} – ${num(r.five_day.high)}</b> <span class="muted small">±${(r.five_day.width_pct * 100).toFixed(1)}%</span></div>` : ""}
+      ${e5 ? `<h3 style="margin-top:12px">E5 model today ${e5.selected ? pill("in picks", "NEUTRAL") : ""}</h3>
+        <div class="small">P(up) <b>${(e5.prob_up * 100).toFixed(0)}%</b> · expected open→close ${pct(e5.exp_return)} · volatility ${pct(e5.volatility, 1)} · confidence ${(e5.confidence * 100).toFixed(0)}% · rank ${e5.rank}/500</div>
+        <div class="small muted">Forward test in progress; its past accuracy stays hidden until session 40.</div>` : ""}</div>
+  </div>
+  <h2>Chart <small>${d.low_confidence_bars ? `${d.low_confidence_bars} older daily bars have a low-confidence split/bonus basis` : "split/bonus adjusted"}</small></h2>
+  <div class="card"><div class="controls">${["1d", "1h", "15m", "5m"].map(t => `<button class="${t === tf ? "on" : ""}" data-tf="${t}">${t.toUpperCase()}</button>`).join("")}
+    <span class="small muted">SMA 20 (blue) · SMA 50 (orange) · markers: patterns of the last 60 daily candles</span></div><div id="chart"></div></div>
+  <div class="grid g2">
+    <div><h2>Candle analysis <small>last 15 sessions</small></h2><div class="card"><div class="tablewrap"><table><thead><tr><th>Date</th><th class="num">Change</th><th>Candle</th><th class="num">Body</th><th class="num">Vol × avg</th><th>Patterns</th></tr></thead><tbody>
+      ${d.candles.slice(-15).reverse().map(c => `<tr><td>${esc(c.date)}</td><td class="num">${pct(c.change)}</td><td>${pill(c.direction === "UP" ? "UP" : c.direction === "DOWN" ? "DOWN" : "FLAT", c.direction === "UP" ? "BULLISH" : c.direction === "DOWN" ? "BEARISH" : "NEUTRAL")}</td>
+        <td class="num">${c.body_share == null ? "–" : (c.body_share * 100).toFixed(0) + "%"}</td><td class="num">${c.volume_vs_avg == null ? "–" : c.volume_vs_avg.toFixed(1)}</td><td>${c.patterns.map(p => pill(p.replace(/_/g, " "), "x")).join("")}</td></tr>`).join("")}
+      </tbody></table></div></div></div>
+    <div><h2>AI note <small>Bedrock, from the facts on this page; never advice</small></h2><div class="card" id="ai">${aiBox(d.ai)}</div>
+      <h2>Forensic <small>${esc(d.forensic.basis)}</small></h2><div class="card">
+      ${d.forensic.red_flags.map(x => `<div class="flag red">${esc(x)}</div>`).join("")}${d.forensic.green_flags.map(x => `<div class="flag green">${esc(x)}</div>`).join("")}
+      ${!d.forensic.red_flags.length && !d.forensic.green_flags.length ? '<span class="muted">No flags from the data held</span>' : ""}</div></div>
+  </div>
+  <div class="grid g3">
+    <div class="card"><h3>Valuation & quality</h3><table>
+      ${[["P/E", d.ratios.pe_company, d.ratios.pe_sector], ["P/B", d.ratios.pb_company, d.ratios.pb_sector], ["ROE %", d.ratios.roe, d.ratios.roe_sector], ["ROCE %", d.ratios.roce, d.ratios.roce_sector]]
+        .map(([n, c, s]) => `<tr><td>${n}</td><td class="num">${num(c)}</td><td class="num muted">sector ${num(s)}</td></tr>`).join("")}
+      <tr><td>Own P/E (TTM)</td><td class="num">${num(f.pe_ttm)}</td><td></td></tr><tr><td>Beta 60D</td><td class="num">${num(f.beta_60)}</td><td></td></tr>
+      <tr><td>RSI 14</td><td class="num">${num(f.rsi_14, 1)}</td><td></td></tr><tr><td>52W high</td><td class="num">${pct(f.dist_high_252, 1)}</td><td class="muted">distance</td></tr></table></div>
+    <div class="card"><h3>Shareholding</h3><table>${(d.holdings || []).map(h => `<tr><td>${esc(h.category)}</td>${(h.history || []).slice(0, 4).map(x => `<td class="num">${num(x.value)}<div class="muted small">${esc(x.period)}</div></td>`).join("")}</tr>`).join("") || '<tr><td class="muted">No data</td></tr>'}</table></div>
+    <div class="card"><h3>Results & corporate actions</h3>
+      ${d.results.map(x => `<div class="small">${esc(x.kind)} ${esc(x.meeting_date || x.event_at || "")} ${x.verdict ? pill(x.verdict, x.verdict === "BEAT" ? "BULLISH" : x.verdict === "MISS" ? "BEARISH" : "NEUTRAL") : ""}</div>`).join("") || '<div class="muted small">No results events</div>'}
+      <div style="margin-top:8px">${d.actions.map(a => `<div class="small">${esc(a.action_type)} · ex ${esc(a.ex_date || "?")}</div>`).join("") || '<div class="muted small">No corporate actions</div>'}</div></div>
+  </div>
+  <h2>News <small>last 30 days, linked to this stock</small></h2><div class="card">${newsList(d.news.map(n => ({ ...n, stocks: null })))}</div>
+  ${d.profile ? `<h2>Profile</h2><div class="card small">${esc(d.profile)}</div>` : ""}
+  <p class="muted small">${esc(d.disclaimer)} Features as of the ${esc(d.features_session || "?")} pre-session snapshot.</p>`;
+  view.querySelectorAll("button[data-tf]").forEach(b => b.onclick = () => { tf = b.dataset.tf; drawChart(d); view.querySelectorAll("button[data-tf]").forEach(x => x.classList.toggle("on", x.dataset.tf === tf)); });
+  const ab = $("#aibtn"); if (ab) ab.onclick = () => genAI(d.symbol);
+  drawChart(d);
+}
+function aiBox(a) {
+  if (a && a.status === "OK") { const o = a.output; return `<div>${esc(o.summary)}</div>
+    <div class="grid g3" style="margin-top:8px"><div><h3>Positives</h3>${o.positives.map(x => `<div class="flag green small">${esc(x)}</div>`).join("") || "–"}</div>
+    <div><h3>Risks</h3>${o.risks.map(x => `<div class="flag red small">${esc(x)}</div>`).join("") || "–"}</div>
+    <div><h3>Watch</h3>${o.watch.map(x => `<div class="small">• ${esc(x)}</div>`).join("") || "–"}</div></div>
+    <div class="small muted" style="margin-top:6px">${esc(a.model_id)} · ${esc(a.prompt_version)} · ${new Date(a.generated_at).toLocaleString("en-IN")}</div>`; }
+  const st = a ? `<div class="small down">Last attempt: ${esc(a.status)} ${esc(a.error || "")}</div>` : "";
+  return `${st}<button class="btn primary" id="aibtn">Generate today's AI note</button> <span class="small muted">one model call per stock per day</span>`;
+}
+async function genAI(sym) {
+  $("#ai").innerHTML = '<span class="muted">Asking the model…</span>';
+  try { $("#ai").innerHTML = aiBox(await api(`/api/ai/${encodeURIComponent(sym)}`, { method: "POST" })); }
+  catch (e) { $("#ai").innerHTML = `<span class="down">${esc(e.message)}</span>`; }
+  const ab = $("#aibtn"); if (ab) ab.onclick = () => genAI(sym);
+}
+function sma(bars, n) {
+  const out = []; let s = 0;
+  bars.forEach((b, i) => { s += b.close; if (i >= n) s -= bars[i - n].close; if (i >= n - 1) out.push({ time: b.time, value: s / n }); });
+  return out;
+}
+async function drawChart(d) {
+  const el = $("#chart"); if (!el || !window.LightweightCharts) return;
+  const c = await api(`/api/candles/${encodeURIComponent(d.symbol)}?tf=${tf}`);
+  const bars = c.bars.filter(b => b.open != null && b.close != null);
+  if (chart) { chart.remove(); chart = null; }
+  chart = LightweightCharts.createChart(el, { layout: { background: { color: "#171e26" }, textColor: "#8b98a5" },
+    grid: { vertLines: { color: "#222c37" }, horzLines: { color: "#222c37" } }, timeScale: { timeVisible: tf !== "1d" },
+    rightPriceScale: { borderColor: "#2a3542" }, crosshair: { mode: 1 } });
+  const cs = chart.addCandlestickSeries({ upColor: "#2ec27e", downColor: "#f2545b", wickUpColor: "#2ec27e", wickDownColor: "#f2545b", borderVisible: false });
+  cs.setData(bars.map(b => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close })));
+  const vs = chart.addHistogramSeries({ priceFormat: { type: "volume" }, priceScaleId: "", color: "#2a3542" });
+  vs.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+  vs.setData(bars.map(b => ({ time: b.time, value: b.volume || 0, color: b.close >= b.open ? "rgba(46,194,126,.35)" : "rgba(242,84,91,.35)" })));
+  chart.addLineSeries({ color: "#4f9dff", lineWidth: 1, priceLineVisible: false }).setData(sma(bars, 20));
+  chart.addLineSeries({ color: "#f5a524", lineWidth: 1, priceLineVisible: false }).setData(sma(bars, 50));
+  if (tf === "1d") {
+    const keep = new Set(["BULLISH_ENGULFING", "BEARISH_ENGULFING", "HAMMER", "SHOOTING_STAR", "GAP_UP", "GAP_DOWN", "DOJI"]);
+    cs.setMarkers(d.candles.filter(x => x.patterns.some(p => keep.has(p))).map(x => {
+      const p = x.patterns.find(p => keep.has(p)); const bull = /BULLISH|HAMMER|GAP_UP/.test(p);
+      return { time: x.date, position: bull ? "belowBar" : "aboveBar", color: bull ? "#2ec27e" : p === "DOJI" ? "#f5a524" : "#f2545b",
+        shape: bull ? "arrowUp" : p === "DOJI" ? "circle" : "arrowDown", text: "" }; }));
+    chart.timeScale().setVisibleLogicalRange({ from: Math.max(0, bars.length - 260), to: bars.length + 3 });
+  } else chart.timeScale().fitContent();
+}
+
+// ── model ────────────────────────────────────────────────────────────────────────
+async function model() {
+  const d = await api("/api/e5");
+  view.innerHTML = `<div class="card"><h3>E5 forward test</h3><div>Day <b>${d.forward_day}</b> of ${d.forward_needed} · session ${esc(d.session)}</div>
+    <div class="small muted">${esc(d.note)}</div></div>
+    <h2>Today's ranking <small>top 100 of the 500-name universe; picks highlighted</small></h2><div class="card">
+    ${d.rows.length ? `<div class="tablewrap"><table><thead><tr><th class="num">Rank</th><th>Stock</th><th>Sector</th><th class="num">P(up)</th><th class="num">Exp. O→C</th><th class="num">Range q10–q90</th><th class="num">Volatility</th><th class="num">Confidence</th><th>Pick</th></tr></thead><tbody>
+    ${d.rows.map(r => `<tr class="click" data-sym="${esc(r.trading_symbol)}"><td class="num">${r.rank}</td><td>${stockLink(r.trading_symbol)}</td><td>${esc(r.sector || "")}</td><td class="num">${(r.prob_up * 100).toFixed(0)}%</td>
+      <td class="num">${pct(r.exp_return)}</td><td class="num">${pct(r.range_lo, 1)} … ${pct(r.range_hi, 1)}</td><td class="num">${pct(r.volatility, 1)}</td><td class="num">${(r.confidence * 100).toFixed(0)}%</td><td>${r.selected ? pill("pick", "NEUTRAL") : ""}</td></tr>`).join("")}</tbody></table></div>`
+    : '<div class="muted">No predictions for today (non-trading day, or before 09:06 IST).</div>'}</div>`;
+  bindRows();
+}
+
+function about() {
+  view.innerHTML = `<div class="card"><h3>What this is</h3>
+  <p>A private, read-only research view of Prajna's database: daily and intraday candles (split/bonus adjusted), the Stage 3 features, news from 7 sources with AWS Bedrock enrichment, vendor fundamentals, and the E5 machine-learning model's outputs.</p>
+  <h3>How labels are made</h3><ul>
+  <li><b>Research signal</b> (dash-signal-v1): +1/−1 for price above/below its 20-, 50- and 200-day averages; RSI bands; MACD sign; 3-day news tone; E5's probability and expected return. ≥ +3 BULLISH, ≤ −3 BEARISH, else NEUTRAL. Every contribution is listed on the stock page.</li>
+  <li><b>Ranges</b>: E5's q10–q90 for the next session, and ±ATR×√5 for about a week. Typical ranges, never targets.</li>
+  <li><b>Candle patterns</b>: fixed geometric rules (doji, hammer, engulfing, gaps, inside bar, marubozu, volume spike).</li>
+  <li><b>Cap buckets</b>: SEBI/AMFI rank by market cap: 1–100 large, 101–250 mid, rest small.</li>
+  <li><b>Steadier</b>: large/mid cap, uptrend, lowest 20-day volatility. Lower volatility, not "safe".</li>
+  <li><b>AI</b>: Bedrock Nova Pro describes news items and, on request, a stock's facts. It is told not to predict prices or advise.</li></ul>
+  <h3>Limits</h3><ul><li>The E5 model is in its 40-session forward test; its past accuracy is hidden until then by design. The development edge was small and not significant.</li>
+  <li>Prices update with Prajna's ingestion (daily bars each morning, intraday bars after the session), not tick by tick.</li>
+  <li>Paper research only. Not investment advice. No order is ever placed.</li></ul></div>`;
+}
+
+// ── router ───────────────────────────────────────────────────────────────────────
+async function route() {
+  const parts = location.hash.replace(/^#\/?/, "").split("/").map(decodeURIComponent);
+  const p = parts[0] || "market", arg = parts[1];
+  document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("active", a.getAttribute("href") === `#/${p}`));
+  clearInterval(timer);
+  try {
+    if (p === "market") { await market(); every(60000, market); }
+    else if (p === "movers") { await movers(); every(60000, movers); }
+    else if (p === "sectors") { await sectors(arg); }
+    else if (p === "news") { await news(); every(60000, news); }
+    else if (p === "stock") { await stock(arg); if (arg) every(120000, () => stock(arg)); }
+    else if (p === "model") { await model(); every(120000, model); }
+    else about();
+  } catch (e) { view.innerHTML = `<div class="card down">Could not load: ${esc(e.message)}</div>`; }
+}
+window.addEventListener("hashchange", route);
+
+let st = null;
+$("#q").addEventListener("input", (e) => {
+  clearTimeout(st); const q = e.target.value.trim(); const box = $("#suggest");
+  if (!q) { box.style.display = "none"; return; }
+  st = setTimeout(async () => {
+    const r = await api(`/api/search?q=${encodeURIComponent(q)}`);
+    box.innerHTML = r.map(x => `<div data-s="${esc(x.symbol)}"><b>${esc(x.symbol)}</b> <span class="muted small">${esc(x.name || "")} · ${esc(x.sector || x.segment)}</span></div>`).join("");
+    box.style.display = r.length ? "block" : "none";
+    box.querySelectorAll("div[data-s]").forEach(d => d.onclick = () => { location.hash = `#/stock/${encodeURIComponent(d.dataset.s)}`; box.style.display = "none"; e.target.value = ""; });
+  }, 200);
+});
+$("#q").addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.value.trim()) { location.hash = `#/stock/${encodeURIComponent(e.target.value.trim().toUpperCase())}`; $("#suggest").style.display = "none"; } });
+route();
