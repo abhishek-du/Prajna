@@ -39,7 +39,9 @@
 ## Data freshness
 
 - Market figures come from the latest Stage 3 PRE_SESSION snapshot and the last daily bars (07:00 job).
-- "Today" is the latest stored intraday bar (intraday bars are stored after each session).
+- **Price and change:** the latest stored bar. Today's 1m bars are stored by the 16:05 job, so after that, price = today's last 1m close and change = vs the last daily close; before it, the last daily close.
+- **Chart:** the 1D chart adds a provisional candle for today, built from those 1m bars, until the official daily bar arrives with the next morning's job.
+- **Found on 2026-10-22:** the stock header showed the last *daily* close (2026-10-21) after the session had closed. CUBEXTUB showed 220.90; it closed at 216.49.
 - The pages refresh every 60–120 s, and the market view is cached for 2 min. It is not tick by tick.
 
 ## Notes

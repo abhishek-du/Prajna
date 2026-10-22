@@ -34,9 +34,8 @@ function bindRows() {
 }
 const COLS = [
   { h: "Stock", f: r => `${stockLink(r.symbol)}<div class="muted small">${esc((r.name || "").slice(0, 28))}</div>` },
-  { h: "Close", n: 1, f: r => num(r.close) },
-  { h: "Day", n: 1, f: r => pct(r.day_change) },
-  { h: "Today*", n: 1, f: r => r.intraday ? pct(r.intraday.change) : "–" },
+  { h: "Price", n: 1, f: r => `${num(r.close)}<div class="muted small">${esc(r.close_date || "")}${r.price_at ? " " + new Date(r.price_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : ""}</div>` },
+  { h: "Change", n: 1, f: r => pct(r.day_change) },
   { h: "5D", n: 1, f: r => pct(r.ret_5d) },
   { h: "20D", n: 1, f: r => pct(r.ret_20d) },
   { h: "Cap", f: r => `${esc(r.cap_bucket || "")}<div class="muted small">${cr(r.cap_cr)}</div>` },
@@ -61,8 +60,8 @@ async function market() {
       <div class="small" style="margin-top:6px"><span class="up">${b.advances} up</span> · ${b.unchanged} flat · <span class="down">${b.declines} down</span></div></div>
   </div>
   <div class="grid g2">
-    <div><h2>Top gainers <small>last session</small></h2><div class="card">${rowsTable(mv.gainers, COLS.slice(0, 3).concat(COLS.slice(6)))}</div></div>
-    <div><h2>Top losers <small>last session</small></h2><div class="card">${rowsTable(mv.losers, COLS.slice(0, 3).concat(COLS.slice(6)))}</div></div>
+    <div><h2>Top gainers <small>last session</small></h2><div class="card">${rowsTable(mv.gainers, COLS.slice(0, 3).concat(COLS.slice(5)))}</div></div>
+    <div><h2>Top losers <small>last session</small></h2><div class="card">${rowsTable(mv.losers, COLS.slice(0, 3).concat(COLS.slice(5)))}</div></div>
   </div>
   <div class="grid g2">
     <div><h2>Hot topics <small>AI-tagged news, 24 h</small></h2><div class="card">
@@ -73,7 +72,7 @@ async function market() {
     <div><h2>Sectors <small>median move, last session</small></h2><div class="card heat">${heat(sc.sectors.filter(x => x.stocks >= 5).slice(0, 8).concat(sc.sectors.filter(x => x.stocks >= 5).slice(-8)))}</div></div>
   </div>
   <h2>Latest news <small>${esc(nw.ai_note)}</small></h2><div class="card">${newsList(nw.items.slice(0, 10))}</div>
-  <p class="muted small">*Today = the latest stored intraday bar vs the last daily close (intraday bars are stored after each session). ${esc(m.disclaimer)}</p>`;
+  <p class="muted small">Prices: the latest stored bar (today's 1m bars once stored after the session, else the last daily close); not a live tick feed. ${esc(m.disclaimer)}</p>`;
   bindRows(); bindHeat();
 }
 
@@ -104,7 +103,7 @@ async function movers() {
   <div class="grid g2">
     <div><h2>Best returns</h2><div class="card">${rowsTable(d.gainers, COLS)}</div></div>
     <div><h2>Worst returns</h2><div class="card">${rowsTable(d.losers, COLS)}</div></div>
-    <div><h2>Steadier <small>${esc(d.steadier_rule)}</small></h2><div class="card">${rowsTable(d.steadier, COLS.slice(0, 3).concat([{ h: "Vol 20D", n: 1, f: r => pct(r.volatility_20, 1) }], COLS.slice(6)))}</div></div>
+    <div><h2>Steadier <small>${esc(d.steadier_rule)}</small></h2><div class="card">${rowsTable(d.steadier, COLS.slice(0, 3).concat([{ h: "Vol 20D", n: 1, f: r => pct(r.volatility_20, 1) }], COLS.slice(5)))}</div></div>
     <div><h2>Research: bullish <small>rules, not advice</small></h2><div class="card">${rowsTable(d.bullish, COLS)}</div>
       <h2>Research: bearish</h2><div class="card">${rowsTable(d.bearish, COLS)}</div></div>
   </div><p class="muted small">Cap buckets: SEBI/AMFI rank by market cap (price × shares from annual results): 1–100 large, 101–250 mid, rest small. ${esc(d.disclaimer)}</p>`;
@@ -147,7 +146,8 @@ async function stock(sym) {
   <div class="grid g3">
     <div class="card"><h3>${esc(d.segment)} · ${esc(d.sector || "no sector")}</h3>
       <div class="big">${esc(d.symbol)} <span class="muted" style="font-size:14px">${esc(d.name || "")}</span></div>
-      <div class="big">${num(d.close)} <span class="small muted">close ${esc(d.close_date || "")}</span></div>
+      <div class="big">${num(d.close)} ${pct(d.day_change)}</div>
+      <div class="small muted">${esc(d.price_basis)}${d.price_at ? " · " + new Date(d.price_at).toLocaleString("en-IN") : " · " + esc(d.close_date || "")}</div>
       <div>${Object.entries(d.returns).map(([k, v]) => `<span class="pill">${k} ${pct(v, 1)}</span>`).join("")}</div></div>
     <div class="card"><h3>Research signal <span class="muted small">${esc(sg.version)}</span></h3>
       <div class="big">${pill(sg.label)} <span class="small muted">score ${sg.score}</span></div>

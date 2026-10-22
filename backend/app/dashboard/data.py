@@ -144,13 +144,15 @@ async def market(s: AsyncSession, caps: dict[str, float] | None = None) -> dict[
         f = feat.get(k, {})
         last = c.get("close")
         live = intra.get(k)
+        newer = bool(live and live["close"] and last and c.get("date") and c["date"] < today)
+        prev = last if newer else c.get("prev_close")
+        price = live["close"] if newer else last
         rec = {"key": k, "symbol": i["trading_symbol"], "name": i["name"], "sector": i["sector"],
-               "close": last, "close_date": str(c["date"]) if c.get("date") else None,
-               "day_change": (last / c["prev_close"] - 1) if last and c.get("prev_close")
-               else None,
-               "intraday": None if not live or not last else
-               {"close": live["close"], "change": live["close"] / last - 1
-                if live["close"] else None, "at": live["at"].isoformat()},
+               "close": price,
+               "close_date": str(today) if newer else (str(c["date"]) if c.get("date") else None),
+               "price_basis": "intraday (latest stored 1m bar)" if newer else "daily close",
+               "price_at": live["at"].isoformat() if newer else None,
+               "day_change": (price / prev - 1) if price and prev else None,
                "ret_5d": f.get("ret_5d"), "ret_20d": f.get("ret_20d"),
                "volatility_20": f.get("volatility_20"), "rsi_14": f.get("rsi_14"),
                "dist_high_252": f.get("dist_high_252"),
@@ -297,6 +299,25 @@ async def candles_for(s: AsyncSession, key: str, tf: str) -> dict[str, Any]:
     return {"timeframe": tf, "bars": bars, "low_confidence_bars": low}
 
 
+async def provisional_daily(s: AsyncSession, key: str, last_daily: str | None
+                            ) -> dict[str, Any] | None:
+    """Today's candle from today's stored 1m bars, when the daily bar is not stored yet
+    (it arrives with the next morning's job). Marked provisional."""
+    today = now().astimezone(IST).date()
+    if last_daily and last_daily >= str(today):
+        return None
+    r = (await s.execute(text("""select (array_agg(open order by bar_start_utc))[1] o,
+        max(high) h, min(low) l, (array_agg(close order by bar_start_utc desc))[1] c,
+        sum(volume) v, max(bar_start_utc) at, count(*) n from canon_market_bar
+        where instrument_key = :k and timeframe = '1m' and market_date = :d"""),
+        {"k": key, "d": today})).one()
+    if not r.n:
+        return None
+    return {"time": str(today), "date": str(today), "open": _num(r.o), "high": _num(r.h),
+            "low": _num(r.l), "close": _num(r.c), "volume": _num(r.v), "provisional": True,
+            "last_at": r.at.isoformat(), "minutes": r.n}
+
+
 async def stock(s: AsyncSession, key: str) -> dict[str, Any]:
     await read_only(s)
     info = (await s.execute(text("""select instrument_key, trading_symbol, name, segment, sector,
@@ -305,6 +326,10 @@ async def stock(s: AsyncSession, key: str) -> dict[str, Any]:
     f = (await features(s, day, [key])).get(key, {}) if day else {}
     daily = await candles_for(s, key, "1d")
     bars = daily["bars"]
+    today_bar = await provisional_daily(s, key, bars[-1]["date"] if bars else None)
+    prev_close = bars[-1]["close"] if bars else None
+    if today_bar:
+        bars = [*bars, today_bar]
     an = A.candles(bars[-120:])
     close = bars[-1]["close"] if bars else None
     today = now().astimezone(IST).date()
@@ -360,6 +385,12 @@ async def stock(s: AsyncSession, key: str) -> dict[str, Any]:
             "segment": info["segment"], "sector": info["sector"], "isin": info["isin"],
             "profile": (profile or {}).get("company_profile"),
             "close": close, "close_date": bars[-1]["date"] if bars else None,
+            "price_basis": ("intraday: today's 1m bars so far (the official daily bar arrives "
+                            "with the next morning's job)") if today_bar else "daily close",
+            "price_at": today_bar["last_at"] if today_bar else None,
+            "day_change": (close / (prev_close if today_bar else (bars[-2]["close"]
+                           if len(bars) > 1 else None)) - 1)
+            if close and (prev_close if today_bar else len(bars) > 1) else None,
             "returns": ret, "features_session": str(day) if day else None, "features": f,
             "trend": A.trend(f), "signal": sig,
             "ranges": A.ranges(close, f.get("atr_pct_14"), e5),

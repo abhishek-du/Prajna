@@ -139,7 +139,13 @@ async def stock(symbol: str) -> JSONResponse:
 async def candles(symbol: str, tf: str = Query("1d", pattern="^(1d|1h|15m|5m|1m)$")
                   ) -> JSONResponse:
     async with get_sessionmaker()() as s:
-        out = await DD.candles_for(s, await _key(s, symbol), tf)
+        k = await _key(s, symbol)
+        out = await DD.candles_for(s, k, tf)
+        if tf == "1d":
+            pb = await DD.provisional_daily(s, k, out["bars"][-1]["date"] if out["bars"] else None)
+            if pb:
+                out["bars"].append(pb)
+                out["provisional_today"] = True
         await s.rollback()
     return _json(out)
 
