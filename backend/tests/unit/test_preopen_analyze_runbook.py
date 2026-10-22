@@ -17,7 +17,8 @@ STAGE3 = RUNBOOK.with_name("stage3_snapshot.sh")
 
 def _block() -> str:
     text = RUNBOOK.read_text()
-    m = re.search(r'^REP=\$\?\n(if \[\[ \$REP -eq 0 \]\]; then\n.*?^fi\n)set -e\n'
+    # after the (fallback) full replay's REP=$? - inside its `if` since PREOPEN-TAIL
+    m = re.search(r'^ *REP=\$\?\n(?:fi\n)?(if \[\[ \$REP -eq 0 \]\]; then\n.*?^fi\n)set -e\n'
                   r'say "replay exit \$\{REP\}"$', text, re.S | re.M)
     assert m, "the ANALYZE block must sit between REP=$? and the replay-exit line"
     return m.group(1)

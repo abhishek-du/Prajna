@@ -3,7 +3,9 @@
 compute_snapshot()  pure w.r.t. storage: reads canonical inputs (app.features.inputs)
                     and returns rows. Used by dry-run, acceptance probes and runs.
 run_snapshot()      a production run: locks are checked HERE (defence in depth, in
-                    addition to the CLI), one IngestRunner run per snapshot, rows
+                    addition to the CLI), unless the CLI hands over the passing report
+                    it evaluated in this process within locks.REUSE_MAX (15 min; the
+                    gate is not evaluated twice), one IngestRunner run per snapshot, rows
                     inserted idempotently; a rerun that disagrees with a stored value
                     fails the run (determinism), it never overwrites.
 
@@ -19,9 +21,12 @@ one snapshot a mix of before and after states.
 
 from __future__ import annotations
 
+import asyncio
 import datetime as _dt
 import hashlib
 import json
+import os
+import re
 import time
 from collections import Counter
 from dataclasses import dataclass, field
@@ -29,7 +34,7 @@ from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert as pg_insert
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from app.canon import pit
 from app.canon import results_pit as RP
@@ -91,6 +96,7 @@ class SnapshotResult:
     snapshot: Snapshot
     rows: list[FeatureRow] = field(default_factory=list)
     refused_bars: Counter = field(default_factory=Counter)
+    workers: int = 1
     seconds: float = 0.0
 
     def stats(self) -> dict[str, Any]:
@@ -98,6 +104,7 @@ class SnapshotResult:
         return {"rows": len(self.rows), "values": reasons.get("OK", 0),
                 "nulls_by_reason": {k: v for k, v in sorted(reasons.items()) if k != "OK"},
                 "refused_bars": dict(self.refused_bars), "seconds": round(self.seconds, 2),
+                "workers": self.workers,
                 "instruments": len({r.instrument_key for r in self.rows
                                     if r.scope == "INSTRUMENT"})}
 
@@ -440,19 +447,69 @@ async def _sector_rows(s: AsyncSession, snap: Snapshot, keys: list[str],
     return out
 
 
+# Instruments' inputs are read by this many sessions at once, all on the run's exported
+# snapshot (PREOPEN-TAIL, 2026-10-22: the reads are ~93 % of a snapshot's compute; 4
+# sessions measured 3.2x, 8 no better). Rows and their order are those of a sequential
+# compute: only the reads overlap. 1 = sequential.
+WORKERS = max(1, int(os.environ.get("PRAJNA_STAGE3_WORKERS", "4")))
+_SNAPSHOT_ID = re.compile(r"^[0-9A-F]+-[0-9A-F]+(-[0-9]+)?$")
+
+
+async def _parallel_ok(s: AsyncSession, workers: int) -> bool:
+    """Only a top-level REPEATABLE READ (or SERIALIZABLE) transaction on an engine can
+    share its snapshot; a test savepoint's data is invisible to another connection."""
+    if workers <= 1 or not isinstance(s.bind, AsyncEngine):
+        return False
+    conn = await s.connection()
+    if conn.in_nested_transaction():
+        return False
+    level = (await s.execute(text("show transaction_isolation"))).scalar()
+    return level in CONSISTENT_LEVELS
+
+
+async def _inputs_parallel(s: AsyncSession, snap: Snapshot, keys: list[str], workers: int,
+                           fund_history: bool, kill_check: bool) -> dict[str, Any]:
+    sid = (await s.execute(text("select pg_export_snapshot()"))).scalar()
+    if not _SNAPSHOT_ID.match(sid or ""):
+        raise SnapshotIsolationError(f"unexpected exported snapshot id {sid!r}")
+    it = iter(keys)
+    out: dict[str, Any] = {}
+
+    async def worker() -> None:
+        async with AsyncSession(s.bind) as ws:
+            await ws.execute(text("set transaction isolation level repeatable read, read only"))
+            await ws.execute(text(f"set transaction snapshot '{sid}'"))
+            for k in it:
+                if kill_check and locks.kill_switch_engaged():
+                    raise KillSwitchEngaged("Stage 3 kill switch engaged during the run")
+                out[k] = await I.instrument_inputs(ws, k, snap, fund_history=fund_history)
+            await ws.rollback()
+
+    async with asyncio.TaskGroup() as tg:
+        for _ in range(min(workers, len(keys))):
+            tg.create_task(worker())
+    return out
+
+
 async def compute_snapshot(s: AsyncSession, snap: Snapshot, keys: list[str], *,
                            with_context: bool = True, with_sector: bool = True,
-                           kill_check: bool = False) -> SnapshotResult:
+                           kill_check: bool = False, workers: int | None = None
+                           ) -> SnapshotResult:
     t0 = time.monotonic()
     res = SnapshotResult(snap)
     nifty, ntr = await I.index_bars(s, BENCHMARK, snap)
     ret20: dict[str, tuple[float | None, I.InstrumentInputs]] = {}
     v5 = await v5_context(s, snap)
     fund_history = any(f.id in V5_IDS and "fundamentals_history" in f.inputs for f in FEATURES)
+    workers = WORKERS if workers is None else workers
+    pre = (await _inputs_parallel(s, snap, keys, workers, fund_history, kill_check)
+           if await _parallel_ok(s, workers) else {})
+    res.workers = workers if pre else 1
     for k in keys:
         if kill_check and locks.kill_switch_engaged():
             raise KillSwitchEngaged("Stage 3 kill switch engaged during the run")
-        inp = await I.instrument_inputs(s, k, snap, fund_history=fund_history)
+        inp = pre.pop(k) if pre else await I.instrument_inputs(s, k, snap,
+                                                                fund_history=fund_history)
         res.refused_bars.update(inp.refused)
         res.rows.extend(instrument_rows(inp, snap, nifty, ntr, v5))
         ret20[k] = (None if inp.stale else PR.ret(inp.daily, 20)[0], inp)
@@ -495,6 +552,8 @@ async def persist(s: AsyncSession, res: SnapshotResult, run_id) -> tuple[int, in
         chunk = values[i:i + step]
         inserted += (await s.execute(pg_insert(FeatureValue).values(chunk).on_conflict_do_nothing(
             constraint="uq_feature_value"))).rowcount
+    if inserted == len(values):     # no conflict: every stored row is one just inserted
+        return inserted, 0
     stored = {(r[0], r[1]): (r[2], r[3], r[4]) for r in (await s.execute(text("""
         select instrument_key, feature_id, value, reason, inputs_sha256 from feature_value
         where session_date = :d and snapshot = :k"""),
@@ -513,9 +572,15 @@ async def persist(s: AsyncSession, res: SnapshotResult, run_id) -> tuple[int, in
 
 
 async def run_snapshot(s: AsyncSession, snap: Snapshot, *, keys: list[str] | None, mode: str,
-                       token: str | None, operator: str = "cli") -> dict[str, Any]:
-    """A committed run. Refused (LockRefused) unless every lock condition holds."""
-    report = await locks.require(s, mode=mode, token=token, operator=operator)
+                       token: str | None, operator: str = "cli",
+                       lock_report: locks.LockReport | None = None) -> dict[str, Any]:
+    """A committed run. Refused (LockRefused) unless every lock condition holds: checked
+    here, unless the caller passes the passing report it evaluated in this process within
+    locks.REUSE_MAX (the write token is still authorised below by runner.open)."""
+    if lock_report is not None and lock_report.reusable(mode):
+        report = lock_report
+    else:
+        report = await locks.require(s, mode=mode, token=token, operator=operator)
     if mode == "BACKFILL" and (other := await other_registry_rows(s, snap)):
         raise RegistryConflict(f"{snap.session_date} {snap.kind} holds rows of another "
                                f"registry {other}; not backfilled")

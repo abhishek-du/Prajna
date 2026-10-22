@@ -75,9 +75,37 @@ Notes:
 
 **The trade-off:** A delivers before the open but adds nothing over PRE_SESSION except features that are all MISSING_INPUT. B delivers the pre-open book, after the open.
 
-A third possibility, **committing pre-open ticks in real time** during the capture, would give both. It is a Stage 1 change and is not proposed here.
+A third possibility, **committing pre-open ticks in real time** during the capture, would give both. It was not proposed on 2026-09-28; it was built on 2026-10-22 as PREOPEN-TAIL (§4a).
 
 **Decision (2026-09-28): option B.** The PRE_OPEN snapshot keeps as_of 09:08:00 and includes the pre-open book, available about 20 minutes into the session (≈ 09:37 on the measured days). If the replay fails or is missing, that day has no PRE_OPEN snapshot (`STAGE3_SKIP`), rather than one with the pre-open features missing.
+
+## 4a. PREOPEN-TAIL: PRE_OPEN before the open (user, 2026-10-22: "option 2")
+
+The third possibility above, built without leaving the archive-first rule: the pre-open rows still reach the database only through `app/ingest/preopen.py` replaying the archive bytes. The replay now runs **while the capture records**.
+
+**Why PRE_OPEN was late** (2026-10-22, from the logs): capture to 09:20, then the replay took 13.7 min (2.29 M rows), then the lock check about 4.7 min (the Stage 1 gate was evaluated twice: once by the CLI, once by `run_snapshot`), then compute about 4 min. Done at 09:42.
+
+**What changed:**
+
+| Step | Before | PREOPEN-TAIL |
+|---|---|---|
+| Replay | after the capture (09:20 → 09:33) | `ingest preopen-tail`, started with the capture. Every 10 s, each connection's new records are one COMMIT run (`request_params.tail`: `seq_from`, `seq_to`, `final`, `pass_started_at`). The final pass, after the archive is closed, checks the stream sha256 against the manifest |
+| Readiness | "replay exit 0" in the log | after the first pass that **started** at as_of + 5 s (09:08:05), `ANALYZE preopen_tick, preopen_book` and `var/run/preopen_ready_<day>.json`. A frame is received within 0.87 s of its currentTs (measured, both connections) and archived on receipt, so every tick knowable before as_of is in that pass |
+| Lock check | twice per run | once. `run_snapshot` reuses the passing report its own process evaluated within 15 min (`locks.REUSE_MAX`). PRE_SESSION also finishes about 2 min earlier |
+| PRE_OPEN run | 09:22, after the replay | `--after-tail`: the locks first, then wait until 09:14 for the marker, verified against `ingest_run` (COMPLETE tail runs covering every connection's records from 0 without a gap), then compute |
+| Acceptance | one run per archive | one full run, **or** a gap-free chain of tail runs ending in the verified final pass |
+
+**Fail closed, with a fallback:**
+- A FAILED tail pass stops the tail. `preopen_day.sh` then runs the full replay as before (idempotent: the rows already committed are compared, not duplicated).
+- Without a verified marker by 09:14 the command exits 4 and writes nothing. The runbook logs `STAGE3_FALLBACK` and runs the old path: wait for "replay exit 0", then compute (LATE, as before).
+- `late_ticks` in the tail's output counts the ticks knowable before as_of that the ready pass did not hold. It is expected to be 0; otherwise a recompute would differ.
+- **Status 2026-10-22: the tail is OFF by default** (`PRAJNA_PREOPEN_TAIL=1` turns it on). Its full-rate rehearsal (today's archives re-written at 1× pace into `prajna_test`) was inconclusive: run inside one rolled-back transaction, its savepoints slowed the inserts (PostgreSQL CPU-bound past 64 subtransactions), and a rehearsal with real commits needs the test tables emptied afterwards, which is the user's call. The lock-once and parallel-compute changes are ON.
+
+**Parallel compute (ON):** `compute_snapshot` reads the instruments' inputs with 4 sessions on the run's exported snapshot (`pg_export_snapshot`; `PRAJNA_STAGE3_WORKERS`, 1 = sequential). The reads were 93 % of the compute. Verified 2026-10-22, read-only, on the whole universe: both of today's snapshots recomputed with 4 sessions equal the stored rows (246,290 and 260,566 rows, 0 differ). Compute 224 s → 81 s (PRE_SESSION), 237 s → 86 s (PRE_OPEN). A test savepoint or a READ COMMITTED transaction stays sequential. `persist` skips its re-read when every row was inserted (no conflict).
+
+**Expected timeline with all three:** PRE_SESSION done ≈ 09:05; PRE_OPEN lock check ≈ 09:06:30, marker ≈ 09:08:20, done ≈ 09:12. Without the tail: replay 09:20 → 09:33, PRE_OPEN done ≈ 09:38.
+
+**Cron (the user installs it):** PRE_OPEN moves from `22 9` (`--after-replay`) to `5 9 * * 1-5 cd $B && STAGE3_LOCK_WAIT=540 ops/runbooks/stage3_snapshot.sh PRE_OPEN --after-tail --token-from-dotenv`. It waits for the `stage3.lock` of PRE_SESSION, then for the marker. Install it only together with `PRAJNA_PREOPEN_TAIL=1`; until then the old 09:22 `--after-replay` line stays (with the tail on, its "replay exit 0" comes when the tail ends, at about 09:20).
 
 ## 5. Late runs
 

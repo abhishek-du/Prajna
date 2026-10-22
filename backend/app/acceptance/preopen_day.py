@@ -109,6 +109,21 @@ def _archive_facts(path: pathlib.Path) -> dict[str, Any]:
     }
 
 
+def _replayed(name: str, runs: list) -> str | None:
+    """How the archive was replayed completely: 'full', 'tail' or None."""
+    ok = [r for r in runs if r.status == "COMPLETE"]
+    if any(r.seq_from is None for r in ok):
+        return "full"
+    seq = 0
+    for r in sorted(ok, key=lambda r: r.seq_from):
+        if r.seq_from != seq:
+            return None
+        seq = r.seq_to
+        if r.final:
+            return "tail"
+    return None
+
+
 async def _q(s: AsyncSession, sql: str, **kw) -> list:
     return list((await s.execute(text(sql), kw)).all())
 
@@ -126,12 +141,18 @@ async def evaluate(s: AsyncSession, manifest: pathlib.Path) -> AcceptanceReport:
 
     ts = (await _q(s, "select * from trading_session where session_date=:d", d=day))
     runs = await _q(s, """
-        select run_id, status, rows_written, request_params->>'replay_of' as archive
+        select run_id, status, rows_written, request_params->>'replay_of' as archive,
+               (request_params->'tail'->>'seq_from')::bigint as seq_from,
+               (request_params->'tail'->>'seq_to')::bigint as seq_to,
+               (request_params->'tail'->>'final')::boolean as final
         from ingest_run where stream='preopen' and mode='COMMIT'
           and request_params->>'replay_of' = any(:names)
         order by started_at""", names=names)
-    complete = {r.archive: r for r in runs if r.status == "COMPLETE"}
-    run_ids = [complete[n].run_id for n in names if n in complete]
+    # An archive is replayed by one full run, or (PREOPEN-TAIL) by tail runs covering its
+    # records from 0 without a gap, the last one the final (verified) pass. Rows belong to
+    # every COMPLETE run of the archive (a full replay after a failed tail adds the rest).
+    replayed = {n: _replayed(n, [r for r in runs if r.archive == n]) for n in names}
+    run_ids = [r.run_id for r in runs if r.status == "COMPLETE"]
 
     statuses = await _q(s, """
         select segment, status, vendor_updated_at from preopen_session_status
@@ -191,7 +212,7 @@ async def evaluate(s: AsyncSession, manifest: pathlib.Path) -> AcceptanceReport:
 
     # ── replay / database ──────────────────────────────────────────────────
     add("B1", "every archive replayed with --commit, COMPLETE",
-        PASS if len(run_ids) == len(names) else FAIL,
+        PASS if all(replayed.values()) else FAIL, replayed=replayed,
         runs=[{"archive": r.archive, "run_id": str(r.run_id), "status": r.status,
                "rows_written": r.rows_written} for r in runs])
     counts = (await _q(s, """

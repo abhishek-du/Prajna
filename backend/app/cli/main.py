@@ -837,6 +837,50 @@ def ingest_universe(
     raise typer.Exit(0 if report.status == "COMPLETE" else 1)
 
 
+@ingest_app.command("preopen-tail")
+def ingest_preopen_tail(
+    manifest: str = typer.Option(..., "--manifest", help="the capture's <stem>.session.json"),
+    commit: bool = typer.Option(False, "--commit", help="required: writes rows"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (prefer the env)"),
+    interval: float = typer.Option(10.0, "--interval", help="seconds between passes"),
+    no_marker: bool = typer.Option(False, "--no-marker", help="do not write the ready marker"),
+):
+    """Replay a capture WHILE it records (PREOPEN-TAIL): each pass commits every
+    connection's new records as its own run, through the same replay path. After the
+    first pass that started at PRE_OPEN as_of + 5 s it writes var/run/preopen_ready_<day>
+    .json for Stage 3 PRE_OPEN. Ends when every archive is closed and verified.
+    Exit 0 COMPLETE, 1 FAILED (the caller falls back to the full replay)."""
+    import datetime as _dt
+    import json as _json
+    import pathlib
+
+    from app.db.engine import get_sessionmaker
+    from app.features import snapshots as SN
+    from app.ingest.preopen import READY_MARGIN, ready_marker_path, tail_session
+
+    if not commit:
+        typer.echo("preopen-tail writes rows: pass --commit (a dry run is `ingest preopen`)")
+        raise typer.Exit(2)
+    doc = _json.loads(pathlib.Path(manifest).read_text())
+    day = _dt.date.fromisoformat(doc["session_date"])
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            try:
+                ready_at = (await SN.resolve(s, day, "PRE_OPEN")).as_of + READY_MARGIN
+            except SN.NoSnapshot:
+                ready_at = None
+            await s.rollback()
+            return await tail_session(
+                s, pathlib.Path(manifest), token=token, ready_at=ready_at, interval_s=interval,
+                marker=None if no_marker else ready_marker_path(day))
+
+    out = asyncio.run(_go())
+    typer.echo(_json.dumps(out, indent=2, default=str))
+    raise typer.Exit(0 if out["status"] == "COMPLETE" else 1)
+
+
 @ingest_app.command("preopen-capture")
 def ingest_preopen_capture(
     keys_file: str = typer.Option(
@@ -1466,9 +1510,14 @@ def stage3_compute(
 
 
 def _stage3_commit(mode: str, sessions, snapshots: list[str], keys: list[str] | None,
-                   token: str | None) -> None:
+                   token: str | None, wait_ready_until: str | None = None) -> None:
     """The locked write path shared by run/backfill: refused (exit 3) unless every
-    lock condition holds; the refusal is audited in stage3_event."""
+    lock condition holds; the refusal is audited in stage3_event. The locks are
+    evaluated once and the report is passed to each run (locks.REUSE_MAX).
+
+    wait_ready_until (HH:MM IST, PRE_OPEN only, PREOPEN-TAIL): after the lock check, wait
+    for the tailing replay's ready marker and verify it against ingest_run; not verified
+    by then -> exit 4, nothing written (the runbook falls back to the full replay)."""
     import json as _json
 
     from app.db.engine import get_sessionmaker
@@ -1476,9 +1525,29 @@ def _stage3_commit(mode: str, sessions, snapshots: list[str], keys: list[str] | 
     from app.features import locks
     from app.features import snapshots as SN
 
+    async def _wait_ready(s, snap):
+        import datetime as _dt
+        import time as _time
+
+        from app.core.clock import ist_at, now
+        from app.ingest.preopen import NotReady, verify_ready
+        hh, mm = (int(x) for x in wait_ready_until.split(":"))
+        deadline = ist_at(snap.session_date, _dt.time(hh, mm))
+        t0 = _time.monotonic()
+        while True:
+            try:
+                ev = await verify_ready(s, snap.session_date, snap.as_of)
+                await s.rollback()                 # the run takes its own snapshot
+                return {**ev, "waited_s": round(_time.monotonic() - t0, 1)}
+            except NotReady as e:
+                await s.rollback()
+                if now() >= deadline:
+                    raise NotReady(f"{e} (deadline {wait_ready_until} IST)") from None
+            await asyncio.sleep(5)
+
     async def _go():
         async with get_sessionmaker()() as s:
-            await locks.require(s, mode=mode, token=token, operator="cli")
+            report = await locks.require(s, mode=mode, token=token, operator="cli")
             days = await sessions(s) if callable(sessions) else sessions
             out = []
             for d in days:
@@ -1488,20 +1557,28 @@ def _stage3_commit(mode: str, sessions, snapshots: list[str], keys: list[str] | 
                     except SN.NoSnapshot as e:
                         out.append({"session": str(d), "snapshot": k, "skipped": str(e)})
                         continue
+                    ready = None
+                    if wait_ready_until and k == "PRE_OPEN":
+                        ready = await _wait_ready(s, snap)
                     try:
-                        out.append(await E.run_snapshot(s, snap, keys=keys, mode=mode,
-                                                        token=token))
+                        res = await E.run_snapshot(s, snap, keys=keys, mode=mode,
+                                                   token=token, lock_report=report)
+                        out.append({**res, **({"preopen_ready": ready} if ready else {})})
                     except E.RegistryConflict as e:    # nothing written: report, go on
                         await s.rollback()
                         out.append({"session": str(d), "snapshot": k, "skipped": str(e)})
             return out
 
+    from app.ingest.preopen import NotReady
     try:
         rep = asyncio.run(_go())
     except locks.LockRefused as e:
         _lock_lines(e.report.conditions)
         typer.echo(f"REFUSED: Stage 3 {mode} is locked (audited in stage3_event); nothing written")
         raise typer.Exit(3)
+    except NotReady as e:
+        typer.echo(f"NOT_READY: pre-open ticks not verified: {e}; nothing written")
+        raise typer.Exit(4)
     typer.echo(_json.dumps(rep, indent=2, default=str))
 
 
@@ -1512,6 +1589,9 @@ def stage3_run(
     key: list[str] = typer.Option(None, "--key", help="restrict to these keys (default: universe)"),
     commit: bool = typer.Option(False, "--commit", help="required: write feature_value (LOCKED)"),
     token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN"),
+    wait_preopen_ready: str = typer.Option(
+        None, "--wait-preopen-ready", help="HH:MM IST: PRE_OPEN waits (after the lock "
+        "check) for the tailing replay's verified ready marker until then; else exit 4"),
 ):
     """PRODUCTION: compute and store one session's features. LOCKED: refused unless
     every condition of `prajna stage3 locks` holds."""
@@ -1520,7 +1600,8 @@ def stage3_run(
                    "Read-only preview: prajna stage3 compute")
         raise typer.Exit(2)
     snaps = ["PRE_SESSION", "PRE_OPEN"] if snapshot.upper() == "BOTH" else [snapshot.upper()]
-    _stage3_commit("RUN", [_date(session)], snaps, list(key) if key else None, token)
+    _stage3_commit("RUN", [_date(session)], snaps, list(key) if key else None, token,
+                   wait_ready_until=wait_preopen_ready)
 
 
 @stage3_app.command("backfill")

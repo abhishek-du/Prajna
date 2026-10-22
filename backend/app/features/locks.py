@@ -4,7 +4,9 @@ every condition holds; each refusal names every unmet condition and is audited.
   RUN       (write one snapshot's features)
     stage3_enabled        PRAJNA_STAGE3_ENABLED is true           (default false)
     kill_switch_off       var/run/stage3.kill does not exist
-    stage1_complete       the Stage 1 gate, evaluated NOW, is COMPLETE (never a cached file)
+    stage1_complete       the Stage 1 gate, evaluated NOW, is COMPLETE (never a cached file;
+                          a run may reuse the report its own process evaluated within
+                          REUSE_MAX, 15 min)
     stage2_pass           the latest Stage 2 report is PASS, <= 7 days old, with its test
                           criterion (P) PASS
     decisions_approved    every Stage 3 decision is APPROVED (FEATURE-PARAMS: approved
@@ -52,10 +54,17 @@ class LockRefused(PermissionError):
         self.report = report
 
 
+# A report evaluated in THIS process may be reused by the run it guards for this long
+# (PREOPEN-TAIL, 2026-10-22: run_snapshot re-evaluated the Stage 1 gate right after the
+# CLI had, ~140 s each; PRE_OPEN also waits for its pre-open ticks after the check).
+REUSE_MAX = _dt.timedelta(minutes=15)
+
+
 @dataclass
 class LockReport:
     mode: str
     conditions: list[dict[str, Any]] = field(default_factory=list)
+    evaluated_at: _dt.datetime = field(default_factory=now)
 
     @property
     def ok(self) -> bool:
@@ -66,7 +75,11 @@ class LockReport:
 
     def summary(self) -> dict[str, Any]:
         return {"mode": self.mode, "unlocked": self.ok,
-                "failing": [c["name"] for c in self.conditions if not c["ok"]]}
+                "failing": [c["name"] for c in self.conditions if not c["ok"]],
+                "evaluated_at": self.evaluated_at.isoformat()}
+
+    def reusable(self, mode: str, at: _dt.datetime | None = None) -> bool:
+        return self.mode == mode and self.ok and (at or now()) - self.evaluated_at <= REUSE_MAX
 
 
 def kill_switch_engaged() -> bool:
@@ -121,7 +134,7 @@ async def check(s: AsyncSession, *, mode: str, token: str | None) -> LockReport:
     if mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}")
     st = get_settings()
-    r = LockReport(mode)
+    r = LockReport(mode, evaluated_at=now())
     r.add("stage3_enabled", st.PRAJNA_STAGE3_ENABLED,
           "PRAJNA_STAGE3_ENABLED=true" if st.PRAJNA_STAGE3_ENABLED
           else "PRAJNA_STAGE3_ENABLED is false (default; production execution not approved)")
