@@ -189,10 +189,16 @@ async def refresh(s: AsyncSession, rest, store, *, commit: bool = False,
 
 # ── F4: a user-exported NSE Financial Results CSV ────────────────────────────────────
 _COLS = {"symbol": ("symbol",), "company": ("company name", "company"),
-         "period_end": ("period ended", "to date", "period end"),
+         "period_end": ("period ended", "quarter end date", "to date", "period end"),
          "relating_to": ("relating to", "period"),
-         "broadcast": ("broadcast date/time", "broadcast date", "exchange disseminated time",
-                       "filing date", "submission date")}
+         # the exchange's dissemination time first: the latest of the file's times, when
+         # the filing became public (the received / broadcast time is earlier)
+         "broadcast": ("exchange dissemination time", "exchange disseminated time",
+                       "broadcast date/time", "broadcast date", "filing date",
+                       "submission date"),
+         "basis": ("consolidated / standalone", "consolidated / non-consolidated"),
+         "audited": ("audited / unaudited", "audited"),
+         "submission": ("type of submission",)}
 _TS_FORMATS = ("%d-%b-%Y %H:%M:%S", "%d-%b-%Y %H:%M", "%d-%b-%Y", "%d-%m-%Y %H:%M:%S",
                "%d/%m/%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S")
 
@@ -206,7 +212,9 @@ def _norm(h: str) -> str:
 
 
 def map_columns(header: list[str]) -> dict[str, int]:
-    """Our field -> column index; refuses a file without symbol, period and broadcast."""
+    """Our field -> column index; refuses a file without a symbol (or company name),
+    period and broadcast. The Financial Results export has no symbol column: its rows are
+    mapped by company name (names_from_csv)."""
     idx = {_norm(h): i for i, h in enumerate(header)}
     out = {}
     for field, names in _COLS.items():
@@ -214,7 +222,9 @@ def map_columns(header: list[str]) -> dict[str, int]:
             if n in idx:
                 out[field] = idx[n]
                 break
-    missing = [f for f in ("symbol", "period_end", "broadcast") if f not in out]
+    missing = [f for f in ("period_end", "broadcast") if f not in out]
+    if "symbol" not in out and "company" not in out:
+        missing.insert(0, "symbol")
     if missing:
         raise CsvRefused(f"columns not found: {missing}; header was {header}")
     return out
@@ -235,30 +245,56 @@ def parse_csv(data: bytes) -> tuple[list[dict[str, Any]], dict[str, int]]:
     if not rows:
         raise CsvRefused("empty file")
     cols = map_columns(rows[0])
+    quarterly = "quarter end date" in {_norm(h) for h in rows[0]}
     out, bad = [], {"no_symbol": 0, "no_period": 0, "no_broadcast": 0}
     for r in rows[1:]:
         if not any(x.strip() for x in r):
             continue
         g = {f: (r[i].strip() if i < len(r) else "") for f, i in cols.items()}
         pe, ts = E.parse_period_end(g["period_end"]), parse_ts(g["broadcast"])
-        if not g["symbol"]:
+        if not (g.get("symbol") or g.get("company")):
             bad["no_symbol"] += 1
         elif pe is None:
             bad["no_period"] += 1
         elif ts is None:
             bad["no_broadcast"] += 1
         else:
-            out.append({**g, "period_end": pe, "broadcast": ts,
+            out.append({**g, "period_end": pe, "broadcast": ts, "quarterly": quarterly,
                         "row_sha256": hashlib.sha256("\x1f".join(r).encode()).hexdigest()})
     return out, bad
 
 
+def norm_company(name: str) -> str:
+    """'Tata Consultancy Services Limited' / 'TATA CONSULTANCY SERVICES LTD.' -> one key."""
+    n = re.sub(r"[^a-z0-9 ]", " ", (name or "").lower().replace("&", " and "))
+    n = re.sub(r"\s+", " ", n).strip()
+    return re.sub(r"( limited| ltd)$", "", n)
+
+
+def names_from_csv(data: bytes) -> dict[str, str]:
+    """company -> symbol from an NSE export that has both columns (Integrated Filing); a
+    name that maps to two symbols is left out rather than guessed."""
+    rows, _ = parse_csv(data)
+    seen: dict[str, set[str]] = {}
+    for r in rows:
+        if r.get("symbol") and r.get("company"):
+            seen.setdefault(norm_company(r["company"]), set()).add(r["symbol"])
+    return {k: next(iter(v)) for k, v in seen.items() if len(v) == 1}
+
+
 async def import_results_csv(s: AsyncSession, data: bytes, filename: str, *,
-                             commit: bool = False, token: str | None = None
-                             ) -> dict[str, Any]:
+                             commit: bool = False, token: str | None = None,
+                             names: dict[str, str] | None = None) -> dict[str, Any]:
     fp = authorize_write(token) if commit else None
     file_sha = hashlib.sha256(data).hexdigest()
     rows, bad = parse_csv(data)
+    by_name = 0
+    for r in rows:
+        if not r.get("symbol"):
+            r["symbol"] = (names or {}).get(norm_company(r.get("company", "")), "")
+            by_name += bool(r["symbol"])
+    no_name = sum(1 for r in rows if not r["symbol"])
+    rows = [r for r in rows if r["symbol"]]
     syms = sorted({r["symbol"] for r in rows})
     keys = dict((await s.execute(text("""select trading_symbol, instrument_key from instrument
         where segment = 'NSE_EQ' and valid_to = 'infinity' and trading_symbol = any(:s)"""),
@@ -275,14 +311,20 @@ async def import_results_csv(s: AsyncSession, data: bytes, filename: str, *,
             continue
         params.append({"kind": "HISTORICAL_FILING", "key": key, "isin": isins.get(key),
                        "nid": None, "md": None, "pe": r["period_end"],
-                       "pk": E.period_kind(r.get("relating_to") or ""), "v": None, "fl": [],
+                       "pk": E.period_kind(r.get("relating_to") or "")
+                       or ("Q" if r["quarterly"] else None), "v": None, "fl": [],
                        # the exchange's own time; knowable to Prajna only when loaded
                        "ea": r["broadcast"], "ka": loaded_at, "src": CSV_SOURCE,
                        "prov": json.dumps({"file": filename, "file_sha256": file_sha,
                                            "relating_to": r.get("relating_to"),
+                                           "company": r.get("company"),
+                                           "basis": r.get("basis"),
+                                           "audited": r.get("audited"),
+                                           "submission": r.get("submission"),
                                            "authz": fp}),
-                       "sha": r["row_sha256"], "pv": "nse-csv-v1", "ca": loaded_at})
-    out = {"commit": commit, "file_sha256": file_sha, "rows": len(rows), "bad": bad,
+                       "sha": r["row_sha256"], "pv": "nse-csv-v2", "ca": loaded_at})
+    out = {"commit": commit, "file_sha256": file_sha, "rows": len(rows) + no_name,
+           "bad": bad, "mapped_by_name": by_name, "no_name_match": no_name,
            "unmapped_symbols": unmapped, "events": len(params), "inserted": 0}
     if commit and params:
         before = await _count(s)

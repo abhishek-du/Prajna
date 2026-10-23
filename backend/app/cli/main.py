@@ -2636,20 +2636,25 @@ def fundamentals_import_csv(
                                          "(Corporate Filings > Financial Results)"),
     commit: bool = typer.Option(False, "--commit", help="write to the database"),
     token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN", help=_TOKEN_HELP),
+    names_from: str = typer.Option(None, "--names-from", help="an NSE export with SYMBOL and "
+                                   "COMPANY NAME columns (Integrated Filing) to map a file "
+                                   "that has company names only (Financial Results)"),
 ):
     """F4: historical results dates (HISTORICAL_FILING) from a user-exported NSE CSV."""
     import json as _json
     import pathlib
 
     from app.db.engine import get_sessionmaker
-    from app.fundamentals.store import import_results_csv
+    from app.fundamentals.store import import_results_csv, names_from_csv
 
     p = pathlib.Path(path)
     data = p.read_bytes()
+    names = names_from_csv(pathlib.Path(names_from).read_bytes()) if names_from else None
 
     async def _go():
         async with get_sessionmaker()() as s:
-            return await import_results_csv(s, data, p.name, commit=commit, token=token)
+            return await import_results_csv(s, data, p.name, commit=commit, token=token,
+                                            names=names)
     typer.echo(_json.dumps(asyncio.run(_go()), indent=1, default=str))
 
 

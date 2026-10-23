@@ -161,3 +161,37 @@ async def test_results_csv_import(db_session):
     assert r.knowable_at > r.event_at and r.provenance["file"] == "nse.csv"
     assert (await FS.import_results_csv(s, CSV, "nse.csv", commit=True,
                                         token=TOKEN))["inserted"] == 0
+
+
+# the real exports (2026-10-23): Integrated Filing has SYMBOL + QUARTER END DATE; Financial
+# Results has company names only and the exchange's dissemination time
+IF_CSV = ('﻿"SYMBOL \n","COMPANY NAME \n","QUARTER END DATE \n","TYPE OF SUBMISSION \n",'
+          '"CONSOLIDATED / STANDALONE \n","BROADCAST DATE/TIME \n",'
+          '"EXCHANGE DISSEMINATION TIME \n"\n'
+          '"TATACONSUM","Tata Consumer Products Limited","30-SEP-2026","Original",'
+          '"Consolidated","23-Oct-2026 13:45:17","23-Oct-2026 13:48:53"\n').encode()
+FR_CSV = ('﻿"COMPANY NAME","CONSOLIDATED / NON-CONSOLIDATED","PERIOD","PERIOD ENDED",'
+          '"RELATING TO","Exchange Received Time","Exchange Dissemination Time"\n'
+          '"TATA CONSUMER PRODUCTS LTD.","Consolidated","Quarterly","30-Jun-2024",'
+          '"First Quarter","06-Aug-2024 14:07:24","06-Aug-2024 14:07:55"\n'
+          '"Gone Away Limited","Consolidated","Quarterly","30-Jun-2016","First Quarter",'
+          '"06-Aug-2016 14:07:24","06-Aug-2016 14:07:55"\n').encode()
+
+
+async def test_results_csv_real_exports(db_session):
+    s = db_session
+    await _seed(s)
+    got = await FS.import_results_csv(s, IF_CSV, "if.csv", commit=True, token=TOKEN)
+    assert got["events"] == 1 and got["inserted"] == 1
+    r = (await s.execute(text("""select period_end, period_kind, event_at, provenance
+        from results_event"""))).one()
+    assert r.period_end == _dt.date(2026, 9, 30) and r.period_kind == "Q"
+    from app.core.clock import IST
+    assert r.event_at.astimezone(IST).strftime("%H:%M:%S") == "13:48:53"   # dissemination
+    assert r.provenance["basis"] == "Consolidated" and r.provenance["submission"] == "Original"
+    with pytest.raises(FS.CsvRefused):                                # no symbol, no names
+        FS.map_columns(["PERIOD ENDED", "Exchange Dissemination Time"])
+    names = FS.names_from_csv(IF_CSV)
+    assert names == {"tata consumer products": "TATACONSUM"}
+    fr = await FS.import_results_csv(s, FR_CSV, "fr.csv", names=names)
+    assert fr["mapped_by_name"] == 1 and fr["no_name_match"] == 1 and fr["events"] == 1
