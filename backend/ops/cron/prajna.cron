@@ -131,3 +131,8 @@ LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 # liquid universe (refreshes coverage).
 20 18 * * 1-5  cd $B && ops/runbooks/yahoo_research.sh >> var/logs/cron.log 2>&1
 20 10 * * 6    cd $B && ops/runbooks/yahoo_research.sh >> var/logs/cron.log 2>&1
+
+# E6 post-results drift PAPER MONITOR (docs/STAGE4_E6_PREREGISTRATION.md; user decisions
+# 2026-10-23, D1 b+c): after the 08:32 morning job, before the 09:15 entry open; files only
+# (var/research/e6), Telegram counts only. PAPER ONLY.
+50 8 * * 1-5   cd $B && ops/runbooks/e6_daily.sh >> var/logs/cron.log 2>&1

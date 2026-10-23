@@ -65,3 +65,15 @@ Stage 5 may use E5's picks in **paper** trading. A model left unretrained decays
 
 - **Paper only.** No order is placed, modified or cancelled until the user explicitly authorises live trading.
 - **No interim look at E5.** No historical replay inside a research TEST window.
+
+## Proposed E5.1 inputs from the results data (E6 decision D1 (c), 2026-10-23; PROPOSAL)
+
+These are not built and not in any feature registry. They would come through a new Stage 3 feature version (features-v6), approved separately, and enter E5.1 only through its own pre-registration.
+
+| Feature | Definition (point in time) | Source |
+|---|---|---|
+| `days_to_results` | sessions until the next announced results meeting; NOT_AVAILABLE when none is announced | `results_event` INTIMATION (F2) |
+| `days_since_results` | sessions since the last results dissemination | `results_event` OUTCOME (live); HISTORICAL_FILING for AS_IF history |
+| `results_car01` | the stock's CAR[0,1] at its last results event (the E6 signal), kept for 20 sessions, otherwise NOT_AVAILABLE | daily bars + the event day |
+
+Why: in the exploratory study (docs/STAGE4_E6_PREREGISTRATION.md §2), |AR| on results days is about 2× a normal day, and the post-results drift separates the reaction quintiles.

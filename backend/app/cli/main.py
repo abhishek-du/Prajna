@@ -2780,5 +2780,68 @@ def models_report(look: bool = typer.Option(False, "--look", help="take the sing
     _models("report", look=look)
 
 
+e6_app = typer.Typer(help="E6 post-results drift PAPER MONITOR "
+                              "(docs/STAGE4_E6_PREREGISTRATION.md)")
+app.add_typer(e6_app, name="e6")
+
+
+@e6_app.command("freeze")
+def e6_freeze(commit: bool = typer.Option(False, "--commit",
+                                          help="write var/research/e6/freeze.json")):
+    """Freeze the E6 rule (its sha256 and the code's git sha); refuses a dirty tree."""
+    import json as _json
+
+    from app.e6.store import freeze
+    typer.echo(_json.dumps(freeze(commit=commit), indent=1, default=str))
+
+
+@e6_app.command("record")
+def e6_record(commit: bool = typer.Option(False, "--commit", help="write today's signals file")):
+    """Before the 09:15 open: today's E6 picks and controls (files only, append-only)."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.e6.store import record
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            out = await record(s, commit=commit)
+            await s.rollback()
+            return out
+    typer.echo(_json.dumps(asyncio.run(_go()), indent=1, default=str))
+
+
+@e6_app.command("status")
+def e6_status():
+    """Counts only; no returns before the single look."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.e6.store import status
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            out = await status(s)
+            await s.rollback()
+            return out
+    typer.echo(_json.dumps(asyncio.run(_go()), indent=1, default=str))
+
+
+@e6_app.command("look")
+def e6_look():
+    """The single look, after the window's last event has exited (refused before; once)."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.e6.store import look
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            out = await look(s)
+            await s.rollback()
+            return out
+    typer.echo(_json.dumps(asyncio.run(_go()), indent=1, default=str))
+
+
 if __name__ == "__main__":
     app()

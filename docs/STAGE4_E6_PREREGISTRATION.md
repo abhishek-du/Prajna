@@ -1,6 +1,11 @@
-# Stage 4/5 E6: post-results drift, pre-registration (DRAFT 2026-10-23, NOT APPROVED, NOT FROZEN)
+# Stage 4/5 E6: post-results drift, pre-registration (APPROVED AS A PAPER MONITOR 2026-10-23; FROZEN at `e6 freeze`)
 
-**Status: DRAFT for the user's decisions (§9).** Nothing in this file runs yet. **PAPER ONLY. No order is ever placed, modified or cancelled.**
+**Status: approved as a PAPER MONITOR.** The user's decisions of 2026-10-23 were "E6 ke liye D1 b+c approve, baaki proposed theek hai":
+- **D1 (b):** a two-season paper monitor; the gates are reported, not decisive.
+- **D1 (c):** results features proposed for E5.1.
+- **D2–D5:** as proposed.
+
+The rule is in `app/e6/monitor.py` (`e6-rule-v1`; its sha256 is written at the freeze). **PAPER ONLY. No order is ever placed, modified or cancelled.**
 
 ## 1. Question
 
@@ -84,16 +89,22 @@ After a quarterly results announcement, do the stocks with the strongest market-
 - There is one look, after the last pick's exit. No interim look: the status shows counts only.
 - E6 and E5 run side by side and are independent. A stock may be both an E5 pick and an E6 pick; neither test reads the other.
 
-## 7. Operations (to build after approval)
+## 7. Operations (built 2026-10-23)
 
-- **Migration:** `e6_event_signal`, append-only: event, day 0, CAR[0,1], pick/control, entry/exit dates, recorded_at. Backup first.
-- **Daily job** after the 08:32 morning job (proposed 08:50 Mon–Fri):
-  1. read the new OUTCOME events and the stored day-1 bars;
-  2. write picks and controls;
-  3. evaluate exits from stored bars only.
-- **Telegram:** a heartbeat with counts only.
-- **Tests:** day-0 rule, threshold, controls, CHECK, no look before the end, the end-to-end look on synthetic data.
-- **Dependency:** the OUTCOME pipeline (F1/F2, live since 2026-10-21) must keep a completeness check. A missed filing is a missed event, and it is reported, not filled.
+- **Storage: files, not a migration.** For a non-decisive monitor, append-only files under `var/research/e6/` replace the proposed table. This avoids a 150 GB production backup and migration.
+  - `freeze.json` holds the rule, its sha256 and the code's git sha. A changed rule is refused.
+  - `signals/<entry day>.jsonl` is written once and never rewritten.
+  - `look.json` is the ledger of the single look.
+- **The CHECK becomes code.**
+  - `prajna e6 record` refuses at or after 09:15 IST on the entry day (TOO_LATE) and refuses an existing file.
+  - It reads only daily bars with `knowable_at <= now()`.
+- **Commands:** `prajna e6 freeze --commit` (refuses a dirty tree), `e6 record [--commit]`, `e6 status` (counts only) and `e6 look` (refused before the window has closed and every row has exited; refused a second time).
+- **Daily job:** `ops/runbooks/e6_daily.sh`, cron 08:50 Mon–Fri (after the 08:32 morning job stores the day-1 bars). Telegram gets counts only.
+- **Tests:** `tests/unit/test_e6_monitor.py` covers the day-0 cut at 15:30, the classes and their boundaries, CAR[0,1], costs, the weekly look and its gates, the sign-flip CI on noise, and refusal of an unfrozen or changed rule.
+- **Dry run on 2026-10-21..23** (read-only, with a pretend freeze date): 25–31 events per morning, of which 1–5 were PICK, 2–5 CONTROL, and 10–12 EXCLUDED (turnover or price). 2026-10-20 (Dussehra) was skipped correctly by `trading_session`.
+- **Known limits, reported in the status and not filled:**
+  - **Coverage of the live OUTCOME pipeline:** for 2026-10-01..22 it found 206 companies against 277 in the NSE CSV, about 75 %. A missed filing is a missed event.
+  - **Calendar:** `trading_session` currently ends on 2026-12-31. The Jan–Feb 2027 season needs the 2027 calendar loaded before then; `e6 status` shows `calendar_ends`.
 
 ## 8. Not part of E6
 
@@ -109,5 +120,7 @@ After a quarterly results announcement, do the stocks with the strongest market-
 | D3 | Holding period | 10 or 20 sessions | 20 (fixed now; 10 reported as secondary) |
 | D4 | Cost assumption | 35 bps per round trip | 35 bps; the user may confirm the Upstox delivery charges |
 | D5 | Window start | first event after the freeze | as soon as the build is tested (Q2 FY27 season is running until about mid-November) |
+
+**Decided 2026-10-23:** D1 (b)+(c); D2 ₹5 cr; D3 20 sessions; D4 35 bps; D5 start now.
 
 After the decisions: build §7, run the tests, then freeze. The threshold numbers, the cost and the rule hash are written into this file and into `e6_freeze`, and the file becomes **FROZEN**.
