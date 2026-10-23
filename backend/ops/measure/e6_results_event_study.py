@@ -85,13 +85,13 @@ def pead(df, horizon):
     df = df.dropna(subset=["qq"])
     m = df.groupby(["q", "qq"])[horizon].mean().unstack()
     spread = m[5] - m[1]
-    return {"quarters": int(len(m)), "by_quintile_bps": (m.mean() * 1e4).round(1).to_dict(),
+    return {"quarters": len(m), "by_quintile_bps": (m.mean() * 1e4).round(1).to_dict(),
             "spread_bps": round(float(spread.mean() * 1e4), 1), "t": round(tstat(spread), 2),
             "positive_quarters": f"{int((spread > 0).sum())}/{len(spread)}"}
 
 
 def summary(df):
-    return {"events": int(len(df)), "stocks": int(df.key.nunique()),
+    return {"events": len(df), "stocks": int(df.key.nunique()),
             "pre_run_up_5d_bps": round(df.pre.mean() * 1e4, 1),
             "abs_ar0_median_pct": round(df.ar0.abs().median() * 100, 2),
             "abs_ar0_vs_normal_day_median_x": round(float(df.abs0_ratio.median()), 2),
@@ -100,7 +100,7 @@ def summary(df):
 
 
 out = {"filters": {"events_unique": n_all, "within_75d_of_period_end": n_lag,
-                   "with_full_window_no_outlier": int(len(R)), "window": [-PRE, POST],
+                   "with_full_window_no_outlier": len(R), "window": [-PRE, POST],
                    "last_price_day": str(LAST.date()), "outlier_abs_daily_ar": OUTLIER},
        "range": [str(R.day0.min().date()), str(R.day0.max().date())],
        "all": summary(R), "liquid_ge_1cr": summary(R[liquid]),
