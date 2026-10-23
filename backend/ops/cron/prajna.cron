@@ -124,3 +124,10 @@ LK=/home/cis/windows/prajna/backend/var/run/candles.lock
 
 # Forward record of the dashboard trade plans (user 2026-10-22): after NSE official close
 45 16 * * 1-5  cd $B && ops/runbooks/signals_snapshot.sh >> var/logs/cron.log 2>&1
+
+# Research-only Yahoo Finance analyst snapshot (user approval 2026-10-23: "approved yfinance
+# research-only"; docs/RESEARCH_YAHOO_CONSENSUS.md): files under var/research/yahoo, no
+# database write, read by no stage or model. Mon-Fri covered names; Saturday the full
+# liquid universe (refreshes coverage).
+20 18 * * 1-5  cd $B && ops/runbooks/yahoo_research.sh >> var/logs/cron.log 2>&1
+20 10 * * 6    cd $B && ops/runbooks/yahoo_research.sh >> var/logs/cron.log 2>&1
