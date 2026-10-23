@@ -5,7 +5,7 @@
 - **D1 (c):** results features proposed for E5.1.
 - **D2–D5:** as proposed.
 
-The rule is in `app/e6/monitor.py` (`e6-rule-v1`; its sha256 is written at the freeze). **PAPER ONLY. No order is ever placed, modified or cancelled.**
+The rule is in `app/e6/monitor.py` (`e6-rule-v1`). **FROZEN 2026-10-23 15:06:50 IST:** rule sha256 `12aa3ef55b4cbe089476c131d9cfd6c7edb01380ee226eeedd62073d6009fcf1`, code `d2e3124` (see `var/research/e6/freeze.json`). The first events counted are those disseminated after the freeze; the first record is Tue 2026-10-27 at 08:50, for events with day 0 = Fri 10-23 (after 15:06) and day 1 = Mon 10-26.
 
 ## 1. Question
 
