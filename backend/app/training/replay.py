@@ -218,7 +218,12 @@ async def replay_snapshot(s: AsyncSession, ds: P.Dataset, snap: SN.Snapshot, run
         await s.execute(text(f"set local search_path = {ds.search_path}"))
     u_keys, stale = await universe(s, snap, limit)
     keys = keys if keys is not None else u_keys
-    res = await E.compute_snapshot(s, snap, keys)
+    from app.canon import pit as _pit
+    tok = _pit.RESEARCH_ALLOW_LOW_CONFIDENCE.set(ds.allow_low_confidence)
+    try:
+        res = await E.compute_snapshot(s, snap, keys)
+    finally:
+        _pit.RESEARCH_ALLOW_LOW_CONFIDENCE.reset(tok)
     avail = await A.available(s, snap.as_of)
     news_state = await NF.coverage_state(s, snap.as_of)
     t_compute = time.monotonic() - t0

@@ -2168,6 +2168,8 @@ def training_labels_v2(
                                "default: now. Reuse a recorded cutoff to reproduce a build"),
     key: list[str] = typer.Option(None, "--key"),
     allow_dirty: bool = typer.Option(False, "--allow-dirty"),
+    version: str = typer.Option("label-v2", "--version", help="label-v2, or the research "
+                                "version label-h2020 (E5-H: vendor-adjusted 2020 history)"),
 ):
     """label-v2 (label-v1 definitions, features-v4 price basis, explicit validity and flags)
     for the sessions in [from, to], read at the knowledge cutoff. Append-only; one run row."""
@@ -2190,7 +2192,9 @@ def training_labels_v2(
             return await L.build_v2(s, _date(start), _date(end), cutoff=at,
                                     keys=list(key) if key else None,
                                     code_git_sha=code["git_sha"] + ("+dirty" if code["dirty"]
-                                                                    else ""))
+                                                                    else ""),
+                                    version=version,
+                                    allow_low_confidence=version in L.RESEARCH_VERSIONS)
 
     typer.echo(_json.dumps(asyncio.run(_go()), default=str, indent=1))
 

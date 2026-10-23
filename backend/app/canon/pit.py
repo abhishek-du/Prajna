@@ -18,6 +18,7 @@ snapshot, i.e. today's sector). Historical sector: `sector(key, as_of)`.
 from __future__ import annotations
 
 import datetime as _dt
+from contextvars import ContextVar
 from typing import Any
 
 from sqlalchemy import text
@@ -59,6 +60,14 @@ async def bars(s: AsyncSession, instrument_key: str, timeframe: str, as_of: _dt.
                        f"bar {instrument_key} {timeframe}", as_of, k=instrument_key,
                        tf=timeframe, a=start, b=end)
     return rows
+
+
+# RESEARCH ONLY (E5-H, docs/STAGE4_E5H_PREREGISTRATION.md): a training dataset declared
+# with allow_low_confidence sets this for its replay transaction only, so vendor-adjusted
+# history older than the corporate-action horizon is used (and marked LOW). Production
+# never sets it; the default refuses those rows.
+RESEARCH_ALLOW_LOW_CONFIDENCE: ContextVar[bool] = ContextVar("research_allow_low_confidence",
+                                                             default=False)
 
 
 async def bars_adjusted(s: AsyncSession, instrument_key: str, timeframe: str,
@@ -143,7 +152,7 @@ async def bars_adjusted(s: AsyncSession, instrument_key: str, timeframe: str,
             low = low or horizon is None or bd < horizon
         net = target / baked
         status = "AS_STORED" if net == 1 else ("ADJUSTED" if net > 1 else "RECONSTRUCTED")
-        if low and not allow_low_confidence:
+        if low and not (allow_low_confidence or RESEARCH_ALLOW_LOW_CONFIDENCE.get()):
             refused["low_confidence"] += 1
             continue
         if status == "RECONSTRUCTED" and not allow_reconstructed:

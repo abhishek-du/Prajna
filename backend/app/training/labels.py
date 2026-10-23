@@ -132,6 +132,8 @@ async def build(s: AsyncSession, start: _dt.date, end: _dt.date,
 
 # ── label-v2 (builder v3, 2026-10-09) ─────────────────────────────────────────────
 VERSION2 = "label-v2"
+# label-v2 definitions under a research label version (E5-H: vendor-adjusted 2020 history)
+RESEARCH_VERSIONS = frozenset({"label-h2020"})
 EXTREME = 0.25
 COLUMNS2 = (*COLUMNS, "flags", "reason", "run_id")
 V2_DOC = """label-v2: the label-v1 definitions (the nine labels above, session T open -> T
@@ -165,7 +167,8 @@ def _malformed(b: dict) -> bool:
 
 
 def v2_rows(key: str, canon_days: list[_dt.date], adj: dict[_dt.date, dict],
-            actions: dict[_dt.date, list[dict]], cal: dict, prev_of: dict) -> list[dict]:
+            actions: dict[_dt.date, list[dict]], cal: dict, prev_of: dict,
+            version: str = VERSION2) -> list[dict]:
     """Pure: the label-v2 rows of one instrument (without run bookkeeping)."""
     out = []
     for d in canon_days:
@@ -217,7 +220,7 @@ def v2_rows(key: str, canon_days: list[_dt.date], adj: dict[_dt.date, dict],
         flags = sorted(flags)
         for lid in LABELS:
             v = vals[lid]
-            out.append({"label_version": VERSION2, "session_date": d, "instrument_key": key,
+            out.append({"label_version": version, "session_date": d, "instrument_key": key,
                         "label_id": lid, "value": v,
                         "status": "VALID" if v is not None else "MISSING_INPUT",
                         "label_start_at": st_at, "label_end_at": en_at, "inputs_sha256": sha,
@@ -257,9 +260,14 @@ async def source_fingerprints(s: AsyncSession, start: _dt.date, end: _dt.date,
 
 async def build_v2(s: AsyncSession, start: _dt.date, end: _dt.date, *,
                    cutoff: _dt.datetime, keys: list[str] | None = None,
-                   code_git_sha: str = "unknown") -> dict[str, Any]:
+                   code_git_sha: str = "unknown", version: str = VERSION2,
+                   allow_low_confidence: bool = False) -> dict[str, Any]:
     """label-v2 for sessions in [start, end], read at `cutoff`, in ONE transaction
-    (the run row and every label row commit together; the FK is deferred)."""
+    (the run row and every label row commit together; the FK is deferred).
+    version / allow_low_confidence: the label-v2 definitions under another label version
+    on vendor-adjusted history (E5-H `label-h2020`, research only)."""
+    if version != VERSION2 and version not in RESEARCH_VERSIONS:
+        raise ValueError(f"unknown label version {version}")
     import uuid
 
     from app.features import registry as R
@@ -296,8 +304,9 @@ async def build_v2(s: AsyncSession, start: _dt.date, end: _dt.date, *,
         if not canon:
             continue
         adj = {r["market_date"]: r for r in (await pit.bars_adjusted(
-            s, key, "1d", cutoff, start=start - _dt.timedelta(days=10), end=end))["rows"]}
-        rows = v2_rows(key, canon, adj, acts.get(key, {}), cal, prev_of)
+            s, key, "1d", cutoff, start=start - _dt.timedelta(days=10), end=end,
+            allow_low_confidence=allow_low_confidence))["rows"]}
+        rows = v2_rows(key, canon, adj, acts.get(key, {}), cal, prev_of, version)
         digests.append(_digest(rows))
         for r in rows:
             r.update(computed_at=started, run_id=run_id)
@@ -315,7 +324,7 @@ async def build_v2(s: AsyncSession, start: _dt.date, end: _dt.date, *,
         stored = {(r[0], r[1]): (r[2], r[3], r[4]) for r in (await s.execute(text("""
             select session_date, label_id, value, reason, flags from training_label
             where label_version = :v and instrument_key = :k and session_date between :a and :b
-            """), {"v": VERSION2, "k": key, "a": start, "b": end})).all()}
+            """), {"v": version, "k": key, "a": start, "b": end})).all()}
         drift += sum(1 for r in rows if stored.get((r["session_date"], r["label_id"]))
                      != (r["value"], r["reason"], r["flags"]))
         rows_total += len(rows)
@@ -328,11 +337,11 @@ async def build_v2(s: AsyncSession, start: _dt.date, end: _dt.date, *,
         rows, rows_sha256, source_fingerprints, summary, started_at, completed_at)
         values (:r, :v, :c, :rh, :g, :a, :b, :n, :rows, :h, cast(:fp as jsonb),
                 cast(:sm as jsonb), :st, :en)"""),
-        {"r": run_id, "v": VERSION2, "c": cutoff, "rh": R.REGISTRY_SHA256, "g": code_git_sha,
+        {"r": run_id, "v": version, "c": cutoff, "rh": R.REGISTRY_SHA256, "g": code_git_sha,
          "a": start, "b": end, "n": len(digests), "rows": rows_total, "h": rows_sha,
          "fp": json.dumps(fps), "sm": json.dumps(summary, default=str), "st": started,
          "en": now()})
     await s.commit()
-    return {"run_id": str(run_id), "label_version": VERSION2, "cutoff": cutoff.isoformat(),
+    return {"run_id": str(run_id), "label_version": version, "cutoff": cutoff.isoformat(),
             "rows_sha256": rows_sha, "instruments": len(digests), "source_fingerprints": fps,
             **{k: v for k, v in summary.items() if k != "definition"}}

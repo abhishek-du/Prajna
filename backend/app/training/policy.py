@@ -41,6 +41,7 @@ class Dataset:
     search_path: str | None
     snapshots: tuple[str, ...]
     registry_version: str = "features-v4"     # the only registry this version may be built with
+    allow_low_confidence: bool = False        # research only (E5-H): pit.RESEARCH_ALLOW_...
 
 
 DATASETS = {
@@ -56,6 +57,11 @@ DATASETS = {
     # Its rows stay, frozen; v4b is the AS_IF_LIVE dataset on features-v5.
     "asif": Dataset("stage4-ds-v4b-asif", ASIF, "train_asif2, public", ("PRE_SESSION",),
                     "features-v5"),
+    # E5-H (docs/STAGE4_E5H_PREREGISTRATION.md, user 2026-10-23): the frozen E5 model on
+    # 2020. Vendor-adjusted bars older than the corporate-action horizon are accepted
+    # (AS_IF, flagged); 2019-12-17..2020-12-31 only. RESEARCH ONLY.
+    "h2020": Dataset("stage4-ds-h2020", ASIF, "train_asif2, public", ("PRE_SESSION",),
+                     "features-v5", allow_low_confidence=True),
 }
 # Built under earlier code and registries: immutable. A build into any of them is refused
 # (it would append rows computed with different feature semantics).
