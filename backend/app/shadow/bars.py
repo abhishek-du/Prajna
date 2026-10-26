@@ -38,6 +38,8 @@ class NameDay:
     adx14_1d: float | None = None
     median_volume_20d: float | None = None
     sector: str | None = None
+    atr_pct_1d: float | None = None           # ATR(14) of daily bars / previous close
+    sr_zones: list[float] = field(default_factory=list)   # patterns.zones of daily bars
     extra: dict = field(default_factory=dict)
 
 

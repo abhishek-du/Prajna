@@ -8,13 +8,16 @@ and its 1m bars are complete (>= 90 % of the universe with >= 370 bars). Prices:
                   ex-dated inside the 15m history window (11 sessions) is excluded, so
                   raw intraday prices never straddle an adjustment
 Universe: the E4 eligible top-500 restricted to security class STOCK (no fund units or
-ETFs) with a median daily turnover >= Rs 5 crore. Exclusions decided before 09:15 of T: results intimated for T - 1 or T, or a results
+ETFs) with a median daily turnover >= Rs 5 crore; the regime breadth uses all of it, the
+strategies and placebos trade only its F&O stocks (NSE futures in the latest Upstox
+master stored before 09:15 of T). Exclusions decided before 09:15 of T: results intimated for T - 1 or T, or a results
 outcome knowable in [T - 1 09:15, T 09:15); the CA window above.
 """
 
 from __future__ import annotations
 
 import csv
+import gzip
 import datetime as _dt
 import hashlib
 import json
@@ -32,6 +35,7 @@ from app.core.errors import PrajnaError
 from app.paper import strategies as PS
 from app.shadow import book as BK
 from app.shadow import indicators as I
+from app.shadow import patterns as PT
 from app.shadow import regime as RG
 from app.shadow import spec as SP
 from app.shadow import strategies as STG
@@ -91,14 +95,41 @@ async def _index_series(s: AsyncSession, key: str, m: PS.Market,
     return cols
 
 
-def _daily_context(sr: dict[str, list], d: int) -> dict[str, float | None]:
+def _daily_context(sr: dict[str, list], d: int) -> dict[str, Any]:
     t = RG._tail(sr, d)
     c = t["close"]
     e = I.ema(c, 50)[-1] if len(c) >= 50 else None
     a = I.adx(t["high"], t["low"], c, 14)[-1] if len(c) >= 29 else None
+    at14 = I.atr(t["high"], t["low"], c, 14)[-1] if len(c) >= 15 else None
     vols = [v for v in sr["volume"][max(0, d - 20):d] if v is not None and v >= 0]
     return {"ema50": e, "adx14": a,
+            "atr_pct_1d": at14 / c[-1] if at14 is not None and c else None,
+            "sr_zones": PT.zones(t["high"], t["low"]),
             "median_volume_20d": float(np.median(vols)) if len(vols) >= 10 else None}
+
+
+async def fo_underlyings(s: AsyncSession, before: _dt.datetime) -> tuple[set[str], dict[str, Any]]:
+    """Stocks with NSE futures in the latest Upstox instrument master stored before
+    `before` (raw_payload, archived file). None stored before it: the earliest one, flagged
+    (only a dry run of an old session can reach that)."""
+    q = """select payload_sha256, fetched_at, storage_uri from raw_payload
+        where vendor_endpoint like '%instruments/exchange/NSE.json.gz%' {w} limit 1"""
+    r = (await s.execute(text(q.format(w="and fetched_at < :b order by fetched_at desc")),
+                         {"b": before})).first()
+    late = r is None
+    if late:
+        r = (await s.execute(text(q.format(w="order by fetched_at")))).first()
+    if r is None:
+        raise ShadowRefused("no Upstox instrument master is stored (needed for the F&O list)")
+    data = pathlib.Path(r.storage_uri).read_bytes()
+    while data[:2] == b"\x1f\x8b":
+        data = gzip.decompress(data)
+    keys = {x.get("underlying_key") for x in json.loads(data)
+            if x.get("segment") == "NSE_FO" and x.get("instrument_type") == "FUT"
+            and x.get("underlying_type") == "EQUITY"}
+    keys.discard(None)
+    return keys, {"master_sha256": r.payload_sha256, "fetched_at": str(r.fetched_at),
+                  "after_session_open": late, "underlyings": len(keys)}
 
 
 async def ready(s: AsyncSession, session: _dt.date) -> str | None:
@@ -169,7 +200,9 @@ async def load(s: AsyncSession, session: _dt.date, cutoff: _dt.datetime) -> dict
         names[k] = NameDay(
             k, [b for _, b in m1.get(k, [])], [b for _, b in m15.get(k, [])],
             [dt for dt, _ in m15.get(k, [])], m.series[k]["close"][d - 1],
-            ctx["ema50"], ctx["adx14"], ctx["median_volume_20d"], m.sectors.get(k))
+            ctx["ema50"], ctx["adx14"], ctx["median_volume_20d"], m.sectors.get(k),
+            ctx["atr_pct_1d"], ctx["sr_zones"])
+    fo, fo_info = await fo_underlyings(s, open_t)
     cal, cal_sha = calendar()
     near = (await s.execute(text("""select session_date, session_type from trading_session
         where session_date between :a and :b"""),
@@ -193,9 +226,12 @@ async def load(s: AsyncSession, session: _dt.date, cutoff: _dt.datetime) -> dict
     sha.update(json.dumps([[(b.start.isoformat(), b.open, b.close) for _, b in m1.get(NIFTY, [])],
                            {k: v[max(0, d - 300):d] for k, v in
                             {n: idx[n]["close"] for n in idx}.items()},
-                           sorted(res), sorted(ca), cal_sha, thin], default=str).encode())
+                           sorted(res), sorted(ca), cal_sha, thin, sorted(fo)],
+                          default=str).encode())
     return {"session": session, "m": m, "d": d, "universe": uni, "idx": idx,
             "names": names, "nifty_1m": [b for _, b in m1.get(NIFTY, [])],
+            "fo": sorted(k for k in uni if k in fo) if SP.UNIVERSE["fo_only"] else list(uni),
+            "fo_info": fo_info,
             "excluded_results": sorted(res), "excluded_ca": sorted(ca),
             "results_share": (res_t or 0) / len(uni), "calendar": cal.get(session, []),
             "calendar_sha256": cal_sha, "holiday_thin": thin, "inputs_sha256": sha.hexdigest()}
@@ -231,7 +267,7 @@ def compute(inp: dict[str, Any], prior_daily_net: dict[str, list[float]]) -> dic
         snaps.append({"checkpoint": _cp(hhmm), "features": f, "state": state,
                       "rule_fired": rule, "risk_mult": mult, "day_type": dt_})
     excluded = set(inp["excluded_results"]) | set(inp["excluded_ca"])
-    pool = [k for k in inp["universe"] if k not in excluded]
+    pool = [k for k in inp["fo"] if k not in excluded]       # tradable: F&O stocks only
     s1 = SP.STRAT[SP.S1]
     ends = []
     t = at(session, s1["signal_from"])
@@ -241,7 +277,8 @@ def compute(inp: dict[str, Any], prior_daily_net: dict[str, list[float]]) -> dic
     breadth = {e: RG.breadth_at(names, e)["breadth_above_open"] for e in ends}
     trades: list[dict] = []
     skips: list[dict] = []
-    counts: dict[str, Any] = {"universe": len(inp["universe"]), "pool": len(pool),
+    counts: dict[str, Any] = {"universe": len(inp["universe"]), "fo": len(inp["fo"]),
+                              "fo_master": inp["fo_info"], "pool": len(pool),
                               "excluded_results": len(inp["excluded_results"]),
                               "excluded_ca": len(inp["excluded_ca"])}
     for strat in SP.STRATEGIES:

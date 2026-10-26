@@ -6,6 +6,7 @@ PURE. Candidates are taken in entry-time order (ties: the strategy's rank, then 
   caps        <= 3 open, open risk + new <= 3 % of equity, <= 3 open per known sector
   daily halt  realised + open mark-to-market <= -3 % at a new entry -> HALT_DAILY for the
               rest of the session (open trades keep their stops)
+  first stop  after the book's first STOP / STOP_GAP exit, no new entry (HALT_FIRST_STOP)
   drawdown    flags from the book's earlier sessions: >= 5 % DD_HALF, >= 10 % DD_HALT
               (recorded only in P1)
 """
@@ -93,6 +94,10 @@ def run(cands: list[Candidate], names: dict[str, NameDay], *,
                 halted = True
         if halted:
             skips.append(Skip(c.strategy, c.key, "HALT_DAILY", c.signal_at))
+            continue
+        if BOOK["halt_after_first_stop"] and any(
+                x["exit_reason"] in ("STOP", "STOP_GAP") and x["exit_at"] <= t for x in taken):
+            skips.append(Skip(c.strategy, c.key, "HALT_FIRST_STOP", c.signal_at))
             continue
         qty = size(abs(c.entry_raw - c.stop), c.size_factor, c.entry_raw, nd.median_volume_20d)
         if qty <= 0:

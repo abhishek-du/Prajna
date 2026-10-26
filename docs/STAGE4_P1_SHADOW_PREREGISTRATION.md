@@ -1,6 +1,6 @@
-# Stage 4 v2, phase P1: regime engine + shadow strategy library (pre-registration DRAFT v2.1)
+# Stage 4 v2, phase P1: regime engine + shadow strategy library (pre-registration DRAFT v2.2)
 
-**Status: DRAFT v2.1 (code built: `backend/app/shadow/`, migration 0027; not frozen, not scheduled). v2.1 records the implementation details below; no number in §1 changed.**
+**Status: DRAFT v2.2 (code built: `backend/app/shadow/`, migrations 0027 + 0028; not frozen, not scheduled). v2.1 recorded the implementation details. v2.2 adds the seven rules the user asked for on 2026-10-26 (§1a); they are part of both strategies' frozen specs.**
 
 **Parents:**
 - `docs/STAGE4_AI_AGENT_DESIGN.md` (L0–L3, L5, L7);
@@ -23,7 +23,7 @@ v2 replaces the v1 draft's own choices with those numbers. §1 lists the source 
 | Daily loss limit | −3 % of capital (= −3R) → halt for the session | `risk.py` `daily_loss_halt` (Design L0 gives no number) |
 | Drawdown protocol | 5 % → half size; 10 % → halt until review | 10 %: `risk.py` `max_drawdown_halt`; 5 %: **PRAJNA DEFAULT** (Design L0 "X %") |
 | Stop distance | ≥ 1 ATR(14); stop set at entry, only tightens | Playbook law 4, §3 |
-| RRR | ≥ 1.5, else skip | Playbook law 3, §4 point 6 |
+| RRR | ≥ **2.0**, else skip (Varsity minimum 1.5; the user chose 1:2 on 2026-10-26) | USER; Playbook law 3 |
 | Size | qty = risk ₹ / \|entry − stop\| | Playbook law 5, §3 |
 | Checklist | trade only if ≥ 4 of the 6 points pass; indicators confirm → full size, else half | Playbook §4 |
 | Volume confirmation | signal-bar volume ≥ 10-day average | Playbook §4 point 3 |
@@ -45,6 +45,20 @@ v2 replaces the v1 draft's own choices with those numbers. §1 lists the source 
 | Slippage | 0 bps primary; 5, 10 and 20 bps sensitivity | Playbook law 6 (gap fade fragility) |
 
 The **PRAJNA DEFAULT** rows are the only judgement calls. The user may change them before the freeze, and never after.
+
+## 1a. User additions (2026-10-26, from the manager discussion checklist)
+
+| # | Rule | Applies to | Exact definition | Skip reason |
+|---|---|---|---|---|
+| 1 | F&O stocks only | S1, S2, placebos | the universe ∩ stocks with NSE futures in the latest Upstox instrument master stored before 09:15 of T (about 204–213 names). The regime breadth still uses the full universe | (not in the pool) |
+| 2 | Reward : risk ≥ 1 : 2 | S1, S2 | `rrr_min` 2.0 | `SKIP_RRR` |
+| 3 | Candlestick confirmation | S1: the breakout bar is a strong candle (body ≥ 50 % of its range, close in the top / bottom 25 %). S2: the signal bar is a hammer / shooting star (wick ≥ 2 × body, the other wick ≤ body) or a bullish / bearish engulfing of the previous bar | signal condition (no candle, no signal) | — |
+| 4 | Support/resistance zones | daily pivots (5-session extremes) over the last 120 sessions ≤ T−1, clustered within 1 %; a zone needs ≥ 3 touches spanning ≥ 10 sessions (Playbook §4 point 2) | S1: a zone strictly between the entry and the target blocks the trade. S2: needs a zone within 1.5 % of the signal close | `SR_BLOCKED`, `NO_SR_ZONE` |
+| 5 | No new entry after the first stop-loss of the day | each strategy book | after the first STOP / STOP_GAP exit, entries at or after that time are skipped | `HALT_FIRST_STOP` |
+| 6 | MA / MACD | S1: EMA 9 above EMA 21 on 15m bars (below for shorts) is a signal condition; MACD(12, 26, 9) line above its trigger joins point 5 (full size). S2: point 5 needs RSI < 25 (> 75) **and** the MACD histogram turning up (down) | — | — |
+| 7 | Volatility cap for S1 | the stock's daily ATR(14) / previous close ≤ 3 % | S1 | `VOL_TOO_HIGH` |
+
+**Consequence, stated before the freeze.** On the three mechanics sessions (counts only, no P&L), S1 took 0–3 trades per session and S2 took 0, against 3 and 14 per session before these additions. At that rate the 60-session look will have very few trades, especially for S2, and can only detect large effects. The 250-session look may still be underpowered for S2.
 
 ## 2. What P1 is, and what it is not
 
@@ -268,7 +282,7 @@ All tables are append-only, have unique natural keys, and are idempotent on reru
 - context: `regime_state`, `risk_mult`, `day_type`, `guard_flags` (`HALT_DAILY`, `DD_HALF`, `DD_HALT`), `evidence` jsonb, `run_id`.
 
 **`shadow_skip`:** one row per rejected candidate (a name whose first signal bar was rejected; the name is then done for the session), with a closed reason list:
-- `SKIP_RRR`, `CHECKLIST_LT4`, `CAP_OPEN_RISK`, `CAP_SECTOR`, `CAP_LIQUIDITY`, `HALT_DAILY`, `MOVE_GT_3PCT`, `NO_INTRADAY_BARS`.
+- `SKIP_RRR`, `CHECKLIST_LT4`, `CAP_OPEN_RISK`, `CAP_SECTOR`, `CAP_LIQUIDITY`, `HALT_DAILY`, `MOVE_GT_3PCT`, `NO_INTRADAY_BARS`, and from migration 0028 `VOL_TOO_HIGH`, `SR_BLOCKED`, `NO_SR_ZONE`, `HALT_FIRST_STOP`.
 
 **`shadow_run`:** session, cutoff, policy shas, counts, `rows_sha256`, status (DONE, or SKIPPED with a reason for a non-normal session such as Muhurat).
 - A refused session is **not** stored, and a later run retries it: the 1d or 1m bars of T are not stored yet; fewer than 90 % of the universe have ≥ 370 1m bars; the T−1 Nifty 1d bar is missing.

@@ -30,7 +30,8 @@ BOOK = {
     "dd_halt": 0.10,                # risk.py max_drawdown_halt
     "notional_cap_inr": 1_000_000.0,  # per position (leverage <= 1:10 never reached)
     "participation": 0.01,          # of the 20-session median daily volume
-    "rrr_min": 1.5,                 # Playbook law 3
+    "rrr_min": 2.0,                 # USER 2026-10-26 (1:2; Playbook law 3 minimum is 1.5)
+    "halt_after_first_stop": True,  # USER 2026-10-26: no new entry after the first stop-out
     "half_spread_bps": 5.0,         # app.paper.sim
     "slippage_bps": (0.0, 5.0, 10.0, 20.0),   # primary 0; sensitivity (law 6)
     "checklist_min": 4,             # Playbook §4
@@ -61,15 +62,31 @@ STRAT = {
          "atr_n": 14, "stop_atr_min": 1.0,                        # Playbook law 4
          "structure_max_pct": 0.04,                               # Playbook §4 point 2
          "ind_adx_min": 25.0, "ind_rsi_long": (50.0, 80.0), "ind_rsi_short": (20.0, 50.0),
-         "ema_stock": 50, "exit_eod": "15:15"},
+         "ema_stock": 50, "exit_eod": "15:15",
+         "ma_fast": 9, "ma_slow": 21,                             # USER: MA alignment (15m)
+         "macd": (12, 26, 9),                                     # USER: MACD > trigger (p5)
+         "candle_body_min": 0.5, "candle_close_pos": 0.75,        # USER: strong candle (M2)
+         "max_atr_pct_1d": 0.03},                                 # USER: volatility cap
     S2: {"signal_from": "10:00", "signal_to": "14:00",
          "bb_n": 20, "bb_k": 2.0, "rsi_n": 14, "rsi_low": 30.0, "rsi_high": 70.0,
          "rsi_full_low": 25.0, "rsi_full_high": 75.0,
          "max_move_prev_close": 0.03,                             # PRAJNA_DEFAULT no-news proxy
          "stock_adx_max": 20.0, "vol_ratio_min": 1.0, "vol_sessions": 10,
          "atr_n": 14, "stop_atr": 1.0, "time_stop_bars15": 4,     # PRAJNA_DEFAULT 1 h
-         "exit_eod": "15:15"},
+         "exit_eod": "15:15",
+         "macd": (12, 26, 9),                                     # USER: histogram turning (p5)
+         "wick_body_min": 2.0},                                   # USER: hammer / star (M2)
 }
+
+UNIVERSE = {"fo_only": True}       # USER 2026-10-26: stocks with NSE futures (Upstox master)
+
+# Varsity M2 support/resistance zones on daily bars <= T - 1 (pivots, clustered)
+SR = {"lookback_sessions": 120,     # Playbook §4 point 2: 3-6 months for short-term trades
+      "pivot_half_width": 2,        # a pivot high/low is the extreme of a 5-session window
+      "cluster_tol": 0.01,          # PRAJNA_DEFAULT: touches within 1 % are one zone
+      "min_touches": 3,             # Playbook §4 point 2
+      "min_span_sessions": 10,      # Playbook §4 point 2: touches >= 2 weeks apart
+      "near_pct": 0.015}            # PRAJNA_DEFAULT: S2 needs a zone within 1.5 % of the close
 
 DATA = {"min_1m_bars": 370, "min_universe_share_1m": 0.90, "history_15m_sessions": 10,
         "ca_window_sessions": 11}
@@ -78,7 +95,7 @@ DATA = {"min_1m_bars": 370, "min_universe_share_1m": 0.90, "history_15m_sessions
 def spec() -> dict[str, Any]:
     return {"policy_version": POLICY_VERSION, "regime_version": REGIME_VERSION,
             "strategies": list(STRATEGIES), "book": BOOK, "regime": REGIME, "strat": STRAT,
-            "data": DATA}
+            "universe": UNIVERSE, "sr": SR, "data": DATA}
 
 
 def spec_sha256() -> str:

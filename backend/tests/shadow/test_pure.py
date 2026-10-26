@@ -182,29 +182,41 @@ def test_daily_halt_after_minus_3pct():
 
 
 # ── strategies ────────────────────────────────────────────────────────────────────
-def _s1_name(vol_today=2000.0, close2=103.0, or_low=99.0):
+def _s1_name(vol_today=2000.0, close2=103.1, or_low=99.0, atr_pct=0.02, zones=()):
     hist, dates = [], []
     for d in PREV:
         rows = [(100, 101, 99, 100, 1000.0)] * 25
         hist += _m15(d, rows)
         dates += [d] * 25
     today = [(100, 102, or_low, 101, 1000.0), (101, 102.5, 100.5, 102, 1000.0),
-             (102, 103.5, 101.8, close2, vol_today)] + [(103, 103.2, 102.8, 103, 500.0)] * 22
+             (102, 103.2, 101.9, close2, vol_today)] + [(103, 103.2, 102.8, 103, 500.0)] * 22
     m15 = hist + _m15(DAY, today)
     m1 = _m1(DAY, [101.0] * 45 + [103.1] * 330)
-    return NameDay("K", m1, m15, dates + [DAY] * 25, 101.0, 95.0, 15.0, 1e9, "IT")
+    return NameDay("K", m1, m15, dates + [DAY] * 25, 101.0, 95.0, 15.0, 1e9, "IT",
+                   atr_pct, list(zones))
 
 
 def test_s1_breakout_rules():
     nifty = _m1(DAY, [100.0] + [101.0] * 374)
     br = {at(DAY, "09:45"): 0.7, at(DAY, "10:00"): 0.7}
-    c = ST.orb_breadth(_s1_name(), DAY, nifty, br)       # target 102 + 3: RRR < 1.5
-    assert isinstance(c, ST.Skip) and c.reason == "SKIP_RRR" and c.detail["rrr"] < 1.5
+    c = ST.orb_breadth(_s1_name(), DAY, nifty, br)       # target 102 + 3: RRR < 2
+    assert isinstance(c, ST.Skip) and c.reason == "SKIP_RRR" and c.detail["rrr"] < 2.0
     c = ST.orb_breadth(_s1_name(or_low=95.0), DAY, nifty, br)   # width 7: target 109
     assert isinstance(c, ST.Candidate) and c.side == 1 and c.entry_raw == 103.1
     assert c.target == 109 and c.stop == pytest.approx(min(102, 103.1 - c.atr))
     assert c.signal_at == at(DAY, "10:00") and c.time_stop == at(DAY, "15:15")
-    assert c.rrr >= 1.5 and c.checklist["p6_rrr"]
+    assert c.rrr >= 2.0 and c.checklist["p6_rrr"] and c.evidence["ema9"] > c.evidence["ema21"]
+    # a daily ATR above 3 % of the price: too volatile for S1
+    z = ST.orb_breadth(_s1_name(or_low=95.0, atr_pct=0.04), DAY, nifty, br)
+    assert isinstance(z, ST.Skip) and z.reason == "VOL_TOO_HIGH"
+    # a resistance zone between the entry and the target blocks the path
+    z = ST.orb_breadth(_s1_name(or_low=95.0, zones=(106.0,)), DAY, nifty, br)
+    assert isinstance(z, ST.Skip) and z.reason == "SR_BLOCKED" and z.detail["zone"] == 106.0
+    # a zone beyond the target does not
+    assert isinstance(ST.orb_breadth(_s1_name(or_low=95.0, zones=(112.0,)), DAY, nifty, br),
+                      ST.Candidate)
+    # a weak breakout candle (close in the middle of its range): no signal
+    assert ST.orb_breadth(_s1_name(or_low=95.0, close2=102.55), DAY, nifty, br) is None
     # volume below the 10-session slot average: no signal at all
     assert ST.orb_breadth(_s1_name(vol_today=900.0), DAY, nifty, br) is None
     # breadth not above 60 %: no signal
@@ -258,30 +270,82 @@ def test_spec_sha_is_stable():
     assert SP.spec_sha256() == SP.spec_sha256() and len(SP.spec_sha256()) == 64
 
 
-def _s2_name(drop=97.5, prev_close=99.5, adx1d=15.0, vol=1500.0):
+def _s2_name(close=97.9, prev_close=99.5, adx1d=15.0, vol=1500.0, zones=(97.5,)):
     hist, dates = [], []
     for d in PREV:
-        rows = [(100, 100.6, 99.4, 100 + (0.05 if i % 2 else -0.05), 1000.0) for i in range(25)]
+        rows = [(100, 100.3, 99.7, 100 + (0.05 if i % 2 else -0.05), 1000.0) for i in range(25)]
         hist += _m15(d, rows)
         dates += [d] * 25
-    today = [(100, 100.6, 99.4, 100, 1000.0)] * 2 + [(100, 100.2, drop - 0.2, drop, vol)] \
-        + [(drop, drop + 0.3, drop - 0.3, drop, 1000.0)] * 22
+    today = [(100, 100.3, 99.7, 100, 1000.0)] * 2 + [(close + 0.1, close + 0.15, 96.0, close, vol)] \
+        + [(close, close + 0.3, close - 0.3, close, 1000.0)] * 22
     m15 = hist + _m15(DAY, today)
-    m1 = _m1(DAY, [100.0] * 30 + [(100, 100, drop, drop)] * 15 + [drop + 0.05] * 330)
-    return NameDay("K", m1, m15, dates + [DAY] * 25, prev_close, None, adx1d, 1e9, "IT")
+    m1 = _m1(DAY, [100.0] * 30 + [(100, 100, 96.0, close)] * 15 + [close + 0.05] * 330)
+    return NameDay("K", m1, m15, dates + [DAY] * 25, prev_close, None, adx1d, 1e9, "IT",
+                   0.02, list(zones))
 
 
 def test_s2_reversion_rules():
     c = ST.vwap_revert(_s2_name(), DAY)
     assert isinstance(c, ST.Candidate) and c.side == 1
-    assert c.signal_at == at(DAY, "10:00") and c.entry_raw == pytest.approx(97.55)
-    assert c.stop == pytest.approx(97.55 - c.atr) and c.target == pytest.approx(c.evidence["bb_mid"])
+    assert c.signal_at == at(DAY, "10:00") and c.entry_raw == pytest.approx(97.95)
+    assert c.stop == pytest.approx(97.95 - c.atr) and c.target == pytest.approx(c.evidence["bb_mid"])
     assert c.time_stop == at(DAY, "11:00") and c.time_reason == "TIME_NOT_WORKING"
     # a trending stock (ADX 1d >= 20): no signal
     assert ST.vwap_revert(_s2_name(adx1d=25.0), DAY) is None
     # a move >= 3 % from the previous close is information, not noise
     z = ST.vwap_revert(_s2_name(prev_close=101.0), DAY)
     assert isinstance(z, ST.Skip) and z.reason == "MOVE_GT_3PCT"
+    assert c.evidence["candle"] == "HAMMER" and c.evidence["sr_zone"] == 97.5 and c.rrr >= 2.0
+    # no support/resistance zone within 1.5 %: skipped
+    z = ST.vwap_revert(_s2_name(zones=()), DAY)
+    assert isinstance(z, ST.Skip) and z.reason == "NO_SR_ZONE"
     # volume below the slot average fails mandatory checklist point 3
     z = ST.vwap_revert(_s2_name(vol=500.0), DAY)
     assert isinstance(z, ST.Skip) and z.reason == "CHECKLIST_LT4"
+
+
+# ── patterns and the first-stop rule ─────────────────────────────────────────────
+def _b(o, h, lo, c):
+    t = at(DAY, "10:00")
+    return IBar(t, t + _dt.timedelta(minutes=15), o, h, lo, c, 1.0)
+
+
+def test_candles():
+    from app.shadow import patterns as PT
+    assert PT.strong(_b(100, 103.1, 99.9, 103), 1, 0.5, 0.75)
+    assert not PT.strong(_b(100, 104, 99, 101.5), 1, 0.5, 0.75)
+    assert PT.strong(_b(103, 103.1, 99.9, 100), -1, 0.5, 0.75)
+    assert PT.reversal(_b(100, 100.1, 98, 100.05), None, 1, 2.0) == "HAMMER"
+    assert PT.reversal(_b(100, 102, 99.95, 99.9), None, -1, 2.0) == "SHOOTING_STAR"
+    assert PT.reversal(_b(99, 101.2, 98.9, 101.1), _b(100.5, 100.6, 99.2, 99.3), 1, 2.0) \
+        == "BULL_ENGULFING"
+    assert PT.reversal(_b(100, 100, 100, 100), None, 1, 2.0) is None      # no range
+    assert PT.reversal(_b(100, 101, 99, 100), None, 1, 2.0) is None       # doji: no body
+
+
+def test_sr_zones_blocked_and_near():
+    from app.shadow import patterns as PT
+    hi, lo = [], []
+    for i in range(60):                       # a range 95-105, tested every 10 sessions
+        peak = i % 10 == 5
+        trough = i % 10 == 0
+        hi.append(105.0 if peak else 101.0)
+        lo.append(95.0 if trough else 99.0)
+    zs = PT.zones(hi, lo, lookback=60, w=2, tol=0.01, min_touches=3, min_span=10)
+    assert any(abs(z - 105) < 0.01 for z in zs) and any(abs(z - 95) < 0.01 for z in zs)
+    assert PT.zones(hi[:12], lo[:12], lookback=60, w=2, tol=0.01, min_touches=3,
+                    min_span=10) == []                       # too few touches
+    assert PT.blocked(100, 110, [105.0, 108.0]) == 105.0
+    assert PT.blocked(100, 90, [95.0, 92.0]) == 95.0
+    assert PT.blocked(100, 104, [105.0]) is None
+    assert PT.near(97.9, [97.5, 90.0]) == 97.5 and PT.near(97.9, [95.0]) is None
+
+
+def test_no_entry_after_the_first_stop():
+    t1, t2 = at(DAY, "10:00"), at(DAY, "11:00")
+    names = {"a": _nd("a", [100.0] * 45 + [(100, 100, 97, 98)] + [98.0] * 300),
+             "b": _nd("b", [100.0] * 400), "c": _nd("c", [100.0] * 400)}
+    c = [_cand("a", t1, stop=99.0, target=102.0), _cand("b", t2), _cand("c", t1)]
+    taken, skips, _ = BK.run(c, names, prior_daily_net=[])
+    assert {x["instrument_key"] for x in taken} == {"a", "c"}
+    assert [(z.key, z.reason) for z in skips] == [("b", "HALT_FIRST_STOP")]
