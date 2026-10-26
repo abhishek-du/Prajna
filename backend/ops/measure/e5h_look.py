@@ -48,6 +48,7 @@ FIRST, LAST = _dt.date(2020, 1, 1), _dt.date(2020, 12, 31)
 BASIS_FROM = _dt.datetime(2026, 9, 23, tzinfo=IST)
 BASIS_CHECK_UNTIL = _dt.date(2020, 3, 31)
 EXTREME = 0.25
+NSE_CLOSE = _dt.time(15, 30)
 OUT = ROOT / "var/stage4/experiments/e5h"
 PREREG = ROOT.parent / "docs/STAGE4_E5H_PREREGISTRATION.md"
 
@@ -96,8 +97,11 @@ async def results_names(s, day: _dt.date, prev: _dt.date) -> set[str]:
     # after the previous session's close, up to d's close: the dissemination date stands
     # for the results meeting date, which listed companies announce days in advance (the
     # live rule reads those intimations); no time of day after the prediction is used
-    lo = _dt.datetime.combine(prev, cal[prev][1], tzinfo=IST)
-    hi = _dt.datetime.combine(day, cal[day][1], tzinfo=IST)
+    # a SPECIAL session (2020-02-01 budget day, 2020-11-14 muhurat) has no recorded hours:
+    # the standard 15:30 close (exact for the budget day; for the evening muhurat session it
+    # widens the window, excluding more names - conservative, never later information)
+    lo = _dt.datetime.combine(prev, cal[prev][1] or NSE_CLOSE, tzinfo=IST)
+    hi = _dt.datetime.combine(day, cal[day][1] or NSE_CLOSE, tzinfo=IST)
     return set((await s.execute(text("""select distinct instrument_key from results_event
         where kind = 'HISTORICAL_FILING' and event_at > :lo and event_at <= :hi"""),
         {"lo": lo, "hi": hi})).scalars())
