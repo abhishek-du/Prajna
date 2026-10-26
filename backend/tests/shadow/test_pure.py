@@ -16,6 +16,8 @@ from app.shadow import strategies as ST
 from app.shadow.bars import IBar, NameDay, at
 
 DAY = _dt.date(2026, 10, 7)
+S1S, S1C = "orb_breadth_strict_v1", "orb_breadth_core_v1"
+S2S, S2C = "vwap_revert_strict_v1", "vwap_revert_core_v1"
 PREV = [_dt.date(2026, 9, 23) + _dt.timedelta(days=i) for i in range(10)]
 
 
@@ -144,7 +146,7 @@ def test_dd_flags():
 
 
 def _cand(key, t, entry=100.0, stop=98.0, target=104.0, side=1, rank=(1.0,)):
-    return ST.Candidate("s", key, side, t, t, entry, stop, target, 2.0,
+    return ST.Candidate(S1S, key, side, t, t, entry, stop, target, 2.0,
                         at(DAY, "15:15"), "EOD", 1.0, {"p1_pattern": True}, rank)
 
 
@@ -199,28 +201,28 @@ def _s1_name(vol_today=2000.0, close2=103.1, or_low=99.0, atr_pct=0.02, zones=()
 def test_s1_breakout_rules():
     nifty = _m1(DAY, [100.0] + [101.0] * 374)
     br = {at(DAY, "09:45"): 0.7, at(DAY, "10:00"): 0.7}
-    c = ST.orb_breadth(_s1_name(), DAY, nifty, br)       # target 102 + 3: RRR < 2
+    c = ST.orb_breadth(_s1_name(), DAY, nifty, br, S1S)       # target 102 + 3: RRR < 2
     assert isinstance(c, ST.Skip) and c.reason == "SKIP_RRR" and c.detail["rrr"] < 2.0
-    c = ST.orb_breadth(_s1_name(or_low=95.0), DAY, nifty, br)   # width 7: target 109
+    c = ST.orb_breadth(_s1_name(or_low=95.0), DAY, nifty, br, S1S)   # width 7: target 109
     assert isinstance(c, ST.Candidate) and c.side == 1 and c.entry_raw == 103.1
     assert c.target == 109 and c.stop == pytest.approx(min(102, 103.1 - c.atr))
     assert c.signal_at == at(DAY, "10:00") and c.time_stop == at(DAY, "15:15")
     assert c.rrr >= 2.0 and c.checklist["p6_rrr"] and c.evidence["ema9"] > c.evidence["ema21"]
     # a daily ATR above 3 % of the price: too volatile for S1
-    z = ST.orb_breadth(_s1_name(or_low=95.0, atr_pct=0.04), DAY, nifty, br)
+    z = ST.orb_breadth(_s1_name(or_low=95.0, atr_pct=0.04), DAY, nifty, br, S1S)
     assert isinstance(z, ST.Skip) and z.reason == "VOL_TOO_HIGH"
     # a resistance zone between the entry and the target blocks the path
-    z = ST.orb_breadth(_s1_name(or_low=95.0, zones=(106.0,)), DAY, nifty, br)
+    z = ST.orb_breadth(_s1_name(or_low=95.0, zones=(106.0,)), DAY, nifty, br, S1S)
     assert isinstance(z, ST.Skip) and z.reason == "SR_BLOCKED" and z.detail["zone"] == 106.0
     # a zone beyond the target does not
-    assert isinstance(ST.orb_breadth(_s1_name(or_low=95.0, zones=(112.0,)), DAY, nifty, br),
+    assert isinstance(ST.orb_breadth(_s1_name(or_low=95.0, zones=(112.0,)), DAY, nifty, br, S1S),
                       ST.Candidate)
     # a weak breakout candle (close in the middle of its range): no signal
-    assert ST.orb_breadth(_s1_name(or_low=95.0, close2=102.55), DAY, nifty, br) is None
+    assert ST.orb_breadth(_s1_name(or_low=95.0, close2=102.55), DAY, nifty, br, S1S) is None
     # volume below the 10-session slot average: no signal at all
-    assert ST.orb_breadth(_s1_name(vol_today=900.0), DAY, nifty, br) is None
+    assert ST.orb_breadth(_s1_name(vol_today=900.0), DAY, nifty, br, S1S) is None
     # breadth not above 60 %: no signal
-    assert ST.orb_breadth(_s1_name(), DAY, nifty, {k: 0.5 for k in br}) is None
+    assert ST.orb_breadth(_s1_name(), DAY, nifty, {k: 0.5 for k in br}, S1S) is None
 
 
 def test_s1_reads_nothing_after_the_signal():
@@ -229,7 +231,7 @@ def test_s1_reads_nothing_after_the_signal():
     a, b = _s1_name(), _s1_name()
     b.m15 = b.m15[:-20] + [IBar(x.start, x.end, 1, 500, 0.5, 400, 9e9) for x in b.m15[-20:]]
     b.m1 = b.m1[:46] + [IBar(x.start, x.end, 1, 1, 1, 1, 1) for x in b.m1[46:]]
-    ra, rb = ST.orb_breadth(a, DAY, nifty, br), ST.orb_breadth(b, DAY, nifty, br)
+    ra, rb = ST.orb_breadth(a, DAY, nifty, br, S1S), ST.orb_breadth(b, DAY, nifty, br, S1S)
     assert type(ra) is type(rb)
     if isinstance(ra, ST.Candidate):
         assert (ra.stop, ra.target, ra.entry_raw) == (rb.stop, rb.target, rb.entry_raw)
@@ -240,9 +242,9 @@ def test_checklist_and_rrr_verdict():
     c = ST.Candidate("s", "K", 1, t, t, 100.0, 98.0, 102.0, 2.0, t, "EOD", 1.0,
                      {"p1_pattern": True, "p2_structure_stop": True, "p3_volume": True,
                       "p4_dow": True, "p5_indicators": False, "p6_rrr": False}, (1,))
-    assert ST._verdict(c, ("p1_pattern", "p3_volume", "p6_rrr")).reason == "SKIP_RRR"
+    assert ST._verdict(c, ("p1_pattern", "p3_volume", "p6_rrr"), 1.5).reason == "SKIP_RRR"
     c.checklist["p3_volume"] = False
-    assert ST._verdict(c, ("p1_pattern", "p3_volume", "p6_rrr")).reason == "CHECKLIST_LT4"
+    assert ST._verdict(c, ("p1_pattern", "p3_volume", "p6_rrr"), 1.5).reason == "CHECKLIST_LT4"
 
 
 # ── placebo ───────────────────────────────────────────────────────────────────────
@@ -259,8 +261,8 @@ def test_placebo_is_seeded_and_never_reuses_a_real_name():
                          placebo=False, guard_flags=[])]
     real[0]["atr"] = 2.0
     real[0]["signal_at"] = at(DAY, "09:45")
-    p1 = BK.placebo(real, names, list(names), "s", DAY)
-    p2 = BK.placebo(real, names, list(names), "s", DAY)
+    p1 = BK.placebo(real, names, list(names), S1S, DAY)
+    p2 = BK.placebo(real, names, list(names), S1S, DAY)
     assert p1 and [x["instrument_key"] for x in p1] == [x["instrument_key"] for x in p2]
     assert p1[0]["instrument_key"] != "N0" and p1[0]["is_placebo"] is True
     assert p1[0]["evidence"]["mirror_of"] == "N0"
@@ -285,22 +287,22 @@ def _s2_name(close=97.9, prev_close=99.5, adx1d=15.0, vol=1500.0, zones=(97.5,))
 
 
 def test_s2_reversion_rules():
-    c = ST.vwap_revert(_s2_name(), DAY)
+    c = ST.vwap_revert(_s2_name(), DAY, S2S)
     assert isinstance(c, ST.Candidate) and c.side == 1
     assert c.signal_at == at(DAY, "10:00") and c.entry_raw == pytest.approx(97.95)
     assert c.stop == pytest.approx(97.95 - c.atr) and c.target == pytest.approx(c.evidence["bb_mid"])
     assert c.time_stop == at(DAY, "11:00") and c.time_reason == "TIME_NOT_WORKING"
     # a trending stock (ADX 1d >= 20): no signal
-    assert ST.vwap_revert(_s2_name(adx1d=25.0), DAY) is None
+    assert ST.vwap_revert(_s2_name(adx1d=25.0), DAY, S2S) is None
     # a move >= 3 % from the previous close is information, not noise
-    z = ST.vwap_revert(_s2_name(prev_close=101.0), DAY)
+    z = ST.vwap_revert(_s2_name(prev_close=101.0), DAY, S2S)
     assert isinstance(z, ST.Skip) and z.reason == "MOVE_GT_3PCT"
     assert c.evidence["candle"] == "HAMMER" and c.evidence["sr_zone"] == 97.5 and c.rrr >= 2.0
     # no support/resistance zone within 1.5 %: skipped
-    z = ST.vwap_revert(_s2_name(zones=()), DAY)
+    z = ST.vwap_revert(_s2_name(zones=()), DAY, S2S)
     assert isinstance(z, ST.Skip) and z.reason == "NO_SR_ZONE"
     # volume below the slot average fails mandatory checklist point 3
-    z = ST.vwap_revert(_s2_name(vol=500.0), DAY)
+    z = ST.vwap_revert(_s2_name(vol=500.0), DAY, S2S)
     assert isinstance(z, ST.Skip) and z.reason == "CHECKLIST_LT4"
 
 
@@ -349,3 +351,32 @@ def test_no_entry_after_the_first_stop():
     taken, skips, _ = BK.run(c, names, prior_daily_net=[])
     assert {x["instrument_key"] for x in taken} == {"a", "c"}
     assert [(z.key, z.reason) for z in skips] == [("b", "HALT_FIRST_STOP")]
+
+
+def test_core_variants_use_varsity_numbers_only():
+    nifty = _m1(DAY, [100.0] + [101.0] * 374)
+    br = {at(DAY, "09:45"): 0.7, at(DAY, "10:00"): 0.7}
+    # core S1 ignores the volatility cap, the S/R zones and the candle; RRR floor is 1.5
+    for nd in (_s1_name(or_low=95.0, atr_pct=0.04), _s1_name(or_low=95.0, zones=(106.0,)),
+               _s1_name(or_low=95.0, close2=102.55)):
+        c = ST.orb_breadth(nd, DAY, nifty, br, S1C)
+        assert isinstance(c, ST.Candidate) and c.strategy == S1C, c
+    # RRR 1.63 (target 109 needs entry 103.1 and a 3.6 stop) passes core, not strict
+    c = ST.orb_breadth(_s1_name(or_low=97.0), DAY, nifty, br, S1C)
+    s = ST.orb_breadth(_s1_name(or_low=97.0), DAY, nifty, br, S1S)
+    assert isinstance(c, ST.Candidate) and 1.5 <= c.rrr < 2.0
+    assert isinstance(s, ST.Skip) and s.reason == "SKIP_RRR"
+    # core S2 needs no candle and no S/R zone
+    c = ST.vwap_revert(_s2_name(zones=()), DAY, S2C)
+    assert isinstance(c, ST.Candidate) and c.strategy == S2C
+
+
+def test_first_stop_rule_is_strict_only():
+    t1, t2 = at(DAY, "10:00"), at(DAY, "11:00")
+    names = {"a": _nd("a", [100.0] * 45 + [(100, 100, 97, 98)] + [98.0] * 300),
+             "b": _nd("b", [100.0] * 400)}
+    c = [ST.Candidate(S1C, k, 1, t, t, 100.0, 99.0 if k == "a" else 98.0,
+                      102.0 if k == "a" else 104.0, 2.0, at(DAY, "15:15"), "EOD", 1.0,
+                      {"p1_pattern": True}, (1.0,)) for k, t in (("a", t1), ("b", t2))]
+    taken, skips, _ = BK.run(c, names, prior_daily_net=[])
+    assert {x["instrument_key"] for x in taken} == {"a", "b"} and not skips

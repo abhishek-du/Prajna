@@ -1,5 +1,5 @@
-"""The two CANDIDATE specs (pre-registration §6), PURE. Each returns at most one candidate
-per name per session: the plan (entry from the next 1m open, stop, target, time stop,
+"""The two CANDIDATE specs (pre-registration §6), each in a core and a strict variant
+(spec.VARIANTS), PURE. Each returns at most one candidate per name per session: the plan (entry from the next 1m open, stop, target, time stop,
 size factor), the 6-point checklist and the evidence, or a skip with its reason.
 
 The first bar that meets a strategy's signal conditions defines the name's candidate; a
@@ -15,7 +15,7 @@ from typing import Any
 from app.shadow import indicators as I
 from app.shadow import patterns as PT
 from app.shadow.bars import IBar, NameDay, at, last_until
-from app.shadow.spec import BOOK, S1, S2, STRAT
+from app.shadow.spec import BOOK, S1, S2, STRAT, VARIANTS
 
 
 @dataclass
@@ -97,20 +97,22 @@ def _macd(c: list[float], f: int, sl: int, sg: int) -> tuple[list, list, list]:
     return line, trig, hist
 
 
-def _verdict(c: Candidate, mandatory: tuple[str, ...]) -> Result:
+def _verdict(c: Candidate, mandatory: tuple[str, ...], rrr_min: float) -> Result:
     if not all(c.checklist[p] for p in mandatory if p != "p6_rrr") or c.score < BOOK["checklist_min"]:
         return Skip(c.strategy, c.key, "CHECKLIST_LT4", c.signal_at,
                     {"checklist": c.checklist, **c.evidence})
-    if c.rrr < BOOK["rrr_min"]:
+    if c.rrr < rrr_min:
         return Skip(c.strategy, c.key, "SKIP_RRR", c.signal_at,
                     {"rrr": round(c.rrr, 4), "checklist": c.checklist, **c.evidence})
     return c
 
 
 def orb_breadth(nd: NameDay, session: _dt.date, nifty_1m: list[IBar],
-                breadth: dict[_dt.datetime, float | None]) -> Result:
-    """S1. breadth: share of the universe above its open, keyed by the 15m bar end."""
-    p = STRAT[S1]
+                breadth: dict[_dt.datetime, float | None], name: str) -> Result:
+    """S1 (variant `name`). breadth: share of the universe above its open, keyed by the
+    15m bar end."""
+    p, v = STRAT[S1], VARIANTS[name]
+    strict = v["strict"]
     today = [i for i, d in enumerate(nd.m15_dates) if d == session]
     if not today or not nifty_1m:
         return None
@@ -146,15 +148,15 @@ def orb_breadth(nd: NameDay, session: _dt.date, nifty_1m: list[IBar],
             (nd.prev_close < nd.ema50_1d and nb.close < n_open and br < p["breadth_short"])
         if not dow:
             continue
-        if maf[i] is None or mas[i] is None or side * (maf[i] - mas[i]) <= 0:
+        if strict and (maf[i] is None or mas[i] is None or side * (maf[i] - mas[i]) <= 0):
             continue                                   # EMA 9 / 21 (15m) not aligned
-        if not PT.strong(b, side, p["candle_body_min"], p["candle_close_pos"]):
+        if strict and not PT.strong(b, side, p["candle_body_min"], p["candle_close_pos"]):
             continue                                   # no strong breakout candle
-        if nd.atr_pct_1d is None or nd.atr_pct_1d > p["max_atr_pct_1d"]:
-            return Skip(S1, nd.key, "VOL_TOO_HIGH", b.end, {"atr_pct_1d": nd.atr_pct_1d})
+        if strict and (nd.atr_pct_1d is None or nd.atr_pct_1d > p["max_atr_pct_1d"]):
+            return Skip(name, nd.key, "VOL_TOO_HIGH", b.end, {"atr_pct_1d": nd.atr_pct_1d})
         eb = _entry_bar(nd, b.end)
         if eb is None or atr[i] is None:
-            return Skip(S1, nd.key, "NO_INTRADAY_BARS", b.end,
+            return Skip(name, nd.key, "NO_INTRADAY_BARS", b.end,
                         {"entry_bar": eb is not None, "atr": atr[i]})
         e = eb.open
         level = hi if side > 0 else lo
@@ -163,14 +165,15 @@ def orb_breadth(nd: NameDay, session: _dt.date, nifty_1m: list[IBar],
         target = hi + width if side > 0 else lo - width
         rl, rh = p["ind_rsi_long"] if side > 0 else p["ind_rsi_short"]
         ind = adx[i] is not None and adx[i] >= p["ind_adx_min"] and rsi[i] is not None \
-            and rl <= rsi[i] <= rh and mline[i] is not None and mtrig[i] is not None \
-            and side * (mline[i] - mtrig[i]) > 0
-        wall = PT.blocked(e, target, nd.sr_zones)
+            and rl <= rsi[i] <= rh and (not strict or (
+                mline[i] is not None and mtrig[i] is not None
+                and side * (mline[i] - mtrig[i]) > 0))
+        wall = PT.blocked(e, target, nd.sr_zones) if strict else None
         if wall is not None:
-            return Skip(S1, nd.key, "SR_BLOCKED", b.end,
+            return Skip(name, nd.key, "SR_BLOCKED", b.end,
                         {"zone": wall, "entry": e, "target": target})
         cand = Candidate(
-            S1, nd.key, side, b.end, eb.start, e, stop, target, atr[i],
+            name, nd.key, side, b.end, eb.start, e, stop, target, atr[i],
             at(session, p["exit_eod"]), "EOD", 1.0 if ind else 0.5,
             {"p1_pattern": True,
              "p2_structure_stop": abs(e - level) / e <= p["structure_max_pct"],
@@ -180,15 +183,16 @@ def orb_breadth(nd: NameDay, session: _dt.date, nifty_1m: list[IBar],
              "adx15": adx[i], "rsi15": rsi[i], "ema9": maf[i], "ema21": mas[i],
              "macd": mline[i], "macd_trigger": mtrig[i], "atr_pct_1d": nd.atr_pct_1d,
              "signal_close": b.close})
-        cand.checklist["p6_rrr"] = cand.rrr >= BOOK["rrr_min"]
+        cand.checklist["p6_rrr"] = cand.rrr >= v["rrr_min"]
         cand.rank = (cand.score, vr)
-        return _verdict(cand, ("p1_pattern", "p3_volume", "p6_rrr"))
+        return _verdict(cand, ("p1_pattern", "p3_volume", "p6_rrr"), v["rrr_min"])
     return None
 
 
-def vwap_revert(nd: NameDay, session: _dt.date) -> Result:
-    """S2."""
-    p = STRAT[S2]
+def vwap_revert(nd: NameDay, session: _dt.date, name: str) -> Result:
+    """S2 (variant `name`)."""
+    p, v = STRAT[S2], VARIANTS[name]
+    strict = v["strict"]
     today = [i for i, d in enumerate(nd.m15_dates) if d == session]
     if not today or nd.prev_close is None or nd.adx14_1d is None:
         return None
@@ -217,17 +221,17 @@ def vwap_revert(nd: NameDay, session: _dt.date) -> Result:
         if nd.adx14_1d >= p["stock_adx_max"]:
             continue                                   # the stock is not ranging: no signal
         pattern = PT.reversal(b, nd.m15[i - 1] if i else None, side, p["wick_body_min"])
-        if pattern is None:
+        if strict and pattern is None:
             continue                                   # no reversal candle on the signal bar
         move = b.close / nd.prev_close - 1
         if abs(move) >= p["max_move_prev_close"]:
-            return Skip(S2, nd.key, "MOVE_GT_3PCT", b.end, {"move": move})
+            return Skip(name, nd.key, "MOVE_GT_3PCT", b.end, {"move": move})
         zone = PT.near(b.close, nd.sr_zones)
-        if zone is None:
-            return Skip(S2, nd.key, "NO_SR_ZONE", b.end, {"zones": nd.sr_zones[:10]})
+        if strict and zone is None:
+            return Skip(name, nd.key, "NO_SR_ZONE", b.end, {"zones": nd.sr_zones[:10]})
         eb = _entry_bar(nd, b.end)
         if eb is None or atr[i] is None:
-            return Skip(S2, nd.key, "NO_INTRADAY_BARS", b.end,
+            return Skip(name, nd.key, "NO_INTRADAY_BARS", b.end,
                         {"entry_bar": eb is not None, "atr": atr[i]})
         e = eb.open
         stop = e - side * p["stop_atr"] * atr[i]
@@ -236,11 +240,11 @@ def vwap_revert(nd: NameDay, session: _dt.date) -> Result:
         turning = i > 0 and mhist[i] is not None and mhist[i - 1] is not None \
             and side * (mhist[i] - mhist[i - 1]) > 0
         full = (rsi[i] < p["rsi_full_low"] if side > 0 else rsi[i] > p["rsi_full_high"]) \
-            and turning
+            and (turning or not strict)
         ts = min(b.end + _dt.timedelta(minutes=15 * p["time_stop_bars15"]),
                  at(session, p["exit_eod"]))
         cand = Candidate(
-            S2, nd.key, side, b.end, eb.start, e, stop, mid[i], atr[i], ts,
+            name, nd.key, side, b.end, eb.start, e, stop, mid[i], atr[i], ts,
             "TIME_NOT_WORKING" if ts < at(session, p["exit_eod"]) else "EOD",
             1.0 if full else 0.5,
             {"p1_pattern": True, "p2_structure_stop": True,
@@ -251,7 +255,7 @@ def vwap_revert(nd: NameDay, session: _dt.date) -> Result:
              "vwap": vw, "vol_ratio": vr, "move_prev_close": move, "candle": pattern,
              "sr_zone": zone, "macd_hist": mhist[i],
              "adx14_1d": nd.adx14_1d, "signal_close": b.close})
-        cand.checklist["p6_rrr"] = cand.rrr >= BOOK["rrr_min"]
+        cand.checklist["p6_rrr"] = cand.rrr >= v["rrr_min"]
         cand.rank = (abs(b.close - vw) / atr[i],)
-        return _verdict(cand, ("p1_pattern", "p3_volume", "p6_rrr"))
+        return _verdict(cand, ("p1_pattern", "p3_volume", "p6_rrr"), v["rrr_min"])
     return None

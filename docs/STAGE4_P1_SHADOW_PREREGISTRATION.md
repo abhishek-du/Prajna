@@ -1,6 +1,6 @@
-# Stage 4 v2, phase P1: regime engine + shadow strategy library (pre-registration DRAFT v2.2)
+# Stage 4 v2, phase P1: regime engine + shadow strategy library (pre-registration v2.3, FROZEN)
 
-**Status: DRAFT v2.2 (code built: `backend/app/shadow/`, migrations 0027 + 0028; not frozen, not scheduled). v2.1 recorded the implementation details. v2.2 adds the seven rules the user asked for on 2026-10-26 (§1a); they are part of both strategies' frozen specs.**
+**Status: FROZEN 2026-10-26 (policy `p1-shadow-v1`). Forward start: 2026-10-27, the first trading session after the freeze. Code: `backend/app/shadow/`, migrations 0027 + 0028. v2.3 runs every strategy in a core and a strict variant (§1b). The user approved the four PRAJNA DEFAULT values and the 21:30 cron line on 2026-10-26.**
 
 **Parents:**
 - `docs/STAGE4_AI_AGENT_DESIGN.md` (L0–L3, L5, L7);
@@ -59,6 +59,35 @@ The **PRAJNA DEFAULT** rows are the only judgement calls. The user may change th
 | 7 | Volatility cap for S1 | the stock's daily ATR(14) / previous close ≤ 3 % | S1 | `VOL_TOO_HIGH` |
 
 **Consequence, stated before the freeze.** On the three mechanics sessions (counts only, no P&L), S1 took 0–3 trades per session and S2 took 0, against 3 and 14 per session before these additions. At that rate the 60-session look will have very few trades, especially for S2, and can only detect large effects. The 250-session look may still be underpowered for S2.
+
+## 1b. Variants (user decision 2026-10-26: "core dono chalao")
+
+Each strategy runs in two variants on the same sessions, each with its own book, guards and placebo:
+
+| Variant | Rules |
+|---|---|
+| `orb_breadth_core_v1`, `vwap_revert_core_v1` | §1 only (the Varsity numbers): the whole stock universe, RRR ≥ 1.5, no candle / S/R / EMA 9/21 / MACD / volatility-cap / first-stop rules |
+| `orb_breadth_strict_v1`, `vwap_revert_strict_v1` | §1 + all seven §1a rules: F&O stocks only, RRR ≥ 2.0, the candle confirmations, the S/R rules, EMA 9/21 + MACD, the S1 daily ATR ≤ 3 % cap, and no new entry after the first stop-loss |
+
+The hypotheses in §7 apply to each variant.
+
+**H5 (does the checklist add value).** For each strategy, compare the strict variant with the core variant:
+- net R per trade;
+- net bps per session, where a session with no trade counts as 0;
+- max drawdown.
+
+**Multiplicity.** At the 250-session look, four variants are judged, so each variant's CI is Bonferroni-adjusted: 98.75 % instead of 95 %. The 60-session look keeps its 99.5 % CI.
+
+**Mechanics smoke (counts only, no P&L)**, trades per session on 2026-08-05 / 09-02 / 10-07:
+
+| Variant | 08-05 | 09-02 | 10-07 |
+|---|---|---|---|
+| S1 core | 0 | 3 | 3 |
+| S1 strict | 0 | 3 | 2 |
+| S2 core | 14 | 11 | 14 |
+| S2 strict | 0 | 0 | 0 |
+
+There were 0 violations.
 
 ## 2. What P1 is, and what it is not
 

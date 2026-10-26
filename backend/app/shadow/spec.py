@@ -12,11 +12,27 @@ from typing import Any
 
 POLICY_VERSION = "p1-shadow-v1"
 REGIME_VERSION = "regime-v0"
-S1, S2 = "orb_breadth_v1", "vwap_revert_v1"
-STRATEGIES = (S1, S2)
+S1, S2 = "orb_breadth_v1", "vwap_revert_v1"          # the two base specs (STRAT below)
+
+# USER 2026-10-26: both strategies run in two variants side by side, same sessions:
+#   core    the Varsity numbers only (pre-registration §1)
+#   strict  core + the seven manager-checklist rules (§1a): F&O stocks only, RRR >= 1:2,
+#           candle confirmation, S/R zones, EMA 9/21 + MACD, S1 daily ATR <= 3 %, and no new
+#           entry after the first stop-loss of the day
+VARIANTS = {
+    "orb_breadth_core_v1": {"base": S1, "strict": False, "fo_only": False, "rrr_min": 1.5,
+                            "halt_after_first_stop": False},
+    "orb_breadth_strict_v1": {"base": S1, "strict": True, "fo_only": True, "rrr_min": 2.0,
+                              "halt_after_first_stop": True},
+    "vwap_revert_core_v1": {"base": S2, "strict": False, "fo_only": False, "rrr_min": 1.5,
+                            "halt_after_first_stop": False},
+    "vwap_revert_strict_v1": {"base": S2, "strict": True, "fo_only": True, "rrr_min": 2.0,
+                              "halt_after_first_stop": True},
+}
+STRATEGIES = tuple(VARIANTS)
 
 # Set at the freeze commit (the first trading session after it). None: commits refused.
-FORWARD_FROM: _dt.date | None = None
+FORWARD_FROM: _dt.date | None = _dt.date(2026, 10, 27)   # frozen 2026-10-26
 
 BOOK = {
     "equity_inr": 1_000_000.0,      # reduced total equity, core only (no locked profit in shadow)
@@ -30,8 +46,6 @@ BOOK = {
     "dd_halt": 0.10,                # risk.py max_drawdown_halt
     "notional_cap_inr": 1_000_000.0,  # per position (leverage <= 1:10 never reached)
     "participation": 0.01,          # of the 20-session median daily volume
-    "rrr_min": 2.0,                 # USER 2026-10-26 (1:2; Playbook law 3 minimum is 1.5)
-    "halt_after_first_stop": True,  # USER 2026-10-26: no new entry after the first stop-out
     "half_spread_bps": 5.0,         # app.paper.sim
     "slippage_bps": (0.0, 5.0, 10.0, 20.0),   # primary 0; sensitivity (law 6)
     "checklist_min": 4,             # Playbook §4
@@ -78,8 +92,6 @@ STRAT = {
          "wick_body_min": 2.0},                                   # USER: hammer / star (M2)
 }
 
-UNIVERSE = {"fo_only": True}       # USER 2026-10-26: stocks with NSE futures (Upstox master)
-
 # Varsity M2 support/resistance zones on daily bars <= T - 1 (pivots, clustered)
 SR = {"lookback_sessions": 120,     # Playbook §4 point 2: 3-6 months for short-term trades
       "pivot_half_width": 2,        # a pivot high/low is the extreme of a 5-session window
@@ -95,7 +107,7 @@ DATA = {"min_1m_bars": 370, "min_universe_share_1m": 0.90, "history_15m_sessions
 def spec() -> dict[str, Any]:
     return {"policy_version": POLICY_VERSION, "regime_version": REGIME_VERSION,
             "strategies": list(STRATEGIES), "book": BOOK, "regime": REGIME, "strat": STRAT,
-            "universe": UNIVERSE, "sr": SR, "data": DATA}
+            "variants": VARIANTS, "sr": SR, "data": DATA}
 
 
 def spec_sha256() -> str:

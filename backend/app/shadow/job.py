@@ -230,7 +230,7 @@ async def load(s: AsyncSession, session: _dt.date, cutoff: _dt.datetime) -> dict
                           default=str).encode())
     return {"session": session, "m": m, "d": d, "universe": uni, "idx": idx,
             "names": names, "nifty_1m": [b for _, b in m1.get(NIFTY, [])],
-            "fo": sorted(k for k in uni if k in fo) if SP.UNIVERSE["fo_only"] else list(uni),
+            "fo": sorted(k for k in uni if k in fo),
             "fo_info": fo_info,
             "excluded_results": sorted(res), "excluded_ca": sorted(ca),
             "results_share": (res_t or 0) / len(uni), "calendar": cal.get(session, []),
@@ -267,7 +267,8 @@ def compute(inp: dict[str, Any], prior_daily_net: dict[str, list[float]]) -> dic
         snaps.append({"checkpoint": _cp(hhmm), "features": f, "state": state,
                       "rule_fired": rule, "risk_mult": mult, "day_type": dt_})
     excluded = set(inp["excluded_results"]) | set(inp["excluded_ca"])
-    pool = [k for k in inp["fo"] if k not in excluded]       # tradable: F&O stocks only
+    pools = {False: [k for k in inp["universe"] if k not in excluded],   # core variants
+             True: [k for k in inp["fo"] if k not in excluded]}          # strict: F&O only
     s1 = SP.STRAT[SP.S1]
     ends = []
     t = at(session, s1["signal_from"])
@@ -278,22 +279,26 @@ def compute(inp: dict[str, Any], prior_daily_net: dict[str, list[float]]) -> dic
     trades: list[dict] = []
     skips: list[dict] = []
     counts: dict[str, Any] = {"universe": len(inp["universe"]), "fo": len(inp["fo"]),
-                              "fo_master": inp["fo_info"], "pool": len(pool),
+                              "fo_master": inp["fo_info"], "pool_core": len(pools[False]),
+                              "pool_strict": len(pools[True]),
                               "excluded_results": len(inp["excluded_results"]),
                               "excluded_ca": len(inp["excluded_ca"])}
     for strat in SP.STRATEGIES:
+        var = SP.VARIANTS[strat]
+        pool = pools[var["fo_only"]]
         cands: list[STG.Candidate] = []
         sk: list[STG.Skip] = []
         for k in pool:
-            r = STG.orb_breadth(names[k], session, inp["nifty_1m"], breadth) \
-                if strat == SP.S1 else STG.vwap_revert(names[k], session)
+            r = STG.orb_breadth(names[k], session, inp["nifty_1m"], breadth, strat) \
+                if var["base"] == SP.S1 else STG.vwap_revert(names[k], session, strat)
             if isinstance(r, STG.Candidate):
                 cands.append(r)
             elif isinstance(r, STG.Skip):
                 sk.append(r)
         taken, gs, flags = BK.run(cands, names, prior_daily_net=prior_daily_net.get(strat, []))
         plc = BK.placebo(taken, names, pool, strat, session)
-        m_state = SP.REGIME["mult"]["SHOCK_REVERSION"] if (state == "SHOCK" and strat == SP.S2) \
+        m_state = SP.REGIME["mult"]["SHOCK_REVERSION"] \
+            if (state == "SHOCK" and var["base"] == SP.S2) \
             else mult
         for x in taken + plc:
             dts = [v for tt, v in day_types if tt <= x["entry_at"]]
@@ -324,7 +329,7 @@ def mechanics(out: dict[str, Any]) -> dict[str, Any]:
             bad.append((x["instrument_key"], "times"))
         if x["side"] * (x["entry_raw"] - x["stop"]) <= 0:
             bad.append((x["instrument_key"], "stop_side"))
-        if x["rrr"] < SP.BOOK["rrr_min"] and not x["is_placebo"]:
+        if x["rrr"] < SP.VARIANTS[x["strategy"]]["rrr_min"] and not x["is_placebo"]:
             bad.append((x["instrument_key"], "rrr"))
     for z in out["skips"]:
         skips[z["strategy"]][z["reason"]] += 1

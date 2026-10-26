@@ -6,7 +6,8 @@ PURE. Candidates are taken in entry-time order (ties: the strategy's rank, then 
   caps        <= 3 open, open risk + new <= 3 % of equity, <= 3 open per known sector
   daily halt  realised + open mark-to-market <= -3 % at a new entry -> HALT_DAILY for the
               rest of the session (open trades keep their stops)
-  first stop  after the book's first STOP / STOP_GAP exit, no new entry (HALT_FIRST_STOP)
+  first stop  strict variants: after the book's first STOP / STOP_GAP exit, no new entry
+              (HALT_FIRST_STOP)
   drawdown    flags from the book's earlier sessions: >= 5 % DD_HALF, >= 10 % DD_HALT
               (recorded only in P1)
 """
@@ -23,7 +24,7 @@ import numpy as np
 from app.shadow import fill as F
 from app.shadow import indicators as I
 from app.shadow.bars import NameDay
-from app.shadow.spec import BOOK, POLICY_VERSION
+from app.shadow.spec import BOOK, POLICY_VERSION, VARIANTS
 from app.shadow.strategies import Candidate, Skip
 
 
@@ -95,7 +96,7 @@ def run(cands: list[Candidate], names: dict[str, NameDay], *,
         if halted:
             skips.append(Skip(c.strategy, c.key, "HALT_DAILY", c.signal_at))
             continue
-        if BOOK["halt_after_first_stop"] and any(
+        if VARIANTS.get(c.strategy, {}).get("halt_after_first_stop") and any(
                 x["exit_reason"] in ("STOP", "STOP_GAP") and x["exit_at"] <= t for x in taken):
             skips.append(Skip(c.strategy, c.key, "HALT_FIRST_STOP", c.signal_at))
             continue
