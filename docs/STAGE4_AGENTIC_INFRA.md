@@ -1,6 +1,12 @@
 # Prajna agentic AI infrastructure (design DRAFT)
 
-**Status:** DRAFT, 2026-10-26. Only P1 (`docs/STAGE4_P1_SHADOW_PREREGISTRATION.md`) is approved to be built. Everything else here needs the approvals listed in §8.
+**Status:** DRAFT, 2026-10-26; updated the same night.
+
+**Built and running in shadow:**
+- **P1:** regime engine + 4 shadow strategies, frozen, forward from 2026-10-27 (`docs/STAGE4_P1_SHADOW_PREREGISTRATION.md`).
+- **P2:** the LLM reviewer, agent G, frozen, forward from 2026-10-27 (`docs/STAGE4_P2_REVIEWER_PREREGISTRATION.md`).
+
+P3 onward still needs the approvals listed in §8.
 
 **Builds on:**
 - `docs/STAGE4_AI_AGENT_DESIGN.md` (layers L0–L8);
@@ -174,8 +180,8 @@ idea card ─► spec (frozen numbers, Varsity basis, regime tags) ─► audito
 
 | Phase | What | Earliest |
 |---|---|---|
-| P1 | regime engine + shadow S1/S2 + placebos (pre-registration v2) | build now; freeze about the first week of November 2026 |
-| P2 | LLM gateway + reviewer in shadow on P1 plans | after the Bedrock key rotation, about mid-November |
+| P1 | regime engine + shadow S1/S2 (core + strict) + placebos | **BUILT, FROZEN 2026-10-26**; forward from 2026-10-27; cron 21:30 |
+| P2 | LLM reviewer (Nova Pro, same key per user) in shadow on every P1 trade | **BUILT, FROZEN 2026-10-26**; forward from 2026-10-27; cron 22:15 |
 | P3 | decision agent v0 + journal + 4:15 report, paper (A1) | pre-registration in November; forward from December |
 | P4 | research factory (J + K, data zones, ledgers) | December; its first hypotheses come from the playbook rows |
 | P5 | the first looks: P1 at 60 sessions (about late January 2027); E5 (about 2026-12-18); E6 (about April 2027) | — |
