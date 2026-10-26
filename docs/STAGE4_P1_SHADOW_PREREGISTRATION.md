@@ -1,287 +1,321 @@
-# Stage 4 v2, phase P1: regime engine + shadow strategy library (pre-registration DRAFT)
+# Stage 4 v2, phase P1: regime engine + shadow strategy library (pre-registration DRAFT v2)
 
-**Status: DRAFT, awaiting user approval of the parameters below. Nothing is built, migrated or scheduled.**
-Parent design: `docs/STAGE4_AI_AGENT_DESIGN.md` (L1, L2, L3, L5, L7). Doctrine: `docs/VARSITY_PLAYBOOK.md`.
+**Status: DRAFT v2. Nothing is built, migrated or scheduled.**
 
-Approved by the user on 2026-10-26: start P1. The first two CANDIDATE strategies are the recommended ones, breakout + breadth and VWAP range reversion. Approval of this document's exact numbers is still needed before the freeze (§9).
+**Parents:**
+- `docs/STAGE4_AI_AGENT_DESIGN.md` (L0–L3, L5, L7);
+- `docs/STAGE4_AGENTIC_INFRA.md` (the agent roles; P1 is its first block);
+- `docs/VARSITY_PLAYBOOK.md` (the doctrine).
 
-## 0. What P1 is, and what it is not
+**User decisions on 2026-10-26:**
+- start P1 with the two recommended CANDIDATE strategies;
+- **take every number from the playbook and the design doc.**
+
+v2 replaces the v1 draft's own choices with those numbers. §1 lists the source of every number. Where neither document gives one, the existing Prajna paper limit (`app/paper/risk.py`) is used, or it is marked **PRAJNA DEFAULT**.
+
+## 1. Number sources
+
+| Parameter | Value | Source |
+|---|---|---|
+| Per-trade risk | 1 % of reduced total equity | Playbook §3 (M9 ch 14); Design L0 |
+| Open risk cap | ≤ 3 % → at most 3 open trades at 1 % each | Playbook law 1; Design L0 |
+| Max positions / sector cap | 10 / 3 names per sector | Design L0; Playbook §3; `risk.py` |
+| Daily loss limit | −3 % of capital (= −3R) → halt for the session | `risk.py` `daily_loss_halt` (Design L0 gives no number) |
+| Drawdown protocol | 5 % → half size; 10 % → halt until review | 10 %: `risk.py` `max_drawdown_halt`; 5 %: **PRAJNA DEFAULT** (Design L0 "X %") |
+| Stop distance | ≥ 1 ATR(14); stop set at entry, only tightens | Playbook law 4, §3 |
+| RRR | ≥ 1.5, else skip | Playbook law 3, §4 point 6 |
+| Size | qty = risk ₹ / \|entry − stop\| | Playbook law 5, §3 |
+| Checklist | trade only if ≥ 4 of the 6 points pass; indicators confirm → full size, else half | Playbook §4 |
+| Volume confirmation | signal-bar volume ≥ 10-day average | Playbook §4 point 3 |
+| Breakout stop / target | stop = the broken level (at least 1 ATR); minimum target = the range width projected from the breakout | Playbook §4 modifiers, §6 |
+| Range reversion | buy the lower Bollinger band (20, 2σ), target the middle band; RSI 30/70; exit if not working quickly | Playbook §5, §6 (M2) |
+| Trend regime | index > 50-EMA, ADX ≥ 25, breadth > 60 % above 50-DMA, indices agree | Playbook §5 row 1 |
+| Down regime | the mirror: index < 50-EMA, ADX ≥ 25, breadth < 40 %, indices agree | Playbook §5 row 2 |
+| Range regime | ADX < 20 | Playbook §5 row 3; Design L1 |
+| Volatility shock | VIX spike, index gap ≥ 2σ, breadth collapse | Playbook §5 row 4 |
+| Pre-event | RBI policy, Budget, results, FOMC night, F&O expiry → reduced size or stand aside | Playbook §5 row 6; Design L0 event gate |
+| Year-end / holiday | reduced size | Playbook §5 last row |
+| Liquidity | ₹5 cr median daily turnover; price ≥ ₹50; E4 top-500 universe | `risk.py`; `app.training.e4` |
+| Checkpoints | pre-open, 09:30, 10:30, 12:00, 13:30 | Design L2 |
+| "Not working" time stop | 4 × 15m bars (1 h) | **PRAJNA DEFAULT** (the playbook says "should work almost immediately") |
+| VIX spike threshold | VIX T−1 percentile in the last 252 sessions ≥ 90, or a 1-day VIX change ≥ +20 % | **PRAJNA DEFAULT** (the playbook gives no number) |
+| Breadth collapse | `ad_ratio` ≤ 0.2 | **PRAJNA DEFAULT** |
+| Opening range | the first 15m bar, 09:15–09:30 | **PRAJNA DEFAULT** (data granularity) |
+| No-news proxy for reversion | \|return from the T−1 close\| < 3 % | **PRAJNA DEFAULT**. News-AI is forward-only and not yet validated, so it is not used in P1. |
+| Slippage | 0 bps primary; 5, 10 and 20 bps sensitivity | Playbook law 6 (gap fade fragility) |
+
+The **PRAJNA DEFAULT** rows are the only judgement calls. The user may change them before the freeze, and never after.
+
+## 2. What P1 is, and what it is not
 
 - **It is** a daily, after-the-close **shadow** run:
   - for each session it records the regime state at fixed checkpoints;
-  - it records every trade the two CANDIDATE strategies *would* have taken (size computed but zero capital), plus every candidate it rejected and why;
-  - everything goes to new append-only tables.
+  - it records every trade the two CANDIDATE strategies would have taken, with zero capital: the plan, the simulated outcome and the 6-point checklist score;
+  - it records every rejected candidate and why;
+  - it records what the L0 guards *would* have done (risk-multiplier, halt flags).
 - **It is not:**
-  - an allocator;
-  - an LLM reviewer (that is P2);
+  - an allocator (P3);
+  - the LLM reviewer (P2);
   - a paper strategy in `paper_daily.sh`;
-  - anything a stage, model or the dashboard reads;
-  - an order of any kind (PAPER ONLY, no broker call).
-- **Its job:** start the forward clock. The confirmatory answer needs 250–600 sessions (design §3), so every session not recorded is lost for good.
+  - something any stage, model or the dashboard reads;
+  - an order (PAPER ONLY).
+- **Purpose:** to start the forward clock. The confirmatory answer needs 250–600 sessions.
 
-## 1. Data (Upstox canon only)
+## 3. Data (Upstox canon only)
 
-| Input | Table / timeframe | Available from | Lands |
+| Input | Timeframe | Available from | Lands |
 |---|---|---|---|
-| Stock 1m bars (fills, VWAP, stops) | `canon_market_bar` 1m, NSE_EQ (3576 keys) | 2026-07-20 | same evening, about 19:00 IST |
-| Stock 15m bars (signals, ATR) | 15m | 2022-01-03 | same day, about 16:40 IST |
-| Daily context (ATR, SMA, breadth) | 1d, sessions ≤ T−1 only | 2019-09-03 | T−1's bar by about 08:32 on T |
-| Index | NIFTY 50, NIFTY BANK, INDIA VIX (NSE_INDEX) | as above | as above |
-| Results days | `results_event` (F4) | — | — |
+| Stock fills, intrabar stops | 1m NSE_EQ | 2026-07-20 | same evening, about 19:00 IST |
+| Signals, ATR, BB, RSI | 15m | 2022-01-03 | about 16:40 IST |
+| Daily context | 1d, sessions ≤ T−1 | 2019-09-03 | T−1 by about 08:32 on T |
+| Indices | NIFTY 50, NIFTY BANK, INDIA VIX | same | same |
+| Results | `results_event` (F4) | — | — |
 | Corporate actions | `pit` CA views | — | — |
+| Macro events | `config/event_calendar.csv` (versioned, sha in the policy; entered ex-ante: RBI MPC, Budget, FOMC, NSE expiry days) | new | before each month |
 
-- **Point-in-time rule:** a value used at checkpoint *c* of session *T* may only use bars whose `event_end ≤ c`, plus daily bars of sessions ≤ T−1.
-- Prices are `pit.bars_adjusted` at the run's cutoff, exactly as in the paper job.
-- **No new data source.** News-AI output is *not* used in P1, because its own validation is forward-only and separate.
+- **PIT rule:** at checkpoint *c* of session *T*, a value may use only bars with `event_end ≤ c`, plus 1d bars of sessions ≤ T−1.
+- **Prices:** `pit.bars_adjusted` at the run's cutoff.
 
-## 2. Regime features v0 (L1): fixed definitions, no tuning
+## 4. Regime engine v0 (L1 + L2)
 
-**Pre-session features**, computed from data ≤ T−1:
-- `nifty_adx14`: Wilder ADX(14) on NIFTY 1d.
-- `nifty_trend`: +1 if close > EMA20 > EMA50; −1 if close < EMA20 < EMA50; else 0.
-- `vix_close` and `vix_pct252`: the percentile of the T−1 VIX close in its last 252 sessions.
-- `breadth_50dma`: % of the eligible universe (§4) with close > SMA50.
-- `ad_ratio`: advancers / (advancers + decliners) on T−1.
-- `nh_nl_20`: (% at a 20-day high) − (% at a 20-day low).
-- `nifty_ret_1d`: T−1 close-to-close return.
-- `event_flags`:
-  - the count of universe names with a results event on T;
-  - a special session (from the trading calendar).
+**Pre-session features** (data ≤ T−1):
+- `nifty_adx14`, `bank_adx14` (Wilder);
+- `nifty_vs_ema50`, `bank_vs_ema50` (sign);
+- `breadth_50dma`: % of the universe with close > SMA50;
+- `ad_ratio`;
+- `nh_nl_20`;
+- `vix_close`, `vix_pct252`, `vix_chg_1d`;
+- `nifty_sigma20`: the σ of daily returns over 20 sessions;
+- `nifty_ret_1d`;
+- the event flags: the calendar, the share of universe names with results on T, a special session, and `holiday_thin` (the session before or after an exchange holiday, or 24–31 December).
 
-**Intraday features**, at checkpoints 09:30, 10:30, 12:00 and 13:30 IST:
-- `nifty_from_open`: NIFTY return from the 09:15 open.
-- `breadth_above_open`: % of the universe above its own open.
-- `breadth_above_vwap`: % of the universe above its session VWAP.
-- `nifty_range_atr`: the NIFTY high−low so far divided by its ATR14 (1d).
+**Open features** (09:15, from the first 1m bar):
+- `nifty_gap` = open(T) / close(T−1) − 1, expressed in σ units (`nifty_gap / nifty_sigma20`).
 
-## 3. Regime classifier v0 (L2): a rule table, first match wins
+**Intraday features** (09:30, 10:30, 12:00, 13:30):
+- `nifty_from_open`;
+- `breadth_above_open`;
+- `breadth_above_vwap`;
+- `ad_ratio_intraday`.
 
-The thresholds are the Varsity/standard textbook values. They are **not** fitted to any Prajna data.
+**State, first match wins:**
 
-| Order | State | Rule (pre-session) |
-|---|---|---|
-| 1 | `EVENT` | special session, or ≥ 5 % of the universe reports results on T |
-| 2 | `HIGH_VOL` | `vix_pct252` ≥ 80, or \|`nifty_ret_1d`\| ≥ 2 % |
-| 3 | `TREND_UP` | `nifty_adx14` ≥ 25, `nifty_trend` = +1, and `breadth_50dma` ≥ 55 % |
-| 4 | `TREND_DOWN` | `nifty_adx14` ≥ 25, `nifty_trend` = −1, and `breadth_50dma` ≤ 45 % |
-| 5 | `RANGE` | `nifty_adx14` < 20 |
-| 6 | `MIXED` | everything else |
+| Order | State | Rule | Risk multiplier (recorded; applied from P3) |
+|---|---|---|---|
+| 1 | `SHOCK` | `vix_pct252` ≥ 90, or `vix_chg_1d` ≥ +20 %, or \|`nifty_ret_1d`\| ≥ 2σ20, or `ad_ratio` ≤ 0.2 | 0 for new reversion entries; 0.25 otherwise |
+| 2 | `EVENT_WAIT` | a calendar event on T (RBI / Budget / FOMC night / expiry), or ≥ 5 % of the universe reports results on T | 0.5 |
+| 3 | `TREND_UP` | `nifty_adx14` ≥ 25, NIFTY and BANKNIFTY both > EMA50, and `breadth_50dma` > 60 % | 1.0 |
+| 4 | `TREND_DOWN` | `nifty_adx14` ≥ 25, both < EMA50, and `breadth_50dma` < 40 % | 0.5 (reduce gross) |
+| 5 | `RANGE` | `nifty_adx14` < 20 | 0.5 (smaller size) |
+| 6 | `MIXED` | otherwise; indecision → stand aside | 0 |
 
-**Intraday day-type tag**, recorded at each checkpoint; it does not change the pre-session state:
+**Modifiers:**
+- `holiday_thin` multiplies the risk multiplier by 0.5.
+- At 09:15, \|`nifty_gap`\| ≥ 2σ20 sets an intraday `SHOCK_OPEN` flag with the `SHOCK` multipliers for that session.
+
+**Day-type tag** (at each checkpoint):
 - `TREND_DAY_UP`: `nifty_from_open` ≥ +0.6 % and `breadth_above_open` ≥ 65 %;
 - `TREND_DAY_DOWN`: the mirror image;
-- `RANGE_DAY`: \|`nifty_from_open`\| < 0.3 % and `nifty_range_atr` < 0.5;
+- `RANGE_DAY`: \|`nifty_from_open`\| < 0.3 %;
 - else `UNCLEAR`.
+- This tag is **PRAJNA DEFAULT** and is recorded only.
 
-**Recording:** each snapshot stores the feature values, the rule that fired, the input sha and the policy version.
+**What each snapshot stores:** the features, the rule fired, the multiplier, the input sha and the policy version.
 
-## 4. Common mechanics for both strategies (L5)
+## 5. Common construction and guards (L0 + L5)
 
 **Universe:**
-- the E4 eligible universe (`app.training.e4.eligible`: liquidity and history filters, suspect names out) on T;
-- minus names with a results event on T or T−1;
-- minus names with a corporate-action ex-date on T.
+- the E4 eligible top-500 (liquidity, price ≥ ₹50, history, no suspect bars);
+- minus results on T or T−1;
+- minus a CA ex-date on T.
 
-**Book:**
-- notional equity ₹10 L per strategy;
-- risk per trade 0.5 % = ₹5,000;
-- qty = floor(risk ₹ / |entry − stop|), capped at ₹2 L notional and at 1 % of the name's 20-session median 1m volume × 375;
-- at most 5 trades per strategy per session, ranked by the strategy's ranking key;
-- one trade per name per strategy per session;
-- open risk at most 5 × 0.5 % = 2.5 % (≤ 3 %, playbook law 1).
+**Book (per strategy):**
+- reduced total equity = ₹10 L core (no locked-in profit in shadow);
+- risk per trade 1 % = ₹10,000;
+- qty = floor(₹10,000 / |entry − stop|) × the checklist size factor (1.0, or 0.5 when indicators do not confirm);
+- notional ≤ ₹10 L per position (leverage ≤ 1:10 overall is never reached with ≤ 3 open at this size; recorded);
+- quantity ≤ 1 % of the name's 20-session median daily volume.
 
-**Stops, targets and RRR:**
-- the stop is set at entry and never widened;
-- the target is fixed;
-- a candidate whose RRR is below 1.5 is **skipped** and logged as `SKIP_RRR`. The stop is never moved into noise.
+**Caps:**
+- at most 3 open positions, and a new entry only if open risk + new risk ≤ 3 %;
+- ≤ 3 per sector;
+- one trade per name per strategy per session.
 
-**Fills, simulated on 1m bars:**
-- **Entry:** the open of the 1m bar after the signal bar closes, ± (half-spread 5 bps + slippage).
-- **Exits:**
-  - **Stop:** if a 1m bar's low (high for shorts) crosses the stop, the fill is at the stop or at that bar's open if the bar opened through it (gap-through), less slippage.
-  - **Target:** filled at the target.
-  - **Same bar:** if one 1m bar touches both the stop and the target, the **stop fills first** (pessimistic).
-- **Time stop:** the 15:15 1m close (MIS square-off).
+**Halts, recorded per strategy book:**
+- if realised + open P&L reaches −3 % in a session → `HALT_DAILY`: no further entries, and open trades keep their stops;
+- the drawdown flags at 5 % and 10 % of the shadow book are recorded. In P1 they do not stop the recording; they are reported as "would have halved / halted".
 
-**Costs:**
-- the dated `E4.MIS` statutory and brokerage tables, as in `app.paper.sim`;
-- slippage 0 bps for the primary result, with **5, 10 and 20 bps sensitivity** reported at the look (gap fade turned out to be slippage-fragile).
+**Checklist** (Playbook §4), recorded as six booleans; a trade requires ≥ 4:
+1. pattern with its precondition;
+2. stop at a structure level within 4 %;
+3. volume ≥ 10-day average;
+4. Dow agreement;
+5. indicators confirm;
+6. RRR ≥ 1.5.
 
-**Shorts:** MIS intraday shorts are allowed in simulation only.
+Points 1, 3 and 6 are mandatory (the playbook calls points 1–3 near-mandatory; point 2 is satisfied by construction), and point 5 sets the size factor.
 
-## 5. The two shadow strategies (L3), frozen specs v1
+**Fills** (1m bars):
+- **Entry:** the next 1m open after the signal bar ± (half-spread 5 bps + slippage).
+- **Stop:** at the stop price, or at the bar's open on a gap-through (`STOP_GAP`).
+- **Target:** at the target.
+- **Same 1m bar touches both:** the stop first.
+- **Time stop and EOD:** the 15:15 1m close.
+- **Costs:** the dated `E4.MIS` tables; slippage at 0, 5, 10 and 20 bps.
 
-**Run in all regimes:** both strategies run on **every** session, whatever the regime. The regime is a recorded column, so the conditional hypotheses in §6 can be tested.
+## 6. The two shadow strategies, frozen specs v1
 
-### S1 `orb_breadth_v1`: opening-range breakout confirmed by volume and breadth
-*Basis: Varsity M2 Dow theory (breakouts need volume; the averages must confirm); Innerworth's breadth confirmation.*
+Both run on **every** session. The regime is a column, not a filter, so H3 can be tested.
 
-**Opening range (OR):** the high and low of the 09:15–09:30 15m bar.
+### S1 `orb_breadth_v1`: range breakout with volume and Dow/breadth confirmation
 
-**Long signal**, on the first 15m bar closing between 09:45 and 11:00 (bar end) that meets all of these:
-- the bar's close is above the OR high;
-- the bar's volume is ≥ 1.5 × that name's average volume for the same 15m slot over the last 10 sessions;
-- `breadth_above_open` ≥ 60 % at the bar's end;
-- NIFTY is above its open at the bar's end.
+**Range:** the 09:15–09:30 15m bar (high H, low L, width W = H − L).
 
-**Short signal:** the mirror image (close < OR low; breadth ≤ 40 %; NIFTY below its open).
+**Long:** the first 15m bar ending 09:45–11:00 that meets all of these:
+- its close is above H (point 1: a breakout from a range);
+- its volume is ≥ the 10-session average volume of the same slot (point 3);
+- the stock's 1d close at T−1 is above its 50-EMA, and NIFTY is above its open with `breadth_above_open` > 60 % at the bar's end (point 4: primary and market agree).
 
-**Stop:** the wider of
-- the opposite side of the OR, and
-- entry ∓ 1 × ATR14 on 15m bars (prior bars only, across sessions).
+**Short:** the mirror image (close < L; below the 50-EMA; NIFTY below its open; breadth < 40 %).
 
-**Target:** entry ± 2 × |entry − stop|, which gives RRR 2.0.
+**Stop:** the broken level H (for a long), widened to entry − 1 × ATR14(15m) if H is closer than 1 ATR.
+
+**Target:** H + W (the range projected), the minimum target.
+- RRR < 1.5 → `SKIP_RRR`.
+
+**Point 5 (indicators):** ADX14(15m) ≥ 25 and RSI14(15m) between 50 and 80 for longs (20 and 50 for shorts) → full size, else half.
 
 **Time stop:** 15:15.
 
-**Ranking key:** the volume ratio, descending.
+**Ranking when caps bind:** checklist points, then the volume ratio.
 
-### S2 `vwap_revert_v1`: intraday stretch back to VWAP, in no-news names
-*Basis: Varsity M2 mean reversion with BB/RSI in ranges and VWAP (ch 20); Innerworth: fade noise, not information.*
+### S2 `vwap_revert_v1`: Bollinger / VWAP range reversion in no-news names
 
-**VWAP:** session VWAP from 1m bars, 09:15 onwards.
+**Long:** a 15m bar ending 10:00–14:00 that meets all of these:
+- its close is ≤ the lower Bollinger band (20, 2σ) on 15m bars (point 1: a stretch inside a range);
+- RSI14(15m) < 30;
+- its close is below the session VWAP;
+- \|the return from the T−1 close\| < 3 % (fade only noise);
+- the stock's ADX14(1d) < 20 (the stock itself is ranging; point 4).
 
-**Long signal**, on a 15m bar ending between 10:00 and 14:00 that meets all of these:
-- the bar's close ≤ VWAP − 1.5 × ATR14 (15m);
-- RSI14 (15m) < 30;
-- \|the name's return from the T−1 close\| < 3 %. This is the news/information proxy: a larger move is treated as information and not faded.
+**Short:** the mirror image (≥ upper band; RSI > 70; above VWAP).
 
-**Short signal:** the mirror image (≥ VWAP + 1.5 × ATR; RSI > 70).
+**Target:** the middle band (SMA20, 15m) at the signal bar, fixed.
 
-**Stop:** entry ∓ 1 × ATR14 (15m).
+**Stop:** entry ∓ 1 × ATR14(15m).
+- RRR < 1.5 → `SKIP_RRR`.
 
-**Target:** the VWAP value at the signal bar's end, fixed at entry. The RRR is therefore about 1.5 or more; below 1.5 the candidate is skipped.
+**Point 3:** volume ≥ the 10-session slot average. A climactic stretch on low volume fails this point.
 
-**Time stop:** the earlier of 8 × 15m bars after entry ("should work quickly") or 15:15.
+**Point 5:** RSI < 25 (> 75 for shorts) → full size, else half.
 
-**Ranking key:** the stretch |close − VWAP| / ATR, descending.
+**Time stop:** 4 × 15m bars after entry (`TIME_NOT_WORKING`) or 15:15.
 
-### Placebo (one per strategy)
-- **What it is:** the same sessions, entry times, sides, stop/target distances, time stops and sizes as the real signals, but with a seeded random draw of names from that session's eligible universe.
-- **Seed:** sha256(strategy, version, session).
-- **What it isolates:** the value of the *selection* signal from the value of the exit mechanics and the market drift of the day.
+### Placebos
+- **What they are:** for each strategy and session, the same entry times, sides, stop/target distances in ATR units, time stops and sizes, applied to names drawn at random (seed sha256(strategy, version, session)) from the eligible universe.
+- **Purpose:** to separate the selection signal from the exit mechanics and the day's drift.
 
-## 6. Hypotheses, metric and the single look (forward only)
+## 7. Hypotheses, metric and the looks (forward only)
 
 **Hypotheses:**
-- **H1:** S1 net expectancy per trade > 0 in `TREND_UP`/`TREND_DOWN` pre-session states, and > its placebo.
-- **H2:** S2 net expectancy per trade > 0 in `RANGE` states, and > its placebo.
-- **H3 (regime value):** for each strategy, in-regime expectancy > out-of-regime expectancy. If H3 fails, the regime table adds nothing for that strategy.
+- **H1:** S1 net R per trade > 0 in `TREND_UP` (longs) and `TREND_DOWN` (shorts), and > placebo.
+- **H2:** S2 net R per trade > 0 in `RANGE`, and > placebo.
+- **H3:** in-regime net R > out-of-regime net R for each strategy. This tests whether the regime engine adds value.
+- **H4 (guards):** the recorded L0 multipliers (`SHOCK` and `EVENT_WAIT` reductions) would have improved the net R or the drawdown against flat sizing. This measures the regime engine as a risk tool.
 
-**Primary metric:** net R per trade (the realised P&L ÷ the planned risk ₹), averaged within the session, then averaged over sessions. This metric is the session-clustered mean; the CI is a session block bootstrap, 10,000 draws, seeded.
+**Primary metric:** net R per trade, averaged within the session and then over sessions. The CI is a session block bootstrap (10,000 draws, seeded).
 
 **Secondary metrics:**
-- net bps per session of the strategy book;
-- hit rate together with the payoff ratio (never hit rate alone);
-- max drawdown in R;
-- `SKIP_RRR` share;
-- slippage sensitivity at 5, 10 and 20 bps.
+- expectancy;
+- payoff ratio together with hit rate;
+- net bps per session;
+- max drawdown in R and its duration;
+- the `SKIP_RRR` and checklist-fail shares;
+- slippage sensitivity;
+- trades per session.
 
-**Window:** the forward sessions from the first session after the freeze (§9). History before the freeze is never evaluated for P&L.
+**Window:** the forward sessions from the first session after the freeze. History is never evaluated for P&L.
 
 **Looks:**
-1. **Harm / large-effect check at 60 forward sessions** (about late January 2027). It uses a 99.5 % CI.
-   - Upper bound < 0 for a strategy over all its trades → that strategy is RETIRED.
-   - Lower bound > 0 in its allowed regime, and above placebo → EXPLORATORY (it may then enter P3 with minimum size).
-   - Otherwise it continues unchanged.
-2. **Confirmatory look at 250 forward sessions.** It uses a 95 % CI, with the same gates. An ACCEPTED status requires H1 or H2 plus H3, and beating placebo, at 10 bps slippage.
+1. **At 60 forward sessions** (about late January 2027), with a 99.5 % CI.
+   - Upper bound < 0 over all trades → RETIRED.
+   - Lower bound > 0 in its regime and above placebo at 10 bps slippage → EXPLORATORY: minimum size in P3.
+   - Otherwise → it continues.
+2. **At 250 forward sessions**, with a 95 % CI and the same gates. ACCEPTED requires H1 or H2, plus H3 and beating placebo, at 10 bps.
 
 **Rules for the window:**
-- No other look at shadow P&L. The daily job prints counts and health only, and nothing reads P&L before a look.
-- No spec change mid-window. A change is a new version (`_v2`) with its own forward window and no carried-over sessions.
+- No other P&L look. Daily output is health only.
+- No mid-window spec change. A change is a new `_v2` with its own fresh window.
 
-**Sample-size honesty:**
-- With about 3–5 trades per session per strategy, 60 sessions is about 200–300 trades. That detects only large effects, roughly 0.15 R per trade or more.
-- The 250-session look is the real answer.
+**Honesty:** with ≤ 3 open trades and about 2–4 trades per session, 60 sessions give roughly 150–250 trades. That catches only large effects (≳ 0.15–0.2 R). The 250-session look is the real answer.
 
-## 7. Schema: migration 0027 (additive; production backup + sha256 first)
+## 8. Schema: migration 0027 (additive; production backup + sha256 first)
 
 All tables are append-only, have unique natural keys, and are idempotent on rerun.
 
-**`shadow_policy`:**
-- columns: `policy_version`, `spec` jsonb, `spec_sha256`, `code_git_sha`, `frozen_at`, `status`;
-- one row each for the regime-v0 policy and S1, S2 and their placebos.
+**`shadow_policy`:** version, spec jsonb, `spec_sha256`, `code_git_sha`, `event_calendar_sha256`, `frozen_at`, status.
 
-**`regime_snapshot`:**
-- columns: `market_date`, `checkpoint` (PRE / 0930 / 1030 / 1200 / 1330), `policy_version`, `features` jsonb, `state`, `day_type`, `rule_fired`, `inputs_sha256`, `run_id`, `created_at`;
-- unique on (date, checkpoint, version).
+**`regime_snapshot`:** `market_date`, checkpoint (PRE / OPEN / 0930 / 1030 / 1200 / 1330), `policy_version`, `features` jsonb, `state`, `risk_mult`, `day_type`, `rule_fired`, `inputs_sha256`, `run_id`.
 
 **`shadow_trade`:**
-- identity: `market_date`, `strategy`, `version`, `instrument_key`, `side`;
-- timing: `signal_at`, `entry_at`, `exit_at`;
-- plan: `entry`, `stop`, `target`, `qty`, `risk_inr`, `rrr`;
-- outcome: `exit`, `exit_reason` (TARGET / STOP / STOP_GAP / TIME / EOD);
-- result: `gross_inr`, `cost_inr` jsonb, `net_inr`, `net_r`;
-- context: `regime_state`, `day_type`, `evidence` jsonb (the feature values that triggered the trade), `is_placebo`, `run_id`;
-- unique on (date, strategy, version, key, is_placebo).
+- identity: date, strategy, version, key, side, `is_placebo`;
+- timing: signal / entry / exit timestamps;
+- plan: entry, stop, target, qty, `size_factor`, `risk_inr`, `rrr`;
+- checklist: `checklist` (6 booleans), `checklist_score`;
+- outcome: exit, `exit_reason` (TARGET / STOP / STOP_GAP / TIME_NOT_WORKING / EOD);
+- result: gross, costs jsonb, net, `net_r`;
+- context: `regime_state`, `risk_mult`, `day_type`, `guard_flags` (`HALT_DAILY`, `DD_HALF`, `DD_HALT`), `evidence` jsonb, `run_id`.
 
-**`shadow_skip`:** candidates rejected, with a closed reason list:
-- `SKIP_RRR`, `CAP_TRADES`, `CAP_LIQUIDITY`, `NO_1M_BARS`, `RESULTS_DAY`, `CA_EX_DATE`, `MOVE_GT_3PCT`, `DUP_NAME`.
+**`shadow_skip`:** one row per rejected candidate, with a closed reason list:
+- `SKIP_RRR`, `CHECKLIST_LT4`, `CAP_OPEN_RISK`, `CAP_SECTOR`, `CAP_LIQUIDITY`, `HALT_DAILY`, `RESULTS_DAY`, `CA_EX_DATE`, `MOVE_GT_3PCT`, `NO_1M_BARS`, `DUP_NAME`.
 
-**`shadow_run`:**
-- columns: the session, the cutoff, the policy shas, counts, `rows_sha256`, status (DONE / REFUSED with reason).
-- Refusal cases:
-  - the 1m bars for T are incomplete (fewer than 90 % of the eligible names have ≥ 370 bars) → REFUSED; a later run retries;
-  - the 1d bar for T−1 is missing.
+**`shadow_run`:** session, cutoff, policy shas, counts, `rows_sha256`, status (DONE, or REFUSED with a reason).
+- 1m bars incomplete: fewer than 90 % of the universe have ≥ 370 bars → REFUSED, and a later run retries.
+- T−1 1d bar missing → REFUSED.
 
-**The journal** (`decision_journal` with plan adherence) is deferred to P3. Shadow trades have no human or agent deviation to journal.
+The decision journal with plan adherence comes in P3, when a policy takes decisions.
 
-## 8. Code and ops
+## 9. Code, ops and tests
 
 **Code:**
-- `backend/app/shadow/`:
-  - `regime.py`: features + rule table;
-  - `strategies.py`: S1, S2, placebo;
-  - `fill.py`: the 1m simulator, reusing the `app.paper.sim` cost tables;
-  - `store.py`;
-  - `job.py`.
-- CLI `prajna shadow daily [--session D] --commit`. It catches up every session after the last DONE one, starting from the forward start date.
+- `backend/app/shadow/`: `indicators.py`, `regime.py`, `strategies.py`, `fill.py` (reuses the `app.paper.sim` cost tables), `guards.py`, `store.py`, `job.py`.
+- CLI `prajna shadow daily [--session D] --commit`. It catches up every session after the last DONE one.
 
 **Ops:**
 - runbook `ops/runbooks/shadow_daily.sh`;
-- cron `30 21 * * 1-5`, after the 1m bars land;
-- `flock` on its own lock;
-- Telegram on REFUSED or error only, never P&L.
+- cron `30 21 * * 1-5`;
+- its own `flock`;
+- Telegram only on REFUSED or error, never P&L.
 
-**Tests** (on `prajna_test`):
-- PIT: no bar with `event_end` > checkpoint is read;
-- ADX, EMA, RSI, ATR and VWAP checked against hand-computed fixtures;
-- the rule-table order;
-- fills: gap-through stop, same-bar stop-first, time stop at 15:15;
-- the RRR skip;
-- caps;
-- deterministic placebo seeds;
-- idempotent reruns (0 inserted, same `rows_sha256`);
-- refusal on incomplete 1m bars;
-- the full suite `-m "not live"` stays green.
+**Tests** (`prajna_test`):
+- PIT (no bar after the checkpoint is read);
+- indicator fixtures: ADX, EMA, RSI, ATR, BB, VWAP;
+- the rule order and the multipliers;
+- fills: stop-first, gap-through, time stops;
+- RRR skip, checklist < 4, caps, daily halt;
+- placebo seeds;
+- idempotent rerun;
+- the incomplete-1m refusal;
+- the full suite `-m "not live"` green.
 
-**Smoke run before the freeze:** 3 historical sessions (2026-08-05, 2026-09-02, 2026-10-07), run with `--no-commit --mechanics-only`.
-- It prints counts, fill-inside-bar checks and the stop/target/time-exit distribution.
-- It does **not** print or compute P&L.
-- If mechanics bugs are found, the code is fixed. The parameters in this document are not changed.
+**Smoke before the freeze:** 3 historical sessions (2026-08-05, 2026-09-02, 2026-10-07), run `--no-commit --mechanics-only`.
+- It reports counts, fill-inside-bar checks and the exit-reason mix.
+- It computes **no P&L**.
+- Bugs found there are fixed in the code; the numbers here do not change.
 
-## 9. Freeze and execution order
+## 10. Freeze and execution order
 
-1. The user approves this document. Any number may be changed now, before the freeze, never after.
-2. Build the code and tests; the suite is green.
-3. Back up production to `/windows/prajna_archive` and verify the sha256; then `alembic upgrade` to 0027.
-4. Smoke run (mechanics only).
-5. **Freeze:** commit the code and this document with `Status: FROZEN`. Insert the `shadow_policy` rows with the spec sha and the git sha. The forward start date is the first trading session after the freeze commit.
-6. Install the cron line, with the user's approval.
-7. The daily health line goes to the existing ops log. The looks happen at 60 and at 250 forward sessions only.
+1. The user accepts the four **PRAJNA DEFAULT** values in §1, or changes them now.
+2. Build and tests; the suite is green.
+3. Production backup to `/windows/prajna_archive`, sha256 verified; then `alembic upgrade` to 0027.
+4. Write `config/event_calendar.csv` for November–December 2026: RBI MPC, FOMC and expiry dates from the official published schedules, entered by hand.
+5. Smoke run (mechanics only).
+6. **Freeze:** commit with `Status: FROZEN` and insert the `shadow_policy` rows. The forward start is the first session after the freeze.
+7. Install the cron line, with the user's approval of that exact line.
 
 **Left untouched:**
 - the E5 forward test (look about 2026-12-18);
-- the E6 paper monitor;
-- `paper_daily.sh` and its strategies;
+- the E6 monitor;
+- `paper_daily.sh`;
 - the Stage 1–3 code and gates;
 - frontend/ and backend/app/api/.
-
-## 10. Decisions needed from the user
-
-1. Approve the numbers above:
-   - ADX 25/20, breadth 55/45, VIX percentile 80;
-   - OR 15 minutes, volume ratio 1.5×, VWAP stretch 1.5 ATR, RSI 30/70;
-   - risk 0.5 %/trade and 5 trades/day.
-   Or name any changes **now**.
-2. Approve migration 0027 on production (with the backup) and the 21:30 cron line, once the build and the smoke run pass.
