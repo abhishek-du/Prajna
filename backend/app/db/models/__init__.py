@@ -38,6 +38,8 @@ from app.db.models.market import (
 )
 from app.db.models.paper import PaperDay, PaperFill, PaperOrder, PaperRiskDecision, PaperRun
 from app.db.models.shadow import (
+    LlmReview,
+    LlmReviewer,
     RegimeSnapshot,
     ShadowPolicy,
     ShadowRun,
@@ -87,4 +89,5 @@ __all__ = [
     "TrainingSplit",
     "PaperRun", "PaperOrder", "PaperFill", "PaperDay", "PaperRiskDecision",
     "ShadowPolicy", "ShadowRun", "RegimeSnapshot", "ShadowTrade", "ShadowSkip",
+    "LlmReviewer", "LlmReview",
 ]

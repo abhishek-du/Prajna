@@ -15,6 +15,7 @@ from sqlalchemy import (
     Date,
     Float,
     ForeignKey,
+    Integer,
     Numeric,
     SmallInteger,
     String,
@@ -185,4 +186,72 @@ class ShadowSkip(Base):
         UniqueConstraint("policy_version", "market_date", "strategy", "instrument_key",
                          name="uq_shadow_skip_natural"),
         CheckConstraint(_in("reason", SKIP_REASONS), name="ck_shadow_skip_reason"),
+    )
+
+
+class LlmReviewer(Base):
+    """A frozen LLM reviewer (P2): model, prompt version, spec sha, forward start."""
+
+    __tablename__ = "llm_reviewer"
+
+    reviewer_version: Mapped[str] = mapped_column(String(32), primary_key=True)
+    policy_version: Mapped[str] = mapped_column(
+        String(32), ForeignKey("shadow_policy.policy_version"), nullable=False)
+    model_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    prompt_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    spec: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    spec_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    code_git_sha: Mapped[str] = mapped_column(String(48), nullable=False)
+    forward_from: Mapped[_dt.date] = mapped_column(Date, nullable=False)
+    frozen_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+    authz_token_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+
+
+class LlmReview(Base):
+    """One outcome-blind review of a shadow trade; failures count as PASS (CHECK)."""
+
+    __tablename__ = "llm_review"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    trade_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("shadow_trade.id"),
+                                          nullable=False)
+    reviewer_version: Mapped[str] = mapped_column(
+        String(32), ForeignKey("llm_reviewer.reviewer_version"), nullable=False)
+    policy_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    market_date: Mapped[_dt.date] = mapped_column(Date, nullable=False)
+    strategy: Mapped[str] = mapped_column(String(32), nullable=False)
+    instrument_key: Mapped[str] = mapped_column(String(80), nullable=False)
+    is_placebo: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    model_id: Mapped[str] = mapped_column(String(80), nullable=False)
+    model_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    prompt_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    prompt_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    packet: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    packet_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    n_evidence: Mapped[int] = mapped_column(Integer, nullable=False)
+    response_raw: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    invalid_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    verdict: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    reason_codes: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
+    evidence_ids: Mapped[list[str]] = mapped_column(ARRAY(Text), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    effective_verdict: Mapped[str] = mapped_column(String(8), nullable=False)
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    code_git_sha: Mapped[str] = mapped_column(String(48), nullable=False)
+    authz_token_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    created_at: Mapped[_dt.datetime] = mapped_column(TS, nullable=False)
+    mode: Mapped[str] = mapped_column(String(8), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("trade_id", "reviewer_version", name="uq_llm_review_trade_version"),
+        CheckConstraint("status in ('OK','INVALID','INVALID_EVIDENCE','ERROR','TIMEOUT')",
+                        name="ck_llm_review_status"),
+        CheckConstraint("verdict is null or verdict in ('PASS','SHRINK','VETO')",
+                        name="ck_llm_review_verdict"),
+        CheckConstraint("effective_verdict in ('PASS','SHRINK','VETO')",
+                        name="ck_llm_review_effective"),
+        CheckConstraint("status = 'OK' or effective_verdict = 'PASS'",
+                        name="ck_llm_review_failsafe"),
+        CheckConstraint("mode = 'SHADOW'", name="ck_llm_review_shadow_only"),
     )

@@ -2647,6 +2647,75 @@ def shadow_freeze(
     typer.echo(_json.dumps(res, default=str, indent=1))
 
 
+@shadow_app.command("review")
+def shadow_review(
+    commit: bool = typer.Option(False, "--commit", help="record the reviews (write token)"),
+    limit: int = typer.Option(400, "--limit", help="model calls per run at most"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"),
+):
+    """P2: the LLM reviewer on every unreviewed P1 shadow trade from the reviewer's forward
+    start (Bedrock, pinned model, temperature 0). Prints the verdict mix only; outcomes are
+    never read. SHADOW ONLY."""
+    import json as _json
+
+    from app.core.config import get_settings
+    from app.db.engine import get_sessionmaker
+    from app.news import ai as NAI
+    from app.shadow import review as RV
+    from app.training import replay as RP
+
+    code = RP.code_version()
+    if commit and code["dirty"]:
+        typer.echo("REFUSED: the working tree is dirty; commit first")
+        raise typer.Exit(3)
+    model = NAI.bedrock_model(get_settings().PRAJNA_NEWS_AI_REGION, max_tokens=400)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await RV.run(s, model, commit=commit, token=token,
+                                code_git_sha=code["git_sha"], limit=limit)
+
+    try:
+        res = asyncio.run(_go())
+    except Exception as e:  # noqa: BLE001 - the runbook alerts on the refusal
+        typer.echo(f"REFUSED: {type(e).__name__}: {e}")
+        raise typer.Exit(3)
+    typer.echo(_json.dumps(res, default=str, indent=1))
+
+
+@shadow_app.command("review-freeze")
+def shadow_review_freeze(
+    forward_from: str = typer.Option(..., "--forward-from", help="YYYY-MM-DD"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"),
+):
+    """Register the frozen P2 reviewer (model, prompt, spec sha). Clean tree only."""
+    import datetime as _dtm
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.shadow import review as RV
+    from app.training import replay as RP
+
+    code = RP.code_version()
+    if code["dirty"]:
+        typer.echo("REFUSED: the working tree is dirty; commit first")
+        raise typer.Exit(3)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await RV.freeze(s, forward_from=_dtm.date.fromisoformat(forward_from),
+                                   token=token, code_git_sha=code["git_sha"])
+
+    try:
+        res = asyncio.run(_go())
+    except Exception as e:  # noqa: BLE001
+        typer.echo(f"REFUSED: {type(e).__name__}: {e}")
+        raise typer.Exit(3)
+    typer.echo(_json.dumps(res, default=str, indent=1))
+
+
 fundamentals_app = typer.Typer(help="fundamentals F1-F5 (docs/STAGE1_FUNDAMENTALS_RND.md)")
 app.add_typer(fundamentals_app, name="fundamentals")
 _TOKEN_HELP = "write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"  # noqa: S105 (help text)

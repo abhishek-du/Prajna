@@ -29,7 +29,7 @@ def forward(monkeypatch):
 
 def _out(net=-1234.5):
     t = at(DAY, "10:00")
-    trade = {"strategy": SP.S2, "instrument_key": "NSE_EQ|INE000000001", "side": 1,
+    trade = {"strategy": "vwap_revert_core_v1", "instrument_key": "NSE_EQ|INE000000001", "side": 1,
              "is_placebo": False, "signal_at": t, "entry_at": t,
              "exit_at": t + _dt.timedelta(minutes=60), "time_stop": t + _dt.timedelta(minutes=60),
              "entry_raw": 100.0, "stop": 98.0, "target": 103.0, "atr": 2.0, "qty": 500,
@@ -91,7 +91,7 @@ async def test_record_once_never_overwrite_and_forward_only(db_session, forward)
     with pytest.raises(J.ShadowRefused, match="never overwritten"):
         await SS.record(s, DAY, INP, _out(net=-1.0), cutoff=at(DAY, "21:30"), token=TOKEN,
                         code_git_sha="abc")
-    assert await SS.prior_daily_net(s, DAY + _dt.timedelta(days=1)) == {SP.S2: [-1234.5]}
+    assert await SS.prior_daily_net(s, DAY + _dt.timedelta(days=1)) == {"vwap_revert_core_v1": [-1234.5]}
 
 
 async def test_skipped_session_is_recorded(db_session, forward):
