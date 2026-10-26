@@ -2552,6 +2552,101 @@ def paper_daily(
     typer.echo(_json.dumps(res, default=str, indent=1))
 
 
+shadow_app = typer.Typer(help="Stage 4 v2 P1 shadow regime + strategy library (SHADOW: no orders)")
+app.add_typer(shadow_app, name="shadow")
+
+
+@shadow_app.command("daily")
+def shadow_daily(
+    session: str = typer.Option(None, "--session", help="one session (YYYY-MM-DD); default: "
+                                "every pending session from the policy's forward start"),
+    commit: bool = typer.Option(False, "--commit", help="record the runs (write token)"),
+    mechanics_only: bool = typer.Option(False, "--mechanics-only",
+                                        help="counts, exit-reason mix and checks; no P&L"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"),
+):
+    """The P1 shadow job (docs/STAGE4_P1_SHADOW_PREREGISTRATION.md). A dry run prints the
+    mechanics summary only: shadow P&L is never printed (it is read at the looks only)."""
+    import datetime as _dtm
+    import json as _json
+
+    from app.core.clock import now as _now
+    from app.db.engine import get_sessionmaker
+    from app.shadow import job as SJ
+    from app.shadow import store as SS
+    from app.training import replay as RP
+
+    code = RP.code_version()
+    if commit and code["dirty"]:
+        typer.echo("REFUSED: the working tree is dirty; commit first")
+        raise typer.Exit(3)
+    if commit and mechanics_only:
+        typer.echo("REFUSED: --mechanics-only is a dry run")
+        raise typer.Exit(2)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            days = [_dtm.date.fromisoformat(session)] if session else await SS.pending(s)
+            res = []
+            for d in days:
+                cutoff = _now()
+                inp = await SJ.load(s, d, cutoff)
+                if inp.get("skipped"):
+                    out = {"snapshots": [], "trades": [], "skips": [], "counts": {}}
+                else:
+                    out = SJ.compute(inp, await SS.prior_daily_net(s, d) if commit else {})
+                if commit:
+                    r = await SS.record(s, d, inp, out, cutoff=cutoff, token=token,
+                                        code_git_sha=code["git_sha"])
+                    res.append({"session": d, "status": r["status"],
+                                "counts": r.get("counts")})
+                else:
+                    res.append({"session": d, "status": "DRY_RUN",
+                                "skipped": inp.get("skipped"),
+                                **({} if inp.get("skipped") else SJ.mechanics(out))})
+            return {"policy_version": SJ.SP.POLICY_VERSION, "sessions": res}
+
+    try:
+        res = asyncio.run(_go())
+    except Exception as e:  # noqa: BLE001 - the runbook alerts on the refusal
+        typer.echo(f"REFUSED: {type(e).__name__}: {e}")
+        raise typer.Exit(3)
+    typer.echo(_json.dumps(res, default=str, indent=1))
+
+
+@shadow_app.command("freeze")
+def shadow_freeze(
+    forward_from: str = typer.Option(..., "--forward-from", help="YYYY-MM-DD"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"),
+):
+    """Register the frozen policy (spec sha, git sha, calendar sha). Clean tree only."""
+    import datetime as _dtm
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.shadow import store as SS
+    from app.training import replay as RP
+
+    code = RP.code_version()
+    if code["dirty"]:
+        typer.echo("REFUSED: the working tree is dirty; commit first")
+        raise typer.Exit(3)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await SS.freeze(s, forward_from=_dtm.date.fromisoformat(forward_from),
+                                   token=token, code_git_sha=code["git_sha"])
+
+    try:
+        res = asyncio.run(_go())
+    except Exception as e:  # noqa: BLE001
+        typer.echo(f"REFUSED: {type(e).__name__}: {e}")
+        raise typer.Exit(3)
+    typer.echo(_json.dumps(res, default=str, indent=1))
+
+
 fundamentals_app = typer.Typer(help="fundamentals F1-F5 (docs/STAGE1_FUNDAMENTALS_RND.md)")
 app.add_typer(fundamentals_app, name="fundamentals")
 _TOKEN_HELP = "write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"  # noqa: S105 (help text)

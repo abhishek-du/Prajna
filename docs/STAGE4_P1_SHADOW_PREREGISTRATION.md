@@ -1,6 +1,6 @@
-# Stage 4 v2, phase P1: regime engine + shadow strategy library (pre-registration DRAFT v2)
+# Stage 4 v2, phase P1: regime engine + shadow strategy library (pre-registration DRAFT v2.1)
 
-**Status: DRAFT v2. Nothing is built, migrated or scheduled.**
+**Status: DRAFT v2.1 (code built: `backend/app/shadow/`, migration 0027; not frozen, not scheduled). v2.1 records the implementation details below; no number in §1 changed.**
 
 **Parents:**
 - `docs/STAGE4_AI_AGENT_DESIGN.md` (L0–L3, L5, L7);
@@ -71,7 +71,7 @@ The **PRAJNA DEFAULT** rows are the only judgement calls. The user may change th
 | Indices | NIFTY 50, NIFTY BANK, INDIA VIX | same | same |
 | Results | `results_event` (F4) | — | — |
 | Corporate actions | `pit` CA views | — | — |
-| Macro events | `config/event_calendar.csv` (versioned, sha in the policy; entered ex-ante: RBI MPC, Budget, FOMC, NSE expiry days) | new | before each month |
+| Macro events | `backend/app/shadow/event_calendar.csv` (versioned, sha in the policy; entered ex-ante: RBI MPC decision day, Budget, FOMC decision night, the NIFTY **monthly** expiry = the last Tuesday, a holiday moving it to the previous trading day; weekly expiries are not events) | new | extended before each quarter (next: before 2027-01-01, with the Budget) |
 
 - **PIT rule:** at checkpoint *c* of session *T*, a value may use only bars with `event_end ≤ c`, plus 1d bars of sessions ≤ T−1.
 - **Prices:** `pit.bars_adjusted` at the run's cutoff.
@@ -125,9 +125,10 @@ The **PRAJNA DEFAULT** rows are the only judgement calls. The user may change th
 ## 5. Common construction and guards (L0 + L5)
 
 **Universe:**
-- the E4 eligible top-500 (liquidity, price ≥ ₹50, history, no suspect bars);
-- minus results on T or T−1;
-- minus a CA ex-date on T.
+- the E4 eligible top-500 (liquidity, price ≥ ₹50, history, no suspect bars), restricted to security class STOCK (no ETFs or fund units) with a 20-session median turnover ≥ ₹5 cr;
+- minus names with results intimated for T−1 or T, or a results outcome knowable in [T−1 09:15, T 09:15), all knowable before T 09:15;
+- minus names with a non-dividend corporate action ex-dated inside the 15m history window (11 sessions), because intraday bars are raw and must not straddle an adjustment.
+- These exclusions are counted on the run, not logged as skips.
 
 **Book (per strategy):**
 - reduced total equity = ₹10 L core (no locked-in profit in shadow);
@@ -266,12 +267,12 @@ All tables are append-only, have unique natural keys, and are idempotent on reru
 - result: gross, costs jsonb, net, `net_r`;
 - context: `regime_state`, `risk_mult`, `day_type`, `guard_flags` (`HALT_DAILY`, `DD_HALF`, `DD_HALT`), `evidence` jsonb, `run_id`.
 
-**`shadow_skip`:** one row per rejected candidate, with a closed reason list:
-- `SKIP_RRR`, `CHECKLIST_LT4`, `CAP_OPEN_RISK`, `CAP_SECTOR`, `CAP_LIQUIDITY`, `HALT_DAILY`, `RESULTS_DAY`, `CA_EX_DATE`, `MOVE_GT_3PCT`, `NO_1M_BARS`, `DUP_NAME`.
+**`shadow_skip`:** one row per rejected candidate (a name whose first signal bar was rejected; the name is then done for the session), with a closed reason list:
+- `SKIP_RRR`, `CHECKLIST_LT4`, `CAP_OPEN_RISK`, `CAP_SECTOR`, `CAP_LIQUIDITY`, `HALT_DAILY`, `MOVE_GT_3PCT`, `NO_INTRADAY_BARS`.
 
-**`shadow_run`:** session, cutoff, policy shas, counts, `rows_sha256`, status (DONE, or REFUSED with a reason).
-- 1m bars incomplete: fewer than 90 % of the universe have ≥ 370 bars → REFUSED, and a later run retries.
-- T−1 1d bar missing → REFUSED.
+**`shadow_run`:** session, cutoff, policy shas, counts, `rows_sha256`, status (DONE, or SKIPPED with a reason for a non-normal session such as Muhurat).
+- A refused session is **not** stored, and a later run retries it: the 1d or 1m bars of T are not stored yet; fewer than 90 % of the universe have ≥ 370 1m bars; the T−1 Nifty 1d bar is missing.
+- Session T runs once its 1d bar is stored (the next morning), so the 21:30 job on T+1 records T.
 
 The decision journal with plan adherence comes in P3, when a policy takes decisions.
 
