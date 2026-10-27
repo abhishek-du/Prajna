@@ -214,3 +214,32 @@ async def health(s: AsyncSession) -> dict[str, Any]:
         group by 1"""))).all()
     out["p2_status_mix"] = {r[0]: r[1] for r in reviews}
     return out
+
+
+async def buylist(s: AsyncSession, d: _dt.date | None) -> dict[str, Any]:
+    """The Buy List of a session (the latest brief of that day, else the latest brief), its
+    end-of-day grade when built, and the score cards of the recent days."""
+    q = """select b.session_date, b.regime, b.events, b.candidates, r.created_at
+        from daily_brief b join lab_run r using (run_id) {w}
+        order by b.session_date desc, r.created_at desc limit 1"""
+    r = (await s.execute(text(q.format(w="where b.session_date = :d")), {"d": d})).mappings() \
+        .first() if d else None
+    if r is None:
+        r = (await s.execute(text(q.format(w="")))).mappings().first()
+    if r is None:
+        return {"available": False}
+    day = r["session_date"]
+    g = (await s.execute(text(LATEST + """ select f.happened from day_forensic f
+        join latest l using (run_id) where f.session_date = :d and f.strategy = '_BUYLIST'"""),  # noqa: S608
+        {"d": day})).scalar()
+    hist = [{"date": str(x.session_date), **(x.happened or {}).get("summary", {})}
+            for x in (await s.execute(text(LATEST + """ select f.session_date, f.happened
+                from day_forensic f join latest l using (run_id)
+                where f.strategy = '_BUYLIST' order by f.session_date desc limit 20""")))  # noqa: S608
+            .all()]
+    dates = [str(x) for x in (await s.execute(text("""select distinct session_date
+        from daily_brief order by 1 desc limit 30"""))).scalars()]
+    return {"available": True, "date": str(day), "built_at": r["created_at"],
+            "regime": r["regime"], "events": r["events"],
+            "items": (r["candidates"] or {}).get("BUYLIST") or [],
+            "grade": g, "history": hist, "dates": dates}

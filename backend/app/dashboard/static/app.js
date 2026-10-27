@@ -419,7 +419,8 @@ async function route() {
   document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("active", a.getAttribute("href") === `#/${p}`));
   clearInterval(timer);
   try {
-    if (p === "desk") { await deskView(arg, parts[2]); }
+    if (p === "buylist") { await buyListView(arg); every(30000, () => buyListView(arg)); }
+    else if (p === "desk") { await deskView(arg, parts[2]); }
     else if (p === "lab") { await labView(arg, parts[2]); if (!arg || arg === "overview") every(120000, () => labView(arg, parts[2])); }
     else if (p === "market") { await market(); every(30000, market); }
     else if (p === "movers") { await movers(); every(30000, movers); }

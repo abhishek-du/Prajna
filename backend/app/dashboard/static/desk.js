@@ -135,3 +135,46 @@ async function deskAccuracy(body) {
   <div class="card"><table><thead><tr><th>Score bucket</th>${cols.map(c => `<th class="num">${c}</th>`).join("")}</tr></thead><tbody>
   ${Object.entries(a.buckets).map(([b, v]) => `<tr><td>${esc(b)}</td>${cols.map(c => `<td class="num">${v[c] || 0}</td>`).join("")}</tr>`).join("") || '<tr><td colspan="8" class="muted">no suggestion has reached the watchlist yet</td></tr>'}</tbody></table></div>`;
 }
+
+// ── Buy List (user 2026-10-27): the intraday picks of the morning brief, live, graded at the close
+const BL_ST = { WAITING: ["WAITING", ""], T1_TOUCHED: ["T1 HIT", "BULLISH"], STOP_TOUCHED: ["STOP HIT", "BEARISH"],
+  BOTH_TOUCHED: ["T1 + STOP TOUCHED", "NEUTRAL"] };
+async function buyListView(date) {
+  const d = await api(`/api/buylist${date ? `?date=${encodeURIComponent(date)}` : ""}`);
+  if (!d.available) { view.innerHTML = `<h2>Buy List</h2><div class="card muted">No Buy List yet: it is built at 08:30 and 09:10 on trading days (morning brief).</div>`; return; }
+  const g = d.grade, gs = g ? g.summary : null, gmap = {};
+  (g ? g.grades : []).forEach(x => gmap[x.key] = x);
+  const rg = d.regime || {};
+  const pick = $("#bldate") ? $("#bldate").value : null;
+  const rows = d.items.map((x, i) => {
+    const lv = x.live || {}, gr = gmap[x.key];
+    const L = gr && gr.t1 ? { stop: gr.stop, t1: gr.t1, t2: gr.t2 } : (lv.levels_today && lv.levels_today.t1 ? lv.levels_today : x);
+    const base = gr ? gr.entry : lv.open || x.prev_close;
+    const st = gr ? [gr.status, gr.net_pct > 0 ? "BULLISH" : "BEARISH"] : (BL_ST[lv.status] || ["–", ""]);
+    return `<tr class="click" data-sym="${esc(x.symbol)}">
+      <td>${i + 1}</td><td><b>${esc(x.symbol)}</b><div class="small muted">${esc((x.sector || "").slice(0, 22))}</div></td>
+      <td>${x.agree ? pill("DESK + RULES", "BULLISH") : pill(x.levels_from, x.levels_from === "DESK" ? "BULLISH" : "NEUTRAL")}<div class="small muted">${x.desk_score != null ? `desk ${x.desk_score}` : ""}${x.rule_score ? ` · rules ${x.rule_score}` : ""}</div></td>
+      <td class="num">${num(x.prev_close)}</td>
+      <td class="num">±${pct1(x.typical_up_pct)}<div class="small muted">high ≈ ${num(x.typical_high)}</div></td>
+      <td class="num">${lv.open != null || gr ? `open ${num(base)}` : `${num(x.entry_lo)} – ${num(x.entry_hi)}`}</td>
+      <td class="num down">${num(L.stop)}<div class="small">${pct1(L.stop / base - 1)}</div></td>
+      <td class="num up">${num(L.t1)}<div class="small">${pct1(L.t1 / base - 1)}</div></td>
+      <td class="num up">${num(L.t2)}<div class="small">${pct1(L.t2 / base - 1)}</div></td>
+      <td class="num">${lv.ltp != null ? num(lv.ltp) : "–"}<div class="small">${lv.from_open != null ? `open se ${pct(lv.from_open)}` : ""}</div><div class="small muted">${lv.open_to_high != null ? `high ${pct(lv.open_to_high)}` : ""}</div></td>
+      <td>${pill(st[0], st[1])}${gr && gr.net_pct != null ? `<div class="small">${pct(gr.net_pct)} · ${inr(gr.net_inr)}</div>` : ""}</td>
+      <td class="small" style="white-space:normal;max-width:260px">${esc((x.desk_why || "").slice(0, 140))}${(x.rule_flags || []).length ? `<div class="warn-text">${esc(x.rule_flags.join(" "))}</div>` : ""}</td></tr>`;
+  }).join("");
+  view.innerHTML = `<h2>Buy List <small>intraday · ${esc(d.date)} · built ${new Date(d.built_at).toLocaleString("en-IN")}</small></h2>
+    <div class="controls"><span class="muted small">Session</span><select id="bldate">${d.dates.map(x => `<option ${x === d.date ? "selected" : ""}>${x}</option>`).join("")}</select></div>
+    <div class="card warn-box small">Paper research, not advice. Picks = every liquid stock the rules (dash-plan-v2) or the Research Desk (LLM) call BUY before the open. "Typical range" = 1 ATR, how far the stock usually moves in a day. Intraday levels from the 09:15 open: stop −0.5 ATR, T1 +0.75 ATR (1.5 R), T2 +1 ATR (the typical day high); before the open they are shown from the previous close. Graded at the close: buy at the open, out at the first of the stop or T1, else at 15:15, after ~0.28 % costs and spread. The desk's swing plan is on the stock's dossier page.</div>
+    <div class="grid g3">
+      <div class="card"><h3>Market mood</h3><div class="big">${pill(rg.state)}</div><div class="small">${esc(rg.note || "")}</div><div class="small muted">${(d.events && d.events.calendar || []).map(esc).join(", ")}</div></div>
+      <div class="card"><h3>${gs ? "Aaj ka nateeja" : "Picks"}</h3>${gs ? `<div class="big ${gs.avg_net_pct > 0 ? "up" : "down"}">${gs.profitable}/${gs.graded} profitable</div>
+        <div class="small">T1 ${gs.t1_hit} · stop ${gs.stopped} · 15:15 ${gs.eod} · avg ${pct(gs.avg_net_pct)} · total ${inr(gs.total_net_inr)} (₹1 L each)</div>` : `<div class="big">${d.items.length}</div><div class="small muted">graded after the close (16:50)</div>`}</div>
+      <div class="card"><h3>Recent days</h3>${d.history.length ? `<table class="small">${d.history.slice(0, 8).map(h => `<tr class="click" onclick="location.hash='#/buylist/${h.date}'"><td>${esc(h.date)}</td><td class="num">${h.profitable}/${h.graded}</td><td class="num">${pct(h.avg_net_pct)}</td><td class="num">${inr(h.total_net_inr)}</td></tr>`).join("")}</table>` : '<div class="small muted">no graded day yet</div>'}</div>
+    </div>
+    <div class="card"><div class="tablewrap" style="max-height:none"><table><thead><tr><th>#</th><th>Stock</th><th>Source</th><th class="num">Prev close</th><th class="num">Typical range</th><th class="num">Entry</th><th class="num">Stop (intraday)</th><th class="num">T1</th><th class="num">T2</th><th class="num">Live</th><th>Status</th><th>Why</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="12" class="muted">no BUY today</td></tr>'}</tbody></table></div></div>`;
+  view.querySelectorAll("tr[data-sym]").forEach(tr => tr.onclick = () => location.hash = `#/stock/${encodeURIComponent(tr.dataset.sym)}`);
+  $("#bldate").onchange = (e) => location.hash = `#/buylist/${e.target.value}`;
+}

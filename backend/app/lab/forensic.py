@@ -24,6 +24,7 @@ class Bar:
     high: float
     low: float
     close: float
+    open: float | None = None
 
 
 def excursion(bars: Sequence[Bar], side: int, entry_px: float, entry_at: _dt.datetime,

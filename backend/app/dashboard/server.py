@@ -725,3 +725,29 @@ async def desk_log() -> JSONResponse:
 async def desk_accuracy() -> JSONResponse:
     from app.dashboard import desk_data as DK
     return _lab_json(await _lab_read(DK.accuracy))
+
+
+@app.get("/api/buylist")
+async def buylist_view(date: str | None = None) -> JSONResponse:
+    """The intraday Buy List with the live quote of each pick (Strategy Lab brief)."""
+    from app.dashboard import lab_data as LD
+    out = await _lab_read(LD.buylist, _day(date))
+    for it in out.get("items") or []:
+        q = LIVE.get(it["key"])
+        if not q:
+            continue
+        from app.lab import buylist as BL
+        o, hi, lo, ltp = q.get("open"), q.get("high"), q.get("low"), q.get("ltp")
+        il = BL.intraday_levels(o, it.get("atr_pct")) if o else {}   # anchored at today's open
+        st = "WAITING"
+        if lo is not None and il.get("stop") is not None and lo <= il["stop"]:
+            st = "STOP_TOUCHED"
+        if hi is not None and il.get("t1") is not None and hi >= il["t1"]:
+            st = "T1_TOUCHED" if st == "WAITING" else "BOTH_TOUCHED"
+        it["live"] = {"ltp": ltp, "open": o, "high": hi, "low": lo, "change": q.get("change"),
+                      "from_open": (ltp / o - 1) if ltp and o else None,
+                      "open_to_high": (hi / o - 1) if hi and o else None,
+                      "at": q.get("at"), "status": st, "levels_today": il,
+                      "date": q.get("date")}
+    out["live_status"] = LIVE.summary()
+    return _lab_json(out)

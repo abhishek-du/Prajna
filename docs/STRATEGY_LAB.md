@@ -118,3 +118,34 @@ Paper and E5 trades use the day's P1 regime. A cell with fewer than 30 trades is
 ## Phase 2 (not built; needs its own approval)
 
 A live intraday scanner on the Upstox WebSocket feed for the ~213 F&O names. It would write signals to a `live_signal` table and show them on the dashboard during the session.
+
+## Intraday Buy List (user 2026-10-27)
+
+**Built:** the Buy List is part of the morning brief (`candidates.BUYLIST`, `app/lab/buylist.py`).
+
+**Picks:** every liquid stock (the brief universe minus today's results and corporate actions) that the rule judge `dash-plan-v2` or the Research Desk's latest pre-open verdict calls BUY. At most 40, ranked by desk score, rule score and agreement.
+
+**Levels (intraday, in daily ATRs from the 09:15 open):**
+- stop: −0.5 ATR;
+- T1: +0.75 ATR, which is 1.5 R;
+- T2: +1 ATR, the typical day high.
+
+Before the open the levels are shown from the previous close. The desk's swing plan stays on its dossier page.
+
+**Dashboard tab `#/buylist`:**
+- the picks, with live price, move from the open, open-to-high, and T1/stop touched today;
+- the end-of-day grade and the score cards of recent days.
+
+**Grading:** each pick is graded on its 1-minute path as an intraday trade:
+- buy at the 09:15 open;
+- exit at the first of the stop or T1 (the stop first when both touch in one bar), else at 15:15;
+- about 0.28 % costs and spread.
+
+The grade is the `_BUYLIST` row of `day_forensic`.
+
+**Telegram:** both messages are AI-written in Hinglish with emojis (Nova Pro, facts only; any unknown stock name means the fixed template is sent instead):
+- 09:10 morning list (`lab_brief.sh`);
+- 16:50 "did it make money" report (`lab_eod.sh`), which first builds the day's lab after the 1m bars are stored.
+
+**First check (dry, 2026-10-27, not recorded):** 37 picks; 25 profitable; T1 18, stop 5, 15:15 exit 14; +1.02 % average after costs. One day proves nothing.
+

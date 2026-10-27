@@ -5,7 +5,8 @@
 #
 #   ops/runbooks/lab_brief.sh
 #
-# Cron (weekdays): 08:30 (after the 07:00 daily bars) and 09:10 (adds the 09:06 E5 picks)
+# Cron (weekdays): 08:30 (after the 07:00 daily bars) and 09:10 (adds the 09:06 E5 picks and
+# sends the AI-written intraday Buy List to Telegram)
 #   30 8 * * 1-5   cd $B && ops/runbooks/lab_brief.sh >> var/logs/cron.log 2>&1
 #   10 9 * * 1-5   cd $B && ops/runbooks/lab_brief.sh >> var/logs/cron.log 2>&1
 set -uo pipefail
@@ -21,6 +22,14 @@ export PRAJNA_SUPPLIED_TOKEN="$(grep '^PRAJNA_WRITE_TOKEN=' .env 2>/dev/null | c
 say "LAB_BRIEF_START"
 if "$P" -m app.cli.main --plain lab brief --commit > "$OUT" 2>&1; then
   rc=0; say "LAB_BRIEF_OK $(grep -o '"status": "[A-Z_]*"' "$OUT" | head -1)"
+  # the 09:10 run (after the E5 picks) sends the AI-written Buy List to Telegram
+  if [[ "$(TZ=Asia/Kolkata date +%H%M)" > "0900" && "$(TZ=Asia/Kolkata date +%H%M)" < "0915" ]]; then
+    AWS_BEARER_TOKEN_BEDROCK="$(grep '^AWS_BEARER_TOKEN_BEDROCK=' .env 2>/dev/null | cut -d= -f2-)"
+    export AWS_BEARER_TOKEN_BEDROCK
+    msg="$("$P" -m app.lab.telegram_ai MORNING 2>/dev/null)"
+    unset AWS_BEARER_TOKEN_BEDROCK
+    if [[ -n "$msg" ]]; then "$NOTIFY" "$msg" >/dev/null 2>&1 && say "LAB_BRIEF_TELEGRAM sent"; fi
+  fi
 else
   rc=1; why="$(grep -m1 REFUSED "$OUT" | cut -c1-300)"
   say "LAB_BRIEF_ALERT ${why:-failed (see ${OUT})}"

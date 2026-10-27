@@ -74,7 +74,7 @@ async def bars_1m(s: AsyncSession, keys: list[str], day: _dt.date) -> dict[str, 
     if not keys:
         return {}
     rows = (await s.execute(text("""select instrument_key, bar_start_utc, event_end, high, low,
-        close from canon_market_bar where timeframe = '1m' and market_date = :d
+        close, open from canon_market_bar where timeframe = '1m' and market_date = :d
           and instrument_key = any(:k) order by instrument_key, bar_start_utc"""),
         {"d": day, "k": keys})).all()
     out: dict[str, list[F.Bar]] = defaultdict(list)
@@ -82,7 +82,8 @@ async def bars_1m(s: AsyncSession, keys: list[str], day: _dt.date) -> dict[str, 
         if r.high is None or r.low is None or r.close is None:
             continue
         out[r.instrument_key].append(F.Bar(r.bar_start_utc, r.event_end, float(r.high),
-                                           float(r.low), float(r.close)))
+                                           float(r.low), float(r.close),
+                                           _f(r.open)))
     return out
 
 
@@ -414,6 +415,32 @@ async def prior_equity(s: AsyncSession, strategy: str, day: _dt.date) -> tuple[f
     return eq[-1], max([BASE_EQUITY, *eq])
 
 
+async def grade_buylist(s: AsyncSession, day: _dt.date) -> dict | None:
+    """The day's Buy List (the last brief published before 09:15) graded as intraday trades
+    on the 1-minute path (app/lab/buylist.grade_one)."""
+    from app.lab import buylist as BL
+    row = (await s.execute(text("""select b.candidates from daily_brief b join lab_run r
+        using (run_id) where b.session_date = :d and r.created_at < :o
+        order by r.created_at desc limit 1"""), {"d": day, "o": ist_at(day, "09:15")})).first()
+    items = (row.candidates.get("BUYLIST") or []) if row else []
+    if not items:
+        return None
+    m1 = await bars_1m(s, [x["key"] for x in items], day)
+    grades = [BL.grade_one(x, m1.get(x["key"], []), day) for x in items]
+    sm = BL.summary(grades)
+    if not sm.get("graded"):
+        return None
+    return {"strategy": "_BUYLIST", "thought": {"picks": len(items), "items": items},
+            "happened": {"grades": grades, "summary": sm},
+            "why": [{"code": "BUYLIST_GRADE",
+                     "en": f"{sm['profitable']} of {sm['graded']} picks profitable after costs "
+                           f"(T1 hit {sm['t1_hit']}, stopped {sm['stopped']}, closed at 15:15 "
+                           f"{sm['eod']}); average {sm['avg_net_pct']:+.2%} per pick.",
+                     "hi": f"{sm['graded']} mein se {sm['profitable']} picks kharche ke baad "
+                           f"fayde mein (T1 {sm['t1_hit']}, stop {sm['stopped']}, 15:15 par "
+                           f"band {sm['eod']}); average {sm['avg_net_pct']:+.2%} per pick."}]}
+
+
 async def grade_brief(s: AsyncSession, day: _dt.date, trades: list[dict]) -> dict | None:
     """Yesterday-evening check of the morning brief: did each suggested name trigger its
     strategy (a P1 trade on it), and how did the stock move open -> close."""
@@ -537,6 +564,9 @@ async def build(s: AsyncSession, day: _dt.date, *, e6_dir: pathlib.Path | None =
     graded = await grade_brief(s, day, trades)
     if graded:
         forensics.append(graded)
+    bl = await grade_buylist(s, day)
+    if bl:
+        forensics.append(bl)
     sha = hashlib.sha256(_j([LAB_VERSION, trades, days, forensics]).encode()).hexdigest()
     return {"session": day, "trades": trades, "days": days, "forensics": forensics,
             "inputs_sha256": sha,

@@ -120,6 +120,42 @@ def preopen_eligible(series: dict[str, dict], d: int, suspect: dict[str, set[int
     return [k for k, _ in rows[:E4.UNIVERSE_TOP]]
 
 
+async def latest_desk(s: AsyncSession, keys: list[str], day: _dt.date) -> dict[str, dict]:
+    """The Research Desk's latest valid verdict per stock made before `day`'s open."""
+    try:
+        rows = (await s.execute(text("""select distinct on (instrument_key) instrument_key,
+                decision, score, entry_lo, entry_hi, stop, t1, t2, why_moved, thesis,
+                created_at from desk_verdict where instrument_key = any(:k)
+              and status = 'OK' and created_at < :o and created_at > :o - interval '4 days'
+            order by instrument_key, created_at desc"""),
+            {"k": keys, "o": C.ist_at(day, "09:15")})).mappings().all()
+    except Exception:
+        await s.rollback()
+        return {}
+    return {r["instrument_key"]: dict(r) for r in rows}
+
+
+async def buy_list(s: AsyncSession, day: _dt.date, m, d: int, uni: list[str],
+                   meta: dict[str, dict], excluded: set[str]) -> list[dict[str, Any]]:
+    """The intraday Buy List for `day` (app/lab/buylist): rules (dash-plan-v2) and the
+    Research Desk, every liquid stock except today's results / corporate actions."""
+    from app.desk import dossier as DS
+    from app.desk import rules as RJ
+    from app.lab import buylist as BL
+    from app.training import e3 as E3
+    keys = [k for k in uni if k not in excluded]
+    desk = await latest_desk(s, keys, day)
+    rows = []
+    for k in keys:
+        f = DS.price_facts(m.series[k], d - 1)
+        if not f:
+            continue
+        rule = RJ.judge(f, {"median_turnover": E3.median_turnover(m.series[k], d - 1)},
+                        {"news_24h": 0})
+        rows.append(BL.item(k, meta.get(k) or {}, f, rule, desk.get(k)))
+    return BL.rank_items([r for r in rows if r])
+
+
 async def build(s: AsyncSession, day: _dt.date) -> dict[str, Any]:
     from app.paper import strategies as PS
     from app.shadow import job as SJ
@@ -151,7 +187,7 @@ async def build(s: AsyncSession, day: _dt.date) -> dict[str, Any]:
     fo, _ = await SJ.fo_underlyings(s, open_t)
     excluded = set(res_today) | {r.instrument_key for r in ca_today}
     pool = [k for k in uni if k in fo and k not in excluded]
-    meta = await C.names(s, pool + list(res_today))
+    meta = await C.names(s, sorted(set(uni) | set(res_today)))
     cands: list[dict] = []
     for k in pool:
         c = m.series[k]["close"][d - 1]
@@ -196,13 +232,15 @@ async def build(s: AsyncSession, day: _dt.date) -> dict[str, Any]:
                        "SHOCK": "shock: stand aside or minimum size",
                        "EVENT_WAIT": "event day: half size, wait for the event",
                        "MIXED": "unclear: no trade is a valid choice"}.get(state)}
+    buylist = await buy_list(s, day, m, d, uni, meta, excluded)
     body = {"session": day, "regime": regime, "events": events,
-            "candidates": {"S1": by["S1"], "S2": by["S2"], "E5": e5,
+            "candidates": {"S1": by["S1"], "S2": by["S2"], "E5": e5, "BUYLIST": buylist,
                            "gap_fade": "chosen at 09:15 from the 10 largest gap-downs in the "
                                        "top 500 (see Today after the open)"},
             "news": news}
     sha = hashlib.sha256(json.dumps(body, default=str, sort_keys=True).encode()).hexdigest()
     return {**body, "disclaimer": DISCLAIMER, "inputs_sha256": sha,
             "counts": {"universe": len(uni), "pool": len(pool), "S1": len(by["S1"]),
+                       "buylist": len(buylist),
                        "S2": len(by["S2"]), "E5": len(e5), "news": len(news),
                        "as_of": cutoff.astimezone(IST).isoformat()}}
