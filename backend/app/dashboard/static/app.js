@@ -12,7 +12,7 @@ const pct = (x, d = 2) => x == null ? "–" :
 const num = (x, d = 2) => x == null ? "–" : Number(x).toLocaleString("en-IN", { maximumFractionDigits: d });
 const cr = (x) => x == null ? "–" : x >= 1e5 ? `${(x / 1e5).toFixed(2)} L Cr` : `${num(x, 0)} Cr`;
 const pill = (t, cls) => t ? `<span class="pill ${esc(cls || t)}">${esc(t)}</span>` : "";
-const ACT = { "BUY": "BULLISH", "HOLD / WAIT": "NEUTRAL", "SELL / AVOID": "BEARISH" };
+const ACT = { "BUY": "BULLISH", "HOLD / WAIT": "NEUTRAL", "SELL / AVOID": "BEARISH", "AVOID": "BEARISH" };
 const actionPill = (a) => a ? `<span class="pill ${ACT[a] || ""}"><b>${esc(a)}</b></span>` : "";
 const ago = (iso) => { const m = (Date.now() - new Date(iso)) / 60000;
   return m < 60 ? `${Math.round(m)} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`; };
@@ -46,7 +46,7 @@ const COLS = [
   { h: "5D", n: 1, f: r => pct(r.ret_5d) },
   { h: "20D", n: 1, f: r => pct(r.ret_20d) },
   { h: "Cap", f: r => `${esc(r.cap_bucket || "")}<div class="muted small">${cr(r.cap_cr)}</div>` },
-  { h: "Action", f: r => actionPill(r.action) + (r.e5_pick ? pill("E5 pick", "NEUTRAL") : "") + (r.indicators_basis === "live" ? '<span class="muted small"> live</span>' : "") },
+  { h: "Action", f: r => actionPill(r.action) + (r.e5_pick ? pill("E5 pick", "NEUTRAL") : "") + (r.indicators_basis === "live" ? '<span class="muted small"> live</span>' : "") + ((r.guards || []).length ? `<div class="small warn-text">${esc(r.guards.join(" "))}</div>` : "") },
 ];
 
 // ── market ───────────────────────────────────────────────────────────────────────

@@ -47,6 +47,7 @@ def _plans_all(m: dict[str, Any]) -> list[dict[str, Any]]:
     """Today's plan for every stock in the market view (stored daily bars + today's
     official close / live quote as the last bar), the same rules as the stock page."""
     from app.dashboard import analysis as A
+    from app.desk import rules as RJ  # dash-plan-v2 (2026-10-27)
     out = []
     for r in m["stocks"]:
         k = r["key"]
@@ -61,7 +62,11 @@ def _plans_all(m: dict[str, Any]) -> list[dict[str, Any]]:
             continue
         e5 = m["e5map"].get(k)
         sig = A.research_signal(f, e5, bool(e5 and e5["selected"]))
-        plan = A.trade_plan(r["close"], f, A.levels(bars), sig)
+        qq = q or {}
+        plan = RJ.stock_plan(r["close"], f, A.levels(bars), {
+            "median_turnover": f.get("turnover_20"), "upper_circuit": qq.get("upper_circuit"),
+            "lower_circuit": qq.get("lower_circuit"), "day_high": qq.get("high")},
+            {"news_24h": f.get("mnews_company_count_24h") or 0, "ret_1d": r.get("day_change")})
         out.append({**plan, "key": k, "symbol": r["symbol"], "sector": r["sector"],
                     "cap_bucket": r.get("cap_bucket"), "signal_score": sig["score"]})
     return out
@@ -212,8 +217,11 @@ def _live_row(m: dict[str, Any], r: dict[str, Any]) -> dict[str, Any]:
         f = {**m["feat"].get(r["key"], {}), **{k: v for k, v in ind.items() if v is not None}}
         e5 = m["e5map"].get(r["key"])
         sig = A.research_signal(f, e5, bool(e5 and e5["selected"]))
+        from app.desk import rules as RJ
+        act, guards = RJ.list_action(out.get("close"), f, LIVE.get(r["key"]),
+                                     out.get("day_change"))
         out.update(signal=sig["label"], signal_score=sig["score"], trend=sig["trend"],
-                   action=A.ACTIONS.get(sig["label"]), ret_5d=f.get("ret_5d"),
+                   action=act, guards=guards, ret_5d=f.get("ret_5d"),
                    ret_20d=f.get("ret_20d"), rsi_14=f.get("rsi_14"),
                    volatility_20=f.get("volatility_20"), dist_high_252=f.get("dist_high_252"),
                    indicators_basis="live")

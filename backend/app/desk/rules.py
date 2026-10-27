@@ -56,6 +56,21 @@ def stock_plan(close: float | None, feat: dict[str, Any], lv: dict[str, Any],
     return plan
 
 
+def list_action(close: float | None, feat: dict[str, Any], quote: dict[str, Any] | None,
+                day_change: float | None) -> tuple[str | None, list[str]]:
+    """The v2 action and guards for a row of a list (market, movers, sectors): the same
+    guards as the stock page without its levels (no support/resistance in a list)."""
+    if not close or not feat:
+        return None, []
+    q = quote or {}
+    p = stock_plan(close, feat, {}, {"median_turnover": feat.get("turnover_20"),
+                                     "upper_circuit": q.get("upper_circuit"),
+                                     "lower_circuit": q.get("lower_circuit"),
+                                     "day_high": q.get("high")},
+                   {"news_24h": feat.get("mnews_company_count_24h") or 0, "ret_1d": day_change})
+    return p.get("action"), p.get("guards") or []
+
+
 def judge(px: dict[str, Any], ex: dict[str, Any], ctx: dict[str, Any]) -> dict[str, Any]:
     """px: close, atr_pct, close_to_sma_20/50/200, rsi_14, macd_histogram, ret_1d and the
     levels (support_20, resistance_20, swing_low_60, swing_high_60, high_252, low_252);

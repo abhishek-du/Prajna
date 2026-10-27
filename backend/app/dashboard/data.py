@@ -168,7 +168,9 @@ async def market(s: AsyncSession, caps: dict[str, float] | None = None) -> dict[
         ek = e5.get(k)
         sig = A.research_signal(f, ek, bool(ek and ek["selected"])) if f else None
         rec["signal"] = sig["label"] if sig else None
-        rec["action"] = A.ACTIONS.get(sig["label"]) if sig else None
+        from app.desk import rules as RJ
+        rec["action"], rec["guards"] = RJ.list_action(rec.get("close"), f, None,
+                                                      rec.get("day_change")) if sig else (None, [])
         rec["signal_score"] = sig["score"] if sig else None
         rec["trend"] = sig["trend"] if sig else None
         rec["e5_pick"] = bool(ek and ek["selected"])

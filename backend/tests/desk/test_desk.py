@@ -269,3 +269,13 @@ def test_forensic_skips_an_implausible_sector_pe():
     f = A.forensic({"pe_company": 11.9, "pe_sector": 194.65}, [], {})
     assert not any("below the sector" in g for g in f["green_flags"])
     assert any("implausible" in r for r in f["red_flags"])
+
+
+def test_list_action_uses_the_v2_guards():
+    feat = {"close_to_sma_20": 0.44, "close_to_sma_50": 0.53, "close_to_sma_200": 0.46,
+            "rsi_14": 70.0, "macd_histogram": 0.5, "atr_pct_14": 0.05, "turnover_20": 3.6e6}
+    act, guards = RJ.list_action(72.18, feat, {"upper_circuit": 73.83, "high": 73.83}, 0.17)
+    assert act == "AVOID" and {"CIRCUIT_TOUCHED", "ILLIQUID", "EXTENDED"} <= set(guards)
+    ok = {**feat, "close_to_sma_20": 0.02, "turnover_20": 5e8, "rsi_14": 60.0, "atr_pct_14": 0.02}
+    assert RJ.list_action(100.0, ok, None, 0.01) == ("BUY", [])
+    assert RJ.list_action(None, ok, None, None) == (None, [])
