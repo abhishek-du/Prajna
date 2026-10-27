@@ -397,7 +397,20 @@ def _stock_v2(out: dict[str, Any], q: dict[str, Any] | None) -> None:
     if (out.get("low_confidence_bars") or 0) > 0:
         bad.append(f"{out['low_confidence_bars']} low-confidence daily bars")
     bad += [x for x in out["forensic"]["red_flags"] if "implausible" in x]
-    f = out.get("features") or {}
+    # the averages and RSI from the closes through the price shown, so the plan never mixes
+    # today's price with an older snapshot's indicators (e.g. before the live cycle)
+    from app.shadow import indicators as IND
+    f = dict(out.get("features") or {})
+    for n in (20, 50, 200):
+        if len(cs) >= n:
+            f[f"close_to_sma_{n}"] = cs[-1] / (sum(cs[-n:]) / n) - 1
+    if len(cs) > 15:
+        f["rsi_14"] = IND.rsi(cs, 14)[-1]
+    out["features"] = f
+    from app.dashboard import analysis as A
+    e5 = out.get("e5_today")
+    out["trend"] = A.trend(f)
+    out["signal"] = A.research_signal(f, e5, bool(e5 and e5.get("selected")))
     ex = {"median_turnover": f.get("turnover_20"),
           "upper_circuit": (q or {}).get("upper_circuit"),
           "lower_circuit": (q or {}).get("lower_circuit"), "day_high": (q or {}).get("high")}
