@@ -402,12 +402,16 @@ function about() {
   <p>A private, read-only research view of Prajna's database: daily and intraday candles (split/bonus adjusted), the Stage 3 features, news from 7 sources with AWS Bedrock enrichment, vendor fundamentals, and the E5 machine-learning model's outputs.</p>
   <h3>How labels are made</h3><ul>
   <li><b>Research signal</b> (dash-signal-v1): +1/−1 for price above/below its 20-, 50- and 200-day averages; RSI bands; MACD sign; 3-day news tone; E5's probability and expected return. ≥ +3 BULLISH, ≤ −3 BEARISH, else NEUTRAL. Every contribution is listed on the stock page.</li>
+  <li><b>Action and plan</b> (dash-plan-v2): the signal's action after the guards: a price at or touching a circuit limit, more than 3 ATR above the 20-day average (WAIT for a pullback), turnover under ₹5 cr (AVOID), a news-driven move, results today, doubtful data. Reward/risk is shown after costs and slippage.</li>
+  <li><b>Research Desk</b>: Nova Pro investigates every liquid stock from a dossier (price, move split market / sector / stock, news with timing, results, fundamentals, regime, liquidity) and decides (user decision: the LLM's call is final; overrides of the rules are shown). BUY with score ≥ 70 joins the watchlist; live tracking of entry, T1, T2 and stop.</li>
+  <li><b>Buy List</b>: before the open, every liquid stock the rules or the desk call BUY, with intraday levels from the 09:15 open (stop −0.5 ATR, T1 +0.75 ATR, T2 +1 ATR), graded at the close; Telegram at 09:10 and 16:50.</li>
+  <li><b>Strategy Lab</b>: every strategy's daily paper/shadow result, trade forensics (plan vs what happened, and why), regime analytics and the on/off switches.</li>
   <li><b>Ranges</b>: E5's q10–q90 for the next session, and ±ATR×√5 for about a week. Typical ranges, never targets.</li>
   <li><b>Candle patterns</b>: fixed geometric rules (doji, hammer, engulfing, gaps, inside bar, marubozu, volume spike).</li>
   <li><b>Cap buckets</b>: SEBI/AMFI rank by market cap: 1–100 large, 101–250 mid, rest small.</li>
   <li><b>Steadier</b>: large/mid cap, uptrend, lowest 20-day volatility. Lower volatility, not "safe".</li>
   <li><b>AI</b>: Bedrock Nova Pro describes news items and, on request, a stock's facts. It is told not to predict prices or advise.</li></ul>
-  <h3>Limits</h3><ul><li>The E5 model is in its 40-session forward test; its past accuracy is hidden until then by design. The development edge was small and not significant.</li>
+  <h3>Limits</h3><ul><li>Nothing here is validated: E5 (40-session forward test), P1/P2 (60 / 250 sessions), the desk and the Buy List build their forward record in Strategy Lab. Daily results are visible by the user's decision (2026-10-27); the locked tests and their checkpoints are unchanged.</li>
   <li>Prices update with Prajna's ingestion (daily bars each morning, intraday bars after the session), not tick by tick.</li>
   <li>Paper research only. Not investment advice. No order is ever placed.</li></ul></div>`;
 }

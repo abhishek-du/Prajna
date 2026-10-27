@@ -29,6 +29,16 @@ MARKET_TTL_S = 120
 CAPS_TTL_S = 6 * 3600
 
 app = FastAPI(title="Prajna research dashboard", docs_url=None, redoc_url=None)
+
+
+@app.middleware("http")
+async def _revalidate_static(request, call_next):
+    """The browser revalidates the page and its scripts every time (ETag, cheap), so a new
+    tab never meets an old cached app.js (2026-10-27: the Buy List opened the About page)."""
+    resp = await call_next(request)
+    if request.url.path == "/" or request.url.path.startswith("/static/"):
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 _cache: dict[str, tuple[float, Any]] = {}
 _lock = asyncio.Lock()
