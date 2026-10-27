@@ -67,7 +67,7 @@ async function labOverview(body) {
       <div class="small"><a href="#/lab/history/${encodeURIComponent(s.strategy)}">history</a> · <a href="#/lab/today">today</a>${s.switch_reason ? ` · <span class="muted">last switch: ${esc(s.switch_reason)}</span>` : ""}</div>
     </div>`;
   };
-  const names = { P1: "P1 · regime-aware shadow strategies (S1 breakout, S2 mean reversion)", PAPER: "Paper book", E5: "E5 · ML model (forward test)", E6: "E6 · post-results monitor" };
+  const names = { P1: "P1 · regime-aware shadow strategies (S1 breakout, S2 mean reversion)", PAPER: "Paper book", E5: "E5 · ML model (forward test)", E6: "E6 · post-results monitor", DESK: "Research Desk · LLM-led suggestions (forward record)" };
   body.innerHTML = Object.keys(fam).map(f => `<h2>${esc(names[f] || f)}</h2><div class="grid g3">${fam[f].map(card).join("")}</div>`).join("")
     + `<div class="card small muted" style="margin-top:12px">${esc(o.note)}</div>`;
   body.querySelectorAll("input[data-sw]").forEach(cb => cb.onchange = async () => {

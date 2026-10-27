@@ -181,6 +181,9 @@ def forensic(ratios: dict[str, Any], holdings: list[dict[str, Any]] | None,
     red, green = [], []
     pe = _f(ratios.get("pe_company"))
     pe_sec = _f(ratios.get("pe_sector"))
+    if pe_sec is not None and (pe_sec > 150 or pe_sec <= 0):
+        red.append(f"sector P/E {pe_sec:g} from the vendor looks implausible: not compared")
+        pe_sec = None
     if pe is not None and pe < 0:
         red.append("negative earnings (P/E < 0)")
     elif pe is not None and pe_sec and pe > 2 * pe_sec:

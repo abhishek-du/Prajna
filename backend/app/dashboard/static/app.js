@@ -183,14 +183,19 @@ async function stock(sym) {
       <div><h3>When to buy</h3>${(pl.when_buy || []).map(x => `<div class="flag green small">${esc(x)}</div>`).join("")}</div>
       <div><h3>When to sell / exit</h3>${(pl.when_sell || []).map(x => `<div class="flag red small">${esc(x)}</div>`).join("")}</div>
     </div>
+    ${(pl.guards || []).length ? `<div style="margin-top:8px"><b class="small">Guards (dash-plan-v2):</b> ${pl.guards.map(g => pill(g, "BEARISH")).join("")}
+      ${pl.v1_action && pl.v1_action !== pl.action ? `<span class="small muted"> · the old formula said ${esc(pl.v1_action)}</span>` : ""}
+      ${(pl.guard_notes || []).map(x => `<div class="flag red small">${esc(x)}</div>`).join("")}</div>` : ""}
+    ${pl.cost ? `<div class="small" style="margin-top:6px">Reward/risk to T1: gross ${pl.cost.gross_rrr_t1}, after costs and spread ${pl.cost.net_rrr_t1}; with 5 / 10 / 20 bps slippage ${Object.values(pl.cost.slippage_scenarios_bps).join(" / ")}</div>` : ""}
     <div class="small muted" style="margin-top:8px">How: ${(pl.basis || []).map(esc).join(" · ")}</div>
     <div class="small" style="margin-top:4px;color:#f5d68a">${esc(pl.disclaimer || "")}</div>
   </div>
+  <div class="card" id="deskcard" style="margin-top:12px"><span class="muted small">Research Desk verdict…</span></div>
   <div class="grid g3" style="margin-top:12px">
     <div class="card"><h3>${esc(d.segment)} · ${esc(d.sector || "no sector")}</h3>
       <div class="big">${esc(d.symbol)} <span class="muted" style="font-size:14px">${esc(d.name || "")}</span></div>
       <div id="pricebox">${priceBox(d)}</div>
-      <div>${Object.entries(d.returns).map(([k, v]) => `<span class="pill">${k} ${pct(v, 1)}</span>`).join("")}</div></div>
+      <div>${Object.entries(d.returns).map(([k, v]) => `<span class="pill">${k} ${pct(v, 1)}</span>`).join("")}</div>${d.returns_basis ? `<div class="small muted">returns ${esc(d.returns_basis)}</div>` : ""}</div>
     <div class="card"><h3>Research signal <span class="muted small">${esc(sg.version)}</span></h3>
       <div class="big">${pill(sg.label)} <span class="small muted">score ${sg.score}</span></div>
       <div>${pill(sg.trend)} ${pill(sg.momentum, "x")}</div>
@@ -213,7 +218,7 @@ async function stock(sym) {
       ${d.candles.slice(-15).reverse().map(c => `<tr><td>${esc(c.date)}</td><td class="num">${pct(c.change)}</td><td>${pill(c.direction === "UP" ? "UP" : c.direction === "DOWN" ? "DOWN" : "FLAT", c.direction === "UP" ? "BULLISH" : c.direction === "DOWN" ? "BEARISH" : "NEUTRAL")}</td>
         <td class="num">${c.body_share == null ? "–" : (c.body_share * 100).toFixed(0) + "%"}</td><td class="num">${c.volume_vs_avg == null ? "–" : c.volume_vs_avg.toFixed(1)}</td><td>${c.patterns.map(p => pill(p.replace(/_/g, " "), "x")).join("")}</td></tr>`).join("")}
       </tbody></table></div></div></div>
-    <div><h2>AI note <small>Bedrock, from the facts on this page; never advice</small></h2><div class="card" id="ai">${aiBox(d.ai)}</div>
+    <div><h2>AI note <small>Bedrock, from the facts on this page; never advice</small></h2><div class="card" id="ai">${d.ai_stale ? `<div class="small warn-text">Outdated: this note used the facts of ${esc(d.ai.facts_close_date)}; the page now shows ${esc(d.close_date)}. <button class="btn" id="airefresh">Regenerate</button></div>` : ""}${aiBox(d.ai)}</div>
       <h2>Forensic <small>${esc(d.forensic.basis)}</small></h2><div class="card">
       ${d.forensic.red_flags.map(x => `<div class="flag red">${esc(x)}</div>`).join("")}${d.forensic.green_flags.map(x => `<div class="flag green">${esc(x)}</div>`).join("")}
       ${!d.forensic.red_flags.length && !d.forensic.green_flags.length ? '<span class="muted">No flags from the data held</span>' : ""}</div></div>
@@ -234,6 +239,8 @@ async function stock(sym) {
   <p class="muted small">${esc(d.disclaimer)} Features as of the ${esc(d.features_session || "?")} pre-session snapshot.</p>`;
   view.querySelectorAll("button[data-tf]").forEach(b => b.onclick = () => { tf = b.dataset.tf; drawChart(d); view.querySelectorAll("button[data-tf]").forEach(x => x.classList.toggle("on", x.dataset.tf === tf)); });
   const ab = $("#aibtn"); if (ab) ab.onclick = () => genAI(d.symbol);
+  const ar = $("#airefresh"); if (ar) ar.onclick = () => genAI(d.symbol);
+  deskCard(d.symbol);
   bindWatch(d.symbol);
   drawChart(d);
 }
@@ -265,6 +272,24 @@ function aiBox(a) {
     <div class="small muted" style="margin-top:6px">${esc(a.model_id)} · ${esc(a.prompt_version)} · ${new Date(a.generated_at).toLocaleString("en-IN")}</div>`; }
   const st = a ? `<div class="small down">Last attempt: ${esc(a.status)} ${esc(a.error || "")}</div>` : "";
   return `${st}<button class="btn primary" id="aibtn">Generate today's AI note</button> <span class="small muted">one model call per stock per day</span>`;
+}
+async function deskCard(sym) {
+  const box = $("#deskcard"); if (!box) return;
+  try {
+    const r = await api(`/api/desk/stock/${encodeURIComponent(sym)}`), v = r.verdict;
+    const w = v.why_moved || {};
+    box.innerHTML = `<h3>Research Desk verdict <span class="muted small">LLM-led investigation · ${esc(v.kind)} ${esc(v.session_date)} · ${new Date(v.created_at).toLocaleString("en-IN")}</span></h3>
+      <div class="grid g4"><div><div class="big">${typeof decPill === "function" ? decPill(v.decision || v.status) : esc(v.decision)}</div><div class="small">score ${v.score ?? "–"} ${r.on_watchlist ? '· <span class="up">on the watchlist</span>' : ""}</div></div>
+      <div><div class="muted small">ENTRY</div><div class="big">${v.entry_lo != null ? `${num(v.entry_lo)} – ${num(v.entry_hi)}` : "–"}</div></div>
+      <div><div class="muted small">STOP</div><div class="big down">${num(v.stop)}</div></div>
+      <div><div class="muted small">T1 / T2</div><div class="big up">${v.t1 != null ? `${num(v.t1)} / ${num(v.t2)}` : "–"}</div></div></div>
+      <div class="small" style="margin-top:6px"><b>Why it moved (${esc(w.driver || "")}):</b> ${esc(w.summary || "")}</div>
+      <div class="small"><b>Thesis:</b> ${esc(v.thesis || "")}</div>
+      ${(v.conflicts || []).length ? `<div class="small down">LLM overrides the rules: ${esc(v.conflicts.join(", "))}</div>` : ""}
+      <div class="small" style="margin-top:6px"><a href="#/desk/stock/${encodeURIComponent(sym)}">Full detective report →</a></div>`;
+  } catch (e) {
+    box.innerHTML = `<h3>Research Desk verdict</h3><div class="small muted">${String(e.message).startsWith("404") ? "Not investigated yet (the desk runs at 19:45, 08:40, 11:00 and 13:30)." : esc(e.message)}</div>`;
+  }
 }
 async function genAI(sym) {
   $("#ai").innerHTML = '<span class="muted">Asking the model…</span>';
@@ -394,7 +419,8 @@ async function route() {
   document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("active", a.getAttribute("href") === `#/${p}`));
   clearInterval(timer);
   try {
-    if (p === "lab") { await labView(arg, parts[2]); if (!arg || arg === "overview") every(120000, () => labView(arg, parts[2])); }
+    if (p === "desk") { await deskView(arg, parts[2]); }
+    else if (p === "lab") { await labView(arg, parts[2]); if (!arg || arg === "overview") every(120000, () => labView(arg, parts[2])); }
     else if (p === "market") { await market(); every(30000, market); }
     else if (p === "movers") { await movers(); every(30000, movers); }
     else if (p === "sectors") { await sectors(arg); }

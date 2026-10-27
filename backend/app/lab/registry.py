@@ -46,6 +46,11 @@ STRATEGIES: tuple[Strategy, ...] = (
     Strategy("e5_ensemble", "E5", "MONITOR", False, "MODEL",
              "E5 ML ensemble: top 10 picks at 09:06, valued open to close after costs",
              "E5 ML: 09:06 ke top 10 picks, open se close", "40 sessions"),
+    Strategy("desk_llm_v1", "DESK", "MONITOR", False, "MODEL",
+             "Research Desk (LLM-led): watchlist suggestions, entry on the zone, exit at T1 / "
+             "stop / intraday expiry",
+             "Research Desk (LLM): watchlist suggestion, zone par entry, T1/stop/expiry par exit",
+             None),
     Strategy("e6_results_drift", "E6", "MONITOR", False, "EVENT",
              "E6 post-results drift: day-2 open entry, 20-session hold",
              "E6 results ke baad: din-2 open entry, 20 din hold", "single look ~Apr 2027"),

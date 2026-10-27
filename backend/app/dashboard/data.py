@@ -433,7 +433,9 @@ async def stock(s: AsyncSession, key: str) -> dict[str, Any]:
             "day_change": (close / (prev_close if today_bar else (bars[-2]["close"]
                            if len(bars) > 1 else None)) - 1)
             if close and (prev_close if today_bar else len(bars) > 1) else None,
-            "returns": ret, "features_session": str(day) if day else None, "features": f,
+            "returns": ret, "_closes": [(b["date"], b["close"]) for b in bars[-800:]
+                                         if b["close"]],
+            "features_session": str(day) if day else None, "features": f,
             "trend": A.trend(f), "signal": sig,
             "levels": A.levels(bars),
             "plan": A.trade_plan(close, f, A.levels(bars), sig),

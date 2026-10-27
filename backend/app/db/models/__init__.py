@@ -36,6 +36,13 @@ from app.db.models.market import (
     OhlcvPayloadBasis,
     TickArchive,
 )
+from app.db.models.desk import (
+    DeskDossier,
+    DeskRun,
+    DeskTrackEvent,
+    DeskVerdict,
+    DeskWatchEvent,
+)
 from app.db.models.lab import (
     DailyBrief,
     DayForensic,
@@ -77,6 +84,7 @@ from app.db.models.reference import (
 
 __all__ = [
     "Base",
+    "DeskDossier", "DeskRun", "DeskTrackEvent", "DeskVerdict", "DeskWatchEvent",
     "DailyBrief", "DayForensic", "LabRun", "StrategyDay", "StrategySwitch", "TradeForensic",
     "ResultsEvent", "FundamentalRefresh",
     "ModelVersion", "ModelPrediction", "GateScanCheckpoint",

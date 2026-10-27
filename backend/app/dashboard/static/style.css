@@ -94,3 +94,9 @@ tr.click { cursor: pointer; } tr.click:hover { background: var(--panel2); }
 .inp { display: block; width: 100%; margin-top: 4px; padding: 7px 10px; border-radius: 6px;
   border: 1px solid var(--line); background: var(--bg); color: var(--text); }
 select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
+/* Research Desk */
+.scorebar { position: relative; display: inline-block; width: 90px; height: 16px; background: var(--panel2);
+  border-radius: 4px; overflow: hidden; vertical-align: middle; }
+.scorebar i { display: block; height: 100%; opacity: .55; }
+.scorebar span { position: absolute; inset: 0; font-size: 11px; text-align: center; line-height: 16px; }
+.povrow { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 4px 0; font-size: 13px; }

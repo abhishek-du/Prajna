@@ -338,6 +338,11 @@ async def _key(s, symbol: str) -> str:
 
 @app.get("/api/stock/{symbol}")
 async def stock(symbol: str) -> JSONResponse:
+    return _json(await _stock_view(symbol))
+
+
+async def _stock_view(symbol: str) -> dict[str, Any]:
+    """The stock page's data: stored facts, the live quote and indicators, dash-plan-v2."""
     async with get_sessionmaker()() as s:
         out = await DD.stock(s, await _key(s, symbol))
         await s.rollback()
@@ -362,7 +367,46 @@ async def stock(symbol: str) -> JSONResponse:
                                     "plus today's live bar")
     out["live_status"] = LIVE.summary()
     out["ai"] = AIS.cached(out["symbol"])
-    return _json(out)
+    _stock_v2(out, q)
+    return out
+
+
+def _stock_v2(out: dict[str, Any], q: dict[str, Any] | None) -> None:
+    """dash-plan-v2 on the stock page (user 2026-10-27): returns at the price shown, the
+    rule guards (circuit, extension, liquidity, news move, results, data), AI staleness."""
+    import datetime as _dt
+
+    from app.core.clock import IST, now
+    from app.desk import rules as RJ
+    closes = out.pop("_closes", [])
+    if closes and out.get("close") and out.get("close_date") and \
+            str(out["close_date"]) > str(closes[-1][0]):
+        closes = [*closes, (str(out["close_date"]), out["close"])]
+    cs = [c for _, c in closes]
+    out["returns"] = {n: cs[-1] / cs[-1 - k] - 1 for n, k in (
+        ("1w", 5), ("1m", 21), ("3m", 63), ("6m", 126), ("1y", 252), ("3y", 756))
+        if len(cs) > k and cs[-1 - k]}
+    out["returns_basis"] = f"from the price shown ({out.get('close_date')})"
+    today = now().astimezone(IST)
+    news_24h = sum(1 for n in out.get("news") or []
+                   if n.get("at") and today - _dt.datetime.fromisoformat(n["at"])
+                   <= _dt.timedelta(hours=24))
+    results_today = any(r.get("meeting_date") == str(today.date())
+                        for r in out.get("results") or [])
+    bad = []
+    if (out.get("low_confidence_bars") or 0) > 0:
+        bad.append(f"{out['low_confidence_bars']} low-confidence daily bars")
+    bad += [x for x in out["forensic"]["red_flags"] if "implausible" in x]
+    f = out.get("features") or {}
+    ex = {"median_turnover": f.get("turnover_20"),
+          "upper_circuit": (q or {}).get("upper_circuit"),
+          "lower_circuit": (q or {}).get("lower_circuit"), "day_high": (q or {}).get("high")}
+    out["plan"] = RJ.stock_plan(out.get("close"), f, out.get("levels") or {}, ex,
+                                {"news_24h": news_24h, "results_today": results_today,
+                                 "bad_data": bad, "ret_1d": out.get("day_change")})
+    ai = out.get("ai") or {}
+    out["ai_stale"] = bool(ai.get("facts_close_date") and out.get("close_date")
+                           and str(ai["facts_close_date"]) != str(out["close_date"]))
 
 
 @app.get("/api/quote/{symbol}")
@@ -404,9 +448,7 @@ async def ai(symbol: str) -> JSONResponse:
         raise HTTPException(409, "AI is disabled (PRAJNA_NEWS_AI_ENABLED / MODEL_ID)")
     if not (os.environ.get("AWS_BEARER_TOKEN_BEDROCK") or os.environ.get("AWS_ACCESS_KEY_ID")):
         raise HTTPException(409, "no AWS credentials in the dashboard's environment")
-    async with get_sessionmaker()() as s:
-        st = await DD.stock(s, await _key(s, symbol))
-        await s.rollback()
+    st = await _stock_view(symbol)        # the facts as shown: live price, v2 plan
     from app.news.ai import bedrock_model
     if "model_note" not in _cache:
         _cache["model_note"] = (0.0, bedrock_model(st_.PRAJNA_NEWS_AI_REGION, max_tokens=1200))
@@ -579,3 +621,86 @@ async def lab_switch(body: dict[str, Any], x_prajna_token: str | None = Header(N
     except SW.SwitchRefused as e:
         raise HTTPException(400, str(e)) from None
     return _lab_json(out)
+
+
+# ── Research Desk (user 2026-10-27): LLM-led investigation, auto-watchlist, live tracking ─
+@app.on_event("startup")
+async def _start_desk() -> None:
+    if os.environ.get("PRAJNA_DASHBOARD_LIVE", "1") == "1":
+        _cache["desk_task"] = (0.0, asyncio.create_task(_desk_loop()))
+
+
+async def _desk_loop() -> None:
+    """In market hours, after every live cycle: the desk watchlist's suggestions against the
+    live quote (entry, T1, T2, stop, expiry), written once each, sent to Telegram."""
+    import datetime as _dt
+
+    from app.core.clock import IST, now
+    from app.dashboard import alerts as AL
+    from app.desk import track as TR
+    seen = -1
+    while True:
+        await asyncio.sleep(15)
+        try:
+            t = now().astimezone(IST)
+            if not (_dt.time(9, 15) <= t.time() <= _dt.time(15, 30)) or LIVE.cycles == seen:
+                continue
+            if not await LIVE._trading_day(t.date()):
+                continue
+            seen = LIVE.cycles
+            async with get_sessionmaker()() as s:
+                new = await TR.tick(s, LIVE.get, LIVE.fetched_at or now())
+            if new:
+                items = [(f"{t.date()}|desk|{e['verdict']['verdict_id']}|{e['kind']}",
+                          TR.message(e)) for e in new]
+                await asyncio.to_thread(AL.send, NOTIFY, t.date(), AL.due(t.date(), items))
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            import logging
+            logging.getLogger("dashboard.desk").warning("desk tracker: %s", e)
+
+
+@app.get("/api/desk/watch")
+async def desk_watch() -> JSONResponse:
+    from app.dashboard import desk_data as DK
+    out = await _lab_read(DK.watch)
+    for r in out["watchlist"]:
+        q = LIVE.get(r["key"])
+        r["live"] = None if not q else {"ltp": q["ltp"], "change": q.get("change"),
+                                        "at": q.get("at"), "high": q.get("high"),
+                                        "low": q.get("low")}
+    out["live_status"] = LIVE.summary()
+    return _lab_json(out)
+
+
+@app.get("/api/desk/verdicts")
+async def desk_verdicts(decision: str | None = None) -> JSONResponse:
+    from app.dashboard import desk_data as DK
+    return _lab_json(await _lab_read(DK.verdicts, decision))
+
+
+@app.get("/api/desk/stock/{symbol}")
+async def desk_stock(symbol: str) -> JSONResponse:
+    from app.dashboard import desk_data as DK
+    async with get_sessionmaker()() as s:
+        key = await _key(s, symbol)
+        await s.rollback()
+    out = await _lab_read(DK.stock, key)
+    if out is None:
+        raise HTTPException(404, f"no desk verdict for {symbol} yet")
+    q = LIVE.get(key)
+    out["live"] = q
+    return _lab_json(out)
+
+
+@app.get("/api/desk/log")
+async def desk_log() -> JSONResponse:
+    from app.dashboard import desk_data as DK
+    return _lab_json(await _lab_read(DK.log))
+
+
+@app.get("/api/desk/accuracy")
+async def desk_accuracy() -> JSONResponse:
+    from app.dashboard import desk_data as DK
+    return _lab_json(await _lab_read(DK.accuracy))

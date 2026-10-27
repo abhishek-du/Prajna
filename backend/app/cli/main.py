@@ -3205,5 +3205,79 @@ def lab_status():
     typer.echo(_json.dumps(asyncio.run(_go()), indent=1, default=str))
 
 
+# ── Research Desk (user 2026-10-27) ────────────────────────────────────────────────────
+desk_app = typer.Typer(help="Research Desk: LLM-led investigation of every liquid stock, the "
+                            "auto-managed watchlist (PAPER ONLY: suggestions, never orders)")
+app.add_typer(desk_app, name="desk")
+
+
+@desk_app.command("run")
+def desk_run(
+    mode: str = typer.Option("EVENING", "--mode", help="EVENING | MORNING | INTRADAY"),
+    session: str = typer.Option(None, "--session", help="YYYY-MM-DD (default: today IST)"),
+    keys: str = typer.Option(None, "--keys", help="comma-separated instrument keys or symbols"),
+    limit: int = typer.Option(None, "--limit", help="investigate at most N stocks"),
+    commit: bool = typer.Option(False, "--commit", help="store verdicts and update the "
+                                "watchlist (write token)"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"),
+):
+    """One desk run. A dry run still calls the model (it costs) but writes nothing."""
+    import datetime as _dtm
+    import json as _json
+
+    from sqlalchemy import text as _text
+
+    from app.core.clock import IST as _IST
+    from app.core.clock import now as _now
+    from app.db.engine import get_sessionmaker
+    from app.desk import config as DK
+    from app.desk import run as DR
+    from app.news.ai import bedrock_model
+    from app.training import replay as RP
+
+    mode = mode.upper()
+    if mode not in ("EVENING", "MORNING", "INTRADAY"):
+        typer.echo("REFUSED: --mode must be EVENING, MORNING or INTRADAY")
+        raise typer.Exit(2)
+    code = RP.code_version()
+    if commit and code["dirty"]:
+        typer.echo("REFUSED: the working tree is dirty; commit first")
+        raise typer.Exit(3)
+    day = _dtm.date.fromisoformat(session) if session else _now().astimezone(_IST).date()
+    model = bedrock_model(get_settings().PRAJNA_NEWS_AI_REGION, max_tokens=DK.MAX_TOKENS)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            ok = (await s.execute(_text("""select is_trading_day from trading_session
+                where session_date = :d"""), {"d": day})).scalar()
+            if not ok:
+                return {"session": day, "status": "NOT_A_TRADING_DAY"}
+            ks, live, reg, extra = await DR.plan_keys(s, day, mode)
+            if keys:
+                want = []
+                for x in keys.split(","):
+                    x = x.strip()
+                    k = x if "|" in x else (await s.execute(_text("""select instrument_key
+                        from canon_instrument where trading_symbol = :s"""), {"s": x.upper()}
+                                                            )).scalar()
+                    if k:
+                        want.append(k)
+                ks, extra = want, []
+            await s.rollback()
+            return await DR.execute(s, day, mode, model, commit=commit, token=token,
+                                    code_git_sha=code["git_sha"], keys=ks, live=live,
+                                    limit=limit, regime=reg, extra=extra,
+                                    progress=lambda a, b: typer.echo(f"progress {a}/{b}",
+                                                                     err=True))
+
+    try:
+        res = asyncio.run(_go())
+    except Exception as e:  # noqa: BLE001 - the runbook alerts on the refusal
+        typer.echo(f"REFUSED: {type(e).__name__}: {e}")
+        raise typer.Exit(3)
+    typer.echo(_json.dumps(res, default=str, indent=1))
+
+
 if __name__ == "__main__":
     app()

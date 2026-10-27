@@ -82,8 +82,8 @@ async def generate(st: dict[str, Any], model, model_id: str, *,
                    timeout_s: float = 90.0) -> dict[str, Any]:
     """One model call for this stock today (cached); returns the stored record."""
     hit = cached(st["symbol"])
-    if hit:
-        return hit
+    if hit and str(hit.get("facts_close_date")) == str(st.get("close_date")):
+        return hit                     # a note on older facts is regenerated (2026-10-27)
     prompt = PROMPT.format(facts=json.dumps(facts(st), default=str, indent=0))
     rec: dict[str, Any] = {"symbol": st["symbol"], "model_id": model_id,
                            "prompt_version": PROMPT_VERSION, "facts_close_date": st["close_date"]}

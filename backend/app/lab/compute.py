@@ -27,6 +27,7 @@ BASE_EQUITY = 1_000_000.0
 NIFTY = "NSE_INDEX|Nifty 50"
 P1_POLICY = "p1-shadow-v1"
 E5_STRATEGY, E6_STRATEGY = "e5_ensemble", "e6_results_drift"
+DESK_STRATEGY = "desk_llm_v1"
 E5_NOTIONAL = 100_000.0          # app/paper/sim.py Config.order_value_inr (Rs 1 L per name)
 E6_NOTIONAL = 100_000.0
 E6_HOLD = 20                     # app/e6/monitor.py RULE hold_sessions
@@ -312,6 +313,57 @@ async def e6(s: AsyncSession, day: _dt.date, directory: pathlib.Path | None = No
     return trades, {"open": sum(1 for t in trades if not t["is_placebo"])}
 
 
+async def desk(s: AsyncSession, day: _dt.date) -> tuple[list[dict], dict[str, Any]]:
+    """Research Desk suggestions closed on `day` (desk_llm_v1): entry at the quote that
+    triggered the entry zone; the whole position exits at the first of T1, the stop or the
+    intraday expiry (booking at T1 keeps the record simple and conservative); MIS costs."""
+    from app.shadow import fill as SF
+    try:
+        rows = (await s.execute(text("""select v.id, v.instrument_key, v.symbol, v.decision,
+                v.score, v.horizon, v.entry_lo, v.entry_hi, v.stop, v.t1, v.t2, v.conflicts,
+                v.rule_decision, v.created_at,
+                (select json_agg(json_build_object('kind', t.kind, 'price', t.price, 'at', t.at)
+                        order by t.at) from desk_track_event t where t.verdict_id = v.id) ev
+            from desk_verdict v where exists (select 1 from desk_track_event t
+                where t.verdict_id = v.id and t.kind = 'ENTRY_TRIGGERED')"""))).mappings().all()
+    except Exception:
+        await s.rollback()
+        return [], {}
+    trades = []
+    for r in rows:
+        ev = {e["kind"]: e for e in (r["ev"] or [])}
+        en = ev["ENTRY_TRIGGERED"]
+        ex = min((ev[k] for k in ("T1", "STOP", "EXPIRED") if k in ev),
+                 key=lambda e: e["at"], default=None)
+        if ex is None:
+            continue
+        ex_at = _dt.datetime.fromisoformat(str(ex["at"]))
+        if ex_at.astimezone(IST).date() != day:
+            continue
+        ep, xp = float(en["price"]), float(ex["price"])
+        qty = int(E5_NOTIONAL // ep) if ep else 0
+        st = SF.settle(1, qty, ep, xp, 0.0) if qty else None
+        reason = {"T1": "TARGET", "STOP": "STOP", "EXPIRED": "EOD"}[ex["kind"]]
+        trades.append({
+            "strategy": DESK_STRATEGY, "family": "DESK", "source": "desk_verdict",
+            "source_id": str(r["id"]), "instrument_key": r["instrument_key"], "side": 1,
+            "is_placebo": False, "signal_at": r["created_at"],
+            "entry_at": _dt.datetime.fromisoformat(str(en["at"])), "exit_at": ex_at,
+            "entry_px": st["entry_px"] if st else ep, "exit_px": st["exit_px"] if st else xp,
+            "stop": _f(r["stop"]), "target": _f(r["t1"]), "qty": qty,
+            "gross_inr": st["gross_inr"] if st else 0.0,
+            "charges_inr": sum(st["charges"].values()) if st else 0.0,
+            "net_inr": st["net_inr"] if st else None,
+            "net_r": (xp - ep) / (ep - float(r["stop"])) if r["stop"] and ep > float(r["stop"])
+            else None, "exit_reason": reason, "regime_state": None, "day_type": None,
+            "ai_verdict": r["decision"], "sector": None,
+            "plan": {"decision": r["decision"], "score": r["score"], "horizon": r["horizon"],
+                     "entry_zone": [_f(r["entry_lo"]), _f(r["entry_hi"])], "t2": _f(r["t2"]),
+                     "conflicts": list(r["conflicts"] or []), "rule_decision": r["rule_decision"],
+                     "events": r["ev"]}})
+    return trades, {"closed": len(trades)}
+
+
 # ── assembly ─────────────────────────────────────────────────────────────────────
 async def enrich(s: AsyncSession, day: _dt.date, trades: list[dict]) -> None:
     """Path, news and outcome class for every trade (in place)."""
@@ -402,7 +454,8 @@ async def build(s: AsyncSession, day: _dt.date, *, e6_dir: pathlib.Path | None =
     pat, pac = await paper(s, day)
     e5t, _ = await e5(s, day)
     e6t, _ = await e6(s, day, e6_dir)
-    trades = p1t + pat + e5t + e6t
+    dkt, _ = await desk(s, day)
+    trades = p1t + pat + e5t + e6t + dkt
     await enrich(s, day, trades)
     sw = await SW.current(s)
     snaps = p1c.get("snaps") or {}
@@ -488,4 +541,5 @@ async def build(s: AsyncSession, day: _dt.date, *, e6_dir: pathlib.Path | None =
     return {"session": day, "trades": trades, "days": days, "forensics": forensics,
             "inputs_sha256": sha,
             "counts": {"P1": len(p1t), "PAPER": len(pat), "E5": len(e5t), "E6": len(e6t),
+                       "DESK": len(dkt),
                        "strategies": len(days)}}
