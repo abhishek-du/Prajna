@@ -422,9 +422,9 @@ async def build(s: AsyncSession, day: _dt.date, *, e6_dir: pathlib.Path | None =
         plc = [t for t in ts if t["is_placebo"]]
         net = sum(t["net_inr"] or 0.0 for t in real)
         eq0, peak = await prior_equity(s, name, day)
-        if meta.family == "PAPER" and (pac.get(name) or {}).get("end_cash") is not None:
-            eq = pac[name]["end_cash"]
-        elif meta.family == "E6":
+        # the paper book restarts each session at its capital (paper_day.start_cash), so
+        # its end_cash is that day's result, not the running equity: all families chain
+        if meta.family == "E6":
             eq = BASE_EQUITY + net          # marked open positions, not cumulative
         else:
             eq = eq0 + net
