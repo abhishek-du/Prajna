@@ -25,6 +25,9 @@ migration is needed. Rules:
   * a window advances the checkpoint only if it is contiguous with it
     (from_date <= last_logical_date + 1 day). A window beyond a hole persists
     its bars but never moves the checkpoint, so the hole is never skipped;
+  * a batch that starts before a complete checkpoint never replaces it with a
+    shorter range: the checkpoint stays as stored until the batch's own range
+    reaches it, then the two are joined (CHECKPOINT-KEEP, 2026-10-27);
   * windows run oldest first; a window that fails STOPS its stream, so the
     watermark can never jump over a gap;
   * a window with FORMING/SETTLING bars advances the watermark only to the day
@@ -268,8 +271,14 @@ class CandleIngestor:
                            key=lambda j: (j.window.from_date if j.window else _dt.date.max))
             first = next((j.window.from_date for j in sjobs if j.window), None)
             cp = await self.checkpoint(stream) if resume else Checkpoint()
+            prior: Checkpoint | None = None
             if first is not None and not cp.covers_start(first):
-                cp = Checkpoint()             # untrusted: rebuild from this batch's start
+                # untrusted: rebuild from this batch's start. A complete checkpoint
+                # that starts later is kept as stored until the rebuilt range reaches
+                # it, then the two are joined (CHECKPOINT-KEEP, 2026-10-27)
+                if cp.covered_from is not None and cp.through is not None:
+                    prior = cp
+                cp = Checkpoint()
             mark = cp.through
             broken = False
             for j in sjobs:
@@ -280,7 +289,9 @@ class CandleIngestor:
                 if mark and j.window and j.window.to_date <= mark:
                     rep.results.append(JobResult(j, "SKIPPED", complete_through=str(mark)))
                     continue
-                res, cp = await self._one(j, cp)
+                res, cp = await self._one(j, cp, prior)
+                if prior and cp.through and cp.through >= prior.through:
+                    prior = None
                 rep.results.append(res)
                 if res.status == "ABORTED":
                     stop_all = res.error
@@ -289,7 +300,8 @@ class CandleIngestor:
         rep.stopped = stop_all
         return rep
 
-    async def _one(self, job: CandleJob, cp: Checkpoint) -> tuple[JobResult, Checkpoint]:
+    async def _one(self, job: CandleJob, cp: Checkpoint,
+                   prior: Checkpoint | None = None) -> tuple[JobResult, Checkpoint]:
         runner = IngestRunner(
             self.s, source=SOURCE, stream=job.stream, vendor_endpoint=job.path(),
             request_params={"instrument_key": job.instrument_key, "timeframe": job.timeframe,
@@ -372,9 +384,24 @@ class CandleIngestor:
             else:
                 new, why = cp.advance(job.window,
                                       _complete_through(pc, job.window, r.fetched_at))
-            ctx.logical_date = new.through
-            res.complete_through = None if new.through is None else str(new.through)
-            res.coverage["checkpoint"] = {**new.as_dict(), "change": why}
+            stored = new
+            if prior is not None:
+                if new.through is not None \
+                        and new.through + _dt.timedelta(days=1) >= prior.covered_from:
+                    new = stored = Checkpoint(min(new.covered_from or prior.covered_from,
+                                                  prior.covered_from),
+                                              max(new.through, prior.through))
+                    why += f"; joined the existing checkpoint ({prior.covered_from}.." \
+                           f"{prior.through})"
+                elif new.through is None or new.through < prior.through:
+                    stored = prior
+                    why += f"; the existing checkpoint ({prior.covered_from}.." \
+                           f"{prior.through}) is kept until this range reaches it"
+            ctx.logical_date = stored.through
+            res.complete_through = None if stored.through is None else str(stored.through)
+            res.coverage["checkpoint"] = {**stored.as_dict(), "change": why}
+            if stored is not new:
+                res.coverage["checkpoint"]["batch_range"] = new.as_dict()
             await runner.finalize(rows_written=res.inserted, outcome=res.coverage)
             res.status = "COMPLETE"
             return res, new

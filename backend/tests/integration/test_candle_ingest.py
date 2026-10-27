@@ -415,6 +415,34 @@ class TestCheckpointCoverage:
         again = await _ingestor(db_session, v, tmp_path).run(early)
         assert [r.status for r in again.results] == ["SKIPPED", "COMPLETE"]
 
+    async def test_an_earlier_batch_never_replaces_a_complete_checkpoint(self, db_session,
+                                                                        tmp_path, frozen):
+        """CHECKPOINT-KEEP (2026-10-27): the 2019 warm-up fetch of 2026-10-23 replaced every
+        1d checkpoint (2020-01-01..10-22) with 2019-09-01..2019-12-31."""
+        await _seed_instruments(db_session)
+        frozen(AFTER_CLOSE)
+        v = Vendor()
+        await _ingestor(db_session, v, tmp_path).run(
+            plan_jobs([SME], ["1d"], D(2026, 9, 1), D(2026, 9, 23))[0])
+        assert (await self._cp(db_session)).as_dict() == {"covered_from": "2026-09-01",
+                                                          "through": "2026-09-22"}
+        # a disjoint earlier range: its bars are stored, the checkpoint stays
+        rep = await _ingestor(db_session, v, tmp_path).run(
+            plan_jobs([SME], ["1d"], D(2019, 9, 1), D(2019, 12, 31))[0])
+        (res,) = rep.results
+        assert res.status == "COMPLETE"
+        assert "is kept until this range reaches it" in res.coverage["checkpoint"]["change"]
+        assert res.coverage["checkpoint"]["batch_range"] == {"covered_from": "2019-09-01",
+                                                             "through": "2019-12-31"}
+        cp = await self._cp(db_session)
+        assert (cp.covered_from, cp.through) == (D(2026, 9, 1), D(2026, 9, 22))
+        # a contiguous earlier range joins it
+        rep = await _ingestor(db_session, v, tmp_path).run(
+            plan_jobs([SME], ["1d"], D(2026, 8, 1), D(2026, 8, 31))[0])
+        assert "joined the existing checkpoint" in rep.results[0].coverage["checkpoint"]["change"]
+        cp = await self._cp(db_session)
+        assert (cp.covered_from, cp.through) == (D(2026, 8, 1), D(2026, 9, 22))
+
     async def test_window_after_a_hole_never_moves_the_checkpoint(self, db_session, tmp_path,
                                                                  frozen):
         await _seed_instruments(db_session)

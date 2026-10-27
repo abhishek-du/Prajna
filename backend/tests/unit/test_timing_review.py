@@ -35,6 +35,38 @@ def test_the_review_is_recorded_and_the_grace_decision_too():
     assert r["status"] == "APPROVED" and "300 s" in r["decision"] and "2026-10-08" in r["ref"]
     g = DECISIONS["D-NEW-LISTING-GRACE"]
     assert g["status"] == "APPROVED" and "7 days" in g["decision"]
+    g30 = DECISIONS["D-NEW-LISTING-GRACE-30"]
+    assert g30["status"] == "APPROVED" and "30 days" in g30["decision"]
+
+
+def test_excused_preopen_sessions_are_named_in_the_decision():
+    from app.acceptance.stage1 import K_EXCUSED
+    k = DECISIONS["K-EXCUSED"]
+    assert k["status"] == "APPROVED"
+    assert all(str(d) in k["decision"] for d in K_EXCUSED)
+
+
+def test_only_the_named_checks_of_a_named_preopen_report_are_excused(tmp_path, monkeypatch):
+    import json
+
+    from app.acceptance import stage1 as S1
+    monkeypatch.setattr(S1, "anchored", lambda p: tmp_path)
+    monkeypatch.setattr(S1, "shown", str)
+
+    def report(day, failing):
+        (tmp_path / f"preopen_{day}.json").write_text(json.dumps({
+            "verdict": "FAIL" if failing else "PASS", "real_market_data": True,
+            "checks": [{"id": c, "status": "FAIL"} for c in failing]
+                      + [{"id": "C1", "status": "PASS"}],
+            "B7": {"status": "OBSERVED"}, "B8": {"status": "RESOLVED"}}))
+
+    report("2026-10-27", ["A2"])
+    status, ev = S1.preopen_report()
+    assert status == S1.PASS and ev["excused_checks"] == ["A2"]
+    report("2026-10-27", ["A2", "C1x"])
+    assert S1.preopen_report()[0] == S1.FAIL
+    report("2026-10-28", ["A2"])
+    assert S1.preopen_report()[0] == S1.FAIL
 
 
 def test_a_bar_is_final_only_after_bar_end_plus_the_margin():

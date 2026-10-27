@@ -67,6 +67,12 @@ def preopen_report() -> tuple[str, dict[str, Any]]:
           "real_market_data": rep["real_market_data"],
           "non_pass": {c["id"]: c["status"] for c in rep["checks"] if c["status"] != "PASS"},
           "B7": rep["B7"]["status"], "B8": rep["B8"]["status"]}
+    # decision K-EXCUSED: a named report's named checks only; any other non-PASS fails
+    day = pathlib.Path(reps[-1]).stem.removeprefix("preopen_")
+    excused = K_EXCUSED_CHECKS.get(day, frozenset())
+    if rep["verdict"] != "PASS" and ev["non_pass"] and set(ev["non_pass"]) <= excused:
+        ev["excused_checks"] = sorted(excused & set(ev["non_pass"]))
+        return (PASS if rep["real_market_data"] else FAIL), ev
     return (PASS if rep["verdict"] == "PASS" and rep["real_market_data"] else FAIL), ev
 
 
@@ -86,6 +92,9 @@ def load_b1b2() -> dict[str, Any]:
     return json.loads(bp.read_text()) if bp.exists() else {}
 
 PASS, FAIL, BLOCKED, OUT = "PASS", "FAIL", "BLOCKED", "OUT_OF_SCOPE"
+REVIEW_GRACE_DAYS = 30                          # decision D-NEW-LISTING-GRACE-30
+K_EXCUSED = frozenset({_dt.date(2026, 10, 26)})  # decision K-EXCUSED
+K_EXCUSED_CHECKS = {"2026-10-27": frozenset({"A2"})}  # decision K-EXCUSED
 # hardening: evidence that can only come from future sessions/refreshes, and
 # criteria deferred by an explicit scope decision; neither is ever PASS
 WAITING, DEFERRED = "WAITING_FOR_EVIDENCE", "DEFERRED"
@@ -179,6 +188,23 @@ DECISIONS: dict[str, dict[str, str]] = {
                             "is in the same 7-day grace as an UNCLASSIFIED new listing; any "
                             "other REVIEW still fails D, and so does this one after 7 days",
                             "ref": "user 2026-10-08 ('Yes, extend the grace')"},
+    "D-NEW-LISTING-GRACE-30": {"status": "APPROVED", "decision": "The grace of "
+                               "D-NEW-LISTING-GRACE (a new listing in REVIEW only because "
+                               "the vendor has no financials yet) is 30 days, not 7: Upstox "
+                               "publishes a new listing's financials weeks later (CCAVENUE, "
+                               "first seen 2026-10-17). UNCLASSIFIED stays at 7 days; any "
+                               "other REVIEW still fails D",
+                               "ref": "user 2026-10-27 ('yes' to: grace period badhao)"},
+    "K-EXCUSED": {"status": "APPROVED", "decision": "Pre-open sessions that can never be "
+                  "captured again are excused from K's 'none missed' rule, each named here "
+                  "with its cause: 2026-10-26 (the host was suspended by a physical suspend "
+                  "key; no capture ran). Named checks of a named pre-open report are excused the "
+                  "same way: 2026-10-27 A2 (after 09:14 IST Upstox answered HTTP 403 to "
+                  "connection 0 of 2's reconnects and the recorder gave up at 09:17; the "
+                  "pre-open window 09:00-09:08 was captured and all 3,573 keys were seen; "
+                  "every other check PASS). Excused items are still reported",
+                  "ref": "user 2026-10-27 ('yes' to: record the 10-26 miss as a decision; "
+                         "'Excuse kar do' for the 10-27 A2)"},
     "TIMING-REVIEW": {"status": "APPROVED", "decision": "Contract review after B2 was "
                       "CONTRADICTED: 23 late revisions, all NSE_INDEX|Nifty 50, on 4 of 9 "
                       "sessions (2026-09-29..10-07), up to 200.4 s (1m) / 146.1 s (15m, 1h) "
@@ -364,7 +390,9 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
     review_total = sum(n for _, _, st, n, _, _ in cls if st == "REVIEW")
     # decision D-NEW-LISTING-GRACE: such a listing is in the 7-day grace like an
     # UNCLASSIFIED one; every other REVIEW still fails D, and so does this one after 7 days
-    review_graced = await review_in_new_listing_grace(s, today - _dt.timedelta(days=7))
+    # widened to 30 days by decision D-NEW-LISTING-GRACE-30 (2026-10-27)
+    review_graced = await review_in_new_listing_grace(
+        s, today - _dt.timedelta(days=REVIEW_GRACE_DAYS))
     review = review_total - review_graced
     unclassified_old = sum(old for *_, old, _ in cls)
     missing = sum(n for _, _, st, n, _, _ in cls if st == "MISSING")
@@ -380,6 +408,7 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
          "sector_present_count": with_sector, "sector_missing_count": stocks - with_sector,
          "coverage_percentage": round(100 * coverage, 2), "review": review,
          "review_new_listing_no_financials_in_grace": review_graced,
+         "review_grace_days": REVIEW_GRACE_DAYS,
          "unclassified_beyond_grace": unclassified_old, "unclassified_missing_row": missing,
          "breakdown": breakdown},
         "new rule: sector >= 90 % of ACTIVE STOCK instruments (old: of all NSE_EQ); "
@@ -456,15 +485,18 @@ async def evaluate(s: AsyncSession) -> dict[str, Any]:
     k_status, k_ev = preopen_report()
     pre = await _one(s, """select count(*), count(distinct session_date), min(session_date),
                                   max(session_date) from preopen_tick""")
-    missed = (await _one(s, """select count(*) from trading_session t where t.is_trading_day
-        and t.session_date between :a and :b and not exists (
-          select 1 from preopen_tick p where p.session_date = t.session_date)""",
-                         a=pre[2] or today, b=pre[3] or today))[0]
+    missed_days = [r[0] for r in await _all(s, """select t.session_date from trading_session t
+        where t.is_trading_day and t.session_date between :a and :b and not exists (
+          select 1 from preopen_tick p where p.session_date = t.session_date)
+        order by 1""", a=pre[2] or today, b=pre[3] or today)]
+    excused = [d for d in missed_days if d in K_EXCUSED]       # decision K-EXCUSED
+    missed = len(missed_days) - len(excused)
     daily_pre = pre[1] >= 2 and missed == 0
     k_status, k_dep = _blocked_or(k_status if daily_pre else FAIL, "C6")
     out.append(Criterion("K", "Pre-open", k_status, k_ev,
                          {"ticks": pre[0], "sessions_captured": pre[1],
-                          "trading_sessions_missed_since_first": missed},
+                          "trading_sessions_missed_since_first": missed,
+                          "excused_missed_sessions": [str(d) for d in excused]},
                          "required: a PASS verdict (C6 is the only WARN, explained) and "
                          "recurring daily capture (>= 2 sessions, none missed)", k_dep))
 
