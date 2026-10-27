@@ -2595,6 +2595,8 @@ def shadow_daily(
                 if inp.get("skipped"):
                     out = {"snapshots": [], "trades": [], "skips": [], "counts": {}}
                 else:
+                    from app.lab import switches as LS
+                    inp["switched_off"] = sorted(await LS.disabled(s, SJ.SP.STRATEGIES))
                     out = SJ.compute(inp, await SS.prior_daily_net(s, d) if commit else {})
                 if commit:
                     r = await SS.record(s, d, inp, out, cutoff=cutoff, token=token,
@@ -3006,6 +3008,198 @@ def e6_look():
     async def _go():
         async with get_sessionmaker()() as s:
             out = await look(s)
+            await s.rollback()
+            return out
+    typer.echo(_json.dumps(asyncio.run(_go()), indent=1, default=str))
+
+
+# ── Strategy Lab (admin dashboard data; user 2026-10-27) ────────────────────────────────
+lab_app = typer.Typer(help="Strategy Lab: per-day strategy performance, forensics, the "
+                           "morning brief and the strategy switches (PAPER/SHADOW only)")
+app.add_typer(lab_app, name="lab")
+
+
+def _lab_days(session: str | None, frm: str | None, to: str | None):
+    import datetime as _dtm
+    if session:
+        return _dtm.date.fromisoformat(session), _dtm.date.fromisoformat(session)
+    return (_dtm.date.fromisoformat(frm) if frm else None,
+            _dtm.date.fromisoformat(to) if to else None)
+
+
+@lab_app.command("daily")
+def lab_daily(
+    session: str = typer.Option(None, "--session", help="one session (YYYY-MM-DD)"),
+    frm: str = typer.Option(None, "--from", help="first session (default: the last 7 "
+                            "sessions plus every session without a lab run)"),
+    to: str = typer.Option(None, "--to", help="last session (default: the latest Nifty bar)"),
+    commit: bool = typer.Option(False, "--commit", help="write the lab tables (write token)"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"),
+):
+    """Build strategy_day, trade_forensic and day_forensic for finished sessions."""
+    import datetime as _dtm
+    import json as _json
+
+    from sqlalchemy import text as _text
+
+    from app.db.engine import get_sessionmaker
+    from app.lab import compute as LC
+    from app.lab import store as LST
+    from app.training import replay as RP
+
+    code = RP.code_version()
+    if commit and code["dirty"]:
+        typer.echo("REFUSED: the working tree is dirty; commit first")
+        raise typer.Exit(3)
+    a, b = _lab_days(session, frm, to)
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            last = b or (await s.execute(_text("""select max(market_date) from canon_market_bar
+                where timeframe = '1d' and instrument_key = :k"""), {"k": LC.NIFTY})).scalar()
+            if a is not None:
+                days = await LC.sessions(s, a, last)
+            else:
+                allx = await LC.sessions(s, _dtm.date(2026, 7, 22), last)
+                done = set((await s.execute(_text("""select distinct session_date from lab_run
+                    where kind = 'DAILY'"""))).scalars())
+                days = sorted(set(allx[-7:]) | {d for d in allx if d not in done})
+            res = []
+            for d in days:
+                out = await LC.build(s, d)
+                if commit:
+                    res.append(await LST.record_daily(s, out, token=token,
+                                                      code_git_sha=code["git_sha"]))
+                else:
+                    await s.rollback()
+                    res.append({"session": d, "status": "DRY_RUN", "counts": out["counts"],
+                                "strategies": {x["strategy"]: {"trades": x["trades"],
+                                                               "net_inr": round(x["net_inr"])}
+                                               for x in out["days"]}})
+            return res
+
+    try:
+        res = asyncio.run(_go())
+    except Exception as e:  # noqa: BLE001 - the runbook alerts on the refusal
+        typer.echo(f"REFUSED: {type(e).__name__}: {e}")
+        raise typer.Exit(3)
+    typer.echo(_json.dumps({"lab_version": LC.LAB_VERSION, "sessions": res}, default=str,
+                           indent=1))
+
+
+@lab_app.command("brief")
+def lab_brief(
+    session: str = typer.Option(None, "--session", help="YYYY-MM-DD (default: today IST)"),
+    commit: bool = typer.Option(False, "--commit", help="store the brief (write token)"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"),
+):
+    """The admin's morning brief (before the open). Unvalidated research signals."""
+    import datetime as _dtm
+    import json as _json
+
+    from app.core.clock import IST as _IST
+    from app.core.clock import now as _now
+    from app.db.engine import get_sessionmaker
+    from app.lab import brief as LB
+    from app.lab import compute as LC
+    from app.lab import store as LST
+    from app.training import replay as RP
+
+    code = RP.code_version()
+    if commit and code["dirty"]:
+        typer.echo("REFUSED: the working tree is dirty; commit first")
+        raise typer.Exit(3)
+    day = _dtm.date.fromisoformat(session) if session else _now().astimezone(_IST).date()
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            if day not in await LC.sessions(s, day, day):
+                return {"session": day, "status": "NOT_A_TRADING_DAY"}
+            out = await LB.build(s, day)
+            if commit:
+                return await LST.record_brief(s, out, token=token, code_git_sha=code["git_sha"])
+            await s.rollback()
+            return {"session": day, "status": "DRY_RUN", "counts": out["counts"],
+                    "regime": out["regime"]["state"],
+                    "S1": [x["symbol"] for x in out["candidates"]["S1"]],
+                    "S2": [x["symbol"] for x in out["candidates"]["S2"]]}
+
+    try:
+        res = asyncio.run(_go())
+    except Exception as e:  # noqa: BLE001
+        typer.echo(f"REFUSED: {type(e).__name__}: {e}")
+        raise typer.Exit(3)
+    typer.echo(_json.dumps(res, default=str, indent=1))
+
+
+@lab_app.command("switch")
+def lab_switch(
+    strategy: str = typer.Argument(..., help="strategy name (prajna lab status lists them)"),
+    on: bool = typer.Option(..., "--on/--off", help="switch on or off"),
+    reason: str = typer.Option(..., "--reason", help="why (stored in the audit log)"),
+    token: str = typer.Option(None, "--token", envvar="PRAJNA_SUPPLIED_TOKEN",
+                              help="write authorization token (or env PRAJNA_SUPPLIED_TOKEN)"),
+):
+    """Switch a paper or P1 strategy on or off (append-only audit log)."""
+    import json as _json
+
+    from app.db.engine import get_sessionmaker
+    from app.lab import switches as LSW
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            return await LSW.set_switch(s, strategy, on, reason, token)
+
+    try:
+        res = asyncio.run(_go())
+    except Exception as e:  # noqa: BLE001
+        typer.echo(f"REFUSED: {type(e).__name__}: {e}")
+        raise typer.Exit(3)
+    typer.echo(_json.dumps(res, default=str, indent=1))
+
+
+@lab_app.command("enabled")
+def lab_enabled(
+    family: str = typer.Option("PAPER", "--family", help="PAPER or P1"),
+    fallback: str = typer.Option("", "--fallback", help="printed if the DB is unreachable"),
+):
+    """Comma-separated enabled strategies of a family (for the runbooks); NONE if none."""
+    from app.db.engine import get_sessionmaker
+    from app.lab import registry as LR
+    from app.lab import switches as LSW
+
+    names = LR.PAPER if family.upper() == "PAPER" else LR.P1
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            out = await LSW.enabled(s, names)
+            await s.rollback()
+            return out
+
+    try:
+        typer.echo(",".join(asyncio.run(_go())) or "NONE")
+    except Exception:  # noqa: BLE001 - the runbook keeps its own list
+        typer.echo(fallback)
+
+
+@lab_app.command("status")
+def lab_status():
+    """Switch states, recent switch history and the latest lab runs."""
+    import json as _json
+
+    from sqlalchemy import text as _text
+
+    from app.db.engine import get_sessionmaker
+    from app.lab import switches as LSW
+
+    async def _go():
+        async with get_sessionmaker()() as s:
+            runs = (await s.execute(_text("""select kind, session_date, created_at, counts
+                from lab_run order by created_at desc limit 10"""))).all()
+            out = {"switches": await LSW.current(s), "history": await LSW.history(s, 20),
+                   "runs": [dict(r._mapping) for r in runs]}
             await s.rollback()
             return out
     typer.echo(_json.dumps(asyncio.run(_go()), indent=1, default=str))

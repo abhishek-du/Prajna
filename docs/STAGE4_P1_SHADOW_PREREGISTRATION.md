@@ -363,3 +363,16 @@ The decision journal with plan adherence comes in P3, when a policy takes decisi
 - `paper_daily.sh`;
 - the Stage 1–3 code and gates;
 - frontend/ and backend/app/api/.
+
+## Amendment 2026-10-27: daily outcomes visible to the admin (Strategy Lab)
+
+The user decided (2026-10-27): "hume har stratigy ka per day performance dikhana hai or saare performace history bhi save ho sabkuch database mai … baaki 60 day session 250 session to asitis chalte rahenge".
+
+**From 2026-10-28, this test's daily outcomes are shown to the admin** on the Strategy Lab dashboard and in a nightly Telegram summary (docs/STRATEGY_LAB.md).
+
+**Unchanged:** the frozen rules, the forward window, the data, the metrics, the gates and the look dates. The look does not read any lab table.
+
+**Changed:**
+- The look report must state that outcomes were visible daily from 2026-10-28.
+- No rule may be changed because of the daily numbers. A change is a new version with its own fresh forward window.
+- **Switches.** The admin may switch a variant off (`strategy_switch`). That session's run then records one `SWITCHED_OFF` skip row for the variant, with no trades and no placebo. The look reports every switched-off session as a protocol deviation. The spec and its sha are unchanged.

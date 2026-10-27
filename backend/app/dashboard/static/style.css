@@ -71,3 +71,26 @@ tr.click { cursor: pointer; } tr.click:hover { background: var(--panel2); }
 .heat .up, .heat .down, .heat .muted { color: #fff; opacity: .92; }
 .plan { border-color: #3b4b5e; }
 .plan .big { font-size: 21px; }
+/* Strategy Lab */
+.labtabs button { font-size: 13px; }
+.lab-note { color: #c9d4de; margin-bottom: 8px; }
+.lab-card { display: flex; flex-direction: column; gap: 6px; }
+.lab-card.off { opacity: .6; }
+.lab-card-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lab-card-h .right, .lab-card-h label { margin-left: auto; }
+.lab-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.lab-kpis .big { font-size: 19px; }
+.spark { height: 44px; display: block; }
+.switch { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; }
+.switch input { width: 34px; height: 18px; accent-color: var(--up); cursor: pointer; }
+.lab-day { margin-bottom: 12px; }
+.lab-socha h3 { margin-top: 6px; }
+.lab-socha > div { min-width: 0; }
+.warn-text { color: var(--warn); }
+.warn-box { border-color: #6b5419; color: #f5d68a; }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: flex; align-items: center;
+  justify-content: center; z-index: 20; padding: 16px; }
+.modal-card { width: 420px; max-width: 100%; display: flex; flex-direction: column; gap: 10px; }
+.inp { display: block; width: 100%; margin-top: 4px; padding: 7px 10px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+select { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }

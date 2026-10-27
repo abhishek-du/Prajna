@@ -124,3 +124,15 @@ After a quarterly results announcement, do the stocks with the strongest market-
 **Decided 2026-10-23:** D1 (b)+(c); D2 ₹5 cr; D3 20 sessions; D4 35 bps; D5 start now.
 
 After the decisions: build §7, run the tests, then freeze. The threshold numbers, the cost and the rule hash are written into this file and into `e6_freeze`, and the file becomes **FROZEN**.
+
+## Amendment 2026-10-27: daily outcomes visible to the admin (Strategy Lab)
+
+The user decided (2026-10-27): "hume har stratigy ka per day performance dikhana hai or saare performace history bhi save ho sabkuch database mai … baaki 60 day session 250 session to asitis chalte rahenge".
+
+**From 2026-10-28, this test's daily outcomes are shown to the admin** on the Strategy Lab dashboard and in a nightly Telegram summary (docs/STRATEGY_LAB.md).
+
+**Unchanged:** the frozen rules, the forward window, the data, the metrics, the gates and the look dates. The look does not read any lab table.
+
+**Changed:**
+- The look report must state that outcomes were visible daily from 2026-10-28.
+- No rule may be changed because of the daily numbers. A change is a new version with its own fresh forward window.

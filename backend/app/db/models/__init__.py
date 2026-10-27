@@ -36,6 +36,14 @@ from app.db.models.market import (
     OhlcvPayloadBasis,
     TickArchive,
 )
+from app.db.models.lab import (
+    DailyBrief,
+    DayForensic,
+    LabRun,
+    StrategyDay,
+    StrategySwitch,
+    TradeForensic,
+)
 from app.db.models.paper import PaperDay, PaperFill, PaperOrder, PaperRiskDecision, PaperRun
 from app.db.models.shadow import (
     LlmReview,
@@ -69,6 +77,7 @@ from app.db.models.reference import (
 
 __all__ = [
     "Base",
+    "DailyBrief", "DayForensic", "LabRun", "StrategyDay", "StrategySwitch", "TradeForensic",
     "ResultsEvent", "FundamentalRefresh",
     "ModelVersion", "ModelPrediction", "GateScanCheckpoint",
     "IngestRun", "RawPayload", "IngestWatermark", "IngestAnomaly",

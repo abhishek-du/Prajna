@@ -12,7 +12,11 @@ set -uo pipefail
 cd "$(dirname "$0")/../.."
 P="${PRAJNA_PY:-.venv/bin/python}"
 NOTIFY="${PRAJNA_TELEGRAM_CMD:-ops/runbooks/telegram_notify.sh}"
-STRATS="${PRAJNA_PAPER_STRATEGIES:-baseline_gap_fade,bench_c0}"
+# The strategy list: PRAJNA_PAPER_STRATEGIES if set, else the admin's switches
+# (strategy_switch, Strategy Lab), else the old default when the DB is unreachable.
+DEFAULT_STRATS="baseline_gap_fade,bench_c0"
+STRATS="${PRAJNA_PAPER_STRATEGIES:-$("${PRAJNA_PY:-.venv/bin/python}" -m app.cli.main --plain lab enabled --family PAPER --fallback "$DEFAULT_STRATS" 2>/dev/null | tail -1)}"
+STRATS="${STRATS:-$DEFAULT_STRATS}"
 SEND=1; [[ "${1:-}" == "--no-telegram" ]] && SEND=0
 mkdir -p var/logs/paper var/run
 DAY="$(TZ=Asia/Kolkata date +%F)"; LOG="var/logs/paper/daily_${DAY}.log"
@@ -20,6 +24,9 @@ say() { echo "[$(TZ=Asia/Kolkata date '+%F %T IST')] $*" | tee -a "$LOG"; }
 exec 9> var/run/paper.lock
 flock -n 9 || { say "PAPER_DAILY_SKIP another paper job holds var/run/paper.lock"; exit 0; }
 export PRAJNA_SUPPLIED_TOKEN="$(grep '^PRAJNA_WRITE_TOKEN=' .env 2>/dev/null | cut -d= -f2-)"
+if [[ "$STRATS" == "NONE" ]]; then
+  say "PAPER_DAILY_SKIP every paper strategy is switched off (Strategy Lab)"; exit 0
+fi
 say "PAPER_DAILY_START strategies=${STRATS}"
 rc=0
 IFS=',' read -ra LIST <<< "$STRATS"

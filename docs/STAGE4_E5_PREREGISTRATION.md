@@ -121,3 +121,15 @@ These change no prediction of forward day 1, and the model sha (`4db89a70…`) i
 - **Book:** mean s_d +8 bps, CI [−16, +34] bps.
 - **Trading:** 49 of 74 sessions were cash (few names clear the cost).
 - **Member ICs:** ridge 0.061, lgbm_reg 0.043, lgbm_clf 0.028, rf_clf 0.018, lstm_clf −0.000. v2 adds the stacking weights for this reason.
+
+## Amendment 2026-10-27: daily outcomes visible to the admin (Strategy Lab)
+
+The user decided (2026-10-27): "hume har stratigy ka per day performance dikhana hai or saare performace history bhi save ho sabkuch database mai … baaki 60 day session 250 session to asitis chalte rahenge".
+
+**From 2026-10-28, this test's daily outcomes are shown to the admin** on the Strategy Lab dashboard and in a nightly Telegram summary (docs/STRATEGY_LAB.md).
+
+**Unchanged:** the frozen rules, the forward window, the data, the metrics, the gates and the look dates. The look does not read any lab table.
+
+**Changed:**
+- The look report must state that outcomes were visible daily from 2026-10-28.
+- No rule may be changed because of the daily numbers. A change is a new version with its own fresh forward window.

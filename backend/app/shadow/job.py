@@ -284,6 +284,13 @@ def compute(inp: dict[str, Any], prior_daily_net: dict[str, list[float]]) -> dic
                               "excluded_results": len(inp["excluded_results"]),
                               "excluded_ca": len(inp["excluded_ca"])}
     for strat in SP.STRATEGIES:
+        if strat in inp.get("switched_off", ()):
+            # the admin switched this variant off (strategy_switch, Strategy Lab): one skip
+            # row records it; no trades, no placebo. The spec is unchanged.
+            skips.append({"strategy": strat, "instrument_key": "*", "reason": "SWITCHED_OFF",
+                          "signal_at": None, "detail": {"source": "strategy_switch"}})
+            counts[strat] = {"switched_off": True}
+            continue
         var = SP.VARIANTS[strat]
         pool = pools[var["fo_only"]]
         cands: list[STG.Candidate] = []

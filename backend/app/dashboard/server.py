@@ -14,7 +14,7 @@ import time
 from datetime import date as _date
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -480,3 +480,102 @@ async def health() -> JSONResponse:
     hit = _cache.get("market")
     return _json({"ok": True, "market_cached_s": None if not hit
                   else round(time.monotonic() - hit[0]), "live": LIVE.summary()})
+
+
+# ── Strategy Lab (user 2026-10-27): per-day performance, forensics, regime, brief ────────
+# Reads only, except POST /api/lab/switch, which needs the write token (X-Prajna-Token).
+def _lab_json(x: Any) -> JSONResponse:
+    from fastapi.encoders import jsonable_encoder
+    return _json(jsonable_encoder(x))
+
+
+async def _lab_read(fn, *a):
+    async with get_sessionmaker()() as s:
+        await DD.read_only(s)
+        out = await fn(s, *a)
+        await s.rollback()
+    return out
+
+
+def _day(d: str | None) -> _date | None:
+    try:
+        return _date.fromisoformat(d) if d else None
+    except ValueError:
+        raise HTTPException(400, f"bad date {d!r} (YYYY-MM-DD)") from None
+
+
+@app.get("/api/lab/overview")
+async def lab_overview() -> JSONResponse:
+    from app.dashboard import lab_data as LD
+    return _lab_json(await _lab_read(LD.overview))
+
+
+@app.get("/api/lab/day")
+async def lab_day(date: str | None = None) -> JSONResponse:
+    from app.dashboard import lab_data as LD
+    d = _day(date)
+    if d is None:
+        ds = await _lab_read(LD.dates)
+        if not ds:
+            return _lab_json({"available": False, "date": None})
+        d = ds[0]
+    return _lab_json(await _lab_read(LD.day, d))
+
+
+@app.get("/api/lab/trade/{trade_id}")
+async def lab_trade(trade_id: int) -> JSONResponse:
+    from app.dashboard import lab_data as LD
+    t = await _lab_read(LD.trade, trade_id)
+    if t is None:
+        raise HTTPException(404, f"no trade {trade_id}")
+    return _lab_json(t)
+
+
+@app.get("/api/lab/regime")
+async def lab_regime(start: str | None = None, end: str | None = None) -> JSONResponse:
+    from app.dashboard import lab_data as LD
+    return _lab_json(await _lab_read(LD.regime, _day(start), _day(end)))
+
+
+@app.get("/api/lab/history/{strategy}")
+async def lab_history(strategy: str) -> JSONResponse:
+    from app.dashboard import lab_data as LD
+    return _lab_json(await _lab_read(LD.history, strategy))
+
+
+@app.get("/api/lab/brief")
+async def lab_brief(date: str | None = None) -> JSONResponse:
+    from app.core.clock import IST, now
+    from app.dashboard import lab_data as LD
+    return _lab_json(await _lab_read(LD.brief, _day(date) or now().astimezone(IST).date()))
+
+
+@app.get("/api/lab/health")
+async def lab_health() -> JSONResponse:
+    from app.dashboard import lab_data as LD
+    return _lab_json(await _lab_read(LD.health))
+
+
+@app.get("/api/lab/switches")
+async def lab_switches() -> JSONResponse:
+    from app.lab import switches as SW
+
+    async def _both(s):
+        return {"current": await SW.current(s), "history": await SW.history(s, 50)}
+    return _lab_json(await _lab_read(_both))
+
+
+@app.post("/api/lab/switch")
+async def lab_switch(body: dict[str, Any], x_prajna_token: str | None = Header(None)
+                     ) -> JSONResponse:
+    from app.core.errors import AuthorizationError
+    from app.lab import switches as SW
+    try:
+        async with get_sessionmaker()() as s:
+            out = await SW.set_switch(s, str(body.get("strategy", "")), bool(body.get("on")),
+                                      str(body.get("reason", "")), x_prajna_token)
+    except AuthorizationError as e:
+        raise HTTPException(403, str(e)) from None
+    except SW.SwitchRefused as e:
+        raise HTTPException(400, str(e)) from None
+    return _lab_json(out)
