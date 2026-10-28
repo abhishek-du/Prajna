@@ -20,8 +20,12 @@ say() { echo "[$(TZ=Asia/Kolkata date '+%F %T IST')] $*"; }
 exec 9> var/run/lab.lock
 flock -n 9 || { say "LAB_DAILY_SKIP another lab job holds var/run/lab.lock"; exit 0; }
 export PRAJNA_SUPPLIED_TOKEN="$(grep '^PRAJNA_WRITE_TOKEN=' .env 2>/dev/null | cut -d= -f2-)"
-say "LAB_DAILY_START"
-if "$P" -m app.cli.main --plain lab daily --commit > "$OUT" 2>&1; then
+# after the 16:05 close job stored today's 1m bars, today is a finished session too: its daily
+# bar only lands with the next morning's job, so without --to the 22:45 build stopped at the
+# previous session and P1/P2 showed a day late (seen 2026-10-27)
+TO=(); [[ "$(TZ=Asia/Kolkata date +%H%M)" > "1630" ]] && TO=(--to "$DAY")
+say "LAB_DAILY_START ${TO[*]}"
+if "$P" -m app.cli.main --plain lab daily "${TO[@]}" --commit > "$OUT" 2>&1; then
   rc=0
   say "LAB_DAILY_OK $(grep -o '"status": "[A-Z_]*"' "$OUT" | sort | uniq -c | tr -s ' ' | tr '\n' ';')"
   if (( SEND )); then
