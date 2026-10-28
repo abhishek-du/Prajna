@@ -279,3 +279,12 @@ def test_list_action_uses_the_v2_guards():
     ok = {**feat, "close_to_sma_20": 0.02, "turnover_20": 5e8, "rsi_14": 60.0, "atr_pct_14": 0.02}
     assert RJ.list_action(100.0, ok, None, 0.01) == ("BUY", [])
     assert RJ.list_action(None, ok, None, None) == (None, [])
+
+
+def test_cited_field_ids_cite_their_block():
+    from app.desk.investigate import cited_ids
+    raw = {"evidence_ids": ["attr.main_driver", "fund.p/e", "ctx.regime.state", "news:12.title",
+                            "px", "execution"],
+           "why_moved": {"evidence_ids": ["exec.median_turnover", "rule_flags"]}}
+    assert cited_ids(raw) == {"attr", "fund", "ctx", "news:12", "px", "execution", "exec",
+                              "rule"}

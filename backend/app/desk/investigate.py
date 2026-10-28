@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -74,6 +75,21 @@ def _num(x: Any) -> float | None:
     return v if math.isfinite(v) else None
 
 
+_ID_ROOT = re.compile(r"(?:news|res|ca):\d+|px|lvl|attr|exec|ctx|fund|rule")
+
+
+def cited_ids(raw: dict[str, Any]) -> set[str]:
+    """The evidence ids the answer cites, reduced to the dossier's ids: the model often cites a
+    field inside a block ("attr.main_driver", "news:12.title"); that cites the block."""
+    out = set()
+    for i in list(raw.get("evidence_ids") or []) + list(
+            (raw.get("why_moved") or {}).get("evidence_ids") or []):
+        i = str(i).strip()
+        m = _ID_ROOT.match(i)
+        out.add(m.group(0) if m and (m.end() == len(i) or not i[m.end()].isalnum()) else i)
+    return out
+
+
 def validate(raw: dict[str, Any], packet: dict[str, Any]) -> tuple[str, str | None]:
     """('OK', None) or ('INVALID', why)."""
     ids = DS.evidence_ids(packet)
@@ -87,11 +103,11 @@ def validate(raw: dict[str, Any], packet: dict[str, Any]) -> tuple[str, str | No
     if sc is None or not 0 <= sc <= 100:
         return "INVALID", f"score {raw.get('score')!r}"
     pov = raw.get("pov")
-    if not isinstance(pov, dict) or any(not (_num(pov.get(p)) is not None and
-                                             0 <= _num(pov.get(p)) <= 100) for p in K.POVS):
-        return "INVALID", "pov scores"
-    cited = set(raw.get("evidence_ids") or []) | set(
-        ((raw.get("why_moved") or {}).get("evidence_ids")) or [])
+    bad = [p for p in K.POVS if not (isinstance(pov, dict) and _num(pov.get(p)) is not None
+                                     and 0 <= _num(pov.get(p)) <= 100)]
+    if bad:
+        return "INVALID", f"pov scores missing or out of 0-100: {bad} (all of {list(K.POVS)})"
+    cited = cited_ids(raw)
     if not cited:
         return "INVALID", "no evidence cited"
     unknown = cited - ids
@@ -178,8 +194,7 @@ async def investigate(model: Model, packet: dict[str, Any], *,
             "thesis": raw.get("thesis"), "risks": raw.get("risks") or [],
             "invalidation": raw.get("invalidation"),
             "rule_disagreement": raw.get("rule_disagreement"),
-            "evidence_ids": sorted(set(raw.get("evidence_ids") or []) | set(
-                (raw.get("why_moved") or {}).get("evidence_ids") or [])),
+            "evidence_ids": sorted(cited_ids(raw)),
             "conflicts": conflicts(raw, rule)})
     else:
         out.update({"evidence_ids": [], "conflicts": []})
